@@ -59,12 +59,20 @@ jobs:
         run: |
           grep -E "^e: |error:|FAILURE|What went wrong" -A3 build.log | head -300 || true
 
-      - name: Upload build log
+      - name: Publish build log to ci-log branch
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cilog"
+          cp build.log "$RUNNER_TEMP/cilog/build.log" 2>/dev/null || echo "no build log" > "$RUNNER_TEMP/cilog/build.log"
+          cd "$RUNNER_TEMP/cilog"
+          grep -E "^e: |error:|FAILURE|What went wrong|Could not|Execution failed" -A6 build.log > errors.txt || true
+          echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
+          git init -q -b ci-log
+          git add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "build log run ${{ github.run_number }}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-log
 
       - name: Collect APK
         run: |
