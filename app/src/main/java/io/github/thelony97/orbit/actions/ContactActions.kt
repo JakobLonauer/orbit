@@ -1,0 +1,107 @@
+package io.github.thelony97.orbit.actions
+
+import android.Manifest
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.widget.Toast
+import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.Entry
+import io.github.thelony97.orbit.data.EntrySource
+import io.github.thelony97.orbit.data.Mutations
+import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.data.Settings
+import io.github.thelony97.orbit.data.TypeIds
+import io.github.thelony97.orbit.data.newId
+import io.github.thelony97.orbit.data.now
+import io.github.thelony97.orbit.notify.Notifications
+import io.github.thelony97.orbit.sync.SyncEngine
+import java.util.concurrent.TimeUnit
+
+/** Quick actions from a contact. Each one leaves a history entry where Orbit can't see the result itself. */
+object ContactActions {
+
+    fun defaultNumber(c: Contact): String? =
+        c.phones.getOrNull(c.defaultPhone)?.value?.takeIf { it.isNotBlank() }
+            ?: c.phones.firstOrNull { it.value.isNotBlank() }?.value
+
+    fun call(ctx: Context, c: Contact, number: String?, settings: Settings) {
+        val target = number ?: defaultNumber(c) ?: return toast(ctx, "Keine Nummer hinterlegt")
+        if (settings.topicsDuringCall) Notifications.topics(ctx, c)
+        val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", target, null))
+        if (start(ctx, intent) && !SyncEngine.canReadCalls(ctx)) {
+            log(c.id, TypeIds.CALL, "Anruf aus Orbit")
+        }
+    }
+
+    fun sms(ctx: Context, c: Contact, number: String?) {
+        val target = number ?: defaultNumber(c) ?: return toast(ctx, "Keine Nummer hinterlegt")
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", target, null))
+        if (start(ctx, intent) && !SyncEngine.canReadSms(ctx)) {
+            log(c.id, TypeIds.MESSAGE, "SMS aus Orbit")
+        }
+    }
+
+    fun whatsapp(ctx: Context, c: Contact, number: String?) {
+        val target = number ?: defaultNumber(c) ?: return toast(ctx, "Keine Nummer hinterlegt")
+        val digits = target.filter { it.isDigit() || it == '+' }.let {
+            when {
+                it.startsWith("+") -> it.drop(1)
+                it.startsWith("00") -> it.drop(2)
+                it.startsWith("0") -> "43" + it.drop(1)
+                else -> it
+            }
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))
+        if (start(ctx, intent)) log(c.id, TypeIds.MESSAGE, "WhatsApp")
+    }
+
+    fun email(ctx: Context, c: Contact, address: String?) {
+        val target = address ?: c.emails.firstOrNull { it.value.isNotBlank() }?.value
+            ?: return toast(ctx, "Keine E-Mail hinterlegt")
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", target, null))
+        if (start(ctx, intent)) log(c.id, TypeIds.EMAIL, "E-Mail aus Orbit")
+    }
+
+    fun maps(ctx: Context, address: String) {
+        if (address.isBlank()) return toast(ctx, "Keine Adresse hinterlegt")
+        start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(address))))
+    }
+
+    fun dialNumber(ctx: Context, number: String) {
+        start(ctx, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
+    }
+
+    /** Adds an app-action entry unless the same kind was logged in the last 30 minutes. */
+    private fun log(contactId: String, typeId: String, note: String) {
+        val cutoff = now() - TimeUnit.MINUTES.toMillis(30)
+        OrbitRepository.edit { d ->
+            val c = d.contacts.firstOrNull { it.id == contactId } ?: return@edit d
+            val recent = c.entries.any { it.source == EntrySource.APP_ACTION && it.typeId == typeId && it.at > cutoff }
+            if (recent) d
+            else Mutations.addEntry(d, contactId, Entry(newId(), typeId, now(), note, EntrySource.APP_ACTION))
+        }
+    }
+
+    private fun start(ctx: Context, intent: Intent): Boolean {
+        if (ctx !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            ctx.startActivity(intent)
+            true
+        } catch (_: ActivityNotFoundException) {
+            toast(ctx, "Keine passende App gefunden")
+            false
+        } catch (_: SecurityException) {
+            toast(ctx, "Aktion nicht erlaubt")
+            false
+        }
+    }
+
+    private fun toast(ctx: Context, text: String) {
+        Toast.makeText(ctx, text, Toast.LENGTH_SHORT).show()
+    }
+}
