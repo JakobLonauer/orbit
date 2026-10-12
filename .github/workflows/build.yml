@@ -27,26 +27,37 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Prepare signing key
+        id: signing
         env:
-          KEYSTORE_B64: ${{ secrets.ORBIT_KEYSTORE_B64 }}
+          ORBIT_SIGNING_PASSWORD: ${{ secrets.ORBIT_SIGNING_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/orbit.jks"
-            echo "ORBIT_KEYSTORE_PATH=$RUNNER_TEMP/orbit.jks" >> "$GITHUB_ENV"
+          if [ -n "$ORBIT_SIGNING_PASSWORD" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+              -in signing/orbit.jks.enc -out "$RUNNER_TEMP/orbit.jks" -pass env:ORBIT_SIGNING_PASSWORD
+            {
+              echo "ORBIT_KEYSTORE_PATH=$RUNNER_TEMP/orbit.jks"
+              echo "ORBIT_KEY_ALIAS=orbit"
+            } >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
             echo "Signing with the Orbit release key."
           else
-            echo "::warning::ORBIT_KEYSTORE_B64 secret missing - signing with a throwaway debug key."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secret ORBIT_SIGNING_PASSWORD fehlt - Test-Build ohne Release."
           fi
 
       - name: Build release APK
         env:
-          ORBIT_KEYSTORE_PASSWORD: ${{ secrets.ORBIT_KEYSTORE_PASSWORD }}
-          ORBIT_KEY_ALIAS: ${{ secrets.ORBIT_KEY_ALIAS }}
-          ORBIT_KEY_PASSWORD: ${{ secrets.ORBIT_KEY_PASSWORD }}
+          ORBIT_KEYSTORE_PASSWORD: ${{ secrets.ORBIT_SIGNING_PASSWORD }}
+          ORBIT_KEY_PASSWORD: ${{ secrets.ORBIT_SIGNING_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace assembleRelease -PorbitVersionCode=${{ github.run_number }} 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
+
+      - name: Show compiler errors
+        if: failure()
+        run: |
+          grep -E "^e: |error:|FAILURE|What went wrong" -A3 build.log | head -300 || true
 
       - name: Upload build log
         if: always()
@@ -66,6 +77,7 @@ jobs:
           path: out/*.apk
 
       - name: Publish release
+        if: steps.signing.outputs.signed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
