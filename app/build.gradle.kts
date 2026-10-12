@@ -19,7 +19,7 @@ android {
         targetSdk = 36
         versionCode = orbitVersionCode
         versionName = "1.0.$orbitVersionCode"
-        buildConfigField("String", "GITHUB_REPO", "\"TheLony97/orbit\"")
+        buildConfigField("String", "GITHUB_REPO", "\"JakobLonauer/orbit\"")
     }
 
     signingConfigs {
