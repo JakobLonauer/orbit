@@ -38,6 +38,7 @@ import io.github.thelony97.orbit.ui.settings.EntryTypesScreen
 import io.github.thelony97.orbit.ui.settings.GroupsScreen
 import io.github.thelony97.orbit.ui.settings.TrashScreen
 import io.github.thelony97.orbit.ui.suggestions.SuggestionsScreen
+import io.github.thelony97.orbit.ui.theme.Space
 
 /** Callbacks every screen needs for moving around. */
 class Nav(
@@ -52,10 +53,10 @@ fun OrbitRoot(activity: FragmentActivity) {
     val locked by AppLock.locked.collectAsStateWithLifecycle()
     val current = data
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    Box(Modifier.fillMaxSize().background(Space.Void)) {
         when {
             current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                LoadingIndicator(Modifier.size(64.dp))
+                LoadingIndicator(modifier = Modifier.size(56.dp), color = Space.Violet)
             }
             !current.settings.onboardingDone -> OnboardingScreen(current)
             else -> MainNavigation(current)

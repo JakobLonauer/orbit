@@ -75,6 +75,7 @@ object Notifications {
 
     private fun base(ctx: Context, channel: String) = NotificationCompat.Builder(ctx, channel)
         .setSmallIcon(R.drawable.ic_notification)
+        .setColor(0xFFA78BFF.toInt())
         .setAutoCancel(true)
 
     data class DigestContent(

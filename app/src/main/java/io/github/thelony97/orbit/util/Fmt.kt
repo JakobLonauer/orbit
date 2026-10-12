@@ -25,6 +25,15 @@ object Fmt {
         else -> (days / 365).let { if (it == 1L) "vor 1 Jahr" else "vor $it Jahren" }
     }
 
+    /** Very short relative age for list rows: "heute", "3 T", "5 W", "4 M", "2 J". */
+    fun short(days: Long): String = when {
+        days <= 0L -> "heute"
+        days < 14 -> "$days T"
+        days < 60 -> "${days / 7} W"
+        days < 365 -> "${days / 30} M"
+        else -> "${days / 365} J"
+    }
+
     /** "in 3 Tagen", "morgen", "heute" */
     fun until(days: Long): String = when {
         days < 0L -> "seit ${-days} ${if (days == -1L) "Tag" else "Tagen"}"

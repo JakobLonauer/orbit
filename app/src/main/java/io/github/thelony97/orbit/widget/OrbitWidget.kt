@@ -46,6 +46,7 @@ import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.today
+import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 
 class OrbitWidgetReceiver : GlanceAppWidgetReceiver() {
@@ -113,25 +114,25 @@ class OrbitWidget : GlanceAppWidget() {
         val size = LocalSize.current
         val (rows, dueCount) = rows(data)
         val openApp = actionStartActivity(Intent(context, MainActivity::class.java))
-        val onSurface = GlanceTheme.colors.onSurface
-        val muted = GlanceTheme.colors.onSurfaceVariant
+        val onSurface = ColorProvider(Space.Text)
+        val muted = ColorProvider(Space.TextDim)
 
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .appWidgetBackground()
-                .background(GlanceTheme.colors.widgetBackground)
+                .background(ColorProvider(Color(0xF20B0B15)))
                 .cornerRadius(24.dp)
                 .padding(14.dp)
                 .clickable(openApp),
         ) {
             if (size.width < 170.dp || size.height < 120.dp) {
                 // Compact: just the number.
-                Text("Orbit", style = TextStyle(color = muted, fontSize = 13.sp, fontWeight = FontWeight.Medium))
+                Text("● Orbit", style = TextStyle(color = ColorProvider(Space.Orange), fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 Spacer(GlanceModifier.height(4.dp))
                 Text(
                     "$dueCount",
-                    style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 40.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = ColorProvider(Space.Violet), fontSize = 40.sp, fontWeight = FontWeight.Bold),
                 )
                 Text(
                     if (dueCount == 1) "Person fällig" else "Personen fällig",
@@ -146,19 +147,19 @@ class OrbitWidget : GlanceAppWidget() {
 
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Orbit · Heute",
+                    "● Orbit",
                     style = TextStyle(color = onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.defaultWeight(),
                 )
                 Box(
                     modifier = GlanceModifier
-                        .background(GlanceTheme.colors.primary)
+                        .background(ColorProvider(Space.Violet))
                         .cornerRadius(12.dp)
                         .padding(horizontal = 10.dp, vertical = 3.dp),
                 ) {
                     Text(
                         "$dueCount fällig",
-                        style = TextStyle(color = GlanceTheme.colors.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                        style = TextStyle(color = ColorProvider(Space.Void), fontSize = 12.sp, fontWeight = FontWeight.Medium),
                     )
                 }
             }

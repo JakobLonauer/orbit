@@ -9,11 +9,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,9 +33,7 @@ import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +42,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
@@ -52,6 +50,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,7 +58,8 @@ import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
-import io.github.thelony97.orbit.ui.theme.onColor
+import io.github.thelony97.orbit.ui.theme.Grotesk
+import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -89,13 +89,21 @@ fun rememberPhoto(name: String?): ImageBitmap? {
     return bitmap
 }
 
+private val fallbackPalette = listOf(
+    Color(0xFFA78BFF), Color(0xFF5EE6CF), Color(0xFFFFB45E), Color(0xFF6FB7FF),
+    Color(0xFFFF8FB1), Color(0xFF9BE37A), Color(0xFFFFD166),
+)
+
 /** Stable colour per contact: first group colour, otherwise derived from the id. */
 fun contactColor(c: Contact, idx: Index): Color {
     c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { return Color(it.color) }
-    val palette = listOf(0xFF7986CB, 0xFF4DB6AC, 0xFFFFB74D, 0xFFBA68C8, 0xFF4FC3F7, 0xFFF06292, 0xFF81C784)
-    return Color(palette[(c.id.hashCode() and 0x7FFFFFFF) % palette.size])
+    return fallbackPalette[(c.id.hashCode() and 0x7FFFFFFF) % fallbackPalette.size]
 }
 
+/**
+ * Photo or initials. The ring takes the group colour; [glowColor] adds light around it
+ * (used for "fällig").
+ */
 @Composable
 fun Avatar(
     contact: Contact,
@@ -103,23 +111,37 @@ fun Avatar(
     size: Dp,
     modifier: Modifier = Modifier,
     shape: Shape = CircleShape,
-    ring: Color? = null,
+    ring: Boolean = true,
+    glowColor: Color? = null,
 ) {
     val photo = rememberPhoto(contact.photo)
-    val base = modifier
-        .size(size)
-        .then(if (ring != null) Modifier.border(2.dp, ring, shape) else Modifier)
-        .clip(shape)
-    if (photo != null) {
-        Image(bitmap = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = base)
-    } else {
-        Box(base.background(color), contentAlignment = Alignment.Center) {
-            Text(
-                Logic.initials(contact),
-                color = onColor(color),
-                fontWeight = FontWeight.Bold,
-                fontSize = (size.value * 0.38f).sp,
-            )
+    val ringWidth = if (size > 56.dp) 2.5.dp else 1.5.dp
+    Box(
+        modifier
+            .size(size)
+            .then(if (glowColor != null) Modifier.glow(glowColor, size / 4, shape, 0.7f) else Modifier)
+            .then(if (ring) Modifier.border(ringWidth, if (glowColor != null) glowColor else color.copy(alpha = 0.85f), shape) else Modifier)
+            .padding(if (ring) ringWidth + 1.5.dp else 0.dp)
+            .clip(shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (photo != null) {
+            Image(bitmap = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.linearGradient(listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0.20f)))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    Logic.initials(contact),
+                    color = Space.Text,
+                    fontFamily = Grotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = (size.value * 0.36f).sp,
+                )
+            }
         }
     }
 }
@@ -143,6 +165,7 @@ fun entryIcon(key: String): ImageVector = when (key) {
     else -> Icons.Rounded.Star
 }
 
+/** Section = small uppercase title + glass card. */
 @Composable
 fun SectionCard(
     title: String,
@@ -151,42 +174,25 @@ fun SectionCard(
     action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 14.dp, bottom = 14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                if (icon != null) {
-                    Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
-                }
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                action?.invoke()
-            }
-            Spacer(Modifier.size(6.dp))
-            content()
-        }
+    GlassCard(modifier, padding = 12.dp) {
+        SectionTitle(title, icon, action = if (action != null) { { action() } } else null)
+        content()
     }
 }
 
 @Composable
 fun Pill(text: String, color: Color, modifier: Modifier = Modifier) {
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.22f), modifier = modifier) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
-            Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-        }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.14f))
+            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Box(Modifier.size(6.dp).background(color, CircleShape))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = Space.Text)
     }
 }
 
@@ -200,9 +206,10 @@ fun ConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = { TextButton(onClick = { onConfirm(); onDismiss() }) { Text(confirm) } },
+        containerColor = Space.PanelHigh,
+        title = { Text(title, style = MaterialTheme.typography.titleLargeEmphasized) },
+        text = { Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim) },
+        confirmButton = { TextButton(onClick = { onConfirm(); onDismiss() }) { Text(confirm, color = Space.Coral) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }
@@ -210,11 +217,14 @@ fun ConfirmDialog(
 @Composable
 fun EmptyHint(title: String, text: String, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(32.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = MaterialTheme.colorScheme.onSurface)
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            Modifier.size(14.dp).glow(Space.Orange, 12.dp).background(Space.Orange, CircleShape),
+        )
+        Text(title, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, modifier = Modifier.padding(top = 8.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim, textAlign = TextAlign.Center)
     }
 }

@@ -8,23 +8,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,7 +33,12 @@ import io.github.thelony97.orbit.data.EntryType
 import io.github.thelony97.orbit.data.TypeIds
 import io.github.thelony97.orbit.data.newId
 import io.github.thelony97.orbit.domain.zone
+import io.github.thelony97.orbit.ui.components.GhostButton
+import io.github.thelony97.orbit.ui.components.GlowButton
+import io.github.thelony97.orbit.ui.components.SpaceChip
+import io.github.thelony97.orbit.ui.components.SpaceField
 import io.github.thelony97.orbit.ui.components.entryIcon
+import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import java.time.Instant
 import java.time.LocalDate
@@ -68,63 +66,48 @@ fun EntrySheet(
     var pickTime by remember { mutableStateOf(false) }
     val fromSystem = initial != null && initial.source != EntrySource.MANUAL
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Space.PanelHigh,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.headlineSmallEmphasized)
+            Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
 
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 types.forEach { t ->
-                    FilterChip(
-                        selected = typeId == t.id,
-                        onClick = { typeId = t.id },
-                        label = { Text(t.name) },
-                        leadingIcon = { Icon(entryIcon(t.icon), null, Modifier.size(18.dp)) },
-                    )
+                    SpaceChip(t.name, typeId == t.id, { typeId = t.id }, leading = entryIcon(t.icon))
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                    onClick = { pickDate = true },
-                    label = { Text(if (date == LocalDate.now(zone())) "Heute" else Fmt.weekdayDate(date)) },
-                    leadingIcon = { Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(18.dp)) },
-                    enabled = !fromSystem,
-                )
-                AssistChip(
-                    onClick = { pickTime = true },
-                    label = { Text("%02d:%02d".format(time.hour, time.minute)) },
-                    leadingIcon = { Icon(Icons.Rounded.Schedule, null, Modifier.size(18.dp)) },
-                    enabled = !fromSystem,
-                )
+            if (!fromSystem) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SpaceChip(
+                        if (date == LocalDate.now(zone())) "Heute" else Fmt.weekdayDate(date),
+                        false, { pickDate = true }, leading = Icons.Rounded.CalendarMonth,
+                    )
+                    SpaceChip("%02d:%02d".format(time.hour, time.minute), false, { pickTime = true }, leading = Icons.Rounded.Schedule)
+                }
+            } else {
+                Text(Fmt.dateTime(initial!!.at), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
             }
 
-            OutlinedTextField(
-                state = note,
-                label = { Text("Notiz") },
-                placeholder = { Text("Worüber habt ihr gesprochen?") },
-                lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            SpaceField(note, "Notiz", singleLine = false, placeholder = "Worüber habt ihr gesprochen?")
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
-                    TextButton(onClick = { onDelete(); onDismiss() }) {
-                        Icon(Icons.Rounded.Delete, null, Modifier.size(18.dp))
-                        Spacer(Modifier.size(6.dp))
-                        Text("Löschen")
-                    }
+                    GhostButton("Löschen", { onDelete(); onDismiss() }, icon = Icons.Rounded.Delete, color = Space.Coral)
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("Abbrechen") }
-                Spacer(Modifier.size(8.dp))
-                Button(onClick = {
+                GlowButton("Speichern", {
                     val at = LocalDateTime.of(date, time).atZone(zone()).toInstant().toEpochMilli()
                     val text = note.text.toString().trim()
                     val entry = if (initial != null) {
@@ -134,7 +117,7 @@ fun EntrySheet(
                     }
                     onSave(entry)
                     onDismiss()
-                }) { Text("Speichern") }
+                }, icon = Icons.Rounded.Check)
             }
         }
     }

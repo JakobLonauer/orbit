@@ -67,6 +67,13 @@ import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.entryIcon
 import io.github.thelony97.orbit.ui.detail.rhythmPresets
 import io.github.thelony97.orbit.util.Fmt
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import io.github.thelony97.orbit.ui.components.GlowButton
+import io.github.thelony97.orbit.ui.components.OrbButton
+import io.github.thelony97.orbit.ui.components.SpaceBackground
+import io.github.thelony97.orbit.ui.theme.Space
 import java.time.temporal.ChronoUnit
 
 @Composable
@@ -77,30 +84,31 @@ private fun ManageScaffold(
     onFab: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = { IconButton(onClick = nav.back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück") } },
-            )
-        },
-        floatingActionButton = {
-            if (fabLabel != null) {
-                ExtendedFloatingActionButton(
-                    text = { Text(fabLabel) },
-                    icon = { Icon(Icons.Rounded.Add, null) },
-                    onClick = onFab,
-                )
-            }
-        },
-        content = content,
-    )
+    SpaceBackground {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                Row(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
+                }
+            },
+            floatingActionButton = {
+                if (fabLabel != null) GlowButton(fabLabel, onFab, icon = Icons.Rounded.Add)
+            },
+            content = content,
+        )
+    }
 }
 
 @Composable
 private fun segmentedColors() = ListItemDefaults.colors(
-    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    contentColor = MaterialTheme.colorScheme.onSurface,
+    containerColor = Space.Panel,
+    contentColor = Space.Text,
 )
 
 // ---------------------------------------------------------------- Groups

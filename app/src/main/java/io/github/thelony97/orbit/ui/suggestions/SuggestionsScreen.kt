@@ -41,6 +41,14 @@ import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.EmptyHint
 import io.github.thelony97.orbit.util.Fmt
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Color
+import io.github.thelony97.orbit.ui.components.OrbButton
+import io.github.thelony97.orbit.ui.components.SpaceBackground
+import io.github.thelony97.orbit.ui.components.glass
+import io.github.thelony97.orbit.ui.theme.Space
 import java.time.temporal.ChronoUnit
 
 @Composable
@@ -51,12 +59,18 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
         .filter { !it.dismissed && it.calls + it.sms >= 2 }
         .sortedWith(compareByDescending<io.github.thelony97.orbit.data.UnknownNumber> { it.calls + it.sms }.thenByDescending { it.lastAt })
 
+    SpaceBackground {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text("Vorschläge") },
-                navigationIcon = { IconButton(onClick = nav.back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück") } },
-            )
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
+                Spacer(Modifier.width(12.dp))
+                Text("Vorschläge", style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
+            }
         },
     ) { padding ->
         if (list.isEmpty()) {
@@ -76,10 +90,8 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
             }
             items(list, key = { it.key }) { u ->
                 val days = ChronoUnit.DAYS.between(u.lastAt.toLocalDate(), today())
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                Box(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp).glass(RoundedCornerShape(20.dp)),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(u.cachedName ?: Phones.pretty(u.display, iso), style = MaterialTheme.typography.titleMediumEmphasized)
@@ -114,4 +126,5 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
             }
         }
     }
+}
 }

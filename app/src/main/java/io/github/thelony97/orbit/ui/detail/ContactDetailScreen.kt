@@ -3,20 +3,31 @@ package io.github.thelony97.orbit.ui.detail
 import android.content.Intent
 import android.provider.CalendarContract
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cake
@@ -27,13 +38,13 @@ import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -41,23 +52,14 @@ import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Snooze
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,9 +69,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.data.Anniversary
@@ -88,6 +91,7 @@ import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.startMillis
+import io.github.thelony97.orbit.domain.toLocalDate
 import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.domain.zone
 import io.github.thelony97.orbit.security.AppLock
@@ -95,11 +99,20 @@ import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
+import io.github.thelony97.orbit.ui.components.GhostButton
+import io.github.thelony97.orbit.ui.components.GlassCard
+import io.github.thelony97.orbit.ui.components.GlowBar
+import io.github.thelony97.orbit.ui.components.GlowButton
+import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.Pill
 import io.github.thelony97.orbit.ui.components.SectionCard
+import io.github.thelony97.orbit.ui.components.SectionTitle
+import io.github.thelony97.orbit.ui.components.SpaceBackground
+import io.github.thelony97.orbit.ui.components.Stat
 import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.sheets.DayOfYearDialog
 import io.github.thelony97.orbit.ui.sheets.EntrySheet
+import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import java.time.temporal.ChronoUnit
 
@@ -116,6 +129,15 @@ private sealed interface EntryTarget {
 }
 
 @Composable
+private fun SmallIconAction(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    Icon(
+        icon, description,
+        tint = Space.Violet,
+        modifier = Modifier.size(28.dp).clip(CircleShape).clickable(onClick = onClick).padding(5.dp),
+    )
+}
+
+@Composable
 fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     val contact = idx.contacts[id]
     if (contact == null) {
@@ -128,6 +150,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     val color = contactColor(c, idx)
     val todayDate = today()
     val due = Logic.due(c, idx, todayDate)
+    val isDue = due.state == DueState.DUE
 
     var menu by remember { mutableStateOf(false) }
     var entryTarget by remember { mutableStateOf<EntryTarget?>(null) }
@@ -142,82 +165,95 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
     fun edit(transform: (Contact) -> Contact) = OrbitRepository.editContact(c.id, transform)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = nav.back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück") }
-                },
-                actions = {
-                    IconButton(onClick = { edit { it.copy(favorite = !it.favorite) } }) {
-                        Icon(
-                            if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                            "Favorit",
-                            tint = if (c.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = { nav.open(Route.Edit(id = c.id)) }) { Icon(Icons.Rounded.Edit, "Bearbeiten") }
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Mehr") }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(if (c.paused) "Erinnerungen fortsetzen" else "Erinnerungen pausieren") },
-                            leadingIcon = { Icon(if (c.paused) Icons.Rounded.PlayCircle else Icons.Rounded.PauseCircle, null) },
-                            onClick = { menu = false; edit { it.copy(paused = !it.paused) } },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Um eine Woche verschieben") },
-                            leadingIcon = { Icon(Icons.Rounded.Snooze, null) },
-                            onClick = {
-                                menu = false
-                                edit { it.copy(snoozedUntil = todayDate.plusDays(7).startMillis()) }
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
-                            leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
-                            onClick = { menu = false; edit { it.copy(archived = !it.archived) } },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("In den Papierkorb") },
-                            leadingIcon = { Icon(Icons.Rounded.Delete, null) },
-                            onClick = { menu = false; confirmTrash = true },
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-            )
-        },
-    ) { padding ->
+    val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    SpaceBackground {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 32.dp),
+            contentPadding = PaddingValues(top = top + 6.dp, bottom = bottom + 32.dp),
         ) {
-            // Header
-            item(key = "header") {
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+            // Top bar
+            item(key = "bar") {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Avatar(c, color, 128.dp, shape = MaterialShapes.Cookie9Sided.toShape())
-                    Spacer(Modifier.size(14.dp))
-                    Text(
-                        Logic.displayName(c, false),
-                        style = MaterialTheme.typography.headlineMediumEmphasized,
-                        textAlign = TextAlign.Center,
+                    OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
+                    Spacer(Modifier.weight(1f))
+                    OrbButton(
+                        if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit",
+                        { edit { it.copy(favorite = !it.favorite) } },
+                        size = 38.dp,
+                        accent = if (c.favorite) Space.Orange else null,
                     )
-                    val job = listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
-                    if (job.isNotBlank()) {
-                        Text(job, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OrbButton(Icons.Rounded.Edit, "Bearbeiten", { nav.open(Route.Edit(id = c.id)) }, size = 38.dp)
+                    Box {
+                        OrbButton(Icons.Rounded.MoreVert, "Mehr", { menu = true }, size = 38.dp)
+                        DropdownMenu(
+                            expanded = menu,
+                            onDismissRequest = { menu = false },
+                            containerColor = Space.PanelHigh,
+                            shape = RoundedCornerShape(16.dp),
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(if (c.paused) "Erinnerungen fortsetzen" else "Erinnerungen pausieren") },
+                                leadingIcon = { Icon(if (c.paused) Icons.Rounded.PlayCircle else Icons.Rounded.PauseCircle, null) },
+                                onClick = { menu = false; edit { it.copy(paused = !it.paused) } },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Um eine Woche verschieben") },
+                                leadingIcon = { Icon(Icons.Rounded.Snooze, null) },
+                                onClick = { menu = false; edit { it.copy(snoozedUntil = todayDate.plusDays(7).startMillis()) } },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
+                                leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
+                                onClick = { menu = false; edit { it.copy(archived = !it.archived) } },
+                            )
+                            HorizontalDivider(color = Space.Line)
+                            DropdownMenuItem(
+                                text = { Text("In den Papierkorb", color = Space.Coral) },
+                                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = Space.Coral) },
+                                onClick = { menu = false; confirmTrash = true },
+                            )
+                        }
                     }
-                    val groups = c.groupIds.mapNotNull { idx.groups[it] }
-                    if (groups.isNotEmpty() || c.paused || c.archived) {
-                        Spacer(Modifier.size(10.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            groups.forEach { g -> Pill(g.name, Color(g.color)) }
-                            if (c.paused) Pill("Pausiert", MaterialTheme.colorScheme.outline)
-                            if (c.archived) Pill("Archiviert", MaterialTheme.colorScheme.outline)
+                }
+            }
+
+            // Hero
+            item(key = "hero") {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(c, color, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = if (isDue) Space.Coral else color)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            Logic.displayName(c, false),
+                            style = MaterialTheme.typography.headlineSmallEmphasized,
+                            color = Space.Text,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val job = listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
+                        if (job.isNotBlank()) {
+                            Text(job, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        val groups = c.groupIds.mapNotNull { idx.groups[it] }
+                        if (groups.isNotEmpty() || c.paused || c.archived) {
+                            FlowRow(
+                                Modifier.padding(top = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                groups.forEach { g -> Pill(g.name, Color(g.color)) }
+                                if (c.paused) Pill("pausiert", Space.TextDim)
+                                if (c.archived) Pill("archiviert", Space.TextDim)
+                            }
                         }
                     }
                 }
@@ -227,75 +263,58 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             item(key = "actions") {
                 val number = ContactActions.defaultNumber(c)
                 val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
-                    ActionTile(
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    ActionOrb(
                         Icons.Rounded.Call, "Anrufen", number != null,
                         onClick = { ContactActions.call(ctx, c, null, data.settings) },
                         onLongClick = { chooser = Chooser.Call },
+                        accent = Space.Teal,
                     )
-                    ActionTile(
-                        Icons.Rounded.Sms, "SMS", number != null,
-                        onClick = { ContactActions.sms(ctx, c, null) },
-                        onLongClick = { chooser = Chooser.Sms },
-                    )
-                    ActionTile(
-                        Icons.Rounded.ChatBubble, "WhatsApp", number != null,
-                        onClick = { ContactActions.whatsapp(ctx, c, null) },
-                        onLongClick = { chooser = Chooser.WhatsApp },
-                    )
-                    ActionTile(
+                    ActionOrb(Icons.Rounded.Sms, "SMS", number != null, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
+                    ActionOrb(Icons.Rounded.ChatBubble, "WhatsApp", number != null, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
+                    ActionOrb(
                         Icons.Rounded.Email, "E-Mail", email != null,
                         onClick = { if (c.emails.count { it.value.isNotBlank() } > 1) chooser = Chooser.Mail else ContactActions.email(ctx, c, null) },
                     )
-                    ActionTile(
-                        Icons.Rounded.Map, "Karte", c.address.isNotBlank(),
-                        onClick = { ContactActions.maps(ctx, c.address) },
-                    )
+                    ActionOrb(Icons.Rounded.Map, "Karte", c.address.isNotBlank(), onClick = { ContactActions.maps(ctx, c.address) })
                 }
             }
 
-            // Rhythm / status
+            // Status strip
             item(key = "status") {
-                SectionCard(title = "Im Orbit", icon = Icons.Rounded.Timer) {
-                    val groupRhythm = c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull()
-                    val rhythmText = when {
-                        c.rhythmDays != null -> "Melde dich ${Fmt.rhythm(c.rhythmDays)} (persönlich)"
-                        groupRhythm != null -> {
-                            val g = c.groupIds.mapNotNull { idx.groups[it] }.filter { it.rhythmDays == groupRhythm }.joinToString { it.name }
-                            "Melde dich ${Fmt.rhythm(groupRhythm)} ($g)"
-                        }
-                        else -> "Kein Rhythmus festgelegt"
-                    }
-                    InfoRow(label = "Rhythmus · tippen zum Ändern", value = rhythmText, onClick = { rhythmDialog = true })
+                GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
                     val last = c.entries.maxByOrNull { it.at }
-                    if (last != null) {
-                        val days = ChronoUnit.DAYS.between(java.time.Instant.ofEpochMilli(last.at).atZone(zone()).toLocalDate(), todayDate)
-                        InfoRow(label = "Zuletzt", value = "${idx.types[last.typeId]?.name ?: "Kontakt"} · ${Fmt.ago(days)}")
+                    val lastDays = last?.let { ChronoUnit.DAYS.between(it.at.toLocalDate(), todayDate) }
+                    val until = due.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) }
+                    Row(Modifier.fillMaxWidth()) {
+                        Stat(lastDays?.let { Fmt.short(it) } ?: "–", "zuletzt")
+                        Stat(due.rhythm?.let { "${it} T" } ?: "–", "Rhythmus", onClick = { rhythmDialog = true })
+                        Stat(
+                            when {
+                                c.archived -> "Archiv"
+                                c.paused -> "Pause"
+                                until != null -> dueLine(until)
+                                else -> "–"
+                            },
+                            "fällig",
+                            color = if (isDue) Space.Coral else Space.Text,
+                        )
                     }
-                    when {
-                        c.archived -> Text("Archiviert – keine Erinnerungen", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        c.paused -> Text("Pausiert – keine Erinnerungen", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        due.rhythm != null && due.dueDate != null -> {
-                            val until = ChronoUnit.DAYS.between(todayDate, due.dueDate)
-                            val progress = (1f - until.toFloat() / due.rhythm).coerceIn(0f, 1f)
-                            Spacer(Modifier.size(6.dp))
-                            LinearWavyProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                                color = if (due.state == DueState.DUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.size(6.dp))
-                            Text(
-                                dueLine(until),
-                                style = MaterialTheme.typography.titleSmallEmphasized,
-                                color = if (due.state == DueState.DUE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                    if (due.rhythm != null && until != null && !c.paused && !c.archived) {
+                        Spacer(Modifier.size(10.dp))
+                        GlowBar((1f - until.toFloat() / due.rhythm).coerceIn(0f, 1f), if (isDue) Space.Coral else Space.Teal)
                     }
-                    Spacer(Modifier.size(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(onClick = { entryTarget = EntryTarget.New(TypeIds.MEET) }) { Text("Kontakt eintragen") }
-                        OutlinedButton(onClick = { meetingDialog = true }) { Text("Treffen planen") }
+                    val subline = when {
+                        last != null -> "${idx.types[last.typeId]?.name ?: "Kontakt"} ${Fmt.ago(lastDays ?: 0)} · Rhythmus antippen zum Ändern"
+                        else -> "Noch kein Kontakt eingetragen"
+                    }
+                    Text(subline, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
+                        GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
                     }
                 }
             }
@@ -334,9 +353,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 label = p.label + if (i == c.defaultPhone && c.phones.size > 1) " · Standard" else "",
                                 value = p.value,
                                 onClick = { ContactActions.call(ctx, c, p.value, data.settings) },
-                                trailing = {
-                                    IconButton(onClick = { ContactActions.sms(ctx, c, p.value) }) { Icon(Icons.Rounded.Sms, "SMS") }
-                                },
+                                trailing = { SmallIconAction(Icons.Rounded.Sms, "SMS") { ContactActions.sms(ctx, c, p.value) } },
                             )
                         }
                         c.emails.forEach { e ->
@@ -354,9 +371,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 SectionCard(
                     title = "Geburtstag & Jahrestage",
                     icon = Icons.Rounded.Cake,
-                    action = {
-                        IconButton(onClick = { anniversaryDialog = true }) { Icon(Icons.Rounded.Add, "Jahrestag hinzufügen") }
-                    },
+                    action = { SmallIconAction(Icons.Rounded.Add, "Jahrestag hinzufügen") { anniversaryDialog = true } },
                 ) {
                     val b = c.birthday
                     if (b != null) {
@@ -368,7 +383,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onClick = { birthdayDialog = true },
                         )
                     } else {
-                        TextButton(onClick = { birthdayDialog = true }) { Text("Geburtstag eintragen") }
+                        InfoRow(label = "Tippen zum Eintragen", value = "Kein Geburtstag", onClick = { birthdayDialog = true })
                     }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
@@ -377,8 +392,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             label = a.label + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
                             value = Fmt.dayOfYear(a.date),
                             trailing = {
-                                IconButton(onClick = { edit { it.copy(anniversaries = it.anniversaries.filterNot { x -> x.id == a.id }) } }) {
-                                    Icon(Icons.Rounded.Close, "Entfernen", Modifier.size(18.dp))
+                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
+                                    edit { it.copy(anniversaries = it.anniversaries.filterNot { x -> x.id == a.id }) }
                                 }
                             },
                         )
@@ -392,33 +407,37 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 SectionCard(
                     title = "Beziehungen",
                     icon = Icons.Rounded.Link,
-                    action = { IconButton(onClick = { relationDialog = true }) { Icon(Icons.Rounded.Add, "Beziehung hinzufügen") } },
+                    action = { SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true } },
                 ) {
                     if (rels.isEmpty()) {
                         Text(
-                            "Verknüpfe Partner, Familie oder Kolleg:innen – die Gegenseite wird automatisch eingetragen.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "Partner, Familie, Kolleg:innen verknüpfen – die Gegenseite entsteht automatisch.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Space.TextFaint,
+                            modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
                     rels.forEach { r ->
                         val outgoing = r.fromId == c.id
-                        val otherId = if (outgoing) r.toId else r.fromId
-                        val other = idx.contacts[otherId]
+                        val other = idx.contacts[if (outgoing) r.toId else r.fromId]
                         if (other != null && other.deletedAt == null) {
                             val kind = Defaults.relationKind(r.kind)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Avatar(other, contactColor(other, idx), 36.dp)
-                                Spacer(Modifier.size(12.dp))
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { nav.open(Route.Detail(other.id)) }
+                                    .padding(vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Avatar(other, contactColor(other, idx), 30.dp)
+                                Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    InfoRow(
-                                        label = if (outgoing) kind.backward else kind.forward,
-                                        value = Logic.displayName(other, lastFirst),
-                                        onClick = { nav.open(Route.Detail(other.id)) },
-                                    )
+                                    Text(Logic.displayName(other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                                    Text(if (outgoing) kind.backward else kind.forward, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
                                 }
-                                IconButton(onClick = { OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) } }) {
-                                    Icon(Icons.Rounded.Close, "Entfernen", Modifier.size(18.dp))
+                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
+                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
                                 }
                             }
                         }
@@ -444,7 +463,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // About
             if (c.howWeMet.isNotBlank() || c.notes.isNotBlank()) {
                 item(key = "about") {
-                    SectionCard(title = "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.Rounded.Notes) {
+                    SectionCard(title = "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
                         if (c.howWeMet.isNotBlank()) InfoRow(label = "Wie kennengelernt", value = c.howWeMet)
                         if (c.notes.isNotBlank()) InfoRow(label = "Notizen", value = c.notes)
                     }
@@ -453,40 +472,39 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
             // History
             item(key = "history-header") {
-                Row(
-                    Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Rounded.History, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.size(10.dp))
-                    Text("Verlauf", style = MaterialTheme.typography.titleMediumEmphasized, modifier = Modifier.weight(1f))
-                    Text(
-                        "${c.entries.size}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    IconButton(onClick = { entryTarget = EntryTarget.New(TypeIds.MEET) }) { Icon(Icons.Rounded.Add, "Eintrag hinzufügen") }
-                }
+                SectionTitle(
+                    "Verlauf · ${c.entries.size}",
+                    Icons.Rounded.History,
+                    modifier = Modifier.padding(start = 20.dp, end = 14.dp, top = 16.dp, bottom = 6.dp),
+                    action = { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } },
+                )
             }
             if (c.entries.isEmpty()) {
                 item(key = "history-empty") {
                     Text(
                         "Noch nichts eingetragen. Anrufe und SMS erscheinen hier automatisch.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 28.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Space.TextFaint,
+                        modifier = Modifier.padding(horizontal = 20.dp),
                     )
                 }
             }
             val visible = if (showAllHistory) c.entries else c.entries.take(30)
-            items(visible, key = { "e-${it.id}" }) { e ->
-                EntryRow(e, idx.types[e.typeId], onClick = { entryTarget = EntryTarget.Existing(e) })
+            itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
+                EntryRow(e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) })
             }
             if (!showAllHistory && c.entries.size > 30) {
                 item(key = "history-more") {
-                    TextButton(onClick = { showAllHistory = true }, modifier = Modifier.padding(horizontal = 16.dp)) {
-                        Text("Alle ${c.entries.size} Einträge anzeigen")
-                    }
+                    Text(
+                        "Alle ${c.entries.size} Einträge anzeigen",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Space.Violet,
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { showAllHistory = true }
+                            .padding(6.dp),
+                    )
                 }
             }
         }
@@ -614,27 +632,40 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 @Composable
 private fun MeetingRow(m: Meeting) {
     val past = m.end < now()
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(
-            Fmt.dateTime(m.start) + if (m.place.isNotBlank()) " · ${m.place}" else "",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (past) {
-                Text("Hat es stattgefunden?", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = { OrbitRepository.edit { d -> Mutations.confirmMeeting(d, m.id, true) } }) { Text("Ja") }
-                TextButton(onClick = { OrbitRepository.edit { d -> Mutations.confirmMeeting(d, m.id, false) } }) { Text("Nein") }
-            } else {
-                Text(
-                    Fmt.until(ChronoUnit.DAYS.between(today(), java.time.Instant.ofEpochMilli(m.start).atZone(zone()).toLocalDate())),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                Fmt.dateTime(m.start) + if (m.place.isNotBlank()) " · ${m.place}" else "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Space.Text,
+            )
+            Text(
+                if (past) "Hat es stattgefunden?"
+                else Fmt.until(ChronoUnit.DAYS.between(today(), m.start.toLocalDate())),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (past) Space.Orange else Space.TextFaint,
+            )
+        }
+        if (past) {
+            Text(
+                "Ja", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Teal,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
+                    OrbitRepository.edit { d -> Mutations.confirmMeeting(d, m.id, true) }
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+            Text(
+                "Nein", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.TextDim,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
+                    OrbitRepository.edit { d -> Mutations.confirmMeeting(d, m.id, false) }
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        } else {
+            Text(
+                "Absagen", style = MaterialTheme.typography.labelLarge, color = Space.Coral,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
                     OrbitRepository.edit { d -> d.copy(meetings = d.meetings.filterNot { it.id == m.id }) }
-                }) { Text("Absagen") }
-            }
+                }.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
         }
     }
 }

@@ -1,43 +1,32 @@
 package io.github.thelony97.orbit.ui.detail
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CallMade
-import androidx.compose.material.icons.rounded.CallReceived
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,48 +43,35 @@ import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Entry
 import io.github.thelony97.orbit.data.EntrySource
 import io.github.thelony97.orbit.data.EntryType
-import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.domain.toLocalDate
+import io.github.thelony97.orbit.domain.today
+import io.github.thelony97.orbit.ui.components.CheckDot
+import io.github.thelony97.orbit.ui.components.OrbButton
+import io.github.thelony97.orbit.ui.components.SpaceSearchField
 import io.github.thelony97.orbit.ui.components.entryIcon
+import io.github.thelony97.orbit.ui.components.glass
+import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import java.time.temporal.ChronoUnit
 
-/** Square-ish button that morphs its corners while pressed. */
+/** Quick action: glass orb with a tiny label underneath. */
 @Composable
-fun RowScope.ActionTile(
+fun ActionOrb(
     icon: ImageVector,
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    accent: androidx.compose.ui.graphics.Color? = null,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val corner by animateDpAsState(
-        targetValue = if (pressed) 14.dp else 28.dp,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "corner",
-    )
-    val container = if (enabled) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
-    val content = if (enabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline
-    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(width = 60.dp, height = 56.dp)
-                .clip(RoundedCornerShape(corner))
-                .background(container)
-                .combinedClickable(
-                    enabled = enabled,
-                    interactionSource = interaction,
-                    onLongClick = onLongClick,
-                    onClick = onClick,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, label, tint = content)
-        }
-        Spacer(Modifier.size(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        OrbButton(icon, label, onClick, enabled = enabled, size = 46.dp, accent = accent, onLongClick = onLongClick)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (enabled) Space.TextDim else Space.TextFaint,
+            modifier = Modifier.padding(top = 5.dp),
+        )
     }
 }
 
@@ -124,31 +99,45 @@ fun Checklist(
     }
     Column(Modifier.animateContentSize()) {
         open.forEach { item -> CheckRow(item, onToggle, onDelete) }
-        TextField(
+        SpaceSearchField(
             state = input,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, end = 4.dp),
-            placeholder = { Text(placeholder) },
-            lineLimits = TextFieldLineLimits.SingleLine,
-            onKeyboardAction = { submit() },
-            trailingIcon = {
-                IconButton(onClick = { submit() }, enabled = input.text.isNotBlank()) { Icon(Icons.Rounded.Add, "Hinzufügen") }
+            placeholder = placeholder,
+            leading = Icons.Rounded.Add,
+            onSubmit = { submit() },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            trailing = if (input.text.isNotBlank()) {
+                {
+                    Text(
+                        "OK",
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        color = Space.Violet,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).clickable { submit() }.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            } else {
+                null
             },
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
         )
         if (done.isNotEmpty()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showDone = !showDone }) {
-                    Text("${done.size} $doneLabel")
-                    Icon(if (showDone) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
-                }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    (if (showDone) "▾ " else "▸ ") + "${done.size} $doneLabel",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Space.TextDim,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable { showDone = !showDone }.padding(horizontal = 6.dp, vertical = 4.dp),
+                )
                 Spacer(Modifier.weight(1f))
-                if (showDone) TextButton(onClick = onClearDone) { Text("Entfernen") }
+                if (showDone) {
+                    Text(
+                        "entfernen",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Space.Coral,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClearDone).padding(horizontal = 6.dp, vertical = 4.dp),
+                    )
+                }
             }
             if (showDone) done.forEach { item -> CheckRow(item, onToggle, onDelete) }
         }
@@ -157,21 +146,28 @@ fun Checklist(
 
 @Composable
 private fun CheckRow(item: CheckItem, onToggle: (CheckItem) -> Unit, onDelete: (CheckItem) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Checkbox(checked = item.done, onCheckedChange = { onToggle(item) })
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        CheckDot(item.done, { onToggle(item) })
+        Spacer(Modifier.width(10.dp))
         Text(
             item.text,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             textDecoration = if (item.done) TextDecoration.LineThrough else null,
-            color = if (item.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            color = if (item.done) Space.TextFaint else Space.Text,
         )
-        IconButton(onClick = { onDelete(item) }) {
-            Icon(Icons.Rounded.Close, "Löschen", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-        }
+        Icon(
+            Icons.Rounded.Close, "Löschen",
+            tint = Space.TextFaint,
+            modifier = Modifier.size(26.dp).clip(CircleShape).clickable { onDelete(item) }.padding(5.dp),
+        )
     }
 }
 
+/** Compact two-line info row: value on top, tiny label below. */
 @Composable
 fun InfoRow(
     label: String,
@@ -182,96 +178,118 @@ fun InfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(vertical = 5.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
         }
         trailing?.invoke()
     }
 }
 
-/** One history entry in the timeline. */
+/** One history entry as a timeline node. */
 @Composable
-fun EntryRow(entry: Entry, type: EntryType?, onClick: () -> Unit) {
+fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val days = ChronoUnit.DAYS.between(entry.at.toLocalDate(), today())
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp),
+    val accent = when (entry.source) {
+        EntrySource.CALL_LOG -> Space.Teal
+        EntrySource.SMS -> Space.Blue
+        EntrySource.MEETING -> Space.Orange
+        else -> Space.Violet
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clickable(onClick = onClick)
+            .padding(start = 18.dp, end = 16.dp),
     ) {
-        Row(Modifier.padding(14.dp)) {
+        // Timeline rail
+        Column(Modifier.width(30.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                Modifier
+                    .padding(top = 6.dp)
+                    .size(30.dp)
+                    .glass(CircleShape, tint = Space.PanelHigh, border = accent.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    entryIcon(type?.icon ?: "star"), null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(20.dp),
+                Icon(entryIcon(type?.icon ?: "star"), null, tint = accent, modifier = Modifier.size(15.dp))
+            }
+            if (!last) {
+                Box(Modifier.width(1.dp).weight(1f).background(Space.Line))
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).padding(top = 6.dp, bottom = 12.dp).animateContentSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    buildString {
+                        append(type?.name ?: "Eintrag")
+                        entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
+                        if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
+                    },
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    color = Space.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                when (entry.incoming) {
+                    true -> Icon(Icons.AutoMirrored.Rounded.CallReceived, "eingehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
+                    false -> Icon(Icons.AutoMirrored.Rounded.CallMade, "ausgehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
+                    null -> Unit
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${Fmt.short(days)} · ${Fmt.time(entry.at)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Space.TextFaint,
                 )
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f).animateContentSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        buildString {
-                            append(type?.name ?: "Eintrag")
-                            entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
-                            if (entry.source == EntrySource.SMS) append(" · SMS")
-                        },
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    when (entry.incoming) {
-                        true -> Icon(Icons.Rounded.CallReceived, "eingehend", Modifier.padding(start = 6.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                        false -> Icon(Icons.Rounded.CallMade, "ausgehend", Modifier.padding(start = 6.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                        null -> Unit
-                    }
-                }
+            Text(
+                Fmt.dateTime(entry.at),
+                style = MaterialTheme.typography.labelSmall,
+                color = Space.TextFaint,
+            )
+            if (entry.note.isNotBlank()) {
                 Text(
-                    "${Fmt.ago(days).replaceFirstChar { it.uppercase() }} · ${Fmt.dateTime(entry.at)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    entry.note,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Space.Text,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
-                if (entry.note.isNotBlank()) {
-                    Text(
-                        entry.note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
+            }
+            if (entry.messages.isNotEmpty()) {
+                val shown = if (expanded) entry.messages else entry.messages.takeLast(2)
+                Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    shown.forEach { m ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (m.incoming) Arrangement.Start else Arrangement.End) {
+                            Text(
+                                m.text,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (m.incoming) Space.PanelHigh else Space.Violet.copy(alpha = 0.22f))
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Space.Text,
+                                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
-                if (entry.messages.isNotEmpty()) {
-                    val shown = if (expanded) entry.messages else entry.messages.takeLast(2)
-                    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        shown.forEach { m ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = if (m.incoming) Arrangement.Start else Arrangement.End) {
-                                Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = if (m.incoming) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primaryContainer,
-                                ) {
-                                    Text(
-                                        m.text,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = if (expanded) Int.MAX_VALUE else 3,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (entry.messages.size > 2 || entry.messages.any { it.text.length > 120 }) {
-                        TextButton(onClick = { expanded = !expanded }) {
-                            Text(if (expanded) "Weniger" else "Alle ${entry.messages.size} Nachrichten")
-                        }
-                    }
+                if (entry.messages.size > 2 || entry.messages.any { it.text.length > 120 }) {
+                    Text(
+                        if (expanded) "weniger" else "alle ${entry.messages.size} Nachrichten",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Space.Violet,
+                        modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).clickable { expanded = !expanded }.padding(4.dp),
+                    )
                 }
             }
         }
@@ -279,7 +297,7 @@ fun EntryRow(entry: Entry, type: EntryType?, onClick: () -> Unit) {
 }
 
 fun dueLine(daysUntilDue: Long): String = when {
-    daysUntilDue < 0 -> "Fällig seit ${-daysUntilDue} ${if (daysUntilDue == -1L) "Tag" else "Tagen"}"
-    daysUntilDue == 0L -> "Heute fällig"
-    else -> "Nächstes Mal ${Fmt.until(daysUntilDue)}"
+    daysUntilDue < 0 -> "seit ${-daysUntilDue} T"
+    daysUntilDue == 0L -> "heute"
+    else -> "in $daysUntilDue T"
 }

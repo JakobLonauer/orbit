@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,38 +16,34 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -78,10 +76,19 @@ import io.github.thelony97.orbit.ui.Photos
 import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
+import io.github.thelony97.orbit.ui.components.GlassCard
+import io.github.thelony97.orbit.ui.components.GlowButton
+import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.PhotoCache
+import io.github.thelony97.orbit.ui.components.SectionTitle
+import io.github.thelony97.orbit.ui.components.SpaceBackground
+import io.github.thelony97.orbit.ui.components.SpaceChip
+import io.github.thelony97.orbit.ui.components.SpaceField
 import io.github.thelony97.orbit.ui.components.contactColor
+import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.detail.rhythmPresets
 import io.github.thelony97.orbit.ui.sheets.DayOfYearDialog
+import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import kotlinx.coroutines.launch
 
@@ -174,119 +181,143 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
     BackHandler { confirmDiscard = true }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (isNew) "Neuer Kontakt" else "Bearbeiten") },
-                navigationIcon = { IconButton(onClick = { confirmDiscard = true }) { Icon(Icons.Rounded.Close, "Abbrechen") } },
-                actions = {
-                    Button(onClick = { save() }, modifier = Modifier.padding(end = 8.dp)) { Text("Speichern") }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // Photo
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Box {
-                    Avatar(build().copy(photo = photo), contactColor(original, idx), 112.dp, shape = MaterialShapes.Cookie9Sided.toShape())
-                    FilledIconButton(
-                        onClick = {
-                            AppLock.allowExternal()
-                            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        },
-                        modifier = Modifier.align(Alignment.BottomEnd).size(40.dp),
-                    ) { Icon(Icons.Rounded.PhotoCamera, "Foto wählen", Modifier.size(20.dp)) }
-                }
-            }
-            if (photo != null) {
-                TextButton(onClick = { photo = null }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Foto entfernen") }
-            }
-
-            Field(first, "Vorname", capitalize = true)
-            Field(last, "Nachname", capitalize = true)
-            Field(company, "Firma / Schule / Uni", capitalize = true)
-            Field(position, "Position / Rolle", capitalize = true)
-
-            SectionLabel("Telefon")
-            ValueList(
-                rows = phones,
-                labels = Defaults.phoneLabels,
-                hint = "Nummer",
-                keyboard = KeyboardType.Phone,
-                defaultIndex = defaultPhone,
-                onDefault = { defaultPhone = it },
-                addLabel = "Nummer hinzufügen",
-            )
-
-            SectionLabel("E-Mail")
-            ValueList(
-                rows = emails,
-                labels = Defaults.emailLabels,
-                hint = "E-Mail",
-                keyboard = KeyboardType.Email,
-                defaultIndex = null,
-                onDefault = null,
-                addLabel = "E-Mail hinzufügen",
-            )
-
-            Field(address, "Adresse", singleLine = false, capitalize = true)
-
-            SectionLabel("Geburtstag")
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                    onClick = { birthdayDialog = true },
-                    label = { Text(birthday?.let { Fmt.dayOfYear(it) } ?: "Geburtstag wählen") },
-                    leadingIcon = { Icon(Icons.Rounded.Cake, null, Modifier.size(18.dp)) },
+    SpaceBackground {
+        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            // Top bar
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OrbButton(Icons.Rounded.Close, "Abbrechen", { confirmDiscard = true }, size = 38.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (isNew) "Neuer Kontakt" else "Bearbeiten",
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = Space.Text,
+                    modifier = Modifier.weight(1f),
                 )
-                if (birthday != null) {
-                    IconButton(onClick = { birthday = null }) { Icon(Icons.Rounded.Close, "Entfernen") }
-                }
+                GlowButton("Speichern", { save() }, icon = Icons.Rounded.Check)
             }
 
-            SectionLabel("Gruppen")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                data.groups.forEach { g ->
-                    val selected = g.id in groups
-                    FilterChip(
-                        selected = selected,
-                        onClick = { groups = if (selected) groups - g.id else groups + g.id },
-                        label = { Text(g.name + (g.rhythmDays?.let { " · ${it} T" } ?: "")) },
-                        leadingIcon = { Box(Modifier.size(10.dp).background(Color(g.color), CircleShape)) },
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                // Photo + names
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box {
+                        Avatar(
+                            build().copy(photo = photo),
+                            contactColor(original, idx),
+                            84.dp,
+                            shape = MaterialShapes.Cookie9Sided.toShape(),
+                            glowColor = Space.Violet,
+                        )
+                        Box(
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 4.dp, y = 4.dp)
+                                .size(32.dp)
+                                .glow(Space.Violet, 10.dp)
+                                .clip(CircleShape)
+                                .background(Space.Violet)
+                                .clickable {
+                                    AppLock.allowExternal()
+                                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.PhotoCamera, "Foto wählen", tint = Space.Void, modifier = Modifier.size(16.dp)) }
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SpaceField(first, "", placeholder = "Vorname", keyboardOptions = caps)
+                        SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps)
+                    }
+                }
+                if (photo != null) {
+                    Text(
+                        "Foto entfernen",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Space.Coral,
+                        modifier = Modifier
+                            .padding(start = 26.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { photo = null }
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                     )
                 }
-            }
 
-            SectionLabel("Melde-Rhythmus")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                FilterChip(selected = rhythm == null, onClick = { rhythm = null }, label = { Text("Wie Gruppe") })
-                rhythmPresets.forEach { days ->
-                    FilterChip(
-                        selected = rhythm == days,
-                        onClick = { rhythm = days },
-                        label = { Text(Fmt.rhythm(days)) },
-                    )
+                GlassCard {
+                    SectionTitle("Arbeit / Schule")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SpaceField(company, "", Modifier.weight(1f), placeholder = "Firma / Schule / Uni", keyboardOptions = caps)
+                        SpaceField(position, "", Modifier.weight(1f), placeholder = "Rolle", keyboardOptions = caps)
+                    }
+                }
+
+                GlassCard {
+                    SectionTitle("Telefon")
+                    ValueList(phones, Defaults.phoneLabels, "Nummer", KeyboardType.Phone, defaultPhone, { defaultPhone = it }, "Nummer hinzufügen")
+                    Spacer(Modifier.size(8.dp))
+                    SectionTitle("E-Mail")
+                    ValueList(emails, Defaults.emailLabels, "E-Mail", KeyboardType.Email, null, null, "E-Mail hinzufügen")
+                    Spacer(Modifier.size(8.dp))
+                    SectionTitle("Adresse")
+                    SpaceField(address, "", singleLine = false, placeholder = "Straße, Ort", keyboardOptions = caps)
+                }
+
+                GlassCard {
+                    SectionTitle("Geburtstag")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SpaceChip(birthday?.let { Fmt.dayOfYear(it) } ?: "Datum wählen", birthday != null, { birthdayDialog = true }, leading = Icons.Rounded.Cake, accent = Space.Orange)
+                        if (birthday != null) {
+                            SpaceChip("entfernen", false, { birthday = null })
+                        }
+                    }
+                    Spacer(Modifier.size(10.dp))
+                    SectionTitle("Gruppen")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        data.groups.forEach { g ->
+                            val selected = g.id in groups
+                            SpaceChip(
+                                g.name + (g.rhythmDays?.let { " · $it T" } ?: ""),
+                                selected,
+                                { groups = if (selected) groups - g.id else groups + g.id },
+                                dot = Color(g.color),
+                                accent = Color(g.color),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.size(10.dp))
+                    SectionTitle("Melde-Rhythmus")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SpaceChip("wie Gruppe", rhythm == null, { rhythm = null })
+                        rhythmPresets.forEach { days ->
+                            SpaceChip(Fmt.rhythm(days), rhythm == days, { rhythm = days }, accent = Space.Teal)
+                        }
+                    }
+                }
+
+                GlassCard {
+                    SectionTitle("Über")
+                    SpaceField(howWeMet, "Wie kennengelernt", singleLine = false, keyboardOptions = caps)
+                    Spacer(Modifier.size(8.dp))
+                    SpaceField(notes, "Notizen", singleLine = false, keyboardOptions = caps)
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = Space.Orange, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Favorit", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))
+                        Switch(checked = favorite, onCheckedChange = { favorite = it }, colors = spaceSwitch())
+                    }
                 }
             }
-
-            Field(howWeMet, "Wie kennengelernt", singleLine = false, capitalize = true)
-            Field(notes, "Notizen", singleLine = false, capitalize = true)
-
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.size(12.dp))
-                Text("Favorit", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Switch(checked = favorite, onCheckedChange = { favorite = it })
-            }
-            Spacer(Modifier.size(48.dp))
         }
     }
 
@@ -304,37 +335,17 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     }
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmallEmphasized,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 6.dp),
-    )
-}
+private val caps = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
 
 @Composable
-private fun Field(
-    state: TextFieldState,
-    label: String,
-    singleLine: Boolean = true,
-    capitalize: Boolean = false,
-    keyboard: KeyboardType = KeyboardType.Text,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedTextField(
-        state = state,
-        label = { Text(label) },
-        lineLimits = if (singleLine) TextFieldLineLimits.SingleLine else TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 8),
-        keyboardOptions = KeyboardOptions(
-            capitalization = if (capitalize) KeyboardCapitalization.Sentences else KeyboardCapitalization.None,
-            keyboardType = keyboard,
-        ),
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier.fillMaxWidth(),
-    )
-}
+fun spaceSwitch() = SwitchDefaults.colors(
+    checkedThumbColor = Space.Void,
+    checkedTrackColor = Space.Violet,
+    checkedBorderColor = Space.Violet,
+    uncheckedThumbColor = Space.TextDim,
+    uncheckedTrackColor = Space.PanelHighest,
+    uncheckedBorderColor = Space.LineStrong,
+)
 
 @Composable
 private fun ValueList(
@@ -346,39 +357,42 @@ private fun ValueList(
     onDefault: ((Int) -> Unit)?,
     addLabel: String,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         rows.forEachIndexed { i, row ->
             var menu by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    AssistChip(onClick = { menu = true }, label = { Text(row.label) })
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    SpaceChip(row.label, false, { menu = true })
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Space.PanelHigh) {
                         labels.forEach { l ->
                             DropdownMenuItem(text = { Text(l) }, onClick = { row.label = l; menu = false })
                         }
                     }
                 }
-                Spacer(Modifier.size(8.dp))
-                Field(row.state, hint, keyboard = keyboard, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(6.dp))
+                SpaceField(row.state, "", Modifier.weight(1f), placeholder = hint, keyboardOptions = KeyboardOptions(keyboardType = keyboard))
                 if (onDefault != null && rows.size > 1) {
-                    IconButton(onClick = { onDefault(i) }) {
-                        Icon(
-                            if (defaultIndex == i) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                            "Standard",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                    Icon(
+                        if (defaultIndex == i) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                        "Standard",
+                        tint = Space.Orange,
+                        modifier = Modifier.size(32.dp).clip(CircleShape).clickable { onDefault(i) }.padding(7.dp),
+                    )
                 }
-                IconButton(onClick = {
-                    rows.removeAt(i)
-                    if (onDefault != null && defaultIndex != null && defaultIndex >= rows.size) onDefault(0)
-                }) { Icon(Icons.Rounded.Close, "Entfernen") }
+                Icon(
+                    Icons.Rounded.Close, "Entfernen",
+                    tint = Space.TextFaint,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            rows.removeAt(i)
+                            if (onDefault != null && defaultIndex != null && defaultIndex >= rows.size) onDefault(0)
+                        }
+                        .padding(7.dp),
+                )
             }
         }
-        TextButton(onClick = { rows.add(ValueRow(labels.first(), "")) }) {
-            Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
-            Spacer(Modifier.size(6.dp))
-            Text(addLabel)
-        }
+        SpaceChip(addLabel, false, { rows.add(ValueRow(labels.first(), "")) }, leading = Icons.Rounded.Add)
     }
 }
