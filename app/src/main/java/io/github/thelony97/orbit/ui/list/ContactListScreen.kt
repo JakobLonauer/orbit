@@ -124,7 +124,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
     val reversed = data.settings.listSortReversed
     val audience = Session.audience
     val status = Session.status
-    val groups = Session.groups
+    val groups = Session.groups.intersect(idx.groups.keys)
 
     val dueIds = remember(data, audience) {
         Logic.others(data).filter { audience.accepts(it) && !it.archived && Logic.due(it, idx, todayDate).state == DueState.DUE }.map { it.id }.toSet()

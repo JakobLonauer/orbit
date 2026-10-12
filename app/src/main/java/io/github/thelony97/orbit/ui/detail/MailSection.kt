@@ -76,8 +76,7 @@ fun MailSection(contact: Contact, onSetup: () -> Unit) {
             return@LaunchedEffect
         }
         loading = true
-        val fresh = MailClient.fromAddresses(addresses, accounts)
-        MailCache.put(key, fresh)
+        val fresh = MailCache.fetch(key) { MailClient.fromAddresses(addresses, accounts) }.await()
         result = fresh
         loading = false
     }

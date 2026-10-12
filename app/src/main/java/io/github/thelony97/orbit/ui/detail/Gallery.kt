@@ -76,6 +76,7 @@ import io.github.thelony97.orbit.ui.components.SectionCard
 import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -141,8 +142,11 @@ fun GallerySection(contact: Contact) {
         if (uris.isNotEmpty()) {
             importing = true
             scope.launch {
-                val added = GalleryStore.import(ctx, uris)
-                OrbitRepository.editContact(contact.id) { it.copy(gallery = added.asReversed() + it.gallery) }
+                // Finish even if the user leaves the screen meanwhile, otherwise the copied files would be orphaned.
+                withContext(NonCancellable) {
+                    val added = GalleryStore.import(ctx.applicationContext, uris)
+                    OrbitRepository.editContact(contact.id) { it.copy(gallery = added.asReversed() + it.gallery) }
+                }
                 importing = false
             }
         }
@@ -249,7 +253,9 @@ private fun GalleryViewer(contact: Contact, start: Int, onDismiss: () -> Unit) {
                     {
                         val p = current ?: return@OrbButton
                         scope.launch {
-                            val name = OrbitRepository.photoFile(p.file).inputStream().use { Photos.saveFromStream(it) } ?: return@launch
+                            val name = runCatching {
+                                OrbitRepository.photoFile(p.file).inputStream().use { Photos.saveFromStream(it) }
+                            }.getOrNull() ?: return@launch
                             val old = contact.photo
                             OrbitRepository.editContact(contact.id) { it.copy(photo = name) }
                             if (old != null) {

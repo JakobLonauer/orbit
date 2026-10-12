@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -129,6 +131,7 @@ object MailAccounts {
     private const val FILE = "mail_accounts.json"
     private lateinit var file: File
     private val serializer = ListSerializer(MailAccount.serializer())
+    private val lock = Mutex()
     private val _accounts = MutableStateFlow<List<MailAccount>>(emptyList())
     val accounts: StateFlow<List<MailAccount>> = _accounts.asStateFlow()
 
@@ -136,6 +139,12 @@ object MailAccounts {
         if (::file.isInitialized) return
         file = File(ctx.noBackupFilesDir, FILE)
         _accounts.value = runCatching { OrbitRepository.json.decodeFromString(serializer, file.readText()) }.getOrDefault(emptyList())
+    }
+
+    /** Applies [change] to the current list and writes it; serialised so parallel updates don't clash. */
+    private suspend fun mutate(change: (List<MailAccount>) -> List<MailAccount>) = lock.withLock {
+        val list = change(_accounts.value)
+        if (list != _accounts.value) persist(list)
     }
 
     private suspend fun persist(list: List<MailAccount>) = withContext(Dispatchers.IO) {
@@ -148,20 +157,17 @@ object MailAccounts {
         }
     }
 
-    suspend fun upsert(account: MailAccount) {
-        val list = _accounts.value
-        persist(if (list.any { it.id == account.id }) list.map { if (it.id == account.id) account else it } else list + account)
+    suspend fun upsert(account: MailAccount) = mutate { list ->
+        if (list.any { it.id == account.id }) list.map { if (it.id == account.id) account else it } else list + account
     }
 
     suspend fun remove(id: String) {
-        persist(_accounts.value.filterNot { it.id == id })
+        mutate { list -> list.filterNot { it.id == id } }
         MailCache.clear()
     }
 
-    suspend fun setError(id: String, error: String?) {
-        val list = _accounts.value
-        if (list.firstOrNull { it.id == id }?.lastError == error) return
-        persist(list.map { if (it.id == id) it.copy(lastError = error) else it })
+    suspend fun setError(id: String, error: String?) = mutate { list ->
+        list.map { if (it.id == id && it.lastError != error) it.copy(lastError = error) else it }
     }
 
     fun password(a: MailAccount): String? = Secrets.decrypt(a.secret)

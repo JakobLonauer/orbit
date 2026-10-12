@@ -115,11 +115,13 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
     val audience = Session.audience
     var selected by remember(root?.id) { mutableStateOf<String?>(null) }
     var picker by remember { mutableStateOf(false) }
-    var scale by remember(root?.id, depth) { mutableFloatStateOf(1f) }
-    var pan by remember(root?.id, depth) { mutableStateOf(Offset.Zero) }
+    var scale by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var fitScale by remember { mutableFloatStateOf(1f) }
 
     val network = remember(data, root?.id, depth, audience) {
-        root?.let { r -> NetworkLayout.build(data, r, depth, include = { audience.accepts(it) || it.isMe }, lastFirst = data.settings.sortByLastName) }
+        // People are always part of the net; the chip only adds organisations.
+        root?.let { r -> NetworkLayout.build(data, r, depth, include = { it.isMe || !it.isOrg || audience != Audience.PEOPLE }, lastFirst = data.settings.sortByLastName) }
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -138,7 +140,7 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            OrbButton(Icons.Rounded.ZoomOutMap, "Ansicht zurücksetzen", { scale = 1f; pan = Offset.Zero }, size = 38.dp)
+            OrbButton(Icons.Rounded.ZoomOutMap, "Ansicht zurücksetzen", { scale = fitScale; pan = Offset.Zero }, size = 38.dp)
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 6.dp),
@@ -189,10 +191,10 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
             val center = Offset(w / 2f, h / 2f)
             val levels = max(1, network.maxLevel)
             val minGap = with(density) { 84.dp.toPx() }
-            val fitRadius = min(w, h) / 2f - with(density) { 34.dp.toPx() }
+            val fitRadius = max(min(w, h) / 2f - with(density) { 34.dp.toPx() }, minGap)
             val gap = max(minGap, fitRadius / levels)
-            val fitScale = min(1f, fitRadius / (gap * levels))
-            LaunchedEffect(root?.id, depth, levels) { scale = fitScale; pan = Offset.Zero }
+            val fit = min(1f, fitRadius / (gap * levels)).coerceAtLeast(0.3f)
+            LaunchedEffect(root?.id, depth, levels, fit) { fitScale = fit; scale = fit; pan = Offset.Zero }
 
             fun position(n: NetNode): Offset =
                 if (n.level == 0) center
@@ -224,7 +226,7 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                             }
                         }
                     }
-                    .pointerInput(Unit) {
+                    .pointerInput(center) {
                         detectTransformGestures { centroid, panChange, zoom, _ ->
                             val newScale = (scale * zoom).coerceIn(0.3f, 3.5f)
                             val world = (centroid - pan - center) / scale + center

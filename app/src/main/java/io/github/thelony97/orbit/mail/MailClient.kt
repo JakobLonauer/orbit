@@ -2,7 +2,11 @@ package io.github.thelony97.orbit.mail
 
 import android.text.Html
 import com.sun.mail.imap.IMAPFolder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -40,10 +44,22 @@ data class MailHeader(
 
 data class MailResult(val headers: List<MailHeader>, val errors: List<String>, val fetchedAt: Long)
 
-/** Results per contact for a few minutes, only in memory. */
+/** Results per contact for a few minutes, only in memory. Parallel requests for the same key share one fetch. */
 object MailCache {
     private const val FRESH_MS = 15 * 60 * 1000L
     private val cache = ConcurrentHashMap<String, MailResult>()
+    private val inFlight = ConcurrentHashMap<String, Deferred<MailResult>>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun fetch(key: String, block: suspend () -> MailResult): Deferred<MailResult> {
+        inFlight[key]?.let { return it }
+        val job = scope.async(start = CoroutineStart.LAZY) { block().also { put(key, it) } }
+        val existing = inFlight.putIfAbsent(key, job)
+        if (existing != null) return existing
+        job.invokeOnCompletion { inFlight.remove(key, job) }
+        job.start()
+        return job
+    }
 
     fun key(contactId: String, addresses: List<String>, accounts: List<MailAccount>) =
         contactId + "|" + addresses.map { it.lowercase() }.sorted().joinToString(",") + "|" + accounts.joinToString(",") { it.id }

@@ -188,6 +188,10 @@ private fun AddAccountSheet(onDismiss: () -> Unit) {
         if (provider.host.isNotEmpty()) {
             host.setTextAndPlaceCursorAtEnd(provider.host)
             port.setTextAndPlaceCursorAtEnd(provider.port.toString())
+        } else if (MailProviders.all.any { it.host.isNotEmpty() && it.host == host.text.toString() }) {
+            // Switching to "Anderer Server" must not keep the previous provider's server.
+            host.setTextAndPlaceCursorAtEnd("")
+            port.setTextAndPlaceCursorAtEnd("993")
         }
     }
 

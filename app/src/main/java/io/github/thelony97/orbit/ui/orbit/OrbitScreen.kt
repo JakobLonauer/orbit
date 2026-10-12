@@ -173,7 +173,7 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
 
         fun section(key: String, title: String, list: List<Item>, color: Color) {
             if (list.isEmpty()) return
-            item(key = "h-$key") { Header(title, list.size, color) }
+            if (title.isNotEmpty()) item(key = "h-$key") { Header(title, list.size, color) }
             items(list, key = { "$key-${it.contact.id}" }) { item ->
                 val c = item.contact
                 val info = item.info

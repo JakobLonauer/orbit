@@ -128,9 +128,11 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
     var fitted by remember { mutableStateOf(false) }
     var fitRequest by remember { mutableIntStateOf(0) }
 
+    // A contact opened from its detail page is always shown, even if filters would hide it.
+    val focusId = remember { Session.mapFocus }
     val pins = remember(data, audience) {
         Logic.active(data)
-            .filter { !it.archived && (it.isMe || audience.accepts(it)) }
+            .filter { it.id == focusId || (!it.archived && (it.isMe || !it.isOrg || audience != Audience.PEOPLE)) }
             .mapNotNull { c -> Geo.point(c)?.let { Pin(c, it) } }
     }
     val notFound = remember(data, audience) {
@@ -209,8 +211,9 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
     // Push markers into the map whenever the data changes.
     LaunchedEffect(style, pins) {
         val st = style ?: return@LaunchedEffect
+        val missing = pins.filter { st.getImage(imageName(it.contact)) == null }
         val images = withContext(Dispatchers.IO) {
-            pins.associate { p -> "av-${p.contact.id}-${p.contact.photo ?: ""}" to markerBitmap(ctx, p.contact, contactColor(p.contact, idx).toArgb()) }
+            missing.associate { p -> imageName(p.contact) to markerBitmap(ctx, p.contact, contactColor(p.contact, idx).toArgb()) }
         }
         images.forEach { (name, bmp) -> if (st.getImage(name) == null) st.addImage(name, bmp) }
         val json = buildJsonObject {
@@ -226,7 +229,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                         putJsonObject("properties") {
                             put("id", p.contact.id)
                             put("name", Logic.shortName(p.contact))
-                            put("img", "av-${p.contact.id}-${p.contact.photo ?: ""}")
+                            put("img", imageName(p.contact))
                             put("me", p.contact.isMe)
                         }
                     })
@@ -254,8 +257,14 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
             }
             pins.size == 1 -> m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(pins[0].point.lat, pins[0].point.lng), 12.0), 600)
             pins.size > 1 -> {
-                val bounds = LatLngBounds.Builder().includes(pins.map { LatLng(it.point.lat, it.point.lng) }).build()
-                m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding, padding * 2, padding, bottomInset + padding), 600)
+                val latSpan = pins.maxOf { it.point.lat } - pins.minOf { it.point.lat }
+                val lngSpan = pins.maxOf { it.point.lng } - pins.minOf { it.point.lng }
+                if (latSpan < 1e-4 && lngSpan < 1e-4) {
+                    m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(pins[0].point.lat, pins[0].point.lng), 14.0), 600)
+                } else {
+                    val bounds = LatLngBounds.Builder().includes(pins.map { LatLng(it.point.lat, it.point.lng) }).build()
+                    m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding, padding * 2, padding, bottomInset + padding), 600)
+                }
             }
         }
     }
@@ -331,6 +340,9 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
         }
     }
 }
+
+/** Image id changes with the photo and the kind, so updated avatars are picked up. */
+private fun imageName(c: Contact) = "av-${c.id}-${c.photo ?: ""}-${c.kind}"
 
 private fun open(ctx: Context, uri: android.net.Uri) {
     AppLock.allowExternal()

@@ -52,7 +52,7 @@ import io.github.thelony97.orbit.ui.theme.Space
 fun activeFilterCount(data: OrbitData): Int =
     (if (Session.audience != Audience.PEOPLE) 1 else 0) +
         (if (Session.status != StatusFilter.ALL) 1 else 0) +
-        Session.groups.size +
+        Session.groups.count { id -> data.groups.any { it.id == id } } +
         (if (data.settings.listSort != SortMode.NAME.key || data.settings.listSortReversed) 1 else 0)
 
 /** Everything that filters or sorts the list, hidden behind one button. */
