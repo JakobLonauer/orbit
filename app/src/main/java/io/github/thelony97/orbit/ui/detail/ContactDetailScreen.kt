@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CardGiftcard
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.MoreVert
@@ -97,6 +99,9 @@ import io.github.thelony97.orbit.domain.zone
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
+import io.github.thelony97.orbit.ui.Session
+import io.github.thelony97.orbit.ui.components.KindMark
+import io.github.thelony97.orbit.geo.Geo
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.GhostButton
@@ -182,14 +187,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 ) {
                     OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
                     Spacer(Modifier.weight(1f))
-                    OrbButton(
-                        if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit",
-                        { edit { it.copy(favorite = !it.favorite) } },
-                        size = 38.dp,
-                        accent = if (c.favorite) Space.Orange else null,
-                    )
+                    if (!c.isMe) {
+                        OrbButton(
+                            if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit",
+                            { edit { it.copy(favorite = !it.favorite) } },
+                            size = 38.dp,
+                            accent = if (c.favorite) Space.Orange else null,
+                        )
+                    }
                     OrbButton(Icons.Rounded.Edit, "Bearbeiten", { nav.open(Route.Edit(id = c.id)) }, size = 38.dp)
-                    Box {
+                    if (!c.isMe) Box {
                         OrbButton(Icons.Rounded.MoreVert, "Mehr", { menu = true }, size = 38.dp)
                         DropdownMenu(
                             expanded = menu,
@@ -239,17 +246,19 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val job = listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
+                        val job = if (c.isOrg) c.position else listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
                         if (job.isNotBlank()) {
                             Text(job, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         val groups = c.groupIds.mapNotNull { idx.groups[it] }
-                        if (groups.isNotEmpty() || c.paused || c.archived) {
+                        if (groups.isNotEmpty() || c.paused || c.archived || c.isOrg || c.isMe) {
                             FlowRow(
                                 Modifier.padding(top = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                                 verticalArrangement = Arrangement.spacedBy(5.dp),
                             ) {
+                                if (c.isOrg) Pill("Organisation · ${Defaults.orgCategory(c.orgCategory).label}", Space.Blue)
+                                if (c.isMe) Pill("Das bist du", Space.Orange)
                                 groups.forEach { g -> Pill(g.name, Color(g.color)) }
                                 if (c.paused) Pill("pausiert", Space.TextDim)
                                 if (c.archived) Pill("archiviert", Space.TextDim)
@@ -260,7 +269,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Quick actions
-            item(key = "actions") {
+            if (!c.isMe) item(key = "actions") {
                 val number = ContactActions.defaultNumber(c)
                 val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
                 Row(
@@ -284,7 +293,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Status strip
-            item(key = "status") {
+            if (!c.isMe) item(key = "status") {
                 GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
                     val last = c.entries.maxByOrNull { it.at }
                     val lastDays = last?.let { ChronoUnit.DAYS.between(it.at.toLocalDate(), todayDate) }
@@ -330,7 +339,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Topics
-            item(key = "topics") {
+            if (!c.isMe) item(key = "topics") {
                 SectionCard(title = "Nächstes Mal ansprechen", icon = Icons.Rounded.Checklist) {
                     Checklist(
                         items = c.topics,
@@ -345,9 +354,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Contact details
-            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank()) {
+            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.website.isNotBlank()) {
                 item(key = "contact") {
-                    SectionCard(title = "Kontakt", icon = Icons.Rounded.Person) {
+                    SectionCard(title = "Kontakt", icon = if (c.isOrg) Icons.Rounded.Business else Icons.Rounded.Person) {
                         c.phones.forEachIndexed { i, p ->
                             InfoRow(
                                 label = p.label + if (i == c.defaultPhone && c.phones.size > 1) " · Standard" else "",
@@ -360,14 +369,37 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             InfoRow(label = e.label, value = e.value, onClick = { ContactActions.email(ctx, c, e.value) })
                         }
                         if (c.address.isNotBlank()) {
-                            InfoRow(label = "Adresse", value = c.address, onClick = { ContactActions.maps(ctx, c.address) })
+                            val mePoint = if (c.isMe) null else Logic.me(data)?.let { Geo.point(it) }
+                            val here = Geo.point(c)
+                            val distance = if (mePoint != null && here != null) " · ${Geo.formatDistance(Geo.distanceKm(mePoint, here))} von dir" else ""
+                            InfoRow(
+                                label = "Adresse$distance",
+                                value = c.address,
+                                onClick = { ContactActions.maps(ctx, c.address) },
+                                trailing = {
+                                    SmallIconAction(Icons.Rounded.Map, "Auf der Orbit-Karte zeigen") {
+                                        Session.mapFocus = c.id
+                                        nav.home(3)
+                                    }
+                                },
+                            )
+                        }
+                        if (c.website.isNotBlank()) {
+                            InfoRow(label = "Webseite", value = c.website, onClick = { ContactActions.web(ctx, c.website) })
                         }
                     }
                 }
             }
 
+            // Mails from this contact
+            if (c.emails.any { it.value.contains('@') } && !c.isMe) {
+                item(key = "mails") {
+                    MailSection(c, onSetup = { nav.open(Route.MailAccounts) })
+                }
+            }
+
             // Dates
-            item(key = "dates") {
+            if (!c.isOrg) item(key = "dates") {
                 SectionCard(
                     title = "Geburtstag & Jahrestage",
                     icon = Icons.Rounded.Cake,
@@ -407,11 +439,25 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 SectionCard(
                     title = "Beziehungen",
                     icon = Icons.Rounded.Link,
-                    action = { SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true } },
+                    action = {
+                        Row {
+                            if (rels.isNotEmpty()) {
+                                SmallIconAction(Icons.Rounded.Hub, "Im Netz zeigen") {
+                                    Session.networkRoot = if (c.isMe) null else c.id
+                                    nav.home(2)
+                                }
+                            }
+                            SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true }
+                        }
+                    },
                 ) {
                     if (rels.isEmpty()) {
                         Text(
-                            "Partner, Familie, Kolleg:innen verknüpfen – die Gegenseite entsteht automatisch.",
+                            when {
+                                c.isOrg -> "Wer arbeitet hier, wer ist hier Patient:in oder Mitglied? Verknüpfe Menschen mit dieser Organisation."
+                                c.isMe -> "Wer gehört zu dir? Partner:in, Eltern, Geschwister, Arbeitgeber … – daraus entsteht dein Netz."
+                                else -> "Partner, Familie, Kolleg:innen verknüpfen – die Gegenseite entsteht automatisch."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = Space.TextFaint,
                             modifier = Modifier.padding(vertical = 4.dp),
@@ -433,7 +479,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 Avatar(other, contactColor(other, idx), 30.dp)
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(Logic.displayName(other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(Logic.displayName(other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                                        if (other.isOrg) {
+                                            Spacer(Modifier.width(5.dp))
+                                            KindMark(other, size = 12.dp)
+                                        }
+                                    }
                                     Text(if (outgoing) kind.backward else kind.forward, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
                                 }
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
@@ -446,7 +498,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Gifts
-            item(key = "gifts") {
+            if (!c.isOrg && !c.isMe) item(key = "gifts") {
                 SectionCard(title = "Geschenkideen", icon = Icons.Rounded.CardGiftcard) {
                     Checklist(
                         items = c.gifts,
@@ -463,15 +515,18 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // About
             if (c.howWeMet.isNotBlank() || c.notes.isNotBlank()) {
                 item(key = "about") {
-                    SectionCard(title = "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
+                    SectionCard(title = if (c.isOrg) "Notizen" else "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
                         if (c.howWeMet.isNotBlank()) InfoRow(label = "Wie kennengelernt", value = c.howWeMet)
                         if (c.notes.isNotBlank()) InfoRow(label = "Notizen", value = c.notes)
                     }
                 }
             }
 
+            // Photo folder
+            item(key = "gallery") { GallerySection(c) }
+
             // History
-            item(key = "history-header") {
+            if (!c.isMe) item(key = "history-header") {
                 SectionTitle(
                     "Verlauf · ${c.entries.size}",
                     Icons.Rounded.History,
@@ -479,7 +534,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     action = { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } },
                 )
             }
-            if (c.entries.isEmpty()) {
+            if (c.entries.isEmpty() && !c.isMe) {
                 item(key = "history-empty") {
                     Text(
                         "Noch nichts eingetragen. Anrufe und SMS erscheinen hier automatisch.",
@@ -513,7 +568,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     // Sheets & dialogs
     when (val target = entryTarget) {
         is EntryTarget.New -> EntrySheet(
-            title = "Kontakt mit ${c.firstName.ifBlank { Logic.displayName(c, lastFirst) }}",
+            title = "Kontakt mit ${Logic.shortName(c)}",
             types = data.entryTypes,
             initial = null,
             defaultType = target.typeId,
@@ -558,7 +613,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     if (rhythmDialog) {
         RhythmDialog(
             current = c.rhythmDays,
-            groupRhythm = c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull(),
+            groupRhythm = if (c.isOrg) null else c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull(),
             onDismiss = { rhythmDialog = false },
             onPick = { days -> edit { it.copy(rhythmDays = days) } },
         )
@@ -566,7 +621,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
     if (meetingDialog) {
         MeetingDialog(
-            name = c.firstName.ifBlank { Logic.displayName(c, lastFirst) },
+            name = Logic.shortName(c),
             onDismiss = { meetingDialog = false },
             onPlan = { draft ->
                 val start = draft.start.atZone(zone()).toInstant().toEpochMilli()
@@ -592,11 +647,15 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     if (relationDialog) {
         RelationDialog(
             contact = c,
-            candidates = Logic.active(data),
+            candidates = Logic.active(data).filterNot { it.archived && !it.isMe },
             idx = idx,
             lastFirst = lastFirst,
             onDismiss = { relationDialog = false },
-            onPick = { otherId, kind -> OrbitRepository.edit { d -> Mutations.addRelation(d, c.id, otherId, kind) } },
+            onPick = { otherId, kind, reversed ->
+                OrbitRepository.edit { d ->
+                    if (reversed) Mutations.addRelation(d, otherId, c.id, kind) else Mutations.addRelation(d, c.id, otherId, kind)
+                }
+            },
         )
     }
 

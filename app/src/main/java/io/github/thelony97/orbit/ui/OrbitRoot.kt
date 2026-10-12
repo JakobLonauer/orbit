@@ -33,6 +33,7 @@ import io.github.thelony97.orbit.ui.detail.ContactDetailScreen
 import io.github.thelony97.orbit.ui.edit.ContactEditScreen
 import io.github.thelony97.orbit.ui.home.HomeScreen
 import io.github.thelony97.orbit.ui.lock.LockScreen
+import io.github.thelony97.orbit.ui.mail.MailAccountsScreen
 import io.github.thelony97.orbit.ui.onboarding.OnboardingScreen
 import io.github.thelony97.orbit.ui.settings.EntryTypesScreen
 import io.github.thelony97.orbit.ui.settings.GroupsScreen
@@ -45,6 +46,8 @@ class Nav(
     val open: (Route) -> Unit,
     val back: () -> Unit,
     val replace: (Route) -> Unit,
+    /** Back to the start screen on the given tab (0 Kontakte, 1 Orbit, 2 Netz, 3 Karte, 4 Einstellungen). */
+    val home: (Int) -> Unit,
 )
 
 @Composable
@@ -81,6 +84,10 @@ private fun MainNavigation(data: OrbitData) {
                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                 backStack.add(route)
             },
+            home = { target ->
+                while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                tab = target
+            },
         )
     }
 
@@ -111,6 +118,7 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.EntryTypes> { EntryTypesScreen(data = data, nav = nav) }
             entry<Route.Trash> { TrashScreen(data = data, idx = idx, nav = nav) }
             entry<Route.Suggestions> { SuggestionsScreen(data = data, nav = nav) }
+            entry<Route.MailAccounts> { MailAccountsScreen(nav = nav) }
         },
     )
 }

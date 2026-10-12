@@ -18,3 +18,21 @@
 -keep class io.github.thelony97.orbit.** extends androidx.work.ListenableWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
+
+# JavaMail (IMAP) uses reflection for providers and content handlers.
+-keep class javax.mail.** { *; }
+-keep class javax.activation.** { *; }
+-keep class com.sun.mail.** { *; }
+-keep class com.sun.activation.** { *; }
+-keep class myjava.awt.datatransfer.** { *; }
+-keep class org.apache.harmony.** { *; }
+-dontwarn java.awt.**
+-dontwarn java.beans.**
+-dontwarn javax.security.**
+-dontwarn javax.activation.**
+-dontwarn javax.mail.**
+-dontwarn com.sun.mail.**
+-dontwarn com.sun.activation.**
+-dontwarn myjava.awt.datatransfer.**
+-dontwarn org.apache.harmony.**
+-dontwarn sun.security.**

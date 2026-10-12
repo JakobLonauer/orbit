@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
+import io.github.thelony97.orbit.mail.MailAccounts
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Category
@@ -167,6 +169,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     var pendingRestore by remember { mutableStateOf<Pair<OrbitData, Int>?>(null) }
     var permissionTick by remember { mutableIntStateOf(0) }
     val update by Updates.state.collectAsState()
+    val mailAccounts by MailAccounts.accounts.collectAsState()
 
     LifecycleResumeEffect(Unit) {
         permissionTick++
@@ -305,6 +308,21 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     Hairline()
                     SettingItem(Icons.Rounded.CheckCircle, "Alle Berechtigungen erteilt", iconTint = Space.Teal)
                 }
+            }
+        }
+
+        item(key = "mail") {
+            SettingsGroup("E-Mail") {
+                SettingItem(
+                    Icons.Rounded.Email, "E-Mail-Konten",
+                    when (mailAccounts.size) {
+                        0 -> "verbinden, um Mails im Kontakt zu sehen"
+                        1 -> mailAccounts.first().email + if (mailAccounts.first().lastError != null) " · Fehler" else ""
+                        else -> "${mailAccounts.size} Konten verbunden" + if (mailAccounts.any { it.lastError != null }) " · Fehler" else ""
+                    },
+                    iconTint = if (mailAccounts.any { it.lastError != null }) Space.Coral else Space.Violet,
+                    onClick = { nav.open(Route.MailAccounts) },
+                )
             }
         }
 

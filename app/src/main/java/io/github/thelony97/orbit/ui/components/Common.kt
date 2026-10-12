@@ -16,7 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.CardGiftcard
+import androidx.compose.material.icons.rounded.Domain
+import androidx.compose.material.icons.rounded.EmojiPeople
+import androidx.compose.material.icons.rounded.Handyman
+import androidx.compose.material.icons.rounded.LocalHospital
+import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.ChatBubble
@@ -33,6 +40,7 @@ import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +63,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.Defaults
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
@@ -94,10 +103,33 @@ private val fallbackPalette = listOf(
     Color(0xFFFF8FB1), Color(0xFF9BE37A), Color(0xFFFFD166),
 )
 
-/** Stable colour per contact: first group colour, otherwise derived from the id. */
+/** Stable colour per contact: "Ich" is the sun, organisations are blue, people take their first group colour. */
 fun contactColor(c: Contact, idx: Index): Color {
+    if (c.isMe) return Space.Orange
+    if (c.isOrg) return c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { Color(it.color) } ?: Space.Blue
     c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { return Color(it.color) }
     return fallbackPalette[(c.id.hashCode() and 0x7FFFFFFF) % fallbackPalette.size]
+}
+
+fun orgIcon(key: String?): ImageVector = when (Defaults.orgCategory(key).icon) {
+    "work" -> Icons.Rounded.Work
+    "health" -> Icons.Rounded.LocalHospital
+    "authority" -> Icons.Rounded.AccountBalance
+    "service" -> Icons.Rounded.Handyman
+    "club" -> Icons.Rounded.EmojiPeople
+    "other" -> Icons.Rounded.Domain
+    else -> Icons.Rounded.Business
+}
+
+/** Default avatar shape: round for people, a rounded square for organisations. */
+fun avatarShape(c: Contact, size: Dp): Shape = if (c.isOrg) RoundedCornerShape(size * 0.28f) else CircleShape
+
+/** Small building mark after an organisation's name – visible, but quiet. */
+@Composable
+fun KindMark(c: Contact, modifier: Modifier = Modifier, size: Dp = 13.dp) {
+    if (c.isOrg) {
+        Icon(Icons.Rounded.Business, "Organisation", tint = Space.Blue.copy(alpha = 0.85f), modifier = modifier.size(size))
+    }
 }
 
 /**
@@ -110,37 +142,58 @@ fun Avatar(
     color: Color,
     size: Dp,
     modifier: Modifier = Modifier,
-    shape: Shape = CircleShape,
+    shape: Shape? = null,
     ring: Boolean = true,
     glowColor: Color? = null,
 ) {
     val photo = rememberPhoto(contact.photo)
     val ringWidth = if (size > 56.dp) 2.5.dp else 1.5.dp
-    Box(
-        modifier
-            .size(size)
-            .then(if (glowColor != null) Modifier.glow(glowColor, size / 4, shape, 0.7f) else Modifier)
-            .then(if (ring) Modifier.border(ringWidth, if (glowColor != null) glowColor else color.copy(alpha = 0.85f), shape) else Modifier)
-            .padding(if (ring) ringWidth + 1.5.dp else 0.dp)
-            .clip(shape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (photo != null) {
-            Image(bitmap = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        } else {
+    // Organisations always keep their square shape so they are recognisable everywhere.
+    val s = if (contact.isOrg || shape == null) avatarShape(contact, size) else shape
+    Box(modifier.size(size)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .then(if (glowColor != null) Modifier.glow(glowColor, size / 4, s, 0.7f) else Modifier)
+                .then(if (ring) Modifier.border(ringWidth, if (glowColor != null) glowColor else color.copy(alpha = 0.85f), s) else Modifier)
+                .padding(if (ring) ringWidth + 1.5.dp else 0.dp)
+                .clip(s),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (photo != null) {
+                Image(bitmap = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Brush.linearGradient(listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0.20f)))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (contact.isOrg) {
+                        Icon(orgIcon(contact.orgCategory), null, tint = Space.Text, modifier = Modifier.size(size * 0.46f))
+                    } else {
+                        Text(
+                            Logic.initials(contact),
+                            color = Space.Text,
+                            fontFamily = Grotesk,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = (size.value * 0.36f).sp,
+                        )
+                    }
+                }
+            }
+        }
+        if (contact.isOrg && photo != null && size >= 30.dp) {
             Box(
                 Modifier
-                    .fillMaxSize()
-                    .background(Brush.linearGradient(listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0.20f)))),
+                    .align(Alignment.BottomEnd)
+                    .size(size * 0.38f)
+                    .clip(RoundedCornerShape(size * 0.12f))
+                    .background(Space.Deep)
+                    .border(1.dp, Space.Blue.copy(alpha = 0.7f), RoundedCornerShape(size * 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    Logic.initials(contact),
-                    color = Space.Text,
-                    fontFamily = Grotesk,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = (size.value * 0.36f).sp,
-                )
+                Icon(Icons.Rounded.Business, null, tint = Space.Blue, modifier = Modifier.size(size * 0.24f))
             }
         }
     }

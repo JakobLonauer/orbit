@@ -19,9 +19,30 @@ data class RelationKind(
     val forward: String,
     /** How it reads from the "to" side. */
     val backward: String,
+    /** Typical for "person → organisation" links. */
+    val toOrg: Boolean = false,
 )
 
+data class OrgCategory(val key: String, val label: String, val icon: String)
+
 object Defaults {
+
+    val orgCategories = listOf(
+        OrgCategory("company", "Firma", "business"),
+        OrgCategory("work", "Arbeit", "work"),
+        OrgCategory("health", "Gesundheit", "health"),
+        OrgCategory("authority", "Behörde", "authority"),
+        OrgCategory("service", "Dienstleister", "service"),
+        OrgCategory("club", "Verein", "club"),
+        OrgCategory("other", "Sonstiges", "other"),
+    )
+
+    fun orgCategory(key: String?): OrgCategory =
+        orgCategories.firstOrNull { it.key == key } ?: orgCategories.first()
+
+    const val ME_DEFAULT_NAME = "Ich"
+
+    fun me(): Contact = Contact(id = newId(), firstName = ME_DEFAULT_NAME, isMe = true, createdAt = now(), updatedAt = now())
 
     val entryTypes = listOf(
         EntryType(TypeIds.MEET, "Treffen", "meet", resetsTimer = true, builtin = true),
@@ -54,8 +75,13 @@ object Defaults {
         RelationKind("relative", "Verwandt", "Verwandt"),
         RelationKind("friend", "Freund/in", "Freund/in"),
         RelationKind("colleague", "Kolleg/in", "Kolleg/in"),
-        RelationKind("boss", "Vorgesetzte/r", "Mitarbeiter/in"),
+        RelationKind("boss", "Vorgesetzte/r", "Teammitglied"),
         RelationKind("roommate", "Mitbewohner/in", "Mitbewohner/in"),
+        // Person → organisation
+        RelationKind("works_at", "Mitarbeiter/in", "Arbeitgeber", toOrg = true),
+        RelationKind("patient", "Patient/in", "Ärzt:in / Praxis", toOrg = true),
+        RelationKind("client", "Kunde/Kundin", "Dienstleister", toOrg = true),
+        RelationKind("member", "Mitglied", "Verein / Organisation", toOrg = true),
     )
 
     fun relationKind(key: String): RelationKind =
@@ -71,6 +97,7 @@ object Defaults {
     )
 
     fun fresh(): OrbitData = OrbitData(
+        contacts = listOf(me()),
         groups = starterGroups(),
         entryTypes = entryTypes,
     )

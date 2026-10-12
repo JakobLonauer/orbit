@@ -8,6 +8,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.ContactKind
 import io.github.thelony97.orbit.data.DayOfYear
 import io.github.thelony97.orbit.data.LabeledValue
 import io.github.thelony97.orbit.data.OrbitRepository
@@ -109,7 +110,9 @@ object PhoneImport {
                 }
             }
         }
-        if (first.isBlank() && last.isBlank()) first = display
+        // Like Apple Contacts: an entry with a company but no personal name is an organisation.
+        val isOrg = first.isBlank() && last.isBlank() && company.isNotBlank() && (display.isBlank() || display == company)
+        if (!isOrg && first.isBlank() && last.isBlank()) first = display
 
         val photoUri = Uri.withAppendedPath(
             ContactsContract.Contacts.CONTENT_URI.buildUpon().appendPath(contactId.toString()).build(),
@@ -125,6 +128,7 @@ object PhoneImport {
 
         Contact(
             id = newId(),
+            kind = if (isOrg) ContactKind.ORG else ContactKind.PERSON,
             firstName = first,
             lastName = last,
             phones = phones,

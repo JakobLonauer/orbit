@@ -8,6 +8,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.now
@@ -25,7 +26,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Backups are plain ZIP files: orbit.json plus the photos folder.
+ * Backups are plain ZIP files: orbit.json plus the photos folder (profile photos and photo folders).
+ * Mail passwords are never part of a backup.
  * Weekly backups go into a folder the user picked (e.g. a Google Drive folder).
  */
 object Backups {
@@ -52,7 +54,7 @@ object Backups {
             zip.putNextEntry(ZipEntry("orbit.json"))
             zip.write(pretty.encodeToString(OrbitData.serializer(), data).toByteArray())
             zip.closeEntry()
-            data.contacts.mapNotNull { it.photo }.distinct().forEach { name ->
+            data.contacts.flatMap { Mutations.files(it) }.distinct().forEach { name ->
                 val file = OrbitRepository.photoFile(name)
                 if (file.exists()) {
                     zip.putNextEntry(ZipEntry("photos/$name"))

@@ -38,7 +38,7 @@ class PhoneMatcher(contacts: List<Contact>, private val iso: String) {
     private val byTail = HashMap<String, MutableSet<String>>()
 
     init {
-        contacts.filter { it.deletedAt == null }.forEach { c ->
+        contacts.filter { it.deletedAt == null && !it.isMe }.forEach { c ->
             c.phones.forEach { p ->
                 val n = Phones.normalize(p.value, iso) ?: return@forEach
                 exact[n] = c.id

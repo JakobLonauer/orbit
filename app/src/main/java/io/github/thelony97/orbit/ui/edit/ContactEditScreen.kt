@@ -29,7 +29,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -62,6 +65,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.ContactKind
+import io.github.thelony97.orbit.ui.components.orgIcon
 import io.github.thelony97.orbit.data.Defaults
 import io.github.thelony97.orbit.data.LabeledValue
 import io.github.thelony97.orbit.data.Mutations
@@ -115,6 +120,11 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val address = remember { TextFieldState(original.address) }
     val howWeMet = remember { TextFieldState(original.howWeMet) }
     val notes = remember { TextFieldState(original.notes) }
+    val website = remember { TextFieldState(original.website) }
+    var kind by remember { mutableStateOf(original.kind) }
+    var orgCategory by remember { mutableStateOf(original.orgCategory ?: Defaults.orgCategories.first().key) }
+    val isOrg = kind == ContactKind.ORG
+    val isMe = original.isMe
     val phones = remember { mutableStateListOf<ValueRow>().apply { original.phones.forEach { add(ValueRow(it.label, it.value)) } } }
     val emails = remember { mutableStateListOf<ValueRow>().apply { original.emails.forEach { add(ValueRow(it.label, it.value)) } } }
     var defaultPhone by remember { mutableStateOf(original.defaultPhone) }
@@ -139,6 +149,9 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         val phoneValues = phones.map { LabeledValue(it.label, it.state.text.toString().trim()) }.filter { it.value.isNotEmpty() }
         val emailValues = emails.map { LabeledValue(it.label, it.state.text.toString().trim()) }.filter { it.value.isNotEmpty() }
         return original.copy(
+            kind = kind,
+            orgCategory = if (kind == ContactKind.ORG) orgCategory else null,
+            website = website.text.toString().trim(),
             firstName = first.text.toString().trim(),
             lastName = last.text.toString().trim(),
             company = company.text.toString().trim(),
@@ -159,7 +172,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
     fun save() {
         val contact = build()
-        if (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank()) {
+        if ((contact.isOrg && contact.company.isBlank()) || (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank())) {
             Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
             return
         }
@@ -191,7 +204,12 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                 OrbButton(Icons.Rounded.Close, "Abbrechen", { confirmDiscard = true }, size = 38.dp)
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    if (isNew) "Neuer Kontakt" else "Bearbeiten",
+                    when {
+                        isMe -> "Ich"
+                        isNew && isOrg -> "Neue Organisation"
+                        isNew -> "Neuer Kontakt"
+                        else -> "Bearbeiten"
+                    },
                     style = MaterialTheme.typography.titleLargeEmphasized,
                     color = Space.Text,
                     modifier = Modifier.weight(1f),
@@ -237,8 +255,13 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SpaceField(first, "", placeholder = "Vorname", keyboardOptions = caps)
-                        SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps)
+                        if (isOrg) {
+                            SpaceField(company, "", placeholder = "Name (z. B. Hausarztpraxis Dr. Huber)", keyboardOptions = caps, singleLine = false)
+                            SpaceField(position, "", placeholder = "Abteilung / Ansprechpartner", keyboardOptions = caps)
+                        } else {
+                            SpaceField(first, "", placeholder = if (isMe) "Dein Name" else "Vorname", keyboardOptions = caps)
+                            SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps)
+                        }
                     }
                 }
                 if (photo != null) {
@@ -254,11 +277,47 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     )
                 }
 
-                GlassCard {
-                    SectionTitle("Arbeit / Schule")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SpaceField(company, "", Modifier.weight(1f), placeholder = "Firma / Schule / Uni", keyboardOptions = caps)
-                        SpaceField(position, "", Modifier.weight(1f), placeholder = "Rolle", keyboardOptions = caps)
+                if (!isMe) {
+                    GlassCard {
+                        SectionTitle("Art")
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SpaceChip("Mensch", !isOrg, {
+                                kind = ContactKind.PERSON
+                            }, leading = Icons.Rounded.Person)
+                            SpaceChip("Organisation", isOrg, {
+                                if (!isOrg && company.text.isBlank()) {
+                                    val name = listOf(first.text, last.text).joinToString(" ").trim()
+                                    if (name.isNotEmpty()) company.setTextAndPlaceCursorAtEnd(name)
+                                }
+                                kind = ContactKind.ORG
+                            }, leading = Icons.Rounded.Business, accent = Space.Blue)
+                        }
+                        Text(
+                            if (isOrg) "Firma, Praxis, Krankenhaus, Amt … – taucht nur auf, wenn du Organisationen im Filter einblendest."
+                            else "Ein echter Mensch aus deinem Leben.",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Space.TextFaint,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        if (isOrg) {
+                            Spacer(Modifier.size(10.dp))
+                            SectionTitle("Kategorie")
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Defaults.orgCategories.forEach { cat ->
+                                    SpaceChip(cat.label, orgCategory == cat.key, { orgCategory = cat.key }, leading = orgIcon(cat.key), accent = Space.Blue)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!isOrg) {
+                    GlassCard {
+                        SectionTitle("Arbeit / Schule")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SpaceField(company, "", Modifier.weight(1f), placeholder = "Firma / Schule / Uni", keyboardOptions = caps)
+                            SpaceField(position, "", Modifier.weight(1f), placeholder = "Rolle", keyboardOptions = caps)
+                        }
                     }
                 }
 
@@ -270,18 +329,26 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     ValueList(emails, Defaults.emailLabels, "E-Mail", KeyboardType.Email, null, null, "E-Mail hinzufügen")
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("Adresse")
-                    SpaceField(address, "", singleLine = false, placeholder = "Straße, Ort", keyboardOptions = caps)
+                    SpaceField(address, "", singleLine = false, placeholder = "Straße, PLZ Ort", keyboardOptions = caps)
+                    if (isOrg) {
+                        Spacer(Modifier.size(8.dp))
+                        SectionTitle("Webseite")
+                        SpaceField(website, "", placeholder = "www.beispiel.at", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
+                    }
                 }
 
                 GlassCard {
-                    SectionTitle("Geburtstag")
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SpaceChip(birthday?.let { Fmt.dayOfYear(it) } ?: "Datum wählen", birthday != null, { birthdayDialog = true }, leading = Icons.Rounded.Cake, accent = Space.Orange)
-                        if (birthday != null) {
-                            SpaceChip("entfernen", false, { birthday = null })
+                    if (!isOrg) {
+                        SectionTitle("Geburtstag")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SpaceChip(birthday?.let { Fmt.dayOfYear(it) } ?: "Datum wählen", birthday != null, { birthdayDialog = true }, leading = Icons.Rounded.Cake, accent = Space.Orange)
+                            if (birthday != null) {
+                                SpaceChip("entfernen", false, { birthday = null })
+                            }
                         }
                     }
-                    Spacer(Modifier.size(10.dp))
+                    if (!isMe) {
+                    if (!isOrg) Spacer(Modifier.size(10.dp))
                     SectionTitle("Gruppen")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         data.groups.forEach { g ->
@@ -298,19 +365,22 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     Spacer(Modifier.size(10.dp))
                     SectionTitle("Melde-Rhythmus")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SpaceChip("wie Gruppe", rhythm == null, { rhythm = null })
+                        SpaceChip(if (isOrg) "keiner" else "wie Gruppe", rhythm == null, { rhythm = null })
                         rhythmPresets.forEach { days ->
                             SpaceChip(Fmt.rhythm(days), rhythm == days, { rhythm = days }, accent = Space.Teal)
                         }
                     }
+                    }
                 }
 
                 GlassCard {
-                    SectionTitle("Über")
-                    SpaceField(howWeMet, "Wie kennengelernt", singleLine = false, keyboardOptions = caps)
-                    Spacer(Modifier.size(8.dp))
-                    SpaceField(notes, "Notizen", singleLine = false, keyboardOptions = caps)
-                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SectionTitle(if (isOrg) "Notizen" else "Über")
+                    if (!isOrg && !isMe) {
+                        SpaceField(howWeMet, "Wie kennengelernt", singleLine = false, keyboardOptions = caps)
+                        Spacer(Modifier.size(8.dp))
+                    }
+                    SpaceField(notes, if (isOrg) "" else "Notizen", singleLine = false, keyboardOptions = caps, placeholder = if (isOrg) "Öffnungszeiten, Kundennummer, Ansprechpartner …" else "")
+                    if (!isMe) Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = Space.Orange, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text("Favorit", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))

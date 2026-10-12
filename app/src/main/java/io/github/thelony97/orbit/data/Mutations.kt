@@ -14,13 +14,13 @@ object Mutations {
     }
 
     fun trash(d: OrbitData, id: String): OrbitData =
-        d.copy(contacts = d.contacts.map { if (it.id == id) it.copy(deletedAt = now()) else it })
+        d.copy(contacts = d.contacts.map { if (it.id == id && !it.isMe) it.copy(deletedAt = now()) else it })
 
     fun restore(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id) it.copy(deletedAt = null) else it })
 
     /** Removes a contact for good, together with relations and meetings that point at it. */
-    fun purge(d: OrbitData, id: String): OrbitData = d.copy(
+    fun purge(d: OrbitData, id: String): OrbitData = if (d.contacts.any { it.id == id && it.isMe }) d else d.copy(
         contacts = d.contacts.filterNot { it.id == id },
         relations = d.relations.filterNot { it.fromId == id || it.toId == id },
         meetings = d.meetings.filterNot { it.contactId == id },
@@ -32,8 +32,11 @@ object Mutations {
         val expired = d.contacts.filter { it.deletedAt != null && it.deletedAt < limit }
         var result = d
         expired.forEach { result = purge(result, it.id) }
-        return result to expired.mapNotNull { it.photo }
+        return result to expired.flatMap { files(it) }
     }
+
+    /** All picture files that belong to a contact (profile photo and photo folder). */
+    fun files(c: Contact): List<String> = listOfNotNull(c.photo) + c.gallery.map { it.file }
 
     fun addEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->

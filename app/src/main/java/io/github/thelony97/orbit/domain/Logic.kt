@@ -39,6 +39,9 @@ data class DueInfo(
 object Logic {
 
     fun displayName(c: Contact, lastNameFirst: Boolean): String {
+        if (c.isOrg) {
+            return c.company.trim().ifBlank { listOf(c.firstName, c.lastName).joinToString(" ").trim() }.ifBlank { "Ohne Namen" }
+        }
         val first = c.firstName.trim()
         val last = c.lastName.trim()
         return when {
@@ -50,7 +53,12 @@ object Logic {
         }
     }
 
+    /** Short name for sentences ("Kontakt mit Anna"). */
+    fun shortName(c: Contact): String =
+        if (c.isOrg) displayName(c, false) else c.firstName.trim().ifBlank { displayName(c, false) }
+
     fun sortKey(c: Contact, lastNameFirst: Boolean): String {
+        if (c.isOrg) return fold(displayName(c, false))
         val primary = if (lastNameFirst) c.lastName.ifBlank { c.firstName } else c.firstName.ifBlank { c.lastName }
         val secondary = if (lastNameFirst) c.firstName else c.lastName
         return fold("$primary $secondary").ifBlank { fold(c.company) }
@@ -62,6 +70,10 @@ object Logic {
     }
 
     fun initials(c: Contact): String {
+        if (c.isOrg) {
+            val words = displayName(c, false).split(' ', '-').filter { it.isNotBlank() && it.first().isLetterOrDigit() }
+            return words.take(2).joinToString("") { it.take(1) }.uppercase().ifEmpty { "?" }
+        }
         val a = c.firstName.trim().firstOrNull()
         val b = c.lastName.trim().firstOrNull()
         val s = listOfNotNull(a, b).joinToString("").uppercase()
@@ -72,8 +84,12 @@ object Logic {
     fun fold(s: String): String =
         Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
 
-    fun rhythm(c: Contact, idx: Index): Int? =
-        c.rhythmDays ?: c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull()
+    /** Organisations only get reminders when a rhythm was set on them directly; "Ich" never. */
+    fun rhythm(c: Contact, idx: Index): Int? = when {
+        c.isMe -> null
+        c.isOrg -> c.rhythmDays
+        else -> c.rhythmDays ?: c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull()
+    }
 
     fun lastContactAt(c: Contact): Long? = c.entries.maxOfOrNull { it.at }
 
@@ -117,6 +133,11 @@ object Logic {
 
     fun active(data: OrbitData): List<Contact> = data.contacts.filter { it.deletedAt == null }
 
+    /** Everyone except "Ich". */
+    fun others(data: OrbitData): List<Contact> = data.contacts.filter { it.deletedAt == null && !it.isMe }
+
+    fun me(data: OrbitData): Contact? = data.contacts.firstOrNull { it.isMe }
+
     fun matches(c: Contact, query: String, idx: Index): Boolean {
         val q = fold(query.trim())
         if (q.isEmpty()) return true
@@ -124,7 +145,8 @@ object Logic {
         if (digits.length >= 3 && c.phones.any { p -> p.value.filter { it.isDigit() }.contains(digits) }) return true
         val haystack = buildString {
             append(c.firstName).append(' ').append(c.lastName).append(' ')
-            append(c.company).append(' ').append(c.position).append(' ')
+            append(c.company).append(' ').append(c.position).append(' ').append(c.website).append(' ')
+            if (c.isOrg) append(io.github.thelony97.orbit.data.Defaults.orgCategory(c.orgCategory).label).append(' ')
             append(c.howWeMet).append(' ').append(c.notes).append(' ').append(c.address).append(' ')
             c.emails.forEach { append(it.value).append(' ') }
             c.groupIds.forEach { id -> idx.groups[id]?.let { append(it.name).append(' ') } }

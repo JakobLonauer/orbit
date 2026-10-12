@@ -161,6 +161,7 @@ fun SpaceChip(
     dot: Color? = null,
     leading: ImageVector? = null,
     accent: Color = Space.Violet,
+    trailing: ImageVector? = null,
 ) {
     val bg by animateColorAsState(if (selected) accent.copy(alpha = 0.20f) else Space.Panel, label = "chipBg")
     val border by animateColorAsState(if (selected) accent.copy(alpha = 0.75f) else Space.Line, label = "chipBorder")
@@ -183,6 +184,28 @@ fun SpaceChip(
             color = if (selected) Space.Text else Space.TextDim,
             maxLines = 1,
         )
+        if (trailing != null) Icon(trailing, null, tint = if (selected) accent else Space.TextDim, modifier = Modifier.size(14.dp))
+    }
+}
+
+/** Round glass button with a small counter badge (used for the filter button). */
+@Composable
+fun BadgeOrb(icon: ImageVector, contentDescription: String, count: Int, onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.dp) {
+    Box(modifier) {
+        OrbButton(icon, contentDescription, onClick, size = size, accent = if (count > 0) Space.Violet else null)
+        if (count > 0) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .size(17.dp)
+                    .glow(Space.Orange, 6.dp)
+                    .clip(CircleShape)
+                    .background(Space.Orange),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("$count", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Space.Void)
+            }
+        }
     }
 }
 

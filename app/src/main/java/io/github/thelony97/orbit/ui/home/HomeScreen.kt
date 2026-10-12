@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BubbleChart
 import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +48,8 @@ import io.github.thelony97.orbit.ui.components.glass
 import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.list.ContactFabMenu
 import io.github.thelony97.orbit.ui.list.ContactListScreen
+import io.github.thelony97.orbit.ui.map.MapScreen
+import io.github.thelony97.orbit.ui.network.NetworkScreen
 import io.github.thelony97.orbit.ui.orbit.OrbitScreen
 import io.github.thelony97.orbit.ui.settings.SettingsScreen
 import io.github.thelony97.orbit.ui.theme.Space
@@ -56,9 +60,13 @@ private data class Tab(val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
     Tab("Kontakte", Icons.Rounded.Contacts),
-    Tab("Orbit", Icons.Rounded.BubbleChart),
+    Tab("Orbit", Icons.Rounded.TrackChanges),
+    Tab("Netz", Icons.Rounded.Hub),
+    Tab("Karte", Icons.Rounded.Map),
     Tab("Einstellungen", Icons.Rounded.Tune),
 )
+
+const val TAB_SETTINGS = 4
 
 /** Space reserved at the bottom of scrolling content for the floating bar. */
 val BottomBarSpace = 104.dp
@@ -76,6 +84,8 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             when (current) {
                 0 -> ContactListScreen(data, idx, nav)
                 1 -> OrbitScreen(data, idx, nav)
+                2 -> NetworkScreen(data, idx, nav)
+                3 -> MapScreen(data, idx, nav)
                 else -> SettingsScreen(data, nav)
             }
         }
@@ -118,7 +128,7 @@ private fun OrbitNavBar(selected: Int, onSelect: (Int) -> Unit, settingsBadge: B
                     .clip(pill)
                     .background(bg)
                     .clickable { onSelect(i) }
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = if (isSelected) 14.dp else 12.dp)
                     .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec()),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -128,7 +138,7 @@ private fun OrbitNavBar(selected: Int, onSelect: (Int) -> Unit, settingsBadge: B
                         tint = if (isSelected) Space.Violet else Space.TextDim,
                         modifier = Modifier.size(20.dp),
                     )
-                    if (i == 2 && settingsBadge) {
+                    if (i == TAB_SETTINGS && settingsBadge) {
                         Box(
                             Modifier
                                 .align(Alignment.TopEnd)

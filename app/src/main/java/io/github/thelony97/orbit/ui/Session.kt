@@ -1,0 +1,29 @@
+package io.github.thelony97.orbit.ui
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import io.github.thelony97.orbit.domain.Audience
+import io.github.thelony97.orbit.domain.StatusFilter
+
+/**
+ * View state that lives as long as the app process: filters, the network root and map focus.
+ * Deliberately not saved – "Organisationen anzeigen" switches itself off again after closing the app.
+ */
+object Session {
+    var audience by mutableStateOf(Audience.PEOPLE)
+    var status by mutableStateOf(StatusFilter.ALL)
+    var groups by mutableStateOf(emptySet<String>())
+
+    /** null = "Ich". */
+    var networkRoot by mutableStateOf<String?>(null)
+    var networkDepth by mutableIntStateOf(2)
+
+    /** Contact the map should centre on next time it opens. */
+    var mapFocus by mutableStateOf<String?>(null)
+
+    fun toggleGroup(id: String) {
+        groups = if (id in groups) groups - id else groups + id
+    }
+}

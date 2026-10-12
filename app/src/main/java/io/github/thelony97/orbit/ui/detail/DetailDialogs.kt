@@ -149,6 +149,19 @@ fun MeetingDialog(name: String, onDismiss: () -> Unit, onPlan: (MeetingDraft) ->
     if (pickTime) TimeDialog(initial = time, onDismiss = { pickTime = false }, onPick = { time = it })
 }
 
+/** One choice in the relation dialog. [reversed] = the relation is stored from the other side. */
+data class RelationOption(val label: String, val kind: String, val reversed: Boolean, val toOrg: Boolean)
+
+fun relationOptions(contact: Contact): List<RelationOption> {
+    val personKinds = Defaults.relationKinds.filter { !it.toOrg }
+    val orgKinds = Defaults.relationKinds.filter { it.toOrg }
+    if (contact.isOrg) return orgKinds.map { RelationOption(it.backward, it.key, reversed = true, toOrg = true) }
+    return personKinds.flatMap { k ->
+        listOf(RelationOption(k.forward, k.key, false, false)) +
+            if (k.backward != k.forward) listOf(RelationOption(k.backward, k.key, true, false)) else emptyList()
+    } + orgKinds.map { RelationOption(it.forward, it.key, reversed = false, toOrg = true) }
+}
+
 @Composable
 fun RelationDialog(
     contact: Contact,
@@ -156,33 +169,53 @@ fun RelationDialog(
     idx: Index,
     lastFirst: Boolean,
     onDismiss: () -> Unit,
-    onPick: (otherId: String, kind: String) -> Unit,
+    onPick: (otherId: String, kind: String, reversed: Boolean) -> Unit,
 ) {
-    var kind by remember { mutableStateOf(Defaults.relationKinds.first().key) }
+    val options = remember(contact.kind) { relationOptions(contact) }
+    var option by remember { mutableStateOf(options.first()) }
     var other by remember { mutableStateOf<String?>(null) }
     val search = rememberTextFieldState()
     val q = search.text.toString()
-    val filtered = candidates.filter { it.id != contact.id && Logic.matches(it, q, idx) }
-        .sortedBy { Logic.sortKey(it, lastFirst) }
+    // Person ↔ person links pick people, person → organisation links pick organisations.
+    val wantOrg = option.toOrg && !contact.isOrg
+    val filtered = candidates.filter { it.id != contact.id && it.isOrg == wantOrg && Logic.matches(it, q, idx) }
+        .sortedWith(compareByDescending<Contact> { it.isMe }.thenBy { Logic.sortKey(it, lastFirst) })
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${contact.firstName.ifBlank { Logic.displayName(contact, lastFirst) }} ist …") },
+        title = { Text("${Logic.shortName(contact)} ist …") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Defaults.relationKinds.forEach { k ->
-                        FilterChip(selected = kind == k.key, onClick = { kind = k.key }, label = { Text(k.forward) })
+                    options.forEach { o ->
+                        FilterChip(
+                            selected = option == o,
+                            onClick = {
+                                if (o.toOrg != option.toOrg) other = null
+                                option = o
+                            },
+                            label = { Text(o.label) },
+                        )
                     }
                 }
                 Text("… von", style = MaterialTheme.typography.labelLarge)
                 OutlinedTextField(
                     state = search,
-                    placeholder = { Text("Person suchen") },
+                    placeholder = { Text(if (wantOrg) "Organisation suchen" else "Person suchen") },
                     lineLimits = TextFieldLineLimits.SingleLine,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 LazyColumn(Modifier.heightIn(max = 260.dp)) {
+                    if (filtered.isEmpty()) {
+                        item {
+                            Text(
+                                if (wantOrg) "Keine passende Organisation – lege sie über + → „Neue Organisation“ an." else "Niemand gefunden.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                            )
+                        }
+                    }
                     items(filtered, key = { it.id }) { c ->
                         Row(
                             Modifier
@@ -202,7 +235,7 @@ fun RelationDialog(
         },
         confirmButton = {
             TextButton(enabled = other != null, onClick = {
-                other?.let { onPick(it, kind) }
+                other?.let { onPick(it, option.kind, option.reversed) }
                 onDismiss()
             }) { Text("Verknüpfen") }
         },

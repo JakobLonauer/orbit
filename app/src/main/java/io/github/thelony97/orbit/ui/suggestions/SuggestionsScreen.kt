@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.ContactKind
 import io.github.thelony97.orbit.data.LabeledValue
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
@@ -105,7 +107,7 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                             FilledTonalButton(onClick = {
                                 val name = u.cachedName.orEmpty().trim()
                                 val first = name.substringBefore(' ')
@@ -117,7 +119,16 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
                                     phones = listOf(LabeledValue("Mobil", u.display)),
                                 )
                                 nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), prefill)))
-                            }) { Text("Anlegen") }
+                            }) { Text("Mensch") }
+                            FilledTonalButton(onClick = {
+                                val prefill = Contact(
+                                    id = newId(),
+                                    kind = ContactKind.ORG,
+                                    company = u.cachedName.orEmpty().trim(),
+                                    phones = listOf(LabeledValue("Arbeit", u.display)),
+                                )
+                                nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), prefill)))
+                            }) { Text("Organisation") }
                             TextButton(onClick = { ContactActions.dialNumber(ctx, u.display) }) { Text("Anrufen") }
                             TextButton(onClick = { OrbitRepository.edit { d -> Mutations.dismissUnknown(d, u.key) } }) { Text("Ignorieren") }
                         }

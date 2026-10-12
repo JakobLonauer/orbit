@@ -67,9 +67,17 @@ object ContactActions {
         if (start(ctx, intent)) log(c.id, TypeIds.EMAIL, "E-Mail aus Orbit")
     }
 
+    /** Opens the address in Google Maps (app if installed, otherwise the browser). */
     fun maps(ctx: Context, address: String) {
         if (address.isBlank()) return toast(ctx, "Keine Adresse hinterlegt")
-        start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(address))))
+        start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(address))))
+    }
+
+    fun web(ctx: Context, url: String) {
+        val clean = url.trim()
+        if (clean.isEmpty()) return
+        val full = if (clean.startsWith("http://") || clean.startsWith("https://")) clean else "https://$clean"
+        start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse(full)))
     }
 
     fun dialNumber(ctx: Context, number: String) {

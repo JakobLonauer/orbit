@@ -86,7 +86,7 @@ class OrbitWidget : GlanceAppWidget() {
         val idx = Index(data)
         val todayDate = today()
         val lastFirst = data.settings.sortByLastName
-        val active = Logic.active(data).filterNot { it.archived }
+        val active = Logic.others(data).filterNot { it.archived }
         fun color(c: Contact) = c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { Color(it.color) } ?: Color(0xFF7986CB)
 
         val birthdays = active.mapNotNull { c ->

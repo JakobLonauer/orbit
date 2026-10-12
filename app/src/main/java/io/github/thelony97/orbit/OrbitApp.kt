@@ -4,6 +4,7 @@ import android.app.Application
 import io.github.thelony97.orbit.backup.Backups
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.mail.MailAccounts
 import io.github.thelony97.orbit.notify.DigestScheduler
 import io.github.thelony97.orbit.notify.Notifications
 import io.github.thelony97.orbit.sync.Sync
@@ -20,6 +21,7 @@ class OrbitApp : Application() {
     override fun onCreate() {
         super.onCreate()
         OrbitRepository.init(this)
+        MailAccounts.init(this)
         OrbitRepository.onSaved = { ctx -> OrbitWidget.refresh(ctx) }
         Notifications.createChannels(this)
         scope.launch {

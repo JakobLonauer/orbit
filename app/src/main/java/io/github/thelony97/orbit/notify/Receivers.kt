@@ -79,7 +79,7 @@ object DigestScheduler {
         runCatching { SyncEngine.syncAll(ctx) }
         val data = OrbitRepository.snapshot()
         val idx = Index(data)
-        val active = Logic.active(data).filterNot { it.archived }
+        val active = Logic.others(data).filterNot { it.archived }
 
         val due = active.mapNotNull { c ->
             val info = Logic.due(c, idx, todayDate)

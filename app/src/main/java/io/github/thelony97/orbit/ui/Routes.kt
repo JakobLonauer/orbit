@@ -26,4 +26,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object Suggestions : Route
+
+    @Serializable
+    data object MailAccounts : Route
 }

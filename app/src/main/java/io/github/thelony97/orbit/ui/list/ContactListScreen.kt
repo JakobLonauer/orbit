@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -27,7 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
@@ -57,24 +63,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.ContactKind
+import io.github.thelony97.orbit.data.Defaults
+import io.github.thelony97.orbit.data.newId
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.TypeIds
+import io.github.thelony97.orbit.domain.Audience
 import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
+import io.github.thelony97.orbit.domain.ListQuery
 import io.github.thelony97.orbit.domain.Logic
+import io.github.thelony97.orbit.domain.SortMode
+import io.github.thelony97.orbit.domain.StatusFilter
+import io.github.thelony97.orbit.domain.toLocalDate
 import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.PhoneImport
 import io.github.thelony97.orbit.ui.Route
+import io.github.thelony97.orbit.ui.Session
+import io.github.thelony97.orbit.ui.components.BadgeOrb
+import io.github.thelony97.orbit.ui.components.KindMark
+import io.github.thelony97.orbit.ui.components.entryIcon
+import io.github.thelony97.orbit.ui.detail.dueLine
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.EmptyHint
 import io.github.thelony97.orbit.ui.components.GlowPill
@@ -89,50 +109,40 @@ import io.github.thelony97.orbit.ui.sheets.EntrySheet
 import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import kotlinx.coroutines.launch
-
-private data class Section(val title: String, val contacts: List<Contact>)
-
-private const val F_ALL = "all"
-private const val F_FAV = "fav"
-private const val F_DUE = "due"
-private const val F_ARCHIVE = "archive"
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
     val ctx = LocalContext.current
     val search = rememberTextFieldState()
-    var filter by rememberSaveable { mutableStateOf(F_ALL) }
     var quickEntry by remember { mutableStateOf<Contact?>(null) }
+    var filterSheet by remember { mutableStateOf(false) }
     val lastFirst = data.settings.sortByLastName
     val query = search.text.toString()
     val todayDate = today()
-    val active = remember(data) { Logic.active(data) }
-    val dueIds = remember(data) {
-        active.filter { !it.archived && Logic.due(it, idx, todayDate).state == DueState.DUE }.map { it.id }.toSet()
-    }
+    val sort = SortMode.of(data.settings.listSort)
+    val reversed = data.settings.listSortReversed
+    val audience = Session.audience
+    val status = Session.status
+    val groups = Session.groups
 
-    val sections = remember(data, query, filter) {
-        val base = active.filter { c ->
-            when {
-                filter == F_ARCHIVE -> c.archived
-                c.archived -> false
-                filter == F_FAV -> c.favorite
-                filter == F_DUE -> c.id in dueIds
-                filter.startsWith("g:") -> filter.removePrefix("g:") in c.groupIds
-                else -> true
-            }
-        }.filter { Logic.matches(it, query, idx) }
-        if (filter == F_DUE) {
-            listOf(Section("Fällig", base.sortedBy { Logic.due(it, idx, todayDate).dueDate?.toEpochDay() }))
-        } else {
-            base.sortedBy { Logic.sortKey(it, lastFirst) }
-                .groupBy { Logic.sectionLetter(it, lastFirst) }
-                .toSortedMap(compareBy<String> { if (it == "#") "￿" else it })
-                .map { (letter, list) -> Section(letter, list) }
-        }
+    val dueIds = remember(data, audience) {
+        Logic.others(data).filter { audience.accepts(it) && !it.archived && Logic.due(it, idx, todayDate).state == DueState.DUE }.map { it.id }.toSet()
+    }
+    val sections = remember(data, query, audience, status, groups) {
+        val list = ListQuery.filter(data, idx, audience, status, groups, query, todayDate)
+        ListQuery.sections(list, idx, sort, reversed, lastFirst, todayDate)
+    }
+    val hiddenOrgHits = remember(data, query, audience, status, groups) {
+        if (audience != Audience.PEOPLE || query.isBlank()) 0
+        else ListQuery.filter(data, idx, Audience.ORGS, status, groups, query, todayDate).size
     }
     val suggestions = remember(data) { data.unknownNumbers.count { !it.dismissed && it.calls + it.sms >= 2 } }
-    val total = active.count { !it.archived }
+    val me = remember(data) { Logic.me(data) }
+    val total = remember(data, audience) { Logic.others(data).count { !it.archived && audience.accepts(it) } }
+    val defaultView = status == StatusFilter.ALL && groups.isEmpty() && query.isEmpty()
+    val pinned = data.groups.filter { it.pinned }
+    val activeCount = activeFilterCount(data)
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         // Header
@@ -150,58 +160,73 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                 GlowPill(
                     text = "${dueIds.size} fällig",
                     color = Space.Coral,
-                    onClick = { filter = if (filter == F_DUE) F_ALL else F_DUE },
+                    onClick = { Session.status = if (status == StatusFilter.DUE) StatusFilter.ALL else StatusFilter.DUE },
                 )
             }
         }
 
-        SpaceSearchField(
-            state = search,
-            placeholder = "Suchen in Namen, Notizen, Verlauf …",
-            leading = Icons.Rounded.Search,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-        )
-
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SpaceChip("Alle", filter == F_ALL, { filter = F_ALL })
-            SpaceChip("Fällig", filter == F_DUE, { filter = if (filter == F_DUE) F_ALL else F_DUE }, accent = Space.Coral)
-            SpaceChip("Favoriten", filter == F_FAV, { filter = if (filter == F_FAV) F_ALL else F_FAV }, leading = Icons.Rounded.Star, accent = Space.Orange)
-            data.groups.forEach { g ->
-                val key = "g:${g.id}"
-                SpaceChip(g.name, filter == key, { filter = if (filter == key) F_ALL else key }, dot = Color(g.color), accent = Color(g.color))
-            }
-            SpaceChip("Archiv", filter == F_ARCHIVE, { filter = if (filter == F_ARCHIVE) F_ALL else F_ARCHIVE })
+            SpaceSearchField(
+                state = search,
+                placeholder = if (audience == Audience.ORGS) "Organisationen durchsuchen …" else "Suchen in Namen, Notizen, Verlauf …",
+                leading = Icons.Rounded.Search,
+                modifier = Modifier.weight(1f),
+            )
+            BadgeOrb(Icons.Rounded.Tune, "Filter & Sortierung", activeCount, { filterSheet = true })
         }
+
+        // Feedback bar: pinned groups + whatever is active. Invisible when there is nothing to show.
+        val showBar = pinned.isNotEmpty() || activeCount > 0
+        AnimatedVisibility(showBar) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp).padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (sort != SortMode.NAME || reversed) {
+                    SpaceChip(sort.label(reversed), true, { filterSheet = true }, leading = Icons.AutoMirrored.Rounded.Sort, accent = Space.Teal)
+                }
+                if (audience != Audience.PEOPLE) {
+                    SpaceChip(audience.label, true, { Session.audience = Audience.PEOPLE }, leading = Icons.Rounded.Business, accent = Space.Blue, trailing = Icons.Rounded.Close)
+                }
+                if (status != StatusFilter.ALL) {
+                    SpaceChip(
+                        status.label, true, { Session.status = StatusFilter.ALL },
+                        accent = if (status == StatusFilter.DUE) Space.Coral else if (status == StatusFilter.FAVORITES) Space.Orange else Space.Violet,
+                        trailing = Icons.Rounded.Close,
+                    )
+                }
+                pinned.forEach { g ->
+                    SpaceChip(g.name, g.id in groups, { Session.toggleGroup(g.id) }, dot = Color(g.color), accent = Color(g.color))
+                }
+                data.groups.filter { !it.pinned && it.id in groups }.forEach { g ->
+                    SpaceChip(g.name, true, { Session.toggleGroup(g.id) }, dot = Color(g.color), accent = Color(g.color), trailing = Icons.Rounded.Close)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner() }
-            if (suggestions > 0 && filter == F_ALL && query.isEmpty()) {
+            if (suggestions > 0 && defaultView) {
                 item(key = "suggestions") {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 4.dp)
-                            .glass(RoundedCornerShape(16.dp), tint = Space.Panel, border = Space.Teal.copy(alpha = 0.35f))
-                            .clickable { nav.open(Route.Suggestions) }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.PersonAdd, null, tint = Space.Teal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            if (suggestions == 1) "1 unbekannte Nummer taucht öfter auf" else "$suggestions unbekannte Nummern tauchen öfter auf",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Space.Text,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Space.TextDim)
-                    }
+                    Banner(
+                        icon = Icons.Rounded.PersonAdd,
+                        color = Space.Teal,
+                        text = if (suggestions == 1) "1 unbekannte Nummer taucht öfter auf" else "$suggestions unbekannte Nummern tauchen öfter auf",
+                        onClick = { nav.open(Route.Suggestions) },
+                    )
+                }
+            }
+            if (me != null && defaultView && audience != Audience.ORGS) {
+                item(key = "me") {
+                    MeCard(me, idx, onOpen = { nav.open(Route.Detail(me.id)) })
                 }
             }
 
@@ -209,8 +234,10 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                 item(key = "empty") {
                     when {
                         query.isNotEmpty() -> EmptyHint("Nichts gefunden", "Für „$query“ gibt es keinen Treffer.")
-                        filter == F_DUE -> EmptyHint("Niemand fällig", "Du bist mit allen auf dem Laufenden.")
-                        filter != F_ALL -> EmptyHint("Leer", "In diesem Filter ist niemand.")
+                        status == StatusFilter.DUE -> EmptyHint("Niemand fällig", "Du bist mit allen auf dem Laufenden.")
+                        audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
+                            EmptyHint("Keine Organisationen", "Lege Firma, Praxis oder Amt über + → „Neue Organisation“ an.")
+                        !defaultView -> EmptyHint("Leer", "In diesem Filter ist niemand.")
                         else -> EmptyHint("Dein Orbit ist leer", "Tippe auf + und hol die ersten Menschen in deinen Orbit.")
                     }
                 }
@@ -229,12 +256,17 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         Text(section.title, style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Violet)
                         Spacer(Modifier.width(10.dp))
                         Box(Modifier.weight(1f).height(1.dp).background(Space.Line))
+                        if (sort != SortMode.NAME) {
+                            Spacer(Modifier.width(8.dp))
+                            Text("${section.contacts.size}", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                        }
                     }
                 }
                 items(section.contacts, key = { c -> "${section.title}-${c.id}" }) { c ->
                     ContactRow(
                         contact = c,
-                        color = contactColor(c, idx),
+                        idx = idx,
+                        sort = sort,
                         due = c.id in dueIds,
                         lastFirst = lastFirst,
                         onOpen = { nav.open(Route.Detail(c.id)) },
@@ -244,25 +276,88 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                     )
                 }
             }
+
+            if (hiddenOrgHits > 0) {
+                item(key = "org-hint") {
+                    Banner(
+                        icon = Icons.Rounded.Business,
+                        color = Space.Blue,
+                        text = if (hiddenOrgHits == 1) "1 Treffer bei Organisationen" else "$hiddenOrgHits Treffer bei Organisationen",
+                        action = "Anzeigen",
+                        onClick = { Session.audience = Audience.ALL },
+                    )
+                }
+            }
         }
     }
 
     quickEntry?.let { c ->
         EntrySheet(
-            title = "Kontakt mit ${c.firstName.ifBlank { Logic.displayName(c, lastFirst) }}",
+            title = "Kontakt mit ${Logic.shortName(c)}",
             types = data.entryTypes,
             initial = null,
-            defaultType = TypeIds.MEET,
+            defaultType = if (c.isOrg) TypeIds.CALL else TypeIds.MEET,
             onSave = { e -> OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) } },
             onDismiss = { quickEntry = null },
         )
+    }
+    if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })
+}
+
+@Composable
+private fun Banner(icon: ImageVector, color: Color, text: String, onClick: () -> Unit, action: String? = null) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .glass(RoundedCornerShape(16.dp), tint = Space.Panel, border = color.copy(alpha = 0.35f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))
+        if (action != null) {
+            Text(action, style = MaterialTheme.typography.labelLarge, color = color)
+        } else {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Space.TextDim)
+        }
+    }
+}
+
+/** "Meine Karte" – the user's own entry, always on top. */
+@Composable
+private fun MeCard(me: Contact, idx: Index, onOpen: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .glass(RoundedCornerShape(18.dp), tint = Space.Panel, border = Space.Orange.copy(alpha = 0.30f))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Avatar(me, Space.Orange, 38.dp, glowColor = Space.Orange)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(Logic.displayName(me, false), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = Space.Text)
+            val rels = idx.data.relations.count { it.fromId == me.id || it.toId == me.id }
+            Text(
+                if (rels > 0) "Das bist du · $rels Beziehungen" else "Das bist du · Tippen zum Bearbeiten",
+                style = MaterialTheme.typography.labelMedium,
+                color = Space.TextFaint,
+            )
+        }
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Space.TextDim)
     }
 }
 
 @Composable
 private fun ContactRow(
     contact: Contact,
-    color: Color,
+    idx: Index,
+    sort: SortMode,
     due: Boolean,
     lastFirst: Boolean,
     onOpen: () -> Unit,
@@ -272,7 +367,9 @@ private fun ContactRow(
 ) {
     val scope = rememberCoroutineScope()
     val state = rememberSwipeToDismissBoxState()
-    val since = Logic.daysSinceLastContact(contact)
+    val todayDate = today()
+    val color = contactColor(contact, idx)
+    val last = if (sort == SortMode.RECENT) ListQuery.lastEntry(contact) else null
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
@@ -313,26 +410,65 @@ private fun ContactRow(
         ) {
             Avatar(contact, color, 36.dp, glowColor = if (due) Space.Coral else null)
             Spacer(Modifier.width(12.dp))
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    Logic.displayName(contact, lastFirst),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = Space.Text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (contact.favorite) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Rounded.Star, "Favorit", tint = Space.Orange, modifier = Modifier.size(13.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        Logic.displayName(contact, lastFirst),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        color = Space.Text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (contact.isOrg) {
+                        Spacer(Modifier.width(6.dp))
+                        KindMark(contact)
+                    }
+                    if (contact.favorite) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Rounded.Star, "Favorit", tint = Space.Orange, modifier = Modifier.size(13.dp))
+                    }
+                }
+                val sub = when {
+                    last != null -> buildString {
+                        append(idx.types[last.typeId]?.name ?: "Eintrag")
+                        when (last.incoming) {
+                            true -> append(" · eingehend")
+                            false -> append(" · ausgehend")
+                            null -> Unit
+                        }
+                        last.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
+                    }
+                    contact.isOrg -> listOf(Defaults.orgCategory(contact.orgCategory).label, contact.position).filter { it.isNotBlank() }.joinToString(" · ")
+                    else -> null
+                }
+                if (sub != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (last != null) {
+                            val dirIcon = when (last.incoming) {
+                                true -> Icons.AutoMirrored.Rounded.CallReceived
+                                false -> Icons.AutoMirrored.Rounded.CallMade
+                                null -> entryIcon(idx.types[last.typeId]?.icon ?: "star")
+                            }
+                            Icon(dirIcon, null, tint = if (last.incoming == true) Space.Teal else Space.TextFaint, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(sub, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
             Spacer(Modifier.width(8.dp))
-            Text(
-                since?.let { Fmt.short(it) } ?: "neu",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (due) Space.Coral else Space.TextFaint,
-            )
+            val trailing = when (sort) {
+                SortMode.RECENT -> last?.let { e ->
+                    val d = ChronoUnit.DAYS.between(e.at.toLocalDate(), todayDate)
+                    if (d == 0L) Fmt.time(e.at) else Fmt.short(d)
+                } ?: "–"
+                SortMode.DUE -> Logic.due(contact, idx, todayDate).dueDate?.let { dueLine(ChronoUnit.DAYS.between(todayDate, it)) } ?: "–"
+                SortMode.ADDED -> contact.createdAt.takeIf { it > 0 }?.let { Fmt.shortDate(it.toLocalDate()) } ?: "–"
+                SortMode.FREQUENT -> "${ListQuery.frequency(contact, todayDate)}×"
+                SortMode.NAME -> Logic.daysSinceLastContact(contact, todayDate)?.let { Fmt.short(it) } ?: "neu"
+            }
+            Text(trailing, style = MaterialTheme.typography.labelLarge, color = if (due) Space.Coral else Space.TextFaint)
         }
     }
 }
@@ -385,6 +521,16 @@ fun ContactFabMenu(nav: Nav) {
             },
             text = { Text("Neuer Kontakt") },
             icon = { Icon(Icons.Rounded.PersonAdd, null) },
+            containerColor = Space.PanelHigh,
+            contentColor = Space.Text,
+        )
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), Contact(id = newId(), kind = ContactKind.ORG))))
+            },
+            text = { Text("Neue Organisation") },
+            icon = { Icon(Icons.Rounded.Business, null) },
             containerColor = Space.PanelHigh,
             contentColor = Space.Text,
         )

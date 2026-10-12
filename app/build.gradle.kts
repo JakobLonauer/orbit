@@ -20,6 +20,8 @@ android {
         versionCode = orbitVersionCode
         versionName = "1.0.$orbitVersionCode"
         buildConfigField("String", "GITHUB_REPO", "\"JakobLonauer/orbit\"")
+        // MapLibre ships native code; every phone of the last decade is ARM.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {
@@ -81,6 +83,10 @@ android {
         excludes += "/META-INF/AL2.0"
         excludes += "/META-INF/LGPL2.1"
         excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        excludes += "/META-INF/LICENSE.md"
+        excludes += "/META-INF/NOTICE.md"
+        excludes += "/META-INF/LICENSE.txt"
+        excludes += "/META-INF/NOTICE.txt"
     }
 }
 
@@ -111,4 +117,8 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.maplibre.android)
+    implementation(libs.android.mail)
+    implementation(libs.android.activation)
 }

@@ -73,7 +73,7 @@ object OrbitRepository {
 
     suspend fun update(transform: (OrbitData) -> OrbitData) {
         ensureLoaded()
-        _data.update { current -> transform(current ?: Defaults.fresh()) }
+        _data.update { current -> migrate(transform(current ?: Defaults.fresh())) }
         saveSignal.trySend(Unit)
     }
 
@@ -113,9 +113,24 @@ object OrbitRepository {
     }
 
     fun migrate(d: OrbitData): OrbitData {
+        var result = d
         // Make sure the built-in entry types always exist.
-        val missing = Defaults.entryTypes.filter { def -> d.entryTypes.none { it.id == def.id } }
-        return if (missing.isEmpty()) d else d.copy(entryTypes = missing + d.entryTypes)
+        val missing = Defaults.entryTypes.filter { def -> result.entryTypes.none { it.id == def.id } }
+        if (missing.isNotEmpty()) result = result.copy(entryTypes = missing + result.entryTypes)
+        // Exactly one "Ich" entry that is never in the trash.
+        val mes = result.contacts.filter { it.isMe }
+        result = when {
+            mes.isEmpty() -> result.copy(contacts = listOf(Defaults.me()) + result.contacts)
+            mes.size > 1 -> {
+                val keep = mes.first().id
+                result.copy(contacts = result.contacts.map { if (it.isMe && it.id != keep) it.copy(isMe = false) else it })
+            }
+            else -> result
+        }
+        if (result.contacts.any { it.isMe && it.deletedAt != null }) {
+            result = result.copy(contacts = result.contacts.map { if (it.isMe) it.copy(deletedAt = null) else it })
+        }
+        return result
     }
 
     private suspend fun persist() {

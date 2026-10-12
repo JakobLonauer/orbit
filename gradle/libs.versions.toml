@@ -13,6 +13,8 @@ biometric = "1.1.0"
 fragment = "1.8.5"
 coroutines = "1.11.0"
 serialization = "1.11.0"
+maplibre = "13.5.3"
+androidMail = "1.6.7"
 
 [libraries]
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -37,6 +39,9 @@ androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "b
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+maplibre-android = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" }
+android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMail" }
+android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

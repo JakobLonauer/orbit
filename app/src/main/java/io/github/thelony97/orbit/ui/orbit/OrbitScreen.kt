@@ -1,249 +1,324 @@
 package io.github.thelony97.orbit.ui.orbit
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
+import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.data.TypeIds
+import io.github.thelony97.orbit.domain.Audience
+import io.github.thelony97.orbit.domain.DueInfo
 import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
+import io.github.thelony97.orbit.ui.Session
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.EmptyHint
-import io.github.thelony97.orbit.ui.components.GlowPill
+import io.github.thelony97.orbit.ui.components.GlassCard
+import io.github.thelony97.orbit.ui.components.GlowBar
+import io.github.thelony97.orbit.ui.components.KindMark
+import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.SpaceChip
+import io.github.thelony97.orbit.ui.components.Stat
 import io.github.thelony97.orbit.ui.components.contactColor
-import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
+import io.github.thelony97.orbit.ui.sheets.EntrySheet
 import io.github.thelony97.orbit.ui.theme.Space
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.min
-import kotlin.math.roundToInt
-import kotlin.math.sin
+import io.github.thelony97.orbit.util.Fmt
+import java.time.temporal.ChronoUnit
 
-private const val MAX_RATIO = 1.5f
+private data class Item(val contact: Contact, val info: DueInfo)
 
-private data class Body(
-    val contact: Contact,
-    val color: Color,
-    /** Days since last contact divided by the rhythm; 1.0 = due. */
-    val ratio: Float,
-    val hasRhythm: Boolean,
-    val due: Boolean,
-    val baseAngle: Float,
-    val speed: Float,
+private data class Model(
+    val birthdays: List<Pair<Contact, Long>>,
+    val overdue: List<Item>,
+    val week: List<Item>,
+    val later: List<Item>,
+    val none: List<Item>,
 )
 
+/** The orbit as a list: who is due, who comes next, who has no rhythm. */
 @Composable
 fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
-    var groupFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val ctx = LocalContext.current
     val todayDate = today()
-    val bodies = remember(data, groupFilter) {
-        val people = Logic.active(data)
-            .filterNot { it.archived }
-            .filter { groupFilter == null || groupFilter in it.groupIds }
-            .sortedBy { it.id.hashCode() }
-        people.mapIndexed { i, c ->
-            val info = Logic.due(c, idx, todayDate)
-            val rhythm = info.rhythm ?: 30
-            val since = (info.daysSinceReset ?: 0L).toFloat()
-            val ratio = (since / rhythm).coerceIn(0f, MAX_RATIO)
-            Body(
-                contact = c,
-                color = contactColor(c, idx),
-                ratio = ratio,
-                hasRhythm = info.rhythm != null && !c.paused,
-                due = info.state == DueState.DUE,
-                baseAngle = i * 360f / people.size.coerceAtLeast(1) + (c.id.hashCode() % 17),
-                speed = 1.4f - ratio / MAX_RATIO,
-            )
-        }
+    val audience = Session.audience
+    var quickEntry by remember { mutableStateOf<Contact?>(null) }
+    var showNone by rememberSaveable { mutableStateOf(false) }
+
+    val model = remember(data, audience) {
+        val people = Logic.others(data).filter { !it.archived && audience.accepts(it) }
+        val items = people.map { Item(it, Logic.due(it, idx, todayDate)) }
+        fun until(i: Item) = i.info.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) } ?: Long.MAX_VALUE
+        Model(
+            birthdays = people.filter { !it.isOrg }
+                .mapNotNull { c -> c.birthday?.let { c to Logic.daysUntil(it, todayDate) } }
+                .filter { it.second <= 14 }
+                .sortedBy { it.second },
+            overdue = items.filter { it.info.state == DueState.DUE }.sortedBy { until(it) },
+            week = items.filter { it.info.state == DueState.OK && until(it) <= 7 }.sortedBy { until(it) },
+            later = items.filter { it.info.state == DueState.OK && until(it) > 7 }.sortedBy { until(it) },
+            none = items.filter { it.info.state == DueState.NONE }
+                .sortedBy { Logic.daysSinceLastContact(it.contact, todayDate)?.let { d -> -d } ?: Long.MIN_VALUE },
+        )
     }
 
-    var seconds by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        val start = withFrameNanos { it }
-        while (true) {
-            withFrameNanos { now -> seconds = (now - start) / 1_000_000_000f }
-        }
-    }
+    fun call(c: Contact) = ContactActions.call(ctx, c, null, data.settings)
 
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Orbit", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
-                Text("innen frisch · außen lange her", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
-            }
-            val dueCount = bodies.count { it.due }
-            if (dueCount > 0) GlowPill("$dueCount fällig", Space.Coral)
-        }
-        if (data.groups.isNotEmpty()) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
+    ) {
+        item(key = "header") {
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 12.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                SpaceChip("Alle", groupFilter == null, { groupFilter = null })
-                data.groups.forEach { g ->
-                    SpaceChip(
-                        g.name, groupFilter == g.id,
-                        { groupFilter = if (groupFilter == g.id) null else g.id },
-                        dot = Color(g.color), accent = Color(g.color),
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text("Orbit", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                    Text("Wer als Nächstes dran ist", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                }
+                if (audience != Audience.PEOPLE) {
+                    SpaceChip(audience.label, true, { Session.audience = Audience.PEOPLE }, leading = Icons.Rounded.Business, accent = Space.Blue, trailing = Icons.Rounded.Close)
+                }
+            }
+        }
+        item(key = "stats") {
+            GlassCard(padding = 12.dp) {
+                Row(Modifier.fillMaxWidth()) {
+                    Stat("${model.overdue.size}", "fällig", color = if (model.overdue.isNotEmpty()) Space.Coral else Space.Text)
+                    Stat("${model.week.size}", "7 Tage", color = Space.Orange)
+                    Stat("${model.later.size}", "später", color = Space.Teal)
+                    Stat("${model.none.size}", "ohne", color = Space.TextDim)
                 }
             }
         }
 
-        if (bodies.isEmpty()) {
-            EmptyHint("Noch niemand im Orbit", "Sobald du Kontakte anlegst, kreisen sie hier um dich.")
-            return@Column
-        }
-
-        val density = LocalDensity.current
-        BoxWithConstraints(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(bottom = BottomBarSpace - 20.dp),
-        ) {
-            val avatar = when {
-                bodies.size > 50 -> 26.dp
-                bodies.size > 25 -> 30.dp
-                else -> 36.dp
-            }
-            val avatarPx = with(density) { avatar.toPx() }
-            val labelPx = with(density) { 14.dp.toPx() }
-            val w = constraints.maxWidth.toFloat()
-            val h = constraints.maxHeight.toFloat()
-            val cx = w / 2f
-            val cy = h / 2f
-            val maxR = min(w, h) / 2f - avatarPx / 2f - labelPx
-            val minR = maxR * 0.28f
-            fun radius(ratio: Float) = minR + (maxR - minR) * (ratio / MAX_RATIO)
-
-            Canvas(Modifier.fillMaxSize()) {
-                val center = Offset(cx, cy)
-                // Halo of the "habitable zone" inside the due line
-                drawCircle(
-                    Brush.radialGradient(
-                        listOf(Space.Violet.copy(alpha = 0.10f), Space.Violet.copy(alpha = 0.02f), Color.Transparent),
-                        center = center,
-                        radius = radius(1f),
-                    ),
-                    radius = radius(1f),
-                    center = center,
+        if (model.overdue.isEmpty() && model.week.isEmpty() && model.later.isEmpty() && model.birthdays.isEmpty()) {
+            item(key = "empty") {
+                EmptyHint(
+                    "Noch kein Rhythmus",
+                    "Gib Gruppen oder einzelnen Menschen einen Melde-Rhythmus – dann siehst du hier, wer als Nächstes dran ist.",
                 )
-                val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 10f))
-                drawCircle(Space.Line, radius(0.5f), center, style = Stroke(1.dp.toPx(), pathEffect = dash))
-                drawCircle(Space.Coral.copy(alpha = 0.6f), radius(1f), center, style = Stroke(1.2.dp.toPx(), pathEffect = dash))
-                drawCircle(Space.Line, radius(MAX_RATIO), center, style = Stroke(1.dp.toPx(), pathEffect = dash))
             }
+        }
 
-            Text(
-                "fällig",
-                style = MaterialTheme.typography.labelSmall,
-                color = Space.Coral,
-                modifier = Modifier.offset { IntOffset((cx + 6).roundToInt(), (cy - radius(1f) - 16).roundToInt()) },
-            )
+        if (model.birthdays.isNotEmpty()) {
+            item(key = "h-bday") { Header("Geburtstage", model.birthdays.size, Space.Orange) }
+            items(model.birthdays, key = { "b-${it.first.id}" }) { (c, days) ->
+                val age = c.birthday?.let { Logic.turningAge(it, todayDate) }
+                OrbitRow(
+                    contact = c,
+                    color = contactColor(c, idx),
+                    subtitle = (if (days == 0L) "heute 🎂" else Fmt.until(days)) + (age?.let { " · wird $it" } ?: ""),
+                    subtitleColor = if (days == 0L) Space.Orange else Space.TextFaint,
+                    leadingIcon = true,
+                    progress = null,
+                    glow = if (days == 0L) Space.Orange else null,
+                    onOpen = { nav.open(Route.Detail(c.id)) },
+                    onCall = if (c.phones.isNotEmpty()) { { call(c) } } else null,
+                    onLog = null,
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
 
-            // The sun: you.
-            val sun = 54.dp
-            val sunPx = with(density) { sun.toPx() }
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset((cx - sunPx / 2).roundToInt(), (cy - sunPx / 2).roundToInt()) }
-                    .size(sun)
-                    .graphicsLayer {
-                        val pulse = 1f + 0.04f * sin(seconds * 1.6f)
-                        scaleX = pulse
-                        scaleY = pulse
+        fun section(key: String, title: String, list: List<Item>, color: Color) {
+            if (list.isEmpty()) return
+            item(key = "h-$key") { Header(title, list.size, color) }
+            items(list, key = { "$key-${it.contact.id}" }) { item ->
+                val c = item.contact
+                val info = item.info
+                val until = info.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) }
+                val since = Logic.daysSinceLastContact(c, todayDate)
+                val subtitle = buildString {
+                    when {
+                        until == null -> append(if (c.paused) "pausiert" else "kein Rhythmus")
+                        until < 0 -> append("seit ${-until} ${if (until == -1L) "Tag" else "Tagen"} fällig")
+                        until == 0L -> append("heute fällig")
+                        else -> append("fällig ").append(Fmt.until(until))
                     }
-                    .glow(Space.Orange, 28.dp, CircleShape, 0.75f)
-                    .background(
-                        Brush.radialGradient(listOf(Color(0xFFFFE2B8), Space.Orange, Color(0xFFE07A2E))),
-                        CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Du", style = MaterialTheme.typography.titleSmallEmphasized, color = Color(0xFF3A1E00))
+                    append(" · ")
+                    append(since?.let { "zuletzt ${Fmt.ago(it)}" } ?: "noch kein Kontakt")
+                }
+                val progress = if (info.rhythm != null && until != null) (1f - until.toFloat() / info.rhythm).coerceIn(0f, 1f) else null
+                OrbitRow(
+                    contact = c,
+                    color = contactColor(c, idx),
+                    subtitle = subtitle,
+                    subtitleColor = if (info.state == DueState.DUE) Space.Coral else Space.TextFaint,
+                    leadingIcon = false,
+                    progress = progress,
+                    progressColor = color,
+                    glow = if (info.state == DueState.DUE) Space.Coral else null,
+                    onOpen = { nav.open(Route.Detail(c.id)) },
+                    onCall = if (c.phones.isNotEmpty()) { { call(c) } } else null,
+                    onLog = { quickEntry = c },
+                    modifier = Modifier.animateItem(),
+                )
             }
+        }
+        section("due", "Überfällig", model.overdue, Space.Coral)
+        section("week", "In den nächsten 7 Tagen", model.week, Space.Orange)
+        section("later", "Später", model.later, Space.Teal)
 
-            val labelWidth = avatar + 26.dp
-            val labelWidthPx = with(density) { labelWidth.toPx() }
-            bodies.forEach { b ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .offset {
-                            val r = radius(b.ratio)
-                            val a = (b.baseAngle + seconds * 2.2f * b.speed) * (PI.toFloat() / 180f)
-                            IntOffset(
-                                (cx + r * cos(a) - labelWidthPx / 2).roundToInt(),
-                                (cy + r * sin(a) - avatarPx / 2).roundToInt(),
-                            )
-                        }
-                        .width(labelWidth)
-                        .alpha(if (b.hasRhythm) 1f else 0.55f)
-                        .clickable { nav.open(Route.Detail(b.contact.id)) },
+        if (model.none.isNotEmpty()) {
+            item(key = "h-none") {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { showNone = !showNone }
+                        .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(b.contact, b.color, avatar, glowColor = if (b.due) Space.Coral else null)
-                    Text(
-                        b.contact.firstName.ifBlank { Logic.displayName(b.contact, false) },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (b.due) Space.Coral else Space.TextDim,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                    )
+                    Text("Ohne Rhythmus", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.TextDim)
+                    Spacer(Modifier.width(8.dp))
+                    Text("${model.none.size}", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.weight(1f).height(1.dp).background(Space.Line))
+                    Icon(if (showNone) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = Space.TextDim, modifier = Modifier.padding(start = 6.dp).size(20.dp))
                 }
             }
+            if (showNone) section("none", "", model.none, Space.TextDim)
+        }
+    }
+
+    quickEntry?.let { c ->
+        EntrySheet(
+            title = "Kontakt mit ${Logic.shortName(c)}",
+            types = data.entryTypes,
+            initial = null,
+            defaultType = if (c.isOrg) TypeIds.CALL else TypeIds.MEET,
+            onSave = { e -> OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) } },
+            onDismiss = { quickEntry = null },
+        )
+    }
+}
+
+@Composable
+private fun Header(title: String, count: Int, color: Color) {
+    if (title.isEmpty()) return
+    Row(
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(7.dp).background(color, CircleShape))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.labelLargeEmphasized, color = color)
+        Spacer(Modifier.width(8.dp))
+        Text("$count", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f).height(1.dp).background(Space.Line))
+    }
+}
+
+@Composable
+private fun OrbitRow(
+    contact: Contact,
+    color: Color,
+    subtitle: String,
+    subtitleColor: Color,
+    leadingIcon: Boolean,
+    progress: Float?,
+    glow: Color?,
+    onOpen: () -> Unit,
+    onCall: (() -> Unit)?,
+    onLog: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    progressColor: Color = Space.Teal,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpen)
+            .padding(start = 18.dp, end = 12.dp, top = 6.dp, bottom = 6.dp)
+            .animateContentSize(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Avatar(contact, color, 38.dp, glowColor = glow)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    Logic.displayName(contact, false),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    color = Space.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (contact.isOrg) {
+                    Spacer(Modifier.width(6.dp))
+                    KindMark(contact)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (leadingIcon) {
+                    Icon(Icons.Rounded.Cake, null, tint = Space.Orange, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(subtitle, style = MaterialTheme.typography.labelMedium, color = subtitleColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (progress != null) {
+                GlowBar(progress, progressColor, Modifier.padding(top = 5.dp, end = 24.dp))
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        if (onCall != null) {
+            OrbButton(Icons.Rounded.Call, "Anrufen", onCall, size = 36.dp, accent = Space.Teal)
+            Spacer(Modifier.width(6.dp))
+        }
+        if (onLog != null) {
+            OrbButton(Icons.Rounded.EditNote, "Kontakt eintragen", onLog, size = 36.dp)
         }
     }
 }

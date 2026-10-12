@@ -22,7 +22,9 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -121,7 +123,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 120.dp)) {
             item {
                 Text(
-                    "Der Rhythmus einer Gruppe gilt für alle Mitglieder. Ist jemand in mehreren Gruppen, zählt der kürzeste. Pro Kontakt kannst du ihn überschreiben.",
+                    "Der Rhythmus einer Gruppe gilt für alle Mitglieder. Ist jemand in mehreren Gruppen, zählt der kürzeste. Pro Kontakt kannst du ihn überschreiben. Mit der Nadel pinnst du eine Gruppe als Schnellfilter über die Kontaktliste.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -134,7 +136,16 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.dp),
                     leadingContent = { Box(Modifier.size(24.dp).background(Color(g.color), CircleShape)) },
                     supportingContent = {
-                        Text((g.rhythmDays?.let { Fmt.rhythm(it).replaceFirstChar { c -> c.uppercase() } } ?: "Kein Rhythmus") + " · $members Personen")
+                        Text((g.rhythmDays?.let { Fmt.rhythm(it).replaceFirstChar { c -> c.uppercase() } } ?: "Kein Rhythmus") + " · $members Personen" + if (g.pinned) " · angepinnt" else "")
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { OrbitRepository.edit { d -> Mutations.upsertGroup(d, g.copy(pinned = !g.pinned)) } }) {
+                            Icon(
+                                if (g.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
+                                if (g.pinned) "Lösen" else "Anpinnen",
+                                tint = if (g.pinned) Space.Orange else Space.TextFaint,
+                            )
+                        }
                     },
                     shapes = ListItemDefaults.segmentedShapes(index = i, count = data.groups.size),
                     colors = segmentedColors(),
@@ -374,7 +385,7 @@ fun TrashScreen(data: OrbitData, idx: Index, nav: Nav) {
                                 Icon(Icons.Rounded.RestoreFromTrash, "Wiederherstellen")
                             }
                             IconButton(onClick = {
-                                Photos.delete(c.photo)
+                                Mutations.files(c).forEach { Photos.delete(it) }
                                 OrbitRepository.edit { d -> Mutations.purge(d, c.id) }
                             }) { Icon(Icons.Rounded.DeleteForever, "Endgültig löschen") }
                         }
@@ -391,7 +402,7 @@ fun TrashScreen(data: OrbitData, idx: Index, nav: Nav) {
             text = "${trashed.size} Kontakte werden endgültig gelöscht.",
             confirm = "Leeren",
             onConfirm = {
-                trashed.forEach { Photos.delete(it.photo) }
+                trashed.forEach { c -> Mutations.files(c).forEach { Photos.delete(it) } }
                 OrbitRepository.edit { d -> trashed.fold(d) { acc, c -> Mutations.purge(acc, c.id) } }
             },
             onDismiss = { confirmEmpty = false },
