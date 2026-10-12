@@ -332,13 +332,11 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
 
             // Selection card
             val selNode = selected?.let { byId[it] }
-            AnimatedVisibility(
+            BottomPopup(
                 visible = selNode != null,
-                enter = fadeIn() + slideInVertically { it / 2 },
-                exit = fadeOut() + slideOutVertically { it / 2 },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = BottomBarSpace - 6.dp),
             ) {
-                val n = selNode ?: return@AnimatedVisibility
+                val n = selNode ?: return@BottomPopup
                 NodeCard(
                     node = n,
                     path = pathTo(n, byId),
@@ -351,6 +349,17 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
     }
 
     if (picker) RootPicker(data, idx, onDismiss = { picker = false })
+}
+
+/** Slides a card in from the bottom (top-level, so it does not pick up an outer ColumnScope). */
+@Composable
+private fun BottomPopup(visible: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn() + slideInVertically { it / 2 },
+        exit = fadeOut() + slideOutVertically { it / 2 },
+    ) { content() }
 }
 
 /** "Ich › Anna › Tom" and how the last step relates. */
