@@ -242,4 +242,30 @@ class ScreensScreenshotTest {
         compose.waitForIdle()
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_crop.png")
     }
+
+    // R2 call screen (PLAN 3.12), not wired to telecom yet.
+    private val callCard = io.github.thelony97.orbit.core.domain.CallerCard(
+        "anna", "Anna Berger", role = "Lehrerin", note = "Fragt nach der Wohnung in Wien",
+        customerNo = "KD-48213", lastAt = now - 3 * day, lastKind = "Anruf", topics = listOf("Wohnung in Wien?", "Konzert im Mai"),
+    )
+    private val noActions = object : io.github.thelony97.orbit.ui.call.CallActions {}
+
+    @Test fun callIncomingLocked() = shot("call_incoming_locked") {
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard), noActions, now)
+    }
+
+    @Test fun callIncoming() = shot("call_incoming") {
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, phoneUnlocked = true), noActions, now)
+    }
+
+    @Test fun callActive() = shot("call_active") {
+        io.github.thelony97.orbit.ui.call.CallScreen(
+            io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, elapsed = 125, speaker = true, phoneUnlocked = true, doneTopics = setOf("Konzert im Mai")),
+            noActions, now,
+        )
+    }
+
+    @Test fun callUnknown() = shot("call_unknown") {
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null), noActions, now)
+    }
 }
