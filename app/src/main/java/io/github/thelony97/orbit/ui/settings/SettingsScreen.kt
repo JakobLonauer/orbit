@@ -217,6 +217,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     var encryptionDialog by remember { mutableStateOf(false) }
     var encrypted by remember { mutableStateOf(BackupKey.isSet(ctx)) }
     var permissionTick by remember { mutableIntStateOf(0) }
+    // The long "restricted settings" help only after Android actually refused (W7).
+    var permissionDenied by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
 
@@ -230,6 +232,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         permissionTick++
         if (result.values.any { granted -> !granted }) {
+            permissionDenied = true
             toast("Nicht alles erlaubt – siehe Hinweis")
         } else {
             Sync.requestNow(ctx)
@@ -339,7 +342,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     if (missing.isNotEmpty()) {
                         AttentionRow(
                             "Berechtigung fehlt: " + missing.joinToString(", ") { it.title },
-                            Permissions.RESTRICTED_HELP,
+                            Permissions.RESTRICTED_HELP.takeIf { permissionDenied },
                         ) {
                             GlowButton("Erlauben", { permissionLauncher.launch(missing.map { it.permission }.toTypedArray()) }, color = Space.Coral)
                             GhostButton("App-Info", {
