@@ -320,7 +320,7 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
 @Composable
 private fun ActiveControls(ui: CallUi, actions: CallActions) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute)
             ToggleOrb(Icons.AutoMirrored.Rounded.VolumeUp, "Lautsprecher", ui.speaker, actions::toggleSpeaker)
             ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold)
@@ -335,7 +335,7 @@ private fun ActiveControls(ui: CallUi, actions: CallActions) {
 
 @Composable
 private fun ToggleOrb(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean, onClick: () -> Unit) {
-    Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.width(80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .size(56.dp)
