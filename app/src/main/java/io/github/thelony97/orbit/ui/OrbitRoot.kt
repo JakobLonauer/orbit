@@ -82,6 +82,13 @@ fun OrbitRoot(activity: FragmentActivity) {
                 .navigationBarsPadding()
                 .padding(bottom = 88.dp),
         )
+        // Back to the running call (only while Orbit is the phone app and a call runs).
+        io.github.thelony97.orbit.ui.call.OngoingCallChip(
+            Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 4.dp),
+        )
         val showLock = current != null && current.settings.onboardingDone && current.settings.lockEnabled && locked
         // The lock is its own window above everything – also above open dialogs, sheets and the
         // long-press popup, which are separate windows and would otherwise stay visible on top.
