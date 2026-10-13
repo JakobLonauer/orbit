@@ -69,6 +69,7 @@ import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -83,6 +84,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -202,7 +208,20 @@ fun Hairline() {
 
 @Composable
 private fun SpaceSwitch(checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
-    Switch(checked = checked, onCheckedChange = onChange, enabled = enabled, colors = spaceSwitch())
+    // PLAN 1.3 Einstellungen: switches morph (thumb grows a check) and answer with haptics.
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    Switch(
+        checked = checked,
+        onCheckedChange = { v ->
+            haptics.perform(if (v) io.github.thelony97.orbit.core.designsystem.Haptic.Confirm else io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+            onChange(v)
+        },
+        enabled = enabled,
+        colors = spaceSwitch(),
+        thumbContent = if (checked) {
+            { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(SwitchDefaults.IconSize)) }
+        } else null,
+    )
 }
 
 @Composable
@@ -345,11 +364,22 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         val brokenMail = mailAccounts.filter { it.lastError != null }
         if (current == null && (missing.isNotEmpty() || backupIssue != null || brokenMail.isNotEmpty())) {
             item(key = "attention") {
+                // „Die Achtung-Karte glimmt“ (PLAN 1.3): a slow coral breath behind it, read in the
+                // draw phase only; still in battery saver (PLAN 1.1: no permanent animations).
+                val saver = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+                val breath = if (saver) null else io.github.thelony97.orbit.ui.components.rememberBreath()
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .glass(RoundedCornerShape(20.dp), tint = Space.Panel, border = Space.Coral.copy(alpha = 0.5f))
+                        .drawBehind {
+                            val a = 0.10f + 0.12f * (breath?.value ?: 0.5f)
+                            drawRoundRect(
+                                Brush.radialGradient(listOf(Space.Coral.copy(alpha = a), Space.Coral.copy(alpha = 0f)), center = Offset(size.width * 0.12f, size.height * 0.2f), radius = size.maxDimension * 0.7f),
+                                cornerRadius = CornerRadius(20.dp.toPx()),
+                            )
+                        }
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
