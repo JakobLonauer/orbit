@@ -434,6 +434,36 @@ fun GlowBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
 }
 
 /** Big number with a tiny label, used in stat strips. */
+/**
+ * A stat whose number counts up from 0 when it appears and rolls when it changes (W2,
+ * „Zuletzt-Chips zählen hoch“). [render] turns the animated value into text; null shows "–".
+ */
+@Composable
+fun RowScope.CountStat(target: Int?, label: String, color: Color = Space.Text, render: (Int) -> String) {
+    val anim = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(target) {
+        if (target != null) {
+            anim.animateTo(
+                target.toFloat(),
+                androidx.compose.animation.core.tween(
+                    io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS,
+                    easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized,
+                ),
+            )
+        }
+    }
+    Column(Modifier.weight(1f).padding(vertical = 4.dp, horizontal = 2.dp)) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            if (target == null) "–" else render(anim.value.toInt()),
+            style = MaterialTheme.typography.titleLargeEmphasized.copy(fontFeatureSettings = "tnum"),
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 fun RowScope.Stat(value: String, label: String, color: Color = Space.Text, onClick: (() -> Unit)? = null) {
     Column(

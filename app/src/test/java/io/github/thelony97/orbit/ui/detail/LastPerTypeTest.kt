@@ -14,7 +14,7 @@ class LastPerTypeTest {
         )
     }
 
-    @Test fun mostRecentKindsFirstThenFilled() {
+    @Test fun fixedOrderWithUsedKindsAndFill() {
         val c = Contact(
             "a",
             entries = listOf(
@@ -24,7 +24,7 @@ class LastPerTypeTest {
             ),
         )
         assertEquals(
-            listOf("coffee" to 50L, TypeIds.CALL to 40L, TypeIds.MEET to null),
+            listOf(TypeIds.MEET to null, TypeIds.CALL to 40L, "coffee" to 50L),
             lastPerType(c),
         )
     }

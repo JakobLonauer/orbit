@@ -102,6 +102,7 @@ import io.github.thelony97.orbit.geo.Geo
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.GhostButton
+import io.github.thelony97.orbit.ui.components.CountStat
 import io.github.thelony97.orbit.ui.components.GlassCard
 import io.github.thelony97.orbit.ui.components.GlowButton
 import io.github.thelony97.orbit.ui.components.OrbButton
@@ -200,7 +201,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             DropdownMenuItem(
                                 text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
                                 leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
-                                onClick = { menu = false; edit { it.copy(archived = !it.archived) } },
+                                onClick = { menu = false; edit { it.copy(archived = !it.archived, archivedAt = if (it.archived) null else now()) } },
                             )
                             HorizontalDivider(color = Space.Line)
                             DropdownMenuItem(
@@ -264,13 +265,20 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         onLongClick = { chooser = Chooser.Call },
                         accent = Space.Teal,
                     )
-                    ActionOrb(Icons.Rounded.Sms, "SMS", number != null, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
-                    ActionOrb(Icons.Rounded.ChatBubble, "WhatsApp", number != null, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
-                    ActionOrb(
-                        Icons.Rounded.Email, "E-Mail", email != null,
-                        onClick = { if (c.emails.count { it.value.isNotBlank() } > 1) chooser = Chooser.Mail else ContactActions.email(ctx, c, null) },
-                    )
-                    ActionOrb(Icons.Rounded.Map, "Karte", c.address.isNotBlank(), onClick = { ContactActions.maps(ctx, c.address) })
+                    // Only what applies (W5): no greyed-out orbs.
+                    if (number != null) {
+                        ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
+                        ActionOrb(Icons.Rounded.ChatBubble, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
+                    }
+                    if (email != null) {
+                        ActionOrb(
+                            Icons.Rounded.Email, "E-Mail", true,
+                            onClick = { if (c.emails.count { it.value.isNotBlank() } > 1) chooser = Chooser.Mail else ContactActions.email(ctx, c, null) },
+                        )
+                    }
+                    if (c.address.isNotBlank()) {
+                        ActionOrb(Icons.Rounded.Map, "Karte", true, onClick = { ContactActions.maps(ctx, c.address) })
+                    }
                 }
             }
 
@@ -282,8 +290,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     val perType = lastPerType(c)
                     Row(Modifier.fillMaxWidth()) {
                         perType.forEach { (typeId, at) ->
-                            val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate) }
-                            Stat(days?.let { Fmt.short(it) } ?: "–", idx.types[typeId]?.name ?: "Kontakt")
+                            val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate).toInt() }
+                            CountStat(days, idx.types[typeId]?.name ?: "Kontakt") { d -> Fmt.short(d.toLong()) }
                         }
                     }
                     // The stats already say it; only the "nothing yet" state needs words (W5).
@@ -426,11 +434,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 ) {
                     if (rels.isEmpty()) {
                         Text(
-                            when {
-                                c.isOrg -> "Wer arbeitet hier, wer ist hier Patient:in oder Mitglied? Verknüpfe Menschen mit dieser Organisation."
-                                c.isMe -> "Wer gehört zu dir? Partner:in, Eltern, Geschwister, Arbeitgeber … – daraus entsteht dein Netz."
-                                else -> "Partner, Familie, Kolleg:innen verknüpfen – die Gegenseite entsteht automatisch."
-                            },
+                            "Keine Beziehungen",
                             style = MaterialTheme.typography.bodySmall,
                             color = Space.TextFaint,
                             modifier = Modifier.padding(vertical = 4.dp),
@@ -698,13 +702,13 @@ private fun MeetingRow(m: Meeting) {
 }
 
 /**
- * Three slots of "zuletzt" per kind: the kinds used most recently with this contact,
- * filled up with Treffen / Anruf / Nachricht so the row never jumps in width (W2).
+ * Three slots of "zuletzt" per kind, in a fixed order so columns never swap between contacts
+ * (W2): Treffen, Anruf, Nachricht first, then other kinds this contact actually has.
  */
 internal fun lastPerType(c: Contact): List<Pair<String, Long?>> {
     val latest = c.entries.groupBy { it.typeId }.mapValues { (_, l) -> l.maxOf { it.at } }
-        .entries.sortedByDescending { it.value }.map { it.key to it.value as Long? }
-    val fill = listOf(TypeIds.MEET, TypeIds.CALL, TypeIds.MESSAGE).filter { t -> latest.none { it.first == t } }
-        .map { it to null as Long? }
-    return (latest + fill).take(3)
+    val order = listOf(TypeIds.MEET, TypeIds.CALL, TypeIds.MESSAGE, TypeIds.VIDEO, TypeIds.EMAIL, TypeIds.EVENT)
+    val used = order.filter { it in latest } + latest.keys.filter { it !in order }.sorted()
+    val slots = (used + order).distinct().take(3)
+    return order.filter { it in slots }.plus(slots.filter { it !in order }).map { it to latest[it] }
 }

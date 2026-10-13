@@ -329,7 +329,7 @@ private fun MeCard(me: Contact, idx: Index, onOpen: () -> Unit) {
             Text(Logic.displayName(me, false), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = Space.Text)
             val rels = idx.data.relations.count { it.fromId == me.id || it.toId == me.id }
             Text(
-                if (rels > 0) "Das bist du · $rels Beziehungen" else "Das bist du · Tippen zum Bearbeiten",
+                if (rels > 0) "Das bist du · $rels Beziehungen" else "Das bist du",
                 style = MaterialTheme.typography.labelMedium,
                 color = Space.TextFaint,
             )
@@ -449,7 +449,7 @@ private fun ContactRow(
                 } ?: "–"
                 SortMode.ADDED -> contact.createdAt.takeIf { it > 0 }?.let { Fmt.shortDate(it.toLocalDate()) } ?: "–"
                 SortMode.FREQUENT -> "${ListQuery.frequency(contact, todayDate)}×"
-                SortMode.NAME -> Logic.daysSinceLastContact(contact, todayDate)?.let { Fmt.short(it) } ?: "neu"
+                SortMode.NAME -> Logic.daysSinceLastContact(contact, todayDate)?.let { Fmt.short(it) } ?: ""
             }
             Text(trailing, style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
         }

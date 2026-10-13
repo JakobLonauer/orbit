@@ -268,7 +268,13 @@ fun ConfirmDialog(
 }
 
 @Composable
-fun EmptyHint(title: String, text: String, modifier: Modifier = Modifier) {
+fun EmptyHint(
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier,
+    /** W6: an empty state offers exactly one action. */
+    action: Pair<String, () -> Unit>? = null,
+) {
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -280,6 +286,9 @@ fun EmptyHint(title: String, text: String, modifier: Modifier = Modifier) {
         Text(title, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, modifier = Modifier.padding(top = 8.dp))
         if (text.isNotEmpty()) {
             Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim, textAlign = TextAlign.Center)
+        }
+        if (action != null) {
+            GhostButton(action.first, action.second, Modifier.padding(top = 8.dp))
         }
     }
 }

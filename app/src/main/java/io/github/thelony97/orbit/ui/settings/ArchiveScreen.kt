@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
@@ -49,11 +50,12 @@ import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.EmptyHint
+import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.SpaceSearchField
 import io.github.thelony97.orbit.ui.theme.Space
 
-private enum class ArchiveSort(val label: String) { ARCHIVED("Archiviert"), NAME("Name"), LAST("Zuletzt Kontakt") }
+private enum class ArchiveSort(val label: String) { ARCHIVED("Archiviert"), NAME("Name"), LAST("Letzter Kontakt") }
 
 /**
  * Archiv (PLAN 3.11): the only place archived contacts appear. Search covers the archive only,
@@ -71,11 +73,11 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
     val sections = remember(data, q, sort) {
         val hits = archived.filter { Logic.matches(it, q, idx) }
         val sorted = when (sort) {
-            ArchiveSort.ARCHIVED -> hits.sortedByDescending { it.updatedAt }
+            ArchiveSort.ARCHIVED -> hits.sortedByDescending { archivedAt(it) }
             ArchiveSort.NAME -> hits.sortedBy { Logic.sortKey(it, lastFirst) }
             ArchiveSort.LAST -> hits.sortedByDescending { Logic.lastContactAt(it) ?: Long.MIN_VALUE }
         }
-        sorted.groupBy { if (it.updatedAt > 0) it.updatedAt.toLocalDate().year else 0 }
+        sorted.groupBy { archivedAt(it).takeIf { t -> t > 0 }?.toLocalDate()?.year ?: 0 }
             .toSortedMap(compareByDescending<Int> { it })
             .map { (year, list) -> year to list }
     }
@@ -97,7 +99,8 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
             }
             if (sections.isEmpty()) {
                 item(key = "empty") {
-                    EmptyHint(if (archived.isEmpty()) "Archiv ist leer" else "Nichts gefunden", "")
+                    if (archived.isEmpty()) EmptyHint("Archiv ist leer", "")
+                    else EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() })
                 }
             }
             sections.forEach { (year, list) ->
@@ -118,7 +121,7 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
                         onOpen = { nav.open(Route.Detail(c.id)) },
                         onRestore = {
                             haptics.perform(Haptic.Confirm)
-                            OrbitRepository.editContact(c.id) { it.copy(archived = false) }
+                            OrbitRepository.editContact(c.id) { it.copy(archived = false, archivedAt = null) }
                         },
                         modifier = Modifier.animateItem(),
                     )
@@ -128,13 +131,16 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
     }
 }
 
-/** "archiviert März 2026 · zuletzt 2025 · 12 Notizen · 34 Einträge" */
+/** When it went into the archive; contacts archived before 1.0.8 fall back to their last change. */
+internal fun archivedAt(c: Contact): Long = c.archivedAt ?: c.updatedAt
+
+/** "archiviert im März · zuletzt 2025 · 12 Notizen · 34 Einträge" (the year is the section header). */
 internal fun archiveLine(c: Contact): String = buildList {
-    if (c.updatedAt > 0) c.updatedAt.toLocalDate().let { add("archiviert ${AtFormat.month(it.monthValue)} ${it.year}") }
-    c.entries.maxOfOrNull { it.at }?.let { add("zuletzt ${it.toLocalDate().year}") }
+    val archivedYear = archivedAt(c).takeIf { it > 0 }?.toLocalDate()?.also { add("archiviert im ${AtFormat.month(it.monthValue)}") }?.year
+    c.entries.maxOfOrNull { it.at }?.toLocalDate()?.year?.let { y -> if (y != archivedYear) add("zuletzt $y") }
     val notes = c.entries.count { it.note.isNotBlank() } + (if (c.notes.isNotBlank()) 1 else 0)
-    if (notes > 0) add(if (notes == 1) "1 Notiz" else "$notes Notizen")
-    if (c.entries.isNotEmpty()) add(if (c.entries.size == 1) "1 Eintrag" else "${c.entries.size} Einträge")
+    if (notes > 0) add(if (notes == 1) "1\u00A0Notiz" else "$notes\u00A0Notizen")
+    if (c.entries.isNotEmpty()) add(if (c.entries.size == 1) "1\u00A0Eintrag" else "${c.entries.size}\u00A0Einträge")
 }.joinToString(" · ")
 
 @Composable
@@ -164,9 +170,9 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
             if (role.isNotEmpty()) {
                 Text(role, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(archiveLine(c), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(archiveLine(c), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(1.dp))
         }
-        IconButton(onClick = onRestore) { Icon(Icons.Rounded.Unarchive, "Zurückholen", tint = Space.Teal) }
+        OrbButton(Icons.Rounded.Unarchive, "Zurückholen", onRestore, size = 36.dp, accent = Space.Teal)
     }
 }

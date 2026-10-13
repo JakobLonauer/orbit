@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.actions.ContactActions
+import io.github.thelony97.orbit.core.domain.AtFormat
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
@@ -131,19 +132,9 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
                 }
             }
         }
-        item(key = "stats") {
-            GlassCard(padding = 12.dp) {
-                Row(Modifier.fillMaxWidth()) {
-                    Stat("${model.today.size}", "heute", color = Space.Teal)
-                    Stat("${model.week.size}", "Woche", color = Space.Violet)
-                    Stat("${model.month.size}", "Monat", color = Space.Blue)
-                    Stat("${model.older.size}", "länger", color = Space.TextDim)
-                }
-            }
-        }
 
         if (model.today.isEmpty() && model.week.isEmpty() && model.month.isEmpty() && model.older.isEmpty() && model.birthdays.isEmpty()) {
-            item(key = "empty") { EmptyHint("Noch kein Kontakt", "") }
+            item(key = "empty") { EmptyHint("Noch kein Kontakt", "", action = "Zu den Kontakten" to { nav.home(0) }) }
         }
 
         if (model.birthdays.isNotEmpty()) {
@@ -153,13 +144,16 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
                 OrbitRow(
                     contact = c,
                     color = contactColor(c, idx),
-                    subtitle = (if (days == 0L) "heute 🎂" else Fmt.until(days)) + (age?.let { " · wird $it" } ?: ""),
+                    subtitle = (if (days == 0L) "heute" else Fmt.until(days)) +
+                        // Weekday for near dates (W7).
+                        (if (days in 1L..7L) " · " + AtFormat.weekdayShort(todayDate.plusDays(days)) else "") +
+                        (age?.let { " · wird $it" } ?: ""),
                     subtitleColor = if (days == 0L) Space.Orange else Space.TextFaint,
                     leadingIcon = true,
                     glow = if (days == 0L) Space.Orange else null,
                     onOpen = { nav.open(Route.Detail(c.id)) },
                     onCall = if (c.phones.isNotEmpty()) { { call(c) } } else null,
-                    onLog = null,
+                    onLog = { quickEntry = c },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -188,8 +182,8 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
             }
         }
         section("today", "Heute", model.today, Space.Teal)
-        section("week", "Diese Woche", model.week, Space.Violet)
-        section("month", "Diesen Monat", model.month, Space.Blue)
+        section("week", "Letzte 7 Tage", model.week, Space.Violet)
+        section("month", "Letzte 30 Tage", model.month, Space.Blue)
         section("older", "Länger her", model.older, Space.TextDim)
 
         if (model.never.isNotEmpty()) {
@@ -260,8 +254,7 @@ private fun OrbitRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onOpen)
-            .padding(start = 18.dp, end = 12.dp, top = 6.dp, bottom = 6.dp)
-            .animateContentSize(),
+            .padding(start = 18.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(contact, color, 38.dp, glowColor = glow)

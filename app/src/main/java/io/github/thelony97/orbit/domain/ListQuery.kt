@@ -122,8 +122,8 @@ object ListQuery {
         return when {
             days <= 0 -> "Heute"
             days == 1L -> "Gestern"
-            days < 7 -> "Diese Woche"
-            days < 31 -> "Diesen Monat"
+            days < 7 -> "Letzte 7 Tage"
+            days < 31 -> "Letzte 30 Tage"
             days < 183 -> "Letztes halbes Jahr"
             else -> "Länger her"
         }
