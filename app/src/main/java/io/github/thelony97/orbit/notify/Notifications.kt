@@ -123,7 +123,8 @@ object Notifications {
             .setStyle(style)
             .setContentIntent(openContact(ctx, single?.id, ID_DIGEST))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        val callable = single?.takeIf { it.phones.isNotEmpty() }
+        // Call button only for today's single person, not for a lead-time reminder.
+        val callable = single?.takeIf { s -> s.phones.isNotEmpty() && content.soon.none { it.id == s.id } }
         if (callable != null) {
             builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, callable.id))
         }

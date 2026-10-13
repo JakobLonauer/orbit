@@ -97,7 +97,7 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
     val model = remember(data, audience) {
         val people = Logic.others(data).filter { !it.archived && audience.accepts(it) }
         val items = people.map { Item(it, Logic.daysSinceLastContact(it, todayDate)) }
-            .sortedWith(compareBy<Item> { it.daysSince ?: Long.MAX_VALUE }.thenBy { Logic.sortKey(it.contact, false) })
+            .sortedWith(compareByDescending<Item> { Logic.lastContactAt(it.contact) ?: Long.MIN_VALUE }.thenBy { Logic.sortKey(it.contact, false) })
         Model(
             birthdays = people.filter { !it.isOrg }
                 .mapNotNull { c -> c.birthday?.let { c to Logic.daysUntil(it, todayDate) } }
@@ -135,15 +135,15 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
             GlassCard(padding = 12.dp) {
                 Row(Modifier.fillMaxWidth()) {
                     Stat("${model.today.size}", "heute", color = Space.Teal)
-                    Stat("${model.week.size}", "7 Tage", color = Space.Violet)
-                    Stat("${model.month.size}", "30 Tage", color = Space.Blue)
+                    Stat("${model.week.size}", "Woche", color = Space.Violet)
+                    Stat("${model.month.size}", "Monat", color = Space.Blue)
                     Stat("${model.older.size}", "länger", color = Space.TextDim)
                 }
             }
         }
 
         if (model.today.isEmpty() && model.week.isEmpty() && model.month.isEmpty() && model.older.isEmpty() && model.birthdays.isEmpty()) {
-            item(key = "empty") { EmptyHint("Noch kein Kontakt", "Anrufe, SMS und Einträge erscheinen hier.") }
+            item(key = "empty") { EmptyHint("Noch kein Kontakt", "") }
         }
 
         if (model.birthdays.isNotEmpty()) {

@@ -149,8 +149,10 @@ fun OnboardingScreen(data: OrbitData) {
 @Composable
 private fun Title(text: String, sub: String) {
     Text(text, style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text)
-    Spacer(Modifier.size(8.dp))
-    Text(sub, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+    if (sub.isNotEmpty()) {
+        Spacer(Modifier.size(8.dp))
+        Text(sub, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+    }
     Spacer(Modifier.size(20.dp))
 }
 
@@ -257,7 +259,7 @@ private fun PermissionStep() {
 
 @Composable
 private fun GroupStep(data: OrbitData) {
-    Title("Deine Gruppen", "Farbe und Filter für deine Kontakte.")
+    Title("Deine Gruppen", "")
     data.groups.forEach { g ->
         Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(RoundedCornerShape(20.dp))) {
             Column(Modifier.padding(14.dp)) {

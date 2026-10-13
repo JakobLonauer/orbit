@@ -330,7 +330,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
             SettingsGroup("Organisation") {
                 SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
-                SettingItem(Icons.Rounded.Category, "Eintragsarten", "was den Timer zurücksetzt", onClick = { nav.open(Route.EntryTypes) })
+                SettingItem(Icons.Rounded.Category, "Eintragsarten", "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
                 Hairline()
                 SettingItem(Icons.Rounded.SortByAlpha, "Sortieren nach", trailing = {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

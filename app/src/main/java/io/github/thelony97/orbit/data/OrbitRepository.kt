@@ -130,6 +130,10 @@ object OrbitRepository {
         if (result.contacts.any { it.isMe && it.deletedAt != null }) {
             result = result.copy(contacts = result.contacts.map { if (it.isMe) it.copy(deletedAt = null) else it })
         }
+        // Sorting by due date no longer exists (PLAN 3.0); idempotent.
+        if (result.settings.listSort == "due") {
+            result = result.copy(settings = result.settings.copy(listSort = "name", listSortReversed = false))
+        }
         return result
     }
 

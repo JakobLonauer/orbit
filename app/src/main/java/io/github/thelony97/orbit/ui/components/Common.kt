@@ -278,6 +278,8 @@ fun EmptyHint(title: String, text: String, modifier: Modifier = Modifier) {
             Modifier.size(14.dp).glow(Space.Orange, 12.dp).background(Space.Orange, CircleShape),
         )
         Text(title, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, modifier = Modifier.padding(top = 8.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim, textAlign = TextAlign.Center)
+        if (text.isNotEmpty()) {
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim, textAlign = TextAlign.Center)
+        }
     }
 }

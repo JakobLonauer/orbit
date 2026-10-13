@@ -101,6 +101,8 @@ class OrbitWidget : GlanceAppWidget() {
                 (age?.let { " · wird $it" } ?: "")
             WidgetRow(c, Logic.displayName(c, lastFirst), sub, color(c), birthday = true, days = days)
         }.sortedWith(compareBy({ it.days }, { it.title }))
+            // The next 60 days; if that is empty, at least the next birthday.
+            .let { all -> all.filter { it.days <= 60 }.ifEmpty { all.take(1) } }
     }
 
     @Composable
