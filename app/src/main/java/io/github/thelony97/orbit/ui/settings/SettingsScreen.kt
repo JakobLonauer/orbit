@@ -303,7 +303,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     // PLAN 3.13: five areas, each with a status line on the start page and its own page.
     val backupLine = s.lastBackupAt?.let { "Backup " + Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), today())) } ?: "noch kein Backup"
     val areas = listOf(
-        SettingsArea("capture", "Mitschreiben", Icons.Rounded.Timer, Space.Teal, "Anrufe ab ${s.minCallSeconds} s · ${mailAccounts.size} Mail-Konten"),
+        SettingsArea("capture", "Mitschreiben", Icons.Rounded.Timer, Space.Teal, "Anrufe ab ${s.minCallSeconds} s" + when (mailAccounts.size) { 0 -> ""; 1 -> " · 1 Mail-Konto"; else -> " · ${mailAccounts.size} Mail-Konten" }),
         SettingsArea("notify", "Benachrichtigungen", Icons.Rounded.Notifications, Space.Violet, "Anlässe um %d:%02d".format(s.digestHour, s.digestMinute)),
         SettingsArea("contacts", "Kontakte", Icons.Rounded.Groups, Space.Orange, "${data.groups.size} Gruppen · ${if (s.sortByLastName) "Nachname" else "Vorname"} zuerst"),
         SettingsArea(

@@ -207,18 +207,15 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
                     color = Space.Text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // Name takes the row, the time sits in one right-aligned column (W9).
+                    modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(Fmt.time(e.at), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextFaint)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val icon = when (e.incoming) {
-                    true -> Icons.AutoMirrored.Rounded.CallReceived
-                    false -> Icons.AutoMirrored.Rounded.CallMade
-                    null -> entryIcon(idx.types[e.typeId]?.icon ?: "star")
-                }
-                Icon(icon, null, tint = if (e.incoming == true) Space.Teal else Space.TextFaint, modifier = Modifier.size(12.dp))
+                // Same type icon on every row; calls add their direction as a small arrow.
+                Icon(entryIcon(idx.types[e.typeId]?.icon ?: "star"), null, tint = Space.TextFaint, modifier = Modifier.size(12.dp))
                 Spacer(Modifier.width(4.dp))
                 val kind = idx.types[e.typeId]?.name ?: "Eintrag"
                 Text(
@@ -226,6 +223,15 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
                     style = MaterialTheme.typography.labelMedium,
                     color = Space.TextDim,
                 )
+                e.incoming?.let { incoming ->
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        if (incoming) Icons.AutoMirrored.Rounded.CallReceived else Icons.AutoMirrored.Rounded.CallMade,
+                        if (incoming) "eingehend" else "ausgehend",
+                        tint = if (incoming) Space.Teal else Space.TextFaint,
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
             }
             // Never the content of a hidden member talk (PLAN 3.4).
             val text = if (member) "" else e.note.ifBlank { e.messages.lastOrNull()?.text.orEmpty() }

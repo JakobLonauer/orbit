@@ -272,32 +272,37 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit,
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).padding(top = 6.dp, bottom = 12.dp).animateContentSize()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    buildString {
-                        append(type?.name ?: "Eintrag")
-                        entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
-                        if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
-                    },
-                    style = MaterialTheme.typography.labelLargeEmphasized,
-                    color = Space.Text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                when (entry.incoming) {
-                    true -> Icon(Icons.AutoMirrored.Rounded.CallReceived, "eingehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
-                    false -> Icon(Icons.AutoMirrored.Rounded.CallMade, "ausgehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
-                    null -> Unit
+                // Title and arrow take the row; "vor …" sits in one right-aligned column (W9).
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        buildString {
+                            append(type?.name ?: "Eintrag")
+                            entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
+                            if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
+                        },
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        color = Space.Text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    when (entry.incoming) {
+                        true -> Icon(Icons.AutoMirrored.Rounded.CallReceived, "eingehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
+                        false -> Icon(Icons.AutoMirrored.Rounded.CallMade, "ausgehend", Modifier.padding(start = 4.dp).size(13.dp), tint = accent)
+                        null -> Unit
+                    }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    "${Fmt.short(days)} · ${Fmt.time(entry.at)}",
-                    style = MaterialTheme.typography.labelMedium,
+                    Fmt.short(days),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                     color = Space.TextFaint,
                 )
             }
+            // Date once, with the year when it is not this year, then the time.
+            val d = entry.at.toLocalDate()
             Text(
-                Fmt.dateTime(entry.at),
+                io.github.thelony97.orbit.core.domain.AtFormat.weekdayDate(d) + (if (d.year != today().year) " ${d.year}" else "") + " · " + Fmt.time(entry.at),
                 style = MaterialTheme.typography.labelSmall,
                 color = Space.TextFaint,
             )

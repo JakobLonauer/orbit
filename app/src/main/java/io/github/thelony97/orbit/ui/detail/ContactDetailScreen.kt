@@ -243,7 +243,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     // organisations stay blue. Glides over from the normal colour once it is known.
     val photoAccent = rememberPhotoAccent(c.photo, photo)
     val head by androidx.compose.animation.animateColorAsState(
-        if (c.isOrg || c.isMe) color else photoAccent ?: color,
+        // Archived people are a distant grey star until they come back (PLAN 1.3 Archiv).
+        if (c.archived) Space.TextFaint else if (c.isOrg || c.isMe) color else photoAccent ?: color,
         androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS),
         label = "head",
     )
@@ -286,7 +287,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 ) {
                     OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
                     Spacer(Modifier.weight(1f))
-                    if (!c.isMe) {
+                    if (!c.isMe && !c.archived) {
                         OrbButton(
                             if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit",
                             { edit { it.copy(favorite = !it.favorite) } },
@@ -390,7 +391,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             )
                         }
                         val groups = c.groupIds.mapNotNull { idx.groups[it] }
-                        if (groups.isNotEmpty() || c.archived || c.isOrg || c.isMe) {
+                        if (groups.isNotEmpty() || c.isOrg || c.isMe) {
                             FlowRow(
                                 Modifier.padding(top = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -399,7 +400,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 if (c.isOrg) Pill("Organisation · ${Defaults.orgCategory(c.orgCategory).label}", Space.Blue)
                                 if (c.isMe) Pill("Das bist du", Space.Orange)
                                 groups.forEach { g -> Pill(g.name, Color(g.color)) }
-                                if (c.archived) Pill("archiviert", Space.TextDim)
                             }
                         }
                     }
@@ -456,22 +456,22 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // Status strip
             if (!c.isMe) item(key = "status") {
                 GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
-                    val last = c.entries.maxByOrNull { it.at }
-                    // Last contact per kind (PLAN 3.4): facts only, no due dates.
-                    val perType = lastPerType(c)
-                    Row(Modifier.fillMaxWidth()) {
-                        perType.forEach { (typeId, at) ->
-                            val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate).toInt() }
-                            CountStat(days, idx.types[typeId]?.name ?: "Kontakt") { d -> Fmt.short(d.toLong()) }
+                    // Last contact per kind (PLAN 3.4): facts only, no due dates, and only kinds
+                    // that happened – no dashes for nothing (W5).
+                    val perType = lastPerType(c).filter { it.second != null }
+                    if (perType.isNotEmpty()) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+                            perType.forEach { (typeId, at) ->
+                                val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate).toInt() }
+                                CountStat(days, idx.types[typeId]?.name ?: "Kontakt") { d -> Fmt.short(d.toLong()) }
+                            }
+                            repeat(3 - perType.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
-                    // The stats already say it; only the "nothing yet" state needs words (W5).
-                    if (last == null) {
-                        Text("Noch kein Kontakt", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, modifier = Modifier.padding(top = 8.dp))
-                    }
-                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
-                        GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
+                        // Archived: Zurückholen is the one thing to do, no planning (PLAN 3.11).
+                        if (!c.archived) GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
                     }
                 }
             }
@@ -674,7 +674,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val days = Logic.daysUntil(b, todayDate)
                         val age = Logic.turningAge(b, todayDate)
                         InfoRow(
-                            label = "Geburtstag · " + if (days == 0L) "heute${age?.let { " $it" } ?: ""} 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
+                            label = "Geburtstag · " + if (days == 0L) (age?.let { "wird heute $it" } ?: "heute") + " 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
                             value = Fmt.dayOfYear(b),
                             onClick = { birthdayDialog = true },
                         )
@@ -704,9 +704,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         add(AddItem("Link") { linkDialog = true })
                         if (c.gallery.isEmpty() && !gallery.importing) add(AddItem("Foto") { gallery.launch() })
                         if (c.notes.isBlank()) add(AddItem("Notiz") { noteDialog = NoteTarget.Notes })
-                        if (!c.isMe && c.topics.isEmpty() && "topics" !in opened) add(AddItem("Thema") { opened = opened + "topics" })
+                        if (!c.isMe && !c.archived && c.topics.isEmpty() && "topics" !in opened) add(AddItem("Thema") { opened = opened + "topics" })
                         if (humanRels.isEmpty()) add(AddItem("Beziehung") { relationDialog = true })
-                        if (!c.isOrg && !c.isMe && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
+                        if (!c.isOrg && !c.isMe && !c.archived && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
                         add(AddItem("Feld") { fieldDialog = true })
                     },
                 )
