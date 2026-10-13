@@ -130,7 +130,10 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     ) {
         item(key = "header") {
             Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp)) {
-                Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                // Same 38-dp title row and gap as Kontakte: the search bar stays put on a tab switch (W2).
+                Box(Modifier.height(38.dp), contentAlignment = Alignment.CenterStart) {
+                    Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                }
                 Spacer(Modifier.height(10.dp))
                 SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
             }

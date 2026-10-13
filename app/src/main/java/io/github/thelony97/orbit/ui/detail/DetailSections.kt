@@ -203,7 +203,7 @@ fun InfoRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(value, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+            if (label.isNotEmpty()) Text(label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
         }
         trailing?.invoke()
     }

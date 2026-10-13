@@ -18,9 +18,9 @@ object Permissions {
     val core = listOf(
         PermissionInfo(Manifest.permission.READ_CALL_LOG, "Anrufliste", "Anrufe landen automatisch im Verlauf"),
         PermissionInfo(Manifest.permission.READ_SMS, "SMS", "SMS landen samt Text im Verlauf"),
-        PermissionInfo(Manifest.permission.READ_PHONE_STATE, "Telefonstatus", "Erkennt Anrufe für Themen und Notiz danach"),
+        PermissionInfo(Manifest.permission.READ_PHONE_STATE, "Telefonstatus", "Themen und Notiz beim Anruf"),
         PermissionInfo(Manifest.permission.CALL_PHONE, "Anrufen", "Wischen ruft direkt an"),
-        PermissionInfo(Manifest.permission.POST_NOTIFICATIONS, "Benachrichtigungen", "Tägliche Übersicht um 9:00"),
+        PermissionInfo(Manifest.permission.POST_NOTIFICATIONS, "Benachrichtigungen", "Anlässe am Morgen"),
     )
 
     val optional = listOf(

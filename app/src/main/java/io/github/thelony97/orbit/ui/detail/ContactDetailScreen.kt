@@ -474,9 +474,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
-                        // Archived: Zurückholen is the one thing to do, no planning (PLAN 3.11).
-                        if (!c.archived) GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
+                        // Archived: Zurückholen is the one thing to do – no logging, no planning (PLAN 3.11).
+                        if (!c.archived) {
+                            GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
+                            GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
+                        }
                     }
                 }
             }
@@ -583,7 +585,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 item(key = "about") {
                     SectionCard(title = if (c.isOrg) "Notizen" else "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
                         if (c.howWeMet.isNotBlank()) InfoRow(label = "Wie kennengelernt", value = c.howWeMet)
-                        if (c.notes.isNotBlank()) InfoRow(label = "Notizen", value = c.notes, onClick = { noteDialog = NoteTarget.Notes })
+                        // The caption only distinguishes notes from "wie kennengelernt"; alone it says nothing.
+                        if (c.notes.isNotBlank()) InfoRow(label = if (c.howWeMet.isNotBlank()) "Notizen" else "", value = c.notes, onClick = { noteDialog = NoteTarget.Notes })
                     }
                 }
             }
@@ -702,7 +705,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // "+ Anlass · + Link · + Foto · + Notiz" – only for what the page does not show yet.
-            item(key = "add") {
+            if (!c.archived) item(key = "add") {
                 AddRow(
                     buildList {
                         if (c.dates.isEmpty()) add(AddItem("Anlass") { anniversaryDialog = true })

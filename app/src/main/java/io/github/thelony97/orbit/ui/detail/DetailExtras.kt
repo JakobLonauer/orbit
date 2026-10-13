@@ -73,15 +73,15 @@ import kotlinx.coroutines.delay
 data class AddItem(val label: String, val onClick: () -> Unit)
 
 /**
- * The line at the end of the page: only what is missing, nothing greyed out (W5). The first four
- * (PLAN 3.3: + Anlass · + Link · + Foto · + Notiz) always show; more fold behind „+ Mehr“ so the
- * row stays short.
+ * The line at the end of the page: only what is missing, nothing greyed out (W5). Up to four fit;
+ * with more, the first three (PLAN 3.3 order: Anlass · Link · Foto · Notiz …) and „+ Mehr“.
  */
 @Composable
 fun AddRow(items: List<AddItem>, modifier: Modifier = Modifier) {
     if (items.isEmpty()) return
     var all by remember { mutableStateOf(false) }
-    val shown = if (all || items.size <= 5) items else items.take(4)
+    // Three chips plus „Mehr“ fit one line at phone width; never a lone chip on a second line.
+    val shown = if (all || items.size <= 4) items else items.take(3)
     FlowRow(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),

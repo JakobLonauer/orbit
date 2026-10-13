@@ -152,8 +152,9 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
                 .padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (current == 0) {
-                Box(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 10.dp), contentAlignment = Alignment.BottomEnd) {
+            // On an empty Orbit the list's own „Kontakt anlegen“ is the one action (W6).
+            if (current == 0 && data.contacts.any { !it.isMe && it.deletedAt == null }) {
+                Box(Modifier.fillMaxWidth().padding(bottom = 10.dp), contentAlignment = Alignment.BottomEnd) {
                     ContactFabMenu(nav)
                 }
             }
@@ -174,8 +175,9 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
 private fun StartMoment(progress: () -> Float, target: () -> Offset) {
     Canvas(Modifier.fillMaxSize()) {
         val p = progress()
-        // The sky clears while the ring draws.
-        drawRect(Space.Void.copy(alpha = (1f - p / 0.6f).coerceIn(0f, 1f) * 0.9f))
+        // The sky stays dark while ring and planet are on stage and clears as the planet lands,
+        // so they never cross readable rows (W4).
+        drawRect(Space.Void.copy(alpha = 0.88f * (1f - ((p - 0.62f) / 0.3f).coerceIn(0f, 1f))))
         val ringR = 84.dp.toPx()
         val c = Offset(size.width / 2f, size.height * 0.42f)
         val draw = (p / 0.45f).coerceIn(0f, 1f)

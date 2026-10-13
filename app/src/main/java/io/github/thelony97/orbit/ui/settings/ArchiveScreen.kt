@@ -94,7 +94,7 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
                     SpaceSearchField(search, "Im Archiv suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ArchiveSort.entries.forEach { s ->
-                            SpaceChip(s.label, sort == s, { sort = s }, accent = Space.TextDim)
+                            SpaceChip(s.label, sort == s, { sort = s })
                         }
                     }
                 }
@@ -108,7 +108,7 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
             sections.forEach { (year, list) ->
                 item(key = "y-$year") {
                     Row(
-                        Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(if (year == 0) "Ohne Datum" else "$year", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.TextDim)
@@ -159,8 +159,8 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
     Row(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onOpen)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

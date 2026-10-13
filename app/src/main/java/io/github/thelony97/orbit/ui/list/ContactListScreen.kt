@@ -500,7 +500,7 @@ private fun SelectionBar(
     onShare: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -695,7 +695,16 @@ private fun ContactRow(
                 .fillMaxWidth()
                 .drawBehind {
                     if (afterglow.value > 0f) drawRect(color.copy(alpha = 0.16f * afterglow.value))
-                    if (picked > 0f) drawRect(Space.Violet.copy(alpha = 0.14f * picked))
+                    if (picked > 0f) {
+                        // Inset band with the row radius, like the swipe background (W9).
+                        val inset = 8.dp.toPx()
+                        drawRoundRect(
+                            Space.Violet.copy(alpha = 0.14f * picked),
+                            topLeft = androidx.compose.ui.geometry.Offset(inset, 2.dp.toPx()),
+                            size = androidx.compose.ui.geometry.Size(size.width - 2 * inset, size.height - 4.dp.toPx()),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
+                        )
+                    }
                 }
                 .onGloballyPositioned { origin = it.positionOnScreen() }
                 // Long press opens the preview card; the same finger picks an action (PLAN 3.2).

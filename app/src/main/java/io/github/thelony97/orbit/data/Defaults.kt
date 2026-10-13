@@ -74,7 +74,7 @@ object Defaults {
         RelationKind("roommate", "Mitbewohner:in", "Mitbewohner:in"),
         // Person → organisation
         RelationKind("works_at", "Mitarbeiter:in", "Arbeitgeber", toOrg = true),
-        RelationKind("patient", "Patient:in", "Ärzt:in", toOrg = true),
+        RelationKind("patient", "Patient:in", "Arztpraxis", toOrg = true),
         RelationKind("client", "Kund:in", "Dienstleister", toOrg = true),
         RelationKind("member", "Mitglied", "Verein", toOrg = true),
     )

@@ -541,7 +541,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         listOf(0 to "sofort", 60 to "nach 1 Min", 300 to "nach 5 Min").forEach { (sec, label) ->
-                            SpaceChip(label, s.lockDelaySeconds == sec, { OrbitRepository.editSettings { it.copy(lockDelaySeconds = sec) } }, accent = Space.Orange)
+                            SpaceChip(label, s.lockDelaySeconds == sec, { OrbitRepository.editSettings { it.copy(lockDelaySeconds = sec) } })
                         }
                     }
                 }
