@@ -87,10 +87,24 @@ object CallSession {
     fun remove(call: Call, card: CallerCard?) {
         val connectedAt = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
         _calls.value = _calls.value - call
-        if (_calls.value.isEmpty() && connectedAt > 0) {
+        // The after-call screen only when the call screen is in front; otherwise the after-call
+        // notification takes over (never a stale „Beendet“ screen for a later call).
+        if (_calls.value.isEmpty() && connectedAt > 0 && screenVisible) {
+            keepDraft()
             ended.value = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis())
         }
         changed()
+    }
+
+    /** Text typed into the note line, kept here so leaving the screen never loses it. */
+    @Volatile var draft: String = ""
+
+    /** A pending draft of the shown after-call screen goes into its Verlauf entry. */
+    fun keepDraft() {
+        val e = ended.value ?: return
+        val text = draft.trim()
+        draft = ""
+        if (text.isNotEmpty()) service?.let { runCatching { CallNoteWorker.enqueue(it, e, text) } }
     }
 
     fun stateOf(call: Call): Int = runCatching { call.details.state }.getOrDefault(Call.STATE_DISCONNECTED)

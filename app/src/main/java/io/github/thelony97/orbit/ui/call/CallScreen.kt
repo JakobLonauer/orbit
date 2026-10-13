@@ -50,6 +50,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -131,6 +133,8 @@ interface CallActions {
     fun unarchive() {}
     /** After the call: the note goes into this call's Verlauf entry. */
     fun saveNote(text: String) {}
+    /** Every change of the note line, so nothing typed is lost when the screen goes away. */
+    fun noteDraft(text: String) {}
     fun close() {}
 }
 
@@ -261,6 +265,7 @@ private fun SmsTemplates(onPick: (String) -> Unit) {
 @Composable
 private fun AfterCall(unlocked: Boolean, actions: CallActions) {
     val note = rememberTextFieldState()
+    LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (unlocked) {
             OutlinedTextField(

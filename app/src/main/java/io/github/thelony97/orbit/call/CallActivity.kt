@@ -95,7 +95,12 @@ class CallActivity : ComponentActivity() {
     override fun onDestroy() {
         // Left with Back from the after-call screen: it is done, other prompts come back.
         if (isFinishing) {
-            CallSession.ended.value?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
+            val e = CallSession.ended.value
+            e?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
+            // Typed but not saved (Back): keep it rather than lose it.
+            val text = CallSession.draft.trim()
+            CallSession.draft = ""
+            if (e != null && text.isNotEmpty()) CallNoteWorker.enqueue(applicationContext, e, text)
             CallSession.ended.value = null
         }
         super.onDestroy()
@@ -120,7 +125,10 @@ private fun CallRoute(onDone: () -> Unit) {
     val cards by CallSession.cards.collectAsState()
     var phoneUnlocked by remember { mutableStateOf(unlocked(ctx)) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var done by remember { mutableStateOf(emptySet<String>()) }
+    // Ticks survive rotation (they are saved at once, the screen must show them too).
+    var done by androidx.compose.runtime.saveable.rememberSaveable(
+        stateSaver = androidx.compose.runtime.saveable.listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() }),
+    ) { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(Unit) {
         while (true) {
             phoneUnlocked = unlocked(ctx)
@@ -167,6 +175,7 @@ private fun CallRoute(onDone: () -> Unit) {
     }
 
     fun finishAfter(note: String?) {
+        CallSession.draft = ""
         val e = CallSession.ended.value
         e?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
         CallSession.ended.value = null
@@ -221,6 +230,7 @@ private fun CallRoute(onDone: () -> Unit) {
         }
         override fun saveNote(text: String) = finishAfter(text)
         override fun close() = finishAfter(null)
+        override fun noteDraft(text: String) { CallSession.draft = text }
     }
     CallScreen(ui, actions, now)
 }

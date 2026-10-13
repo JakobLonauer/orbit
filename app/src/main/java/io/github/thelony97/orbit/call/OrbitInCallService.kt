@@ -62,7 +62,11 @@ class OrbitInCallService : InCallService() {
         CallNotification.update(this)
         // A call must never go unseen: open the screen directly unless a heads-up notification
         // will certainly appear (unlocked, screen on, channel loud enough, nothing filtered).
-        if (CallSession.stateOf(call) != Call.STATE_RINGING || !CallNotification.headsUpCertain(this)) {
+        // A call Do Not Disturb silenced stays silent – the screen does not light up for it.
+        val silenced = runCatching {
+            call.details.extras?.getBoolean("android.telecom.extra.IS_SUPPRESSED_BY_DO_NOT_DISTURB", false) == true
+        }.getOrDefault(false)
+        if (!silenced && (CallSession.stateOf(call) != Call.STATE_RINGING || !CallNotification.headsUpCertain(this))) {
             startActivity(CallActivity.intent(this))
         }
     }

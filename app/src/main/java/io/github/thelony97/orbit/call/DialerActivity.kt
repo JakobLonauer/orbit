@@ -73,9 +73,14 @@ class DialerActivity : ComponentActivity() {
         } catch (e: Exception) {
             // Last resort: the preinstalled phone app with the number filled in – a number typed
             // here (above all an emergency number) must always get through.
-            val system = runCatching { getSystemService(TelecomManager::class.java).systemDialerPackage }.getOrNull()
+            val telecom = getSystemService(TelecomManager::class.java)
+            val fallback = if (emergency(uri)) {
+                runCatching { telecom.createLaunchEmergencyDialerIntent(uri.schemeSpecificPart) }.getOrNull()
+            } else {
+                runCatching { telecom.systemDialerPackage }.getOrNull()?.let { Intent(Intent.ACTION_DIAL, uri).setPackage(it) }
+            }
             runCatching {
-                startActivity(Intent(Intent.ACTION_DIAL, uri).apply { system?.let { setPackage(it) } }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                startActivity(fallback!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 finish()
             }.onFailure { Toast.makeText(this, "Anruf nicht möglich", Toast.LENGTH_SHORT).show() }
         }
