@@ -127,4 +127,19 @@ class ScreensScreenshotTest {
     @Test fun homeVerlauf() = shot("home_verlauf") { HomeScreen(data, idx, nav, tab = 1, onTab = {}) }
 
     @Test fun settings() = shot("settings") { SettingsScreen(data, nav) }
+
+    /** Long-press preview lives in a Popup – capture the whole screen, not just the root. */
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    @Test fun previewCard() {
+        val anna = data.contacts.single { it.id == "anna" }
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.list.PreviewCard(io.github.thelony97.orbit.ui.list.PreviewState(anna), idx)
+                }
+            }
+        }
+        compose.waitForIdle()
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_preview.png")
+    }
 }
