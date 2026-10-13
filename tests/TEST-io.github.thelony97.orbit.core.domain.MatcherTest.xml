@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.MatcherTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-13T17:43:44.918Z" hostname="runnervmmprz5" time="0.021">
+  <properties/>
+  <testcase name="sharedNumberPrefersActivePerson" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.009"/>
+  <testcase name="trashAndMeAreIgnored" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.001"/>
+  <testcase name="memberExtensionBeatsRange" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.001"/>
+  <testcase name="archivedIsRecognisedButFlagged" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.003"/>
+  <testcase name="longestRangeWins" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.0"/>
+  <testcase name="tailMatchWhenCountryCodeDiffers" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.001"/>
+  <testcase name="mailExactMemberAndDomain" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.0"/>
+  <testcase name="exactAndFormattingInsensitive" classname="io.github.thelony97.orbit.core.domain.MatcherTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

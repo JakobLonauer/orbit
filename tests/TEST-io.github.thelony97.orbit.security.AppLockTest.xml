@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.security.AppLockTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-13T18:04:21.423Z" hostname="runnervmmprz5" time="0.297">
+  <properties/>
+  <testcase name="rotationAndOwnPickersNeverLock" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.052"/>
+  <testcase name="ownPickerOrShareSheetLocksAfterALongTrip" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.041"/>
+  <testcase name="disabledLockNeverLocks" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.035"/>
+  <testcase name="longAbsenceLocksWithDelay" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.036"/>
+  <testcase name="shareSheetCancelledThenHomeLocks" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.036"/>
+  <testcase name="locksAtOnceWithoutDelay" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.036"/>
+  <testcase name="shortAbsenceStaysOpenWithDelay" classname="io.github.thelony97.orbit.security.AppLockTest" time="0.038"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

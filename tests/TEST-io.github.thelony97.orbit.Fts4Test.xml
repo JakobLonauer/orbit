@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.Fts4Test" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-13T18:03:29.203Z" hostname="runnervmmprz5" time="16.055">
+  <properties/>
+  <testcase name="unicode61RemovesDiacritics" classname="io.github.thelony97.orbit.Fts4Test" time="9.5"/>
+  <testcase name="userVersionMigrationHook" classname="io.github.thelony97.orbit.Fts4Test" time="0.117"/>
+  <testcase name="fts4MatchAndSnippet" classname="io.github.thelony97.orbit.Fts4Test" time="0.131"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
