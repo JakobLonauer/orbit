@@ -71,9 +71,13 @@ class DialerActivity : ComponentActivity() {
             getSystemService(TelecomManager::class.java).placeCall(uri, Bundle())
             finish()
         } catch (e: Exception) {
-            // Last resort: the system's own call intent – a number typed here must always get through.
-            runCatching { startActivity(Intent(Intent.ACTION_CALL, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                .onFailure { Toast.makeText(this, "Anruf nicht möglich", Toast.LENGTH_SHORT).show() }
+            // Last resort: the preinstalled phone app with the number filled in – a number typed
+            // here (above all an emergency number) must always get through.
+            val system = runCatching { getSystemService(TelecomManager::class.java).systemDialerPackage }.getOrNull()
+            runCatching {
+                startActivity(Intent(Intent.ACTION_DIAL, uri).apply { system?.let { setPackage(it) } }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                finish()
+            }.onFailure { Toast.makeText(this, "Anruf nicht möglich", Toast.LENGTH_SHORT).show() }
         }
     }
 }

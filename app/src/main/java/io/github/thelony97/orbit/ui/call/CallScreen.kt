@@ -107,6 +107,8 @@ data class CallUi(
     val ended: Boolean = false,
     /** Outgoing, not answered yet. */
     val dialing: Boolean = false,
+    /** Dual SIM „ask every time“: pick one, or the call cannot start. */
+    val accounts: List<String> = emptyList(),
 )
 
 interface CallActions {
@@ -122,6 +124,8 @@ interface CallActions {
     fun dialpad() {}
     /** A key of the in-call keypad (DTMF). */
     fun dtmf(digit: Char) {}
+    /** Which SIM places this call. */
+    fun pickAccount(index: Int) {}
     fun toggleTopic(topic: String) {}
     /** Archived caller (PLAN 3.11): back into the list with one tap. */
     fun unarchive() {}
@@ -194,6 +198,12 @@ fun CallScreen(
                 // The note needs a contact to land on, and an unlocked phone.
                 AfterCall(ui.phoneUnlocked && ui.card != null, actions)
             } else if (ui.active) {
+                if (ui.accounts.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ui.accounts.forEachIndexed { i, label -> GlowButton(label, { actions.pickAccount(i) }, color = Space.Teal) }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
                 if (keys) {
                     Keypad(onKey = actions::dtmf)
                     Spacer(Modifier.height(20.dp))

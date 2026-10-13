@@ -64,8 +64,17 @@ class CallActivity : ComponentActivity() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)
         enableEdgeToEdge()
-        handle(intent)
-        setContent { OrbitTheme { CallRoute(onDone = { finish() }) } }
+        // Only a fresh start answers: after rotation or a theme change the old intent must not
+        // answer a waiting call by itself.
+        if (savedInstanceState == null) handle(intent)
+        setContent {
+            OrbitTheme {
+                CallRoute(onDone = {
+                    // A new call may have arrived in between: only close when nothing is left.
+                    if (CallSession.primary() == null && CallSession.ended.value == null) finish()
+                })
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -73,8 +82,29 @@ class CallActivity : ComponentActivity() {
         handle(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        CallSession.screenVisible = true
+    }
+
+    override fun onStop() {
+        CallSession.screenVisible = false
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        // Left with Back from the after-call screen: it is done, other prompts come back.
+        if (isFinishing) {
+            CallSession.ended.value?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
+            CallSession.ended.value = null
+        }
+        super.onDestroy()
+    }
+
     private fun handle(i: Intent?) {
         if (i?.action == ACTION_ANSWER) CallSession.answer()
+        // Consumed: what stays as the activity's intent never answers again.
+        setIntent(Intent(this, CallActivity::class.java))
     }
 }
 
@@ -119,10 +149,12 @@ private fun CallRoute(onDone: () -> Unit) {
             onHold = state == Call.STATE_HOLDING,
             phoneUnlocked = phoneUnlocked,
             doneTopics = done,
+            accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
+                CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
+            } else emptyList(),
         )
     } else {
         after!!
-        if (phoneUnlocked && after.card != null) CallSession.noteOfferedAt = System.currentTimeMillis()
         CallUi(
             number = after.number,
             card = after.card,
@@ -136,9 +168,10 @@ private fun CallRoute(onDone: () -> Unit) {
 
     fun finishAfter(note: String?) {
         val e = CallSession.ended.value
-        val ticked = done
+        e?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
         CallSession.ended.value = null
-        if (e != null) AppWork.launch { CallNotes.save(ctx.applicationContext, e, note, ticked) }
+        // WorkManager keeps the note even if the app process ends before the call log entry arrives.
+        if (e != null && !note.isNullOrBlank()) CallNoteWorker.enqueue(ctx, e, note)
     }
 
     val actions = object : CallActions {
@@ -160,7 +193,14 @@ private fun CallRoute(onDone: () -> Unit) {
         override fun toggleSpeaker() { CallSession.toggleSpeaker() }
         override fun toggleHold() { CallSession.toggleHold() }
         override fun dtmf(digit: Char) { CallSession.dtmf(digit) }
-        override fun toggleTopic(topic: String) { done = if (topic in done) done - topic else done + topic }
+        override fun pickAccount(index: Int) { CallSession.pickAccount(ctx, index) }
+        override fun toggleTopic(topic: String) {
+            val on = topic !in done
+            done = if (on) done + topic else done - topic
+            // Saved at once: closing, rotating or a new call never loses a tick.
+            val id = ui.card?.contactId ?: return
+            AppWork.launch { CallNotes.setTopic(id, topic, on) }
+        }
         override fun unarchive() {
             val card = ui.card ?: return
             val number = ui.number
@@ -185,31 +225,59 @@ private fun CallRoute(onDone: () -> Unit) {
     CallScreen(ui, actions, now)
 }
 
-/** After the call: ticked topics and the note line go into Orbit (PLAN 3.12 „Danach“). */
+/** After the call: ticked topics go into Orbit at once (PLAN 3.12 „Themen abhaken“). */
 object CallNotes {
-    suspend fun save(ctx: Context, e: CallSession.Ended, note: String?, ticked: Set<String>) {
-        val contactId = e.card?.contactId ?: return
+    suspend fun setTopic(contactId: String, text: String, done: Boolean) {
         OrbitRepository.ensureLoaded()
-        if (ticked.isNotEmpty()) {
-            OrbitRepository.update { d ->
-                d.copy(contacts = d.contacts.map { c ->
-                    if (c.id != contactId) c
-                    else c.copy(topics = c.topics.map { if (it.text in ticked && !it.done) it.copy(done = true) else it })
-                })
-            }
+        OrbitRepository.update { d ->
+            d.copy(contacts = d.contacts.map { c ->
+                if (c.id != contactId) c
+                else c.copy(topics = c.topics.map { if (it.text == text && it.done != done) it.copy(done = done) else it })
+            })
         }
-        val text = note?.trim().orEmpty()
-        if (text.isEmpty()) {
-            OrbitRepository.flush()
-            return
+        OrbitRepository.flush()
+    }
+}
+
+/**
+ * The note line after a call (PLAN 3.12 „Danach“): waits for the call log entry and adds the note
+ * to it. As a WorkManager job it survives the app process ending in between. No entry after a few
+ * tries (no call log permission, call shorter than the minimum): the note becomes its own entry.
+ */
+class CallNoteWorker(ctx: Context, params: androidx.work.WorkerParameters) : androidx.work.CoroutineWorker(ctx, params) {
+
+    companion object {
+        private const val CONTACT = "contact"
+        private const val CONNECTED = "connected"
+        private const val ENDED = "ended"
+        private const val NOTE = "note"
+
+        fun enqueue(ctx: Context, e: CallSession.Ended, note: String) {
+            val contactId = e.card?.contactId ?: return
+            val request = androidx.work.OneTimeWorkRequestBuilder<CallNoteWorker>()
+                .setInitialDelay(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .setInputData(
+                    androidx.work.workDataOf(CONTACT to contactId, CONNECTED to e.connectedAt, ENDED to e.endedAt, NOTE to note.trim()),
+                )
+                .build()
+            androidx.work.WorkManager.getInstance(ctx).enqueueUniqueWork("call-note-${e.connectedAt}", androidx.work.ExistingWorkPolicy.KEEP, request)
         }
-        // The call log entry appears shortly after hanging up; wait for it, then add the note.
+    }
+
+    override suspend fun doWork(): Result {
+        val contactId = inputData.getString(CONTACT) ?: return Result.success()
+        val connectedAt = inputData.getLong(CONNECTED, 0L)
+        val endedAt = inputData.getLong(ENDED, connectedAt)
+        val text = inputData.getString(NOTE)?.trim().orEmpty()
+        if (text.isEmpty()) return Result.success()
+        OrbitRepository.init(applicationContext)
+        OrbitRepository.ensureLoaded()
         repeat(4) { attempt ->
-            delay(if (attempt == 0) 1500L else 3000L)
-            runCatching { SyncEngine.syncAll(ctx) }
-            val c = OrbitRepository.snapshot().contacts.firstOrNull { it.id == contactId } ?: return
+            if (attempt > 0) delay(3000L)
+            runCatching { SyncEngine.syncAll(applicationContext) }
+            val c = OrbitRepository.snapshot().contacts.firstOrNull { it.id == contactId } ?: return Result.success()
             val entry = c.entries
-                .filter { it.typeId == TypeIds.CALL && it.at >= e.connectedAt - 120_000 }
+                .filter { it.typeId == TypeIds.CALL && it.at >= connectedAt - 120_000 }
                 .maxByOrNull { it.at }
             if (entry != null) {
                 OrbitRepository.update { d ->
@@ -222,19 +290,19 @@ object CallNotes {
                     })
                 }
                 OrbitRepository.flush()
-                return
+                return Result.success()
             }
         }
-        // No call log entry (no permission, slow phone): the note is kept as its own call entry.
         OrbitRepository.update { d ->
             d.copy(contacts = d.contacts.map { x ->
                 if (x.id != contactId) x
                 else x.copy(entries = x.entries + Entry(
-                    id = newId(), contactId = contactId, typeId = TypeIds.CALL, at = e.connectedAt, note = text,
-                    source = EntrySource.MANUAL, durationSec = (e.endedAt - e.connectedAt) / 1000,
+                    id = newId(), contactId = contactId, typeId = TypeIds.CALL, at = connectedAt, note = text,
+                    source = EntrySource.MANUAL, durationSec = (endedAt - connectedAt) / 1000,
                 ))
             })
         }
         OrbitRepository.flush()
+        return Result.success()
     }
 }

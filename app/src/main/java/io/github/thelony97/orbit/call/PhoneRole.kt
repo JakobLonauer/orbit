@@ -44,6 +44,7 @@ object PhoneRole {
     fun requestIntent(ctx: Context): Intent? {
         if (!available(ctx)) return null
         setParts(ctx, true)
+        runCatching { CallNotification.ensureChannel(ctx) }
         return runCatching { roles(ctx)?.createRequestRoleIntent(RoleManager.ROLE_DIALER) }.getOrNull()
     }
 

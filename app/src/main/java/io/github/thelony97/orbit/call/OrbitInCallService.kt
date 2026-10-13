@@ -43,8 +43,11 @@ class OrbitInCallService : InCallService() {
     override fun onCreate() {
         super.onCreate()
         CallSession.service = this
-        safe { Notifications.createChannels(this) }
+        safe { CallNotification.ensureChannel(this) }
     }
+
+    /** The system asks to show the running call again (e.g. the phone button during a call). */
+    override fun onBringToForeground(showDialpad: Boolean) = safe { startActivity(CallActivity.intent(this)) }
 
     override fun onDestroy() {
         if (CallSession.service === this) CallSession.service = null
@@ -57,9 +60,9 @@ class OrbitInCallService : InCallService() {
         CallSession.add(call)
         lookup(call)
         CallNotification.update(this)
-        // Ringing: the notification's full-screen intent opens the screen. Without notification
-        // permission (or for an outgoing call) open it directly – a call must never go unseen.
-        if (CallSession.stateOf(call) != Call.STATE_RINGING || !Notifications.canPost(this)) {
+        // A call must never go unseen: open the screen directly unless a heads-up notification
+        // will certainly appear (unlocked, screen on, channel loud enough, nothing filtered).
+        if (CallSession.stateOf(call) != Call.STATE_RINGING || !CallNotification.headsUpCertain(this)) {
             startActivity(CallActivity.intent(this))
         }
     }
@@ -108,9 +111,45 @@ class OrbitInCallService : InCallService() {
 object CallNotification {
     const val ID = 1004
 
+    /** The ringing call the notification last alerted for; a new one (call waiting) alerts again. */
+    private var alertedFor: Call? = null
+
+    /** Created only once Orbit is used as the phone app, so it does not show up before. */
+    fun ensureChannel(ctx: Context) {
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return
+        if (nm.getNotificationChannel(Notifications.CH_INCALL) != null) return
+        nm.createNotificationChannel(
+            android.app.NotificationChannel(Notifications.CH_INCALL, "Anrufe", android.app.NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Laufende und eingehende Anrufe, wenn Orbit die Telefon-App ist"
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+            },
+        )
+    }
+
+    /**
+     * Only true when a ringing call will surely show as heads-up on an unlocked, lit screen.
+     * Locked, screen off, Do Not Disturb, a muted channel, no full-screen permission or a second
+     * call: the screen is opened directly instead.
+     */
+    fun headsUpCertain(ctx: Context): Boolean = runCatching {
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return@runCatching false
+        val keyguard = ctx.getSystemService(android.app.KeyguardManager::class.java)
+        val power = ctx.getSystemService(android.os.PowerManager::class.java)
+        Notifications.canPost(ctx) &&
+            keyguard?.isKeyguardLocked == false &&
+            power?.isInteractive == true &&
+            nm.canUseFullScreenIntent() &&
+            nm.currentInterruptionFilter == android.app.NotificationManager.INTERRUPTION_FILTER_ALL &&
+            (nm.getNotificationChannel(Notifications.CH_INCALL)?.importance ?: 0) >= android.app.NotificationManager.IMPORTANCE_HIGH &&
+            CallSession.calls.value.size <= 1
+    }.getOrDefault(false)
+
     fun update(ctx: Context) {
         val call = CallSession.primary()
         if (call == null) {
+            alertedFor = null
             NotificationManagerCompat.from(ctx).cancel(ID)
             return
         }
@@ -118,7 +157,10 @@ object CallNotification {
         val number = CallSession.numberOf(call)
         val card = CallSession.cards.value[number]
         val name = card?.name?.takeIf { it.isNotBlank() } ?: number.ifBlank { "Unbekannt" }
-        val person = Person.Builder().setName(name).setImportant(card != null).build()
+        // The tel: URI lets Do Not Disturb recognise starred contacts like the system dialer does.
+        val person = Person.Builder().setName(name).setImportant(card != null)
+            .apply { if (number.isNotBlank()) setUri("tel:$number") }
+            .build()
         val screen = PendingIntent.getActivity(ctx, ID, CallActivity.intent(ctx), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val style = if (state == Call.STATE_RINGING) {
             NotificationCompat.CallStyle.forIncomingCall(person, CallActionReceiver.pending(ctx, CallActionReceiver.DECLINE), CallActivity.answerIntent(ctx))
@@ -144,7 +186,8 @@ object CallNotification {
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
+            // Updates of the same call stay quiet; a new ringing call (call waiting) alerts again.
+            .setOnlyAlertOnce(!(state == Call.STATE_RINGING && alertedFor !== call))
             .setContentIntent(screen)
             .setFullScreenIntent(screen, true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -153,6 +196,11 @@ object CallNotification {
         if (state == Call.STATE_ACTIVE && connectedAt > 0) builder.setUsesChronometer(true).setWhen(connectedAt).setShowWhen(true)
         if (!Notifications.canPost(ctx)) return
         try {
+            ensureChannel(ctx)
+            if (state == Call.STATE_RINGING && alertedFor !== call) {
+                NotificationManagerCompat.from(ctx).cancel(ID)
+                alertedFor = call
+            }
             NotificationManagerCompat.from(ctx).notify(ID, builder.build())
         } catch (_: Exception) {
             // Never let a notification problem reach the call; the screen still opens.

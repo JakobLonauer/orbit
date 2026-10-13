@@ -54,18 +54,33 @@ object CallSession {
     /** Caller cards per number, looked up once when the call arrives. */
     val cards = MutableStateFlow<Map<String, CallerCard?>>(emptyMap())
 
-    /** When the call screen last offered the note line; the after-call notification then stays away. */
-    @Volatile var noteOfferedAt = 0L
+    /** Contact whose note the call screen took (Save/Close) and when. */
+    @Volatile var noteHandled: Pair<String, Long>? = null
+
+    /**
+     * The call screen shows (or just handled) the note line for [contactId]: the after-call
+     * notification stays away for this contact only – other calls keep their prompts.
+     */
+    fun noteOnScreen(ctx: android.content.Context, contactId: String): Boolean {
+        // Only when the note line is really in front of Jakob: screen visible and phone unlocked.
+        val unlocked = ctx.getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked != true
+        if (screenVisible && unlocked && ended.value?.card?.contactId == contactId) return true
+        val h = noteHandled ?: return false
+        return h.first == contactId && System.currentTimeMillis() - h.second < 5 * 60_000L
+    }
 
     @Volatile var service: OrbitInCallService? = null
+
+    /** The call screen is in front (between its onStart and onStop). */
+    @Volatile var screenVisible = false
 
     fun changed() {
         _version.value = _version.value + 1
     }
 
     fun add(call: Call) {
+        // The after-call screen of an earlier call stays until it is closed; a new call shows first.
         _calls.value = _calls.value + call
-        ended.value = null
         changed()
     }
 
@@ -104,6 +119,28 @@ object CallSession {
         val c = primary() ?: return@runCatching
         c.playDtmfTone(digit)
         c.stopDtmfTone()
+    }
+
+    /**
+     * Dual SIM set to „ask every time“: Telecom waits in SELECT_PHONE_ACCOUNT until the phone app
+     * picks one – without this the outgoing call would hang forever.
+     */
+    fun accounts(ctx: android.content.Context, call: Call): List<android.telecom.PhoneAccountHandle> {
+        val fromCall = runCatching {
+            call.details.extras?.getParcelableArrayList(Call.AVAILABLE_PHONE_ACCOUNTS, android.telecom.PhoneAccountHandle::class.java)
+                ?: call.details.intentExtras?.getParcelableArrayList(Call.AVAILABLE_PHONE_ACCOUNTS, android.telecom.PhoneAccountHandle::class.java)
+        }.getOrNull().orEmpty()
+        if (fromCall.isNotEmpty()) return fromCall
+        return runCatching { ctx.getSystemService(android.telecom.TelecomManager::class.java)?.callCapablePhoneAccounts }.getOrNull().orEmpty()
+    }
+
+    fun accountLabel(ctx: android.content.Context, handle: android.telecom.PhoneAccountHandle, index: Int): String =
+        runCatching { ctx.getSystemService(android.telecom.TelecomManager::class.java)?.getPhoneAccount(handle)?.label?.toString() }
+            .getOrNull()?.takeIf { it.isNotBlank() } ?: "SIM ${index + 1}"
+
+    fun pickAccount(ctx: android.content.Context, index: Int) = runCatching {
+        val c = _calls.value.firstOrNull { stateOf(it) == Call.STATE_SELECT_PHONE_ACCOUNT } ?: return@runCatching
+        accounts(ctx, c).getOrNull(index)?.let { c.phoneAccountSelected(it, false) }
     }
 
     fun toggleMute() = runCatching { service?.setMuted(!audio.value.muted) }
