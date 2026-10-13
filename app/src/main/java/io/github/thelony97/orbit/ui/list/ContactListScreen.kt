@@ -1,5 +1,10 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.drawBehind
+import io.github.thelony97.orbit.core.designsystem.Motion
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -238,6 +243,16 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
         }
         // A–Z only where it means something: name order, no search, enough sections.
         val showRail = sort == SortMode.NAME && query.isEmpty() && letterIndex.size >= 6
+        // Only the header pinned at the top gets a backdrop; the others sit on the open space
+        // (otherwise every section draws a dark strip across the violet sky).
+        val pinnedHeader by remember(letterIndex) {
+            derivedStateOf {
+                val first = listState.firstVisibleItemIndex
+                val e = letterIndex.entries.lastOrNull { it.value <= first }
+                // Stuck = content scrolls beneath it; derivedState only changes when that flips (W8).
+                if (e != null && (first > e.value || listState.firstVisibleItemScrollOffset > 0)) e.key else null
+            }
+        }
         Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
@@ -276,10 +291,19 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
             sections.forEach { section ->
                 if (section.contacts.isEmpty()) return@forEach
                 stickyHeader(key = "h-${section.title}") {
+                    val backdrop by animateFloatAsState(
+                        if (pinnedHeader == section.title) 1f else 0f,
+                        tween(Motion.FAST_MS),
+                        label = "headerBackdrop",
+                    )
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .background(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.82f), Space.Void.copy(alpha = 0.55f))))
+                            .drawBehind {
+                                if (backdrop > 0f) {
+                                    drawRect(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.92f * backdrop), Space.Void.copy(alpha = 0.7f * backdrop))))
+                                }
+                            }
                             .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
