@@ -30,6 +30,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object Settings : Route
 
+    /** One of the five settings areas (PLAN 3.13): capture, notify, contacts, security, about. */
+    @Serializable
+    data class SettingsArea(val key: String) : Route
+
     @Serializable
     data object Suggestions : Route
 

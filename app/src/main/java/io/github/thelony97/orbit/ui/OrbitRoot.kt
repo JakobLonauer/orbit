@@ -138,6 +138,7 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.Trash> { TrashScreen(data = data, idx = idx, nav = nav) }
             entry<Route.Archive> { ArchiveScreen(data = data, idx = idx, nav = nav) }
             entry<Route.Settings> { SpaceBackground { SettingsScreen(data = data, nav = nav) } }
+            entry<Route.SettingsArea> { key -> SpaceBackground { SettingsScreen(data = data, nav = nav, area = key.key) } }
             entry<Route.Suggestions> { SuggestionsScreen(data = data, nav = nav) }
             entry<Route.MailAccounts> { MailAccountsScreen(nav = nav) }
         },

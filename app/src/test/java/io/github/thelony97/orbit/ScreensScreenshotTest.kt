@@ -172,6 +172,8 @@ class ScreensScreenshotTest {
 
     @Test fun settings() = shot("settings") { SettingsScreen(data, nav) }
 
+    @Test fun settingsArea() = shot("settings_security") { SettingsScreen(data, nav, area = "security") }
+
     /** Long-press preview lives in a Popup – capture the whole screen, not just the root. */
     @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
     @Test fun previewCard() {
