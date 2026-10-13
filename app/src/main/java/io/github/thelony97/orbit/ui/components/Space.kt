@@ -87,12 +87,15 @@ class SpaceCamera {
     var pan by mutableFloatStateOf(0f)
 }
 
+private val DefaultNebula: () -> Color = { Space.VioletDeep }
+
 /** Night sky with stars in three depths and two nebulae; [nebula] tints the upper one per tab. */
 @Composable
 fun SpaceBackground(
     modifier: Modifier = Modifier,
     camera: SpaceCamera? = null,
-    nebula: Color = Space.VioletDeep,
+    // A lambda so an animated tint is read in the draw phase only (no recomposition per frame).
+    nebula: () -> Color = DefaultNebula,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val stars = remember {
@@ -103,7 +106,7 @@ fun SpaceBackground(
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
                 Brush.radialGradient(
-                    listOf(nebula.copy(alpha = 0.22f), Color.Transparent),
+                    nebula().let { n -> listOf(n.copy(alpha = 0.22f), n.copy(alpha = 0f)) },
                     center = Offset(size.width * 0.15f, size.height * 0.05f),
                     radius = size.maxDimension * 0.55f,
                 ),

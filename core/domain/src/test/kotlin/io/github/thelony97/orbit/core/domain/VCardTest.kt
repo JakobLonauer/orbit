@@ -59,6 +59,12 @@ class VCardTest {
         assertTrue("TEL;TYPE=WORK,PREF:0732 111" in v)
     }
 
+    @Test fun personKnownOnlyByCompanyStillHasAName() {
+        val c = Contact("p", company = "Hausverwaltung Gruber")
+        assertTrue("FN:Hausverwaltung Gruber" in VCard.of(c))
+        assertEquals("Hausverwaltung_Gruber.vcf", VCard.fileName(c))
+    }
+
     @Test fun safeFileName() {
         assertEquals("Anna_Berger.vcf", VCard.fileName(anna))
         assertEquals("Kontakt.vcf", VCard.fileName(Contact("x")))

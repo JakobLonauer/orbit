@@ -21,7 +21,9 @@ object VCard {
             if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
         } else {
             line("N:${esc(c.lastName)};${esc(c.firstName)};;;")
-            line("FN:${esc(listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" "))}")
+            // FN must not be empty: a person known only by the company is shown under it.
+            val fn = listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { c.company }
+            line("FN:${esc(fn.ifBlank { "Kontakt" })}")
             if (c.company.isNotBlank()) line("ORG:${esc(c.company)}")
             if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
         }
@@ -46,7 +48,7 @@ object VCard {
 
     /** File name for the shared .vcf, safe on every file system. */
     fun fileName(c: Contact): String {
-        val name = if (c.isOrg) c.company else listOf(c.firstName, c.lastName).joinToString(" ")
+        val name = if (c.isOrg) c.company else listOf(c.firstName, c.lastName).joinToString(" ").ifBlank { c.company }
         val clean = name.replace(Regex("[^\\p{L}\\p{N} ._-]"), "").trim().replace(Regex("\\s+"), "_")
         return clean.ifBlank { "Kontakt" } + ".vcf"
     }

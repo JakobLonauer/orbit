@@ -104,7 +104,7 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
     Box(Modifier.fillMaxSize()) {
         // The whole opaque space (stars + content) is the glass source; the bar is a sibling
         // outside it, so it never blurs itself and transparent rows never punch holes.
-        SpaceBackground(Modifier.glassSource(glass).nestedScroll(parallax), camera = camera, nebula = nebula) {
+        SpaceBackground(Modifier.glassSource(glass).nestedScroll(parallax), camera = camera, nebula = { nebula }) {
             AnimatedContent(
                 targetState = current,
                 transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },

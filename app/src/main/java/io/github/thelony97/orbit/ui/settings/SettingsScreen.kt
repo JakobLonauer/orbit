@@ -93,6 +93,7 @@ import io.github.thelony97.orbit.BuildConfig
 import io.github.thelony97.orbit.backup.Backups
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.data.now
 import io.github.thelony97.orbit.notify.DigestScheduler
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.sync.Sync
@@ -248,7 +249,11 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
         if (uri != null) scope.launch {
             runCatching {
                 ctx.contentResolver.openOutputStream(uri)?.use { Backups.writeZip(ctx, it) }
-            }.onSuccess { toast("Sicherung exportiert") }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
+            }.onSuccess {
+                // A saved file is a full backup too: the attention card must calm down.
+                OrbitRepository.editSettings { it.copy(lastBackupAt = now()) }
+                toast("Sicherung exportiert")
+            }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
         }
     }
     fun readBackup(uri: Uri, password: CharArray?) {

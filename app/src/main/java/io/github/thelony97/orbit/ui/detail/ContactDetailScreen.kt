@@ -806,9 +806,19 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             initial = target.entry,
             onSave = { e -> OrbitRepository.edit { d -> Mutations.updateEntry(d, c.id, e) } },
             onDelete = {
-                val gone = target.entry
-                OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, gone.id) }
-                Undo.offer("Eintrag gelöscht") { OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, gone) } }
+                // Keep the live copy (sync may have merged new SMS into it since the sheet opened).
+                val id = target.entry.id
+                var gone: Entry? = null
+                OrbitRepository.edit { d ->
+                    gone = d.contacts.firstOrNull { it.id == c.id }?.entries?.firstOrNull { it.id == id }
+                    Mutations.deleteEntry(d, c.id, id)
+                }
+                Undo.offer("Eintrag gelöscht") {
+                    val e = gone ?: return@offer
+                    OrbitRepository.edit { d ->
+                        if (d.contacts.any { it.id == c.id && it.entries.any { x -> x.id == e.id } }) d else Mutations.addEntry(d, c.id, e)
+                    }
+                }
             },
             onDismiss = { entryTarget = null },
         )
