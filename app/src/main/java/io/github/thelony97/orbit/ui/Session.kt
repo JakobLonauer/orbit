@@ -23,6 +23,9 @@ object Session {
     /** „Zurück mit Gedächtnis“ (PLAN 1.2): the row you opened glows once when you come back. */
     var lastOpened: String? = null
 
+    /** Start-Moment (PLAN 1.3) plays once per app start, not on every return to the home screen. */
+    var startPlayed = false
+
     /** Contact the map should centre on next time it opens. */
     var mapFocus by mutableStateOf<String?>(null)
 

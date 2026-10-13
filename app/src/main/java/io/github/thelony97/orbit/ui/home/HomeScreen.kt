@@ -38,6 +38,12 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -101,7 +107,23 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             }
         }
     }
-    Box(Modifier.fillMaxSize()) {
+    // Start-Moment (PLAN 1.3): a ring draws itself, the planet swings round it and lands as the
+    // Orbit-Leiste indicator. Once per app start, after the lock is open; longer than 400 ms is
+    // allowed for this sequence (W9 exception).
+    val locked by io.github.thelony97.orbit.security.AppLock.locked.collectAsState()
+    val waiting = data.settings.lockEnabled && locked
+    val intro = remember { Animatable(if (io.github.thelony97.orbit.ui.Session.startPlayed) 1f else 0f) }
+    val haptics = rememberHaptics()
+    LaunchedEffect(waiting) {
+        if (waiting || intro.value >= 1f) return@LaunchedEffect
+        intro.animateTo(0.86f, tween(1000, easing = LinearEasing))
+        haptics.perform(Haptic.Confirm) // the planet lands
+        intro.animateTo(1f, tween(Motion.MEDIUM_MS))
+        io.github.thelony97.orbit.ui.Session.startPlayed = true
+    }
+    var planetTarget by remember { mutableStateOf(Offset.Unspecified) }
+    var overlayOrigin by remember { mutableStateOf(Offset.Zero) }
+    Box(Modifier.fillMaxSize().onGloballyPositioned { overlayOrigin = it.positionInRoot() }) {
         // The whole opaque space (stars + content) is the glass source; the bar is a sibling
         // outside it, so it never blurs itself and transparent rows never punch holes.
         SpaceBackground(Modifier.glassSource(glass).nestedScroll(parallax), camera = camera, nebula = { nebula }) {
@@ -135,7 +157,54 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
                     ContactFabMenu(nav)
                 }
             }
-            OrbitNavBar(glass = glass, selected = current, onSelect = onTab)
+            OrbitNavBar(
+                glass = glass, selected = current, onSelect = onTab,
+                planetVisible = { intro.value >= 0.86f },
+                onPlanetAt = { planetTarget = it },
+            )
+        }
+        // Only flips once (true → false); the per-frame progress is read while drawing.
+        val introRunning by remember { androidx.compose.runtime.derivedStateOf { intro.value < 1f } }
+        if (introRunning) StartMoment({ intro.value }, { planetTarget - overlayOrigin })
+    }
+}
+
+/** Ring, swinging planet and the flight down to the bar; [progress] 0..1 is read while drawing. */
+@Composable
+private fun StartMoment(progress: () -> Float, target: () -> Offset) {
+    Canvas(Modifier.fillMaxSize()) {
+        val p = progress()
+        // The sky clears while the ring draws.
+        drawRect(Space.Void.copy(alpha = (1f - p / 0.6f).coerceIn(0f, 1f) * 0.9f))
+        val ringR = 84.dp.toPx()
+        val c = Offset(size.width / 2f, size.height * 0.42f)
+        val draw = (p / 0.45f).coerceIn(0f, 1f)
+        val ringAlpha = 1f - ((p - 0.45f) / 0.35f).coerceIn(0f, 1f)
+        if (ringAlpha > 0f) {
+            drawArc(
+                Space.Violet.copy(alpha = 0.75f * ringAlpha), startAngle = -90f, sweepAngle = 360f * draw, useCenter = false,
+                topLeft = c - Offset(ringR, ringR), size = androidx.compose.ui.geometry.Size(ringR * 2, ringR * 2),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()),
+            )
+            drawCircle(Space.Orange.copy(alpha = ringAlpha), radius = 7.dp.toPx() * draw, center = c)
+        }
+        // Planet: rides the ring's drawing head, then flies in an arc to the bar indicator.
+        val onRing = run {
+            val a = Math.toRadians((-90.0 + 360.0 * draw))
+            Offset(c.x + ringR * kotlin.math.cos(a).toFloat(), c.y + ringR * kotlin.math.sin(a).toFloat())
+        }
+        val t = target().takeIf { it.isSpecified } ?: Offset(size.width / 2f, size.height - 40.dp.toPx())
+        val fly = ((p - 0.45f) / 0.41f).coerceIn(0f, 1f)
+        val e = Motion.Emphasized.transform(fly)
+        val pos = Offset(onRing.x + (t.x - onRing.x) * e, onRing.y + (t.y - onRing.y) * e - kotlin.math.sin(e * PI).toFloat() * 60.dp.toPx())
+        if (p < 0.86f + 0.14f) {
+            val fade = 1f - ((p - 0.86f) / 0.14f).coerceIn(0f, 1f)
+            drawCircle(
+                Brush.radialGradient(listOf(Space.Violet.copy(alpha = 0.6f * fade), Space.Violet.copy(alpha = 0f)), pos, 18.dp.toPx()),
+                radius = 18.dp.toPx(), center = pos,
+            )
+            drawCircle(Space.Violet.copy(alpha = fade), radius = 4.5.dp.toPx(), center = pos)
+            drawCircle(Space.Text.copy(alpha = fade), radius = 2.4.dp.toPx(), center = pos - Offset(0.8.dp.toPx(), 0.8.dp.toPx()))
         }
     }
 }
@@ -145,7 +214,13 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
  * that flies to the new tab in an arc with a light trail. Haptic tick on every switch (W1).
  */
 @Composable
-private fun OrbitNavBar(glass: HazeState, selected: Int, onSelect: (Int) -> Unit) {
+private fun OrbitNavBar(
+    glass: HazeState,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    planetVisible: () -> Boolean = { true },
+    onPlanetAt: (Offset) -> Unit = {},
+) {
     val haptics = rememberHaptics()
     val pill = RoundedCornerShape(50)
     val slot = 64.dp
@@ -155,8 +230,15 @@ private fun OrbitNavBar(glass: HazeState, selected: Int, onSelect: (Int) -> Unit
         from = planet.value
         planet.animateTo(selected.toFloat(), tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized))
     }
+    val density = androidx.compose.ui.platform.LocalDensity.current
     Box(
         Modifier
+            .onGloballyPositioned { lc ->
+                // Where the planet sits (for the Start-Moment to land exactly on it).
+                with(density) {
+                    onPlanetAt(lc.positionInRoot() + Offset(6.dp.toPx() + (selected + 0.5f) * slot.toPx(), 4.dp.toPx() + 48.dp.toPx() - 5.dp.toPx()))
+                }
+            }
             .glow(Space.VioletDeep, 26.dp, pill, 0.22f)
             .clip(pill)
             .hazeGlass(glass, Space.PanelHigh, tint = 0.55f)
@@ -197,6 +279,7 @@ private fun OrbitNavBar(glass: HazeState, selected: Int, onSelect: (Int) -> Unit
                     drawCircle(Space.Violet.copy(alpha = 0.32f * (1f - k / 7f)), radius = (3.2f - k * 0.35f).dp.toPx(), center = at(x, p))
                 }
             }
+            if (!planetVisible()) return@Canvas
             // A real little planet: wide halo, violet body, bright core (reads at a glance, PLAN 1.2).
             drawCircle(
                 Brush.radialGradient(listOf(Space.Violet.copy(alpha = 0.6f), Space.Violet.copy(alpha = 0f)), center, 18.dp.toPx()),

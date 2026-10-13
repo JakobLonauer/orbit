@@ -52,6 +52,8 @@ class ScreensScreenshotTest {
     val compose = createComposeRule()
 
     @Before fun init() {
+        // Screens are shown as they look after the Start-Moment.
+        io.github.thelony97.orbit.ui.Session.startPlayed = true
         val ctx = RuntimeEnvironment.getApplication()
         OrbitRepository.init(ctx)
         MailAccounts.init(ctx)
