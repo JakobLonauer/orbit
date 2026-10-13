@@ -22,7 +22,7 @@ Rangfolge bei Zielkonflikten: **1. Datensicherheit → 2. Wow (Kapitel 1) → 3.
 | W6 | **Jeder Zustand ist gestaltet:** leer, lädt, Fehler, offline, ein Eintrag, tausend Einträge, sehr langer Name, kein Foto. Leerzustand = ein kurzer Satz + genau eine Aktion. |
 | W7 | **Sprache präzise und österreichisch:** `de-AT` (Jänner), richtige Einzahl/Mehrzahl („1 Tag“, „2 Tage“), relative Zeiten, die live aktuell bleiben, Wochentag bei nahen Terminen. Kurz, für Profis, keine Erklärtexte. |
 | W8 | **Tempo ist Wow:** Kaltstart bis Liste < 400 ms, Suche pro Tastendruck < 16 ms, Scrollen ohne Ruckler, Anrufbildschirm sofort. |
-| W9 | **Ein Token-System:** Bewegung schnell 150 / mittel 250 / betont 350 ms mit Expressive-Federn; **keine Animation länger als 400 ms** – einzige Ausnahmen sind die einmaligen Signature-Momente „Dein Orbit füllt sich“, das Einzeichnen des Jahresrads, der Sternenregen und die Kamerafahrt der Karte; Abstände 4/8 dp; feste Radien, Glow-Stufen und Haptik-Typen. Keine Einzellösungen. |
+| W9 | **Ein Token-System:** Bewegung schnell 150 / mittel 250 / betont 350 ms mit Expressive-Federn; **keine Animation länger als 400 ms** – einzige Ausnahmen sind Sequenzen ohne direkte Berührungs-Antwort: Start-Moment, „Dein Orbit füllt sich“, Einzeichnen des Jahresrads beim Öffnen, Sternenregen, Kamerafahrt der Karte; Abstände 4/8 dp; feste Radien, Glow-Stufen und Haptik-Typen. Keine Einzellösungen. |
 
 Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animationen (Parallax, Pulsieren). Keine Barrierefreiheits-Anpassungen.
 
@@ -92,7 +92,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 1. **Nichts Intelligentes, keine KI.** Orbit tut nur, was du auslöst, oder folgt festen, sichtbaren Regeln („Nummer exakt gleich“, „Nummer beginnt mit …“, „Adresse endet auf @firma.at“).
 2. **Keine Fälligkeit.** Kein Rhythmus, kein „fällig“, kein Drängeln. Orbit schreibt weiter mit (Anrufe, SMS, E-Mails, eigene Einträge) – sichtbar im Verlauf.
 3. **Organisationen sind keine Menschen.** Standardmäßig überall ausgeblendet; Zuordnungen Mensch ↔ Organisation sind strikt getrennt von Beziehungen Mensch ↔ Mensch.
-4. **Für Profis gebaut.** Keine Barrierefreiheits-Arbeit, keine Tutorials, keine Erklärtexte, kein „Was ist neu“-Popup (nur eine Zeile in den Einstellungen). Dichte Oberfläche, Gesten, Langdruck-Menüs.
+4. **Für Profis gebaut.** Keine Barrierefreiheits-Arbeit, keine Tutorials, keine Erklärtexte, kein „Was ist neu“-Popup (nur eine Zeile in den Einstellungen). Dichte Oberfläche, Gesten, Langdruck-Menüs. Die vorhandenen Hinweistexte aus 1.0.7 (Filter-Sheet, E-Mail-Konten, Gruppen u. a.) werden entfernt oder auf einen Satz gekürzt.
 5. **Daten gehen nie verloren.** Jede Umstellung sichert vorher automatisch, ist getestet; Backups verschlüsselt.
 6. Design „Dark Space“ (feste Farben im Objekt `Space`, Space Grotesk + Inter, Glas, Glow). Alle Texte Deutsch, Du-Form.
 
@@ -107,7 +107,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 **Anpassungen:**
 - Netz und Karte zeigen keine archivierten Kontakte und keine versteckten Mitarbeiter. Im Netz erscheinen Zuordnungen zu Organisationen nur bei eingeschaltetem Org-Schalter, als eigene blaue Linie, getrennt von Beziehungen.
 - Eintragsarten verlieren „setzt Timer zurück“; Gruppen verlieren den Rhythmus.
-- Das bestehende Homescreen-Widget wird zum **Anlässe-Widget**: statt „fällig“ die nächsten angepinnten Anlässe (bis R3, solange es noch keine Pins gibt: die nächsten Geburtstage aus den umgestellten Daten). Favoriten bekommen ein eigenes Widget (3.14). Die tägliche Benachrichtigung enthält nur noch Anlässe.
+- Das bestehende Homescreen-Widget wird zum **Anlässe-Widget**: statt „fällig“ die nächsten angepinnten Anlässe; ohne angepinnte Anlässe (auch vor R3) die nächsten Geburtstage. Favoriten bekommen ein eigenes Widget (3.14). Die tägliche Benachrichtigung enthält nur noch Anlässe.
 - Der E-Mail-Abschnitt im Kontakt entfällt (Mails stehen im Verlauf, 3.9).
 - Der Status-Filter „Archiv“ verschwindet aus dem Filter-Sheet (Archiv nur noch in den Einstellungen, 3.11).
 
@@ -130,12 +130,13 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 - Leere Abschnitte verschwinden; unten eine Zeile `+ Anlass · + Link · + Foto · + Notiz`.
 - Profilbild zuschneiden; Kontakt als vCard/QR teilen.
 - Ist eine Person einer Organisation zugeordnet, führt ihr Firmen-/Arbeitsfeld per Tipp zur Organisation.
-- Bis R3/R4 zeigt die neue Kontaktseite Geburtstag und Jahrestage wie in 1.0.7 und noch keine Abschnitte Organisationen/Anlässe in neuer Form; diese kommen mit 3.5 und 3.6 (W5: nur zeigen, was es schon gibt). Der Anlässe-Tab erscheint in der Leiste ab R3.
+- Bis R3 zeigt die neue Kontaktseite Geburtstag und Jahrestage wie in 1.0.7; ab R1b zeigt sie die umgestellten Zuordnungen schlicht (Organisation, Rolle, Anruf-Knopf), die volle Gestaltung kommt mit R4. Der Anlässe-Tab erscheint in der Leiste ab R3 (W5: nur zeigen, was es schon gibt).
 - Themen optional mit Datum → Benachrichtigung an dem Tag.
 
 ### 3.4 Verlauf
 - Tab „Verlauf“: alle Einträge aller (sichtbaren) Kontakte chronologisch, Filter nach Art, Suche, Orgs per Schalter; Anrufe inkl. unbekannter Nummern mit Rückruf.
 - Ein Treffen mit mehreren Personen ist **ein** Eintrag bei allen (`sharedId`).
+- Gespräche mit versteckten Mitarbeitern erscheinen im Verlauf-Tab nur als „Gespräch · <Organisation>“, ohne Mitarbeiternamen und ohne Notiz.
 - Schnelles Rückdatieren (gestern, letzte Woche); Notiz auch zu automatischen Einträgen.
 - Abgleich Anrufe/SMS wie bisher; E-Mails siehe 3.9.
 
@@ -156,7 +157,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 - Benannte Nummern und Adressen (Zentrale, Empfang, Termine, Fax, Notfall, eigene), Standardnummer.
 - **Zuordnungen** (getrennt von Beziehungen): Mensch → Organisation mit Rolle aus beiden Blickrichtungen (Hausarzt, Zahnarzt, Facharzt / Patient:in · Arbeitgeber / Mitarbeiter:in · Kolleg:in · Vorgesetzte:r · Projektleitung · Schule/Uni / Schüler:in/Studierende · Bank · Versicherung · Verein / Mitglied · eigene Bezeichnung). Personen-Seite: „Hausarzt: Arzt Müller“ mit Anruf-Knopf, „Auch im COOL Lab: Anna, Tom“. Auch für ICH. Bestehende Org-Beziehungen werden zu Zuordnungen.
 - Org-Seite mit zwei Abschnitten: **Aus deinen Kontakten** (echte Menschen per Zuordnung) und **Nur hier** (versteckte Mitarbeiter).
-- **Versteckte Mitarbeiter:** Name, Rolle, Foto, Durchwahl, Mail, dauerhafte Notiz, eigene Gespräche (Org-Einträge mit `memberId`), „zuletzt gesprochen“. Nie in Liste, Suche, Verlauf-Tab, Anlässen, Netz, Karte, Tastenfeld-Suche. Gespräch eintragen in einer Zeile mit Mitarbeiter-Chip; ein neuer Mitarbeiter lässt sich dabei mit einem Feld anlegen. Jeder Mitarbeiter hat eine eigene Seite mit allen Gesprächen mit ihm. Ab vielen Mitarbeitern hat „Nur hier“ eine eigene Suche, die nur diese Organisation durchsucht. „Zu eigenem Kontakt machen“ (legt die Zuordnung zur Organisation automatisch an) / „Nur in der Organisation führen“.
+- **Versteckte Mitarbeiter:** Name, Rolle, Foto, Durchwahl, Mail, dauerhafte Notiz, eigene Gespräche (Org-Einträge mit `memberId`), „zuletzt gesprochen“. Nie in Liste, Suche, Verlauf-Tab, Anlässen, Netz, Karte, Tastenfeld-Suche. Gespräch eintragen in einer Zeile mit Mitarbeiter-Chip; ein neuer Mitarbeiter lässt sich dabei mit einem Feld anlegen. Jeder Mitarbeiter hat eine eigene Seite mit allen Gesprächen mit ihm. Ab vielen Mitarbeitern hat „Nur hier“ eine eigene Suche, die nur diese Organisation durchsucht. „Zu eigenem Kontakt machen“ (neuer Kontakt oder „Mit bestehendem Kontakt zusammenführen“; Gespräche und Notiz wandern mit, die Zuordnung zur Organisation entsteht automatisch) / „Nur in der Organisation führen“.
 - **Regeln** (selbst eingeschaltet): Nummernbereich (Präfix) und E-Mail-Domain gehören zur Organisation; Verlauf zeigt „Anruf · Empfang“. Nach Anruf von unbekannter Durchwahl: „Mitarbeiter zuordnen?“.
 - Eigene Felder (3.3); Öffnungszeiten mit Live-Anzeige; Logo der Webseite als Bild (bestätigen); Kategorie „Bildung“.
 
@@ -201,6 +202,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 - Danach: Notizzeile → Verlaufseintrag; „Mitarbeiter zuordnen?“ bei unbekannter Durchwahl; nach Anruf von unbekannter Nummer „Als Kontakt anlegen“ / „Als Organisation anlegen“.
 - **Notrufe** laufen immer über das Telefonsystem; das Orbit-Tastenfeld wählt Notrufnummern direkt, ohne Umweg.
 - Fällt Android auf die vorinstallierte Telefon-App zurück, zeigt Orbit danach eine Benachrichtigung.
+- **App-Sperre blockiert Anrufe nie:** Anrufbildschirm, Tastenfeld und Notruf funktionieren ohne Entsperren der Orbit-Sperre. Auf dem Sperrbildschirm des Handys zeigt der Anrufbildschirm nur Name, Bild und Rolle; Notizen, Themen und Kundennummer erst, wenn das Handy entsperrt ist. Kontaktseite, Verlauf und Notizen außerhalb des Anrufs verlangen weiter die Orbit-Sperre.
 - Wählen: Tastenfeld mit T9-Suche (ohne Archiv und versteckte Mitarbeiter), Dual-SIM pro Kontakt, Mailbox.
 - Ablehnen mit SMS-Vorlage, „Später zurückrufen“ (15 Min / 1 Std), Nummern sperren.
 - Benachrichtigung im Anruf-Stil, Vollbild bei gesperrtem Handy.
@@ -221,7 +223,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 - Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“, Favoriten-Widget (Anrufen/WhatsApp mit einem Tipp), Anlässe-Widget, App-Shortcuts (Neuer Kontakt, Verlauf, Top-Favoriten dynamisch).
 - Mehrere Handy-Kontakte auf einmal übernehmen (Organisation per fester Regel „Firma ohne Personennamen“).
 - „Diese Nummer gibt es schon“ erscheint beim Speichern jedes Kontakts und beim Import (feste Regel: gleiche normalisierte Nummer).
-- ICH-Karte mit QR; Export Excel (Kontakte und Verlauf) und vCard (Kontakte).
+- ICH-Karte mit QR (enthält eine vCard, die jede Kamera-App lesen kann); Export Excel (Kontakte und Verlauf) und vCard (Kontakte).
 
 ---
 
@@ -234,7 +236,7 @@ Im Energiesparmodus laufen keine Sensor-Effekte (Neigung) und keine Dauer-Animat
 - **Volltextsuche und Nummern-Hinweis schließen Daten versteckter Mitarbeiter und archivierter Kontakte aus** (eigene Suche nur im Archiv bzw. in der Organisation).
 - **Planer** für alle Benachrichtigungen; **Teilen-Eingang**; **Ablage** mit Referenzzählung; **UI-Bausteine** inkl. Wow-Systeme aus 1.2 als wiederverwendbare Komponenten.
 - **Datenmodell v2** in einer Umstellung mit automatischer Sicherung: entfällt `rhythmDays`, `paused`, `snoozedUntil`, `remindedDueDay`, Gruppen-Rhythmus, `resetsTimer`; `birthday`/`anniversaries` → `dates`; `website` → erster Link; `gallery` → Ablage; Org-Beziehungsarten → Zuordnungen. Neu: `dates` (Art, Bezeichnung, Tag, Monat, Jahr optional, Wiederholung jährlich/einmalig, angepinnt, Erinnerungen, gemeinsam mit, Notiz), Einträge „Gratuliert“/„Geschenk“ mit Anlass, Jahr und Mitschenkenden, `links`, `fields`, `members`, `numberPrefixes`, `emailDomains`, `mapsUrl`, `pinnedNote`, `OrgLink`, Eintrag `memberId`/`attachmentIds`/`sharedId`/Mail-Verweis.
-- **Backup** exportiert SQLite-Tabellen als JSON und alle Dateien der Ablage (Fotos, PDFs) in die ZIP; verschlüsselt mit einem Schlüssel aus deinem Passwort (PBKDF2-HMAC-SHA256, AES-256-GCM); Wiederherstellen fragt das Passwort. Mail-Passwörter nie im Backup.
+- **Backup** exportiert SQLite-Tabellen als JSON und alle Dateien der Ablage (Fotos, PDFs) in die ZIP; verschlüsselt mit einem Schlüssel aus deinem Passwort (PBKDF2-HMAC-SHA256 mit Salt, AES-256-GCM). Für automatische Backups wird der abgeleitete Schlüssel – nie das Passwort – durch den Android-Keystore geschützt gespeichert; Wiederherstellen fragt immer das Passwort. Mail-Passwörter nie im Backup.
 
 ---
 
