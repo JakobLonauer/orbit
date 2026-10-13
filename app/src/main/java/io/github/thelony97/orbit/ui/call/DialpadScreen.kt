@@ -191,7 +191,7 @@ private val KEYS = listOf(
 )
 
 @Composable
-private fun Keypad(onKey: (Char) -> Unit, onVoicemail: () -> Unit) {
+internal fun Keypad(onKey: (Char) -> Unit, onVoicemail: (() -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         KEYS.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -202,7 +202,7 @@ private fun Keypad(onKey: (Char) -> Unit, onVoicemail: () -> Unit) {
                         '1' -> onVoicemail
                         else -> null
                     }
-                    Key(d, letters, { onKey(d) }, long, voicemail = d == '1')
+                    Key(d, letters, { onKey(d) }, long, voicemail = d == '1' && onVoicemail != null)
                 }
             }
         }

@@ -87,6 +87,8 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         AppLock.onResume()
+        // Phone app switched back in the system settings (or declined): Orbit's dial parts go off.
+        io.github.thelony97.orbit.call.PhoneRole.tidy(this)
     }
 
     override fun onStop() {

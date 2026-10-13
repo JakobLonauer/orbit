@@ -105,6 +105,8 @@ data class CallUi(
     val doneTopics: Set<String> = emptySet(),
     /** Hung up: the screen stays for the note line (PLAN 3.12 „Danach“). */
     val ended: Boolean = false,
+    /** Outgoing, not answered yet. */
+    val dialing: Boolean = false,
 )
 
 interface CallActions {
@@ -118,6 +120,8 @@ interface CallActions {
     fun toggleSpeaker() {}
     fun toggleHold() {}
     fun dialpad() {}
+    /** A key of the in-call keypad (DTMF). */
+    fun dtmf(digit: Char) {}
     fun toggleTopic(topic: String) {}
     /** Archived caller (PLAN 3.11): back into the list with one tap. */
     fun unarchive() {}
@@ -146,6 +150,7 @@ fun CallScreen(
     smsOpen: Boolean = false,
 ) {
     var templates by remember { mutableStateOf(smsOpen) }
+    var keys by remember { mutableStateOf(false) }
     val color = callerColor(ui.card, ui.phoneUnlocked)
     val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
     SpaceBackground(nebula = { color.copy(alpha = 1f) }) {
@@ -167,6 +172,7 @@ fun CallScreen(
             )
             val sub = when {
                 ui.ended -> "Beendet · " + timer(ui.elapsed)
+                ui.dialing -> "Wählt …"
                 ui.active -> listOfNotNull(timer(ui.elapsed), "gehalten".takeIf { ui.onHold }).joinToString(" · ")
                 notice != null -> notice.publicLine.ifBlank { ui.number }
                 else -> "Unbekannt"
@@ -179,15 +185,20 @@ fun CallScreen(
             )
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
             // The templates take the details' place, so everything fits without scrolling.
-            if (ui.phoneUnlocked && notice != null && !(templates && !ui.active)) {
+            if (ui.phoneUnlocked && notice != null && !(templates && !ui.active) && !(keys && ui.active && !ui.ended)) {
                 Spacer(Modifier.height(16.dp))
                 Details(notice, ui, actions)
             }
             Spacer(Modifier.weight(1f))
             if (ui.ended) {
-                AfterCall(ui.phoneUnlocked, actions)
+                // The note needs a contact to land on, and an unlocked phone.
+                AfterCall(ui.phoneUnlocked && ui.card != null, actions)
             } else if (ui.active) {
-                ActiveControls(ui, actions)
+                if (keys) {
+                    Keypad(onKey = actions::dtmf)
+                    Spacer(Modifier.height(20.dp))
+                }
+                ActiveControls(ui, actions, keys) { keys = !keys; actions.dialpad() }
             } else {
                 if (templates) {
                     SmsTemplates { text -> templates = false; actions.declineWithSms(text) }
@@ -430,13 +441,13 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
 }
 
 @Composable
-private fun ActiveControls(ui: CallUi, actions: CallActions) {
+private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKeys: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute)
             ToggleOrb(Icons.AutoMirrored.Rounded.VolumeUp, "Lautsprecher", ui.speaker, actions::toggleSpeaker)
             ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold)
-            ToggleOrb(Icons.Rounded.Dialpad, "Tasten", false, actions::dialpad)
+            ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys)
         }
         Box(
             Modifier.size(72.dp).glow(Space.Coral, 22.dp, CircleShape, 0.6f).clip(CircleShape).background(Space.Coral).clickable(onClick = actions::hangUp),

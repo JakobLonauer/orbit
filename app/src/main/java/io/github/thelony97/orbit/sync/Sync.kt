@@ -75,7 +75,10 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 val fresh = SyncEngine.syncAll(applicationContext)
                 val data = OrbitRepository.snapshot()
                 var prompted = false
-                if (data.settings.noteAfterCall) {
+                // The call screen already offered the note line (Orbit as phone app).
+                val offered = now() - io.github.thelony97.orbit.call.CallSession.noteOfferedAt < TimeUnit.MINUTES.toMillis(5)
+                if (offered) prompted = true
+                if (data.settings.noteAfterCall && !offered) {
                     // The call that just ended is the newest one; older catch-up entries get no prompt.
                     fresh.filter { (it.entry.at + (it.entry.durationSec ?: 0) * 1000) >= since }
                         .maxByOrNull { it.entry.at }
@@ -142,6 +145,8 @@ class PhoneStateReceiver : BroadcastReceiver() {
             }
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 if (number.isNullOrBlank()) return
+                // Orbit is the phone app: its call screen shows all this already.
+                if (io.github.thelony97.orbit.call.PhoneRole.held(context)) return
                 val ringAt = android.os.SystemClock.elapsedRealtime()
                 // A very short call can end before the card is ready: never post after "idle".
                 fun stillRinging() = idleAt < ringAt

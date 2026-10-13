@@ -24,6 +24,8 @@ object Notifications {
     const val CH_CALL = "call"
     /** Caller info while it rings: lock screen forced to the public version (name and role). */
     const val CH_CALLER = "caller"
+    /** Calls while Orbit is the phone app: silent (the system rings), private on the lock screen. */
+    const val CH_INCALL = "incall"
     const val CH_MEETING = "meeting"
     const val CH_SYSTEM = "system"
 
@@ -52,6 +54,12 @@ object Notifications {
                 },
                 NotificationChannel(CH_CALLER, "Anrufer-Info", NotificationManager.IMPORTANCE_HIGH).apply {
                     description = "Wer anruft, beim Klingeln"
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+                },
+                NotificationChannel(CH_INCALL, "Anrufe", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Laufende und eingehende Anrufe, wenn Orbit die Telefon-App ist"
+                    setSound(null, null)
+                    enableVibration(false)
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
                 },
                 NotificationChannel(CH_MEETING, "Treffen", NotificationManager.IMPORTANCE_DEFAULT).apply {

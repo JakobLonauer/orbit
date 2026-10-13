@@ -242,6 +242,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     // The long "restricted settings" help only after Android actually refused (W7).
     var permissionDenied by remember { mutableStateOf(false) }
     var permissionsOpen by remember { mutableStateOf(false) }
+    var phoneDialog by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
 
@@ -260,6 +261,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         } else {
             Sync.requestNow(ctx)
         }
+    }
+    // Orbit als Telefon-App (PLAN 3.12): the system's own role dialog decides.
+    val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
+        permissionTick++
+        if (io.github.thelony97.orbit.call.PhoneRole.held(ctx)) Toast.makeText(ctx, "Orbit ist jetzt die Telefon-App", Toast.LENGTH_SHORT).show()
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -444,6 +451,22 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     if (i > 0) Hairline()
                     SettingItem(a.icon, a.title, a.status, iconTint = a.tint, onClick = { nav.open(Route.SettingsArea(a.key)) })
                 }
+            }
+        }
+
+        if (area == "capture" && io.github.thelony97.orbit.call.PhoneRole.available(ctx)) item(key = "phone") {
+            val held = remember(permissionTick) { io.github.thelony97.orbit.call.PhoneRole.held(ctx) }
+            SettingsGroup("") {
+                SettingItem(
+                    Icons.Rounded.Call, "Orbit als Telefon-App", subtitle = if (held) "Aktiv" else null, iconTint = Space.Teal,
+                    trailing = {
+                        SpaceSwitch(held) { on ->
+                            // Turning it off happens where Android keeps the default apps.
+                            if (on) phoneDialog = true
+                            else runCatching { ctx.startActivity(io.github.thelony97.orbit.call.PhoneRole.defaultAppsIntent()) }
+                        }
+                    },
+                )
             }
         }
 
@@ -663,6 +686,33 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             confirmTwice = false,
             onDismiss = { passwordFor = null },
             onConfirm = { pw -> readBackup(uri, pw) },
+        )
+    }
+
+    if (phoneDialog) {
+        // PLAN 3.12: one sentence when turning it on.
+        AlertDialog(
+            onDismissRequest = { phoneDialog = false },
+            containerColor = Space.PanelHigh,
+            title = { Text("Orbit als Telefon-App") },
+            text = {
+                Text(
+                    "Spam-Warnung, Anruf-Filter und visuelle Mailbox der Google-Telefon-App entfallen; Android verlangt eventuell zuerst „Eingeschränkte Einstellungen zulassen“; zurück jederzeit unter Standard-Apps.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Space.TextDim,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    phoneDialog = false
+                    val request = io.github.thelony97.orbit.call.PhoneRole.requestIntent(ctx)
+                    if (request != null) runCatching { phoneRoleLauncher.launch(request) }.onFailure {
+                        io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
+                        toast("Nicht möglich")
+                    } else toast("Nicht möglich")
+                }) { Text("Einschalten") }
+            },
+            dismissButton = { TextButton(onClick = { phoneDialog = false }) { Text("Abbrechen") } },
         )
     }
 

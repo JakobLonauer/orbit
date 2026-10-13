@@ -30,7 +30,8 @@ object ContactActions {
 
     fun call(ctx: Context, c: Contact, number: String?, settings: Settings) {
         val target = number ?: defaultNumber(c) ?: return toast(ctx, "Keine Nummer hinterlegt")
-        if (settings.topicsDuringCall) Notifications.topics(ctx, c)
+        // As phone app the call screen lists the topics; otherwise the reminder notification.
+        if (settings.topicsDuringCall && !io.github.thelony97.orbit.call.PhoneRole.held(ctx)) Notifications.topics(ctx, c)
         val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
         val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", target, null))
         if (start(ctx, intent) && !SyncEngine.canReadCalls(ctx)) {
