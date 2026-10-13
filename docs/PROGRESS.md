@@ -26,7 +26,16 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
   - Archiv in den Einstellungen (3.11, Grundform): eigene Suche, Sortierung, nach Jahr gruppiert, entsättigt, Zurückholen. Archiv-Filter aus dem Filter-Sheet entfernt; Netz und Beziehungen anderer ohne Archivierte.
   - Fehlerprotokoll aktiv (Einstellungen › Fehlerprotokoll, teilen/leeren). Datumsformate app-weit de-AT.
   - Screenshot-Tests echter Screens (Orbit-Tab, Liste, Kontaktseite, Archiv) mit Testdaten – Bilder im Branch `ci-log-dev` unter `shots/`.
-- **Nächster Schritt (R1a Rest):** App auf `core.model` umstellen (OrbitRepository: Umstellung mit automatischer Kopie `orbit.v1.bak.json`, SQLite für Verlauf und Ablage), verschlüsseltes Backup einbauen (BackupCrypto ist fertig), Anrufer-Kurzindex beim Speichern schreiben, Token-System/Haptik/Platzhalter in den Screens. Erklärtexte, die noch übrig sind (Beziehungen-Leerzustand, „Tippen zum Bearbeiten“ u. a.), in R1b entfernen. Details zur Reihenfolge im Notizbuch.
+- **13.10.2026 (dritte Sitzung, 2 h):** R1a fertig auf `dev` (grün):
+  - Speicher v2 aktiv: JSON-Kern + SQLite für Verlauf und Ablage (ADR-0005), einmalige Umstellung beim ersten Start mit Kopie `orbit.v1.bak.json`, Zeilenzahl-Prüfung, doppelte Zeilen werden zusammengeführt. Ladefehler ⇒ eigener Fehler-Bildschirm, Speichern und Sicherungen gesperrt.
+  - Sicherungen: orbit.json + history.json + attachments.json; optional mit Passwort verschlüsselt (PBKDF2 + AES-256-GCM, in 1-MB-Blöcken gestreamt, Schlüssel Keystore-geschützt, Passwort nie gespeichert). Alte 1.0.7-Sicherungen lassen sich weiter einspielen.
+  - Anrufer-Kurzindex wird nach jedem Speichern geschrieben (für R2).
+  - Wow-Review R1a umgesetzt (Zählen der Zuletzt-Werte, nur zutreffende Aktionen, Leerzustände mit einer Aktion, keine Erklärtexte, keine abgeschnittenen Glows).
+  - Zwei unabhängige Code-Reviews (Umstellung + Release) – alle bestätigten Funde behoben.
+  - Bewusst verschoben: Org-Beziehungen → Zuordnungen erst in R4 (UI fehlt noch); Zuordnungs-Maschine/Index aus `:core:domain` werden in R1b/R2 in der App verdrahtet.
+- **Wow-Gate R1a:** [x] berührte Screens gegen W1–W9 geprüft (Orbit-Tab, Kontaktseite, Liste, Archiv, Einstellungen) · [x] Screenshots angesehen + Wow-Review-Subagent · [x] bestätigte Funde behoben · [x] keine schwere Arbeit in der Composition neu hinzugekommen · [ ] Leer/lang/offline-Zustände als eigene Screenshots (kommt mit R1b-Screens).
+- **Nächster Schritt:** Jakob entscheidet über das Release von R1a (Umstellung seiner Daten). Danach R1b (Hülle, PLAN 3.1–3.4, 3.11, 3.13).
+- **Früherer nächster Schritt (R1a Rest, erledigt):** App auf `core.model` umstellen (OrbitRepository: Umstellung mit automatischer Kopie `orbit.v1.bak.json`, SQLite für Verlauf und Ablage), verschlüsseltes Backup einbauen (BackupCrypto ist fertig), Anrufer-Kurzindex beim Speichern schreiben, Token-System/Haptik/Platzhalter in den Screens. Erklärtexte, die noch übrig sind (Beziehungen-Leerzustand, „Tippen zum Bearbeiten“ u. a.), in R1b entfernen. Details zur Reihenfolge im Notizbuch.
 - Letztes Release: v1.0.7 (Organisationen, ICH, Filter, Orbit-Liste, Netz, Karte, E-Mail, Fotos). `dev` ist nicht releasefähig, bis R1a fertig ist – `main` bleibt unverändert.
 
 ## Entscheidungen

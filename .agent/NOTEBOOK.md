@@ -105,6 +105,8 @@
 - !! Entsättigen NICHT mit drawRect(BlendMode.Saturation) -> malt graues Quadrat über transparente Bereiche. -> graphicsLayer { renderEffect = RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(setSaturation(0))).asComposeRenderEffect() }.
 - Screenshot echter Screens: `ScreensScreenshotTest` – vorher `OrbitRepository.init(ctx)` + `MailAccounts.init(ctx)` (lateinit!), Nav(open={},back={},replace={},home={}), Hintergrund Space.Void selbst malen. HomeScreen NICHT rendern (MapLibre nativ). Entsättigen siehe oben.
 - Review-Agent (general-purpose, read-only) nach großem Diff hat 5 echte Logikfehler gefunden, 0 Compile-Fehler -> lohnt sich, parallel zur CI laufen lassen.
+- SPEICHER v2 AKTIV (13.10.): data/Model.kt = typealiases auf core.model. Contact.entries/gallery sind @Transient (nur RAM), Store.kt füllt/speichert Differenz (ADR-0005). OrbitRepository: lastSaved-Snapshot, loadError (StateFlow) sperrt persist + Backups, LoadErrorScreen in OrbitRoot. HistoryDb: UNIQUE(contact_id, external_id), KeepCorruptFile-Handler, checkpoint(). Backups: history.json/attachments.json, BackupCrypto v2 gestreamt (Temp-Datei im cacheDir), BackupKey (Keystore-Alias orbit-backup-key, noBackupFilesDir/backup_key.json). Neue HistoryEntry IMMER mit contactId (EntrySheet setzt "", addEntry überschreibt).
+- Work-Branch-Trick: Workflow läuft nur auf main/dev-Push -> für Feature-Branch `gh workflow run build.yml --ref <branch>`; Log in `ci-log-<branch>`.
 - Kontakt v2 hat berechnete Props `address`, `birthday` (nicht serialisiert) -> erleichtert Umstellung der UI.
 - Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
