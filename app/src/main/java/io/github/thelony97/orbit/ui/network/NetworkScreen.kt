@@ -110,7 +110,7 @@ private fun nodeSize(level: Int) = when (level) {
 @Composable
 fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
     val me = Logic.me(data)
-    val root = Session.networkRoot?.let { idx.contacts[it] }?.takeIf { it.deletedAt == null } ?: me
+    val root = Session.networkRoot?.let { idx.contacts[it] }?.takeIf { it.deletedAt == null && !it.archived } ?: me
     val depth = Session.networkDepth
     val audience = Session.audience
     var selected by remember(root?.id) { mutableStateOf<String?>(null) }
@@ -121,7 +121,7 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
 
     val network = remember(data, root?.id, depth, audience) {
         // People are always part of the net; the chip only adds organisations.
-        root?.let { r -> NetworkLayout.build(data, r, depth, include = { it.isMe || !it.isOrg || audience != Audience.PEOPLE }, lastFirst = data.settings.sortByLastName) }
+        root?.let { r -> NetworkLayout.build(data, r, depth, include = { !it.archived && (it.isMe || !it.isOrg || audience != Audience.PEOPLE) }, lastFirst = data.settings.sortByLastName) }
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -418,7 +418,7 @@ private fun RootPicker(data: OrbitData, idx: Index, onDismiss: () -> Unit) {
     val linked = remember(data) { data.relations.flatMap { listOf(it.fromId, it.toId) }.groupingBy { it }.eachCount() }
     val list = remember(data, q) {
         Logic.active(data)
-            .filter { Logic.matches(it, q, idx) }
+            .filter { !it.archived && Logic.matches(it, q, idx) }
             .sortedWith(compareByDescending<Contact> { it.isMe }.thenByDescending { linked[it.id] ?: 0 }.thenBy { Logic.sortKey(it, false) })
     }
     AlertDialog(

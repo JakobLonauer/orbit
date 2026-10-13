@@ -1,19 +1,17 @@
 package io.github.thelony97.orbit.util
 
+import io.github.thelony97.orbit.core.domain.AtFormat
+import io.github.thelony97.orbit.core.model.CalendarDay
 import io.github.thelony97.orbit.data.DayOfYear
 import io.github.thelony97.orbit.domain.zone
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.util.Locale
 
 object Fmt {
     val locale: Locale = Locale.GERMAN
-    private val dateFmt = DateTimeFormatter.ofPattern("d. MMM yyyy", locale)
-    private val shortDate = DateTimeFormatter.ofPattern("d. MMM", locale)
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", locale)
-    private val weekday = DateTimeFormatter.ofPattern("EEE, d. MMM", locale)
 
     /** "heute", "gestern", "vor 5 Tagen", "vor 3 Wochen" … */
     fun ago(days: Long): String = when {
@@ -50,19 +48,16 @@ object Fmt {
         else -> "${seconds / 3600} h ${(seconds % 3600) / 60} Min"
     }
 
-    fun date(millis: Long): String = Instant.ofEpochMilli(millis).atZone(zone()).format(dateFmt)
-    fun date(d: LocalDate): String = d.format(dateFmt)
-    fun shortDate(d: LocalDate): String = d.format(shortDate)
-    fun weekdayDate(d: LocalDate): String = d.format(weekday)
+    // Dates in de-AT from our own tables (PLAN W7: "Jän.", "Jänner" on every phone).
+    fun date(millis: Long): String = date(Instant.ofEpochMilli(millis).atZone(zone()).toLocalDate())
+    fun date(d: LocalDate): String = "${AtFormat.dateShort(d)} ${d.year}"
+    fun shortDate(d: LocalDate): String = AtFormat.dateShort(d)
+    fun weekdayDate(d: LocalDate): String = AtFormat.weekdayDate(d)
     fun time(millis: Long): String = Instant.ofEpochMilli(millis).atZone(zone()).format(timeFmt)
     fun dateTime(millis: Long): String =
-        Instant.ofEpochMilli(millis).atZone(zone()).let { "${it.format(weekday)}, ${it.format(timeFmt)}" }
+        Instant.ofEpochMilli(millis).atZone(zone()).let { "${AtFormat.weekdayDate(it.toLocalDate())}, ${it.format(timeFmt)}" }
 
-    fun dayOfYear(d: DayOfYear): String {
-        val month = java.time.Month.of(d.month.coerceIn(1, 12)).getDisplayName(TextStyle.FULL, locale)
-        return if (d.year != null) "${d.day}. $month ${d.year}" else "${d.day}. $month"
-    }
+    fun dayOfYear(d: DayOfYear): String = AtFormat.day(CalendarDay(d.day, d.month, d.year))
 
-    fun monthName(month: Int): String =
-        java.time.Month.of(month.coerceIn(1, 12)).getDisplayName(TextStyle.FULL, locale)
+    fun monthName(month: Int): String = AtFormat.month(month)
 }

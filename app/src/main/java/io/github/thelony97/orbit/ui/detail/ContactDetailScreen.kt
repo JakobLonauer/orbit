@@ -276,7 +276,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             if (!c.isMe) item(key = "status") {
                 GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
                     val last = c.entries.maxByOrNull { it.at }
-                    val lastDays = last?.let { ChronoUnit.DAYS.between(it.at.toLocalDate(), todayDate) }
                     // Last contact per kind (PLAN 3.4): facts only, no due dates.
                     val perType = lastPerType(c)
                     Row(Modifier.fillMaxWidth()) {
@@ -285,11 +284,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             Stat(days?.let { Fmt.short(it) } ?: "–", idx.types[typeId]?.name ?: "Kontakt")
                         }
                     }
-                    val subline = when {
-                        last != null -> "Zuletzt: ${idx.types[last.typeId]?.name ?: "Kontakt"} ${Fmt.ago(lastDays ?: 0)}"
-                        else -> "Noch kein Kontakt eingetragen"
+                    // The stats already say it; only the "nothing yet" state needs words (W5).
+                    if (last == null) {
+                        Text("Noch kein Kontakt", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, modifier = Modifier.padding(top = 8.dp))
                     }
-                    Text(subline, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, modifier = Modifier.padding(top = 8.dp))
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
                         GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
