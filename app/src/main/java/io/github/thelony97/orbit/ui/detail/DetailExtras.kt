@@ -50,6 +50,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogWindowProvider
@@ -73,22 +75,62 @@ import kotlinx.coroutines.delay
 data class AddItem(val label: String, val onClick: () -> Unit)
 
 /**
- * The line at the end of the page: only what is missing, nothing greyed out (W5). Up to four fit;
- * with more, the first three (PLAN 3.3 order: Anlass · Link · Foto · Notiz …) and „+ Mehr“.
+ * The line at the end of the page: only what is missing, nothing greyed out (W5). Exactly one
+ * line: as many chips as fit (PLAN 3.3 order: Anlass · Link · Foto · Notiz …), the rest behind
+ * „+ Mehr“ – never a lone chip on a second line. After „Mehr“ everything wraps freely.
  */
 @Composable
 fun AddRow(items: List<AddItem>, modifier: Modifier = Modifier) {
     if (items.isEmpty()) return
     var all by remember { mutableStateOf(false) }
-    // Three chips plus „Mehr“ fit one line at phone width; never a lone chip on a second line.
-    val shown = if (all || items.size <= 4) items else items.take(3)
-    FlowRow(
-        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        shown.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
-        if (shown.size < items.size) SpaceChip("Mehr", false, { all = true }, leading = Icons.Rounded.Add)
+    val box = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
+    if (all) {
+        FlowRow(
+            box,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
+        }
+        return
+    }
+    val gap = with(LocalDensity.current) { 8.dp.roundToPx() }
+    Layout(
+        content = {
+            items.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
+            SpaceChip("Mehr", false, { all = true }, leading = Icons.Rounded.Add)
+        },
+        modifier = box,
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(loose) }
+        val chips = placeables.dropLast(1)
+        val more = placeables.last()
+        val count = AddRowFit.count(chips.map { it.width }, more.width, gap, constraints.maxWidth)
+        val shown = chips.take(count) + if (count < chips.size) listOf(more) else emptyList()
+        val height = shown.maxOfOrNull { it.height } ?: 0
+        layout(constraints.maxWidth, height) {
+            var x = 0
+            shown.forEach { p ->
+                p.placeRelative(x, (height - p.height) / 2)
+                x += p.width + gap
+            }
+        }
+    }
+}
+
+/** How many chips of a one-line add row fit next to each other; pure so it can be tested. */
+object AddRowFit {
+    /**
+     * Chips are shown in order. If all fit, all are shown. Otherwise as many as fit together
+     * with the „Mehr“ chip ([more] wide) – at least one, so the row is never just „Mehr“.
+     */
+    fun count(widths: List<Int>, more: Int, gap: Int, max: Int): Int {
+        fun span(n: Int) = widths.take(n).sum() + gap * (n - 1).coerceAtLeast(0)
+        if (span(widths.size) <= max) return widths.size
+        var n = widths.size - 1
+        while (n > 1 && span(n) + gap + more > max) n--
+        return n.coerceAtLeast(1)
     }
 }
 
