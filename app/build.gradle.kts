@@ -137,6 +137,8 @@ dependencies {
     implementation(libs.maplibre.android)
     implementation(libs.android.mail)
     implementation(libs.android.activation)
+    // QR code of a shared contact (PLAN 3.3); pure Java, encoder only.
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

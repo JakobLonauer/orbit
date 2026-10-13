@@ -1,0 +1,54 @@
+package io.github.thelony97.orbit.actions
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import io.github.thelony97.orbit.core.domain.VCard
+import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.security.AppLock
+import java.io.File
+
+/** Contact as vCard file or QR code (PLAN 3.3). Business-card fields only, see [VCard]. */
+object ShareContact {
+
+    fun vcard(ctx: Context, c: Contact) {
+        try {
+            val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
+            // Only the latest shared card stays in the cache.
+            dir.listFiles()?.forEach { it.delete() }
+            val file = File(dir, VCard.fileName(c)).apply { writeText(VCard.of(c)) }
+            val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".share", file)
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("text/x-vcard")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            AppLock.allowExternal()
+            ctx.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+        } catch (e: Exception) {
+            Toast.makeText(ctx, "Teilen nicht möglich", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * QR code of the vCard as a bitmap, one pixel per module plus a quiet zone; scale it with
+     * nearest-neighbour filtering. `null` if the card is too large for a QR code.
+     */
+    fun qr(c: Contact): Bitmap? = runCatching {
+        val hints = mapOf(
+            EncodeHintType.CHARACTER_SET to "UTF-8",
+            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
+            EncodeHintType.MARGIN to 2,
+        )
+        val m = QRCodeWriter().encode(VCard.of(c), BarcodeFormat.QR_CODE, 0, 0, hints)
+        val pixels = IntArray(m.width * m.height) { i ->
+            if (m.get(i % m.width, i / m.width)) 0xFF0B0B14.toInt() else 0xFFFFFFFF.toInt()
+        }
+        Bitmap.createBitmap(pixels, m.width, m.height, Bitmap.Config.ARGB_8888)
+    }.getOrNull()
+}

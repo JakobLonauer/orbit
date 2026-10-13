@@ -96,6 +96,9 @@ import io.github.thelony97.orbit.core.model.OccasionKind
 import io.github.thelony97.orbit.core.model.CustomField
 import io.github.thelony97.orbit.core.model.Link as LinkTile
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.QrCode2
+import androidx.compose.material.icons.rounded.Share
+import io.github.thelony97.orbit.actions.ShareContact
 import io.github.thelony97.orbit.data.Anniversary
 import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Contact
@@ -208,11 +211,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var birthdayDialog by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
     var linkDialog by remember { mutableStateOf(false) }
+    var qrDialog by remember { mutableStateOf(false) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
     // Sections opened from the add row while still empty (topics, gifts).
     var opened by remember { mutableStateOf(setOf<String>()) }
     val gallery = rememberGalleryImport(c.id)
+    val drawnEntries = remember { HashSet<String>() }
     var historyType by remember { mutableStateOf<String?>(null) }
     val historySearch = rememberTextFieldState()
 
@@ -271,7 +276,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         )
                     }
                     OrbButton(Icons.Rounded.Edit, "Bearbeiten", { nav.open(Route.Edit(id = c.id)) }, size = 38.dp)
-                    if (!c.isMe) Box {
+                    Box {
                         OrbButton(Icons.Rounded.MoreVert, "Mehr", { menu = true }, size = 38.dp)
                         DropdownMenu(
                             expanded = menu,
@@ -279,7 +284,19 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             containerColor = Space.PanelHigh,
                             shape = RoundedCornerShape(16.dp),
                         ) {
+                            // PLAN 3.3: share as vCard / QR – also your own card.
                             DropdownMenuItem(
+                                text = { Text("QR-Code") },
+                                leadingIcon = { Icon(Icons.Rounded.QrCode2, null) },
+                                onClick = { menu = false; qrDialog = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Als vCard teilen") },
+                                leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                                onClick = { menu = false; ShareContact.vcard(ctx, c) },
+                            )
+                            if (!c.isMe) HorizontalDivider(color = Space.Line)
+                            if (!c.isMe) DropdownMenuItem(
                                 text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
                                 leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
                                 onClick = {
@@ -292,8 +309,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                     }
                                 },
                             )
-                            HorizontalDivider(color = Space.Line)
-                            DropdownMenuItem(
+                            if (!c.isMe) HorizontalDivider(color = Space.Line)
+                            if (!c.isMe) DropdownMenuItem(
                                 text = { Text("In den Papierkorb", color = Space.Coral) },
                                 leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = Space.Coral) },
                                 onClick = {
@@ -502,7 +519,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // Mails from this contact
             if (c.emails.any { it.value.contains('@') } && !c.isMe) {
                 item(key = "mails") {
-                    MailSection(c, onSetup = { nav.open(Route.MailAccounts) })
+                    MailSection(c)
                 }
             }
 
@@ -733,7 +750,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
             val visible = if (showAllHistory || hq.isNotEmpty() || historyType != null) filtered else filtered.take(30)
             itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
-                EntryRow(e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) })
+                // Each node draws in once per visit, not again when scrolling back up.
+                val first = drawnEntries.add(e.id)
+                EntryRow(e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) }, drawIn = first)
             }
             if (visible.size < filtered.size) {
                 item(key = "history-more") {
@@ -852,6 +871,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             },
         )
     }
+
+    if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
 
     if (linkDialog) {
         LinkDialog(

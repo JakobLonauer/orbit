@@ -57,10 +57,11 @@ import java.time.temporal.ChronoUnit
 
 /** Latest mails this contact sent me – from all of their addresses, across all linked accounts. */
 @Composable
-fun MailSection(contact: Contact, onSetup: () -> Unit) {
+fun MailSection(contact: Contact) {
     val accounts by MailAccounts.accounts.collectAsState()
     val addresses = contact.emails.map { it.value.trim() }.filter { it.contains('@') }
-    if (addresses.isEmpty()) return
+    // Without a linked mailbox there is nothing to show (W5); linking lives in the settings.
+    if (addresses.isEmpty() || accounts.isEmpty()) return
     val key = MailCache.key(contact.id, addresses, accounts)
     var result by remember(key) { mutableStateOf(MailCache.get(key)) }
     var loading by remember(key) { mutableStateOf(false) }
@@ -98,16 +99,6 @@ fun MailSection(contact: Contact, onSetup: () -> Unit) {
             }
         } else null,
     ) {
-        if (accounts.isEmpty()) {
-            Text(
-                "Verbinde deine Postfächer, dann siehst du hier, was ${Logic.shortName(contact)} dir zuletzt geschrieben hat – aus allen ${if (addresses.size > 1) "${addresses.size} Adressen" else "Adressen"}.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Space.TextFaint,
-                modifier = Modifier.padding(vertical = 4.dp),
-            )
-            GhostButton("E-Mail-Konto verbinden", onSetup, icon = Icons.Rounded.Email, modifier = Modifier.padding(top = 6.dp))
-            return@SectionCard
-        }
         val r: MailResult? = result
         if (r == null) {
             LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp), color = Space.Violet, trackColor = Space.PanelHighest)

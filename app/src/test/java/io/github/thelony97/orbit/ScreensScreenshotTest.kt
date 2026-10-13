@@ -183,4 +183,19 @@ class ScreensScreenshotTest {
         compose.waitForIdle()
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_preview.png")
     }
+
+    /** Sharing as QR (PLAN 3.3) is a dialog window – capture the whole screen. */
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    @Test fun qrCode() {
+        val anna = data.contacts.single { it.id == "anna" }
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.detail.QrDialog(anna, onDismiss = {})
+                }
+            }
+        }
+        compose.waitForIdle()
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_qr.png")
+    }
 }

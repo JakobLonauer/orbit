@@ -35,7 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onPlaced
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.thelony97.orbit.core.designsystem.Motion
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -201,10 +208,15 @@ fun InfoRow(
     }
 }
 
-/** One history entry as a timeline node. */
+/**
+ * One history entry as a timeline node. With [drawIn] the node pops in and its rail draws down
+ * to the next one the first time the row scrolls into view (PLAN 3.3); read in the draw phase.
+ */
 @Composable
-fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit) {
+fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit, drawIn: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
+    val drawn = remember { androidx.compose.animation.core.Animatable(if (drawIn) 0f else 1f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val days = ChronoUnit.DAYS.between(entry.at.toLocalDate(), today())
     val accent = when (entry.source) {
         EntrySource.CALL_LOG -> Space.Teal
@@ -216,6 +228,13 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit)
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
+            // Start on the first placement, not on composition: prefetched rows are composed
+            // before they are on screen and would otherwise finish drawing out of sight.
+            .onPlaced {
+                if (drawn.value < 1f && !drawn.isRunning) {
+                    scope.launch { drawn.animateTo(1f, androidx.compose.animation.core.tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized)) }
+                }
+            }
             .clickable(onClick = onClick)
             .padding(start = 18.dp, end = 16.dp),
     ) {
@@ -225,13 +244,29 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit)
                 Modifier
                     .padding(top = 6.dp)
                     .size(30.dp)
+                    .graphicsLayer {
+                        val p = (drawn.value * 2.5f).coerceAtMost(1f)
+                        scaleX = 0.6f + 0.4f * p
+                        scaleY = 0.6f + 0.4f * p
+                        alpha = p
+                    }
                     .glass(CircleShape, tint = Space.PanelHigh, border = accent.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(entryIcon(type?.icon ?: "star"), null, tint = accent, modifier = Modifier.size(15.dp))
             }
             if (!last) {
-                Box(Modifier.width(1.dp).weight(1f).background(Space.Line))
+                Box(
+                    Modifier.width(2.dp).weight(1f).drawBehind {
+                        val end = size.height * drawn.value
+                        // Starts in the node's colour and fades into the quiet line colour.
+                        drawLine(
+                            Brush.verticalGradient(listOf(accent.copy(alpha = 0.5f), Space.Line), endY = size.height),
+                            Offset(size.width / 2, 0f), Offset(size.width / 2, end),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    },
+                )
             }
         }
         Spacer(Modifier.width(12.dp))

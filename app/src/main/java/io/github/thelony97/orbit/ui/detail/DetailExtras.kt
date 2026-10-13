@@ -38,7 +38,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -47,6 +61,10 @@ import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.Motion
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
+import io.github.thelony97.orbit.actions.ShareContact
+import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.domain.Logic
+import io.github.thelony97.orbit.ui.components.GhostButton
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.delay
@@ -218,4 +236,41 @@ fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (S
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
+}
+
+/** The contact as a QR code to scan with another phone; the screen goes to full brightness. */
+@Composable
+fun QrDialog(c: Contact, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val qr = remember(c) { ShareContact.qr(c)?.asImageBitmap() }
+    Dialog(onDismissRequest = onDismiss) {
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        DisposableEffect(window) {
+            window?.let { w -> w.attributes = w.attributes.apply { screenBrightness = 1f } }
+            onDispose { }
+        }
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(28.dp))
+                .background(Space.PanelHigh)
+                .border(1.dp, Space.LineStrong, RoundedCornerShape(28.dp))
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(Logic.displayName(c, false), style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
+            Spacer(Modifier.height(14.dp))
+            if (qr != null) {
+                // One bitmap pixel per module: scaled without smoothing, so the edges stay sharp.
+                Image(
+                    qr, "QR-Code",
+                    filterQuality = FilterQuality.None,
+                    modifier = Modifier.size(260.dp).clip(RoundedCornerShape(18.dp)),
+                )
+            } else {
+                Text("Zu viele Angaben für einen QR-Code", style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+            }
+            Spacer(Modifier.height(16.dp))
+            GhostButton("Als Datei teilen", { ShareContact.vcard(ctx, c) }, icon = Icons.Rounded.Share)
+        }
+    }
 }
