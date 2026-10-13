@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter
  * Einstellungen › Über. Never leaves the phone unless Jakob shares it. Capped at [maxBytes];
  * the older half is dropped when full.
  */
-class ErrorLog(private val file: File, private val maxBytes: Int = 256 * 1024) {
+class ErrorLog(private val file: File, private val maxBytes: Int = 1024 * 1024) {
 
     private val stamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
 
