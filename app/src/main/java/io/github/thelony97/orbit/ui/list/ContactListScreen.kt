@@ -1,5 +1,10 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.derivedStateOf
@@ -128,6 +133,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
     val ctx = LocalContext.current
     val search = rememberTextFieldState()
     var quickEntry by remember { mutableStateOf<Contact?>(null) }
+    var preview by remember { mutableStateOf<PreviewState?>(null) }
     var filterSheet by remember { mutableStateOf(false) }
     val lastFirst = data.settings.sortByLastName
     val query = search.text.toString()
@@ -327,6 +333,18 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         onQuickEntry = { quickEntry = c },
                         modifier = Modifier.animateItem(),
                         query = query,
+                        onPreview = { pc -> PreviewState(pc).also { preview = it } },
+                        onPreviewEnd = { st, released ->
+                            val action = if (released) st.hovered() else null
+                            preview = null
+                            when (action) {
+                                PreviewAction.CALL -> ContactActions.call(ctx, st.contact, null, data.settings)
+                                PreviewAction.SMS -> ContactActions.sms(ctx, st.contact, null)
+                                PreviewAction.LOG -> quickEntry = st.contact
+                                PreviewAction.OPEN -> nav.open(Route.Detail(st.contact.id))
+                                null -> Unit
+                            }
+                        },
                     )
                 }
             }
@@ -352,6 +370,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
         }
         }
     }
+
+    preview?.let { PreviewCard(it, idx) }
 
     quickEntry?.let { c ->
         EntrySheet(
@@ -426,7 +446,11 @@ private fun ContactRow(
     onQuickEntry: () -> Unit,
     modifier: Modifier = Modifier,
     query: String = "",
+    onPreview: (Contact) -> PreviewState = { PreviewState(it) },
+    onPreviewEnd: (PreviewState, Boolean) -> Unit = { _, _ -> },
 ) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    var previewState by remember { mutableStateOf<PreviewState?>(null) }
     val scope = rememberCoroutineScope()
     val state = rememberSwipeToDismissBoxState()
     val hit = remember(contact, query) { if (query.isBlank()) null else matchSentence(contact, query) }
@@ -469,6 +493,19 @@ private fun ContactRow(
         Row(
             Modifier
                 .fillMaxWidth()
+                .onGloballyPositioned { origin = it.positionOnScreen() }
+                // Long press opens the preview card; the same finger picks an action (PLAN 3.2).
+                .pointerInput(contact.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { pos -> previewState = onPreview(contact).also { it.pointer = origin + pos } },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            previewState?.pointer = origin + change.position
+                        },
+                        onDragEnd = { previewState?.let { onPreviewEnd(it, true) }; previewState = null },
+                        onDragCancel = { previewState?.let { onPreviewEnd(it, false) }; previewState = null },
+                    )
+                }
                 .clickable(onClick = onOpen)
                 .padding(horizontal = 18.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
