@@ -122,6 +122,9 @@ class PhoneStateReceiver : BroadcastReceiver() {
     companion object {
         /** When the last call ended (process-wide; receivers are new objects each time). */
         @Volatile private var idleAt = 0L
+
+        /** Whether a call ended at or after [elapsed] (SystemClock.elapsedRealtime). */
+        fun endedSince(elapsed: Long): Boolean = idleAt >= elapsed
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -152,7 +155,7 @@ class PhoneStateReceiver : BroadcastReceiver() {
                             val iso = io.github.thelony97.orbit.domain.Phones.countryIso(context)
                             index?.takeIf { it.callerInfo }
                                 ?.lookup(number) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
-                                ?.also { if (stillRinging()) Notifications.callerInfo(context, it, number) }
+                                ?.also { if (stillRinging()) Notifications.callerInfo(context, it, number, ::stillRinging) }
                         }.getOrNull()
                         // The caller card already lists the open topics; otherwise the old reminder.
                         if (shown == null) {

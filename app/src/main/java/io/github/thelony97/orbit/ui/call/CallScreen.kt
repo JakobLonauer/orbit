@@ -114,10 +114,11 @@ interface CallActions {
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
-private fun callerColor(card: CallerCard?): Color {
+private fun callerColor(card: CallerCard?, unlocked: Boolean): Color {
     if (card == null) return Space.Violet
-    // Archived: a distant, colourless star (PLAN 1.3) until it is brought back.
-    if (card.archived) return Space.TextDim
+    // Archived: a distant, colourless star (PLAN 1.3) – only on an unlocked phone, the lock
+    // screen must not tell that a caller is archived (name, photo, role only).
+    if (card.archived && unlocked) return Space.TextDim
     if (card.org) return Space.Blue
     val palette = listOf(Color(0xFFA78BFF), Color(0xFF5EE6CF), Color(0xFFFFB45E), Color(0xFF6FB7FF), Color(0xFFFF8FB1), Color(0xFF9BE37A))
     return palette[(card.contactId.hashCode() and 0x7FFFFFFF) % palette.size]
@@ -125,7 +126,7 @@ private fun callerColor(card: CallerCard?): Color {
 
 @Composable
 fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeMillis()) {
-    val color = callerColor(ui.card)
+    val color = callerColor(ui.card, ui.phoneUnlocked)
     val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
     SpaceBackground(nebula = { color.copy(alpha = 1f) }) {
         Column(
@@ -133,7 +134,7 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(40.dp))
-            CallerPortrait(ui.card, color)
+            CallerPortrait(ui.card, color, faded = ui.card?.archived == true && ui.phoneUnlocked)
             Spacer(Modifier.height(18.dp))
             // The name alone; the archive hint sits in the details with „Zurückholen“.
             Text(
@@ -179,7 +180,7 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
 private fun timer(sec: Long): String = "%d:%02d".format(sec / 60, sec % 60)
 
 @Composable
-private fun CallerPortrait(card: CallerCard?, color: Color) {
+private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean) {
     val photo = rememberPhoto(card?.photo)
     Box(
         Modifier
@@ -188,7 +189,7 @@ private fun CallerPortrait(card: CallerCard?, color: Color) {
             .clip(CircleShape)
             // Inside the clip, so the glow outside is not cut by the layer.
             .then(
-                if (card?.archived == true) Modifier.graphicsLayer {
+                if (faded) Modifier.graphicsLayer {
                     renderEffect = android.graphics.RenderEffect.createColorFilterEffect(
                         android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }),
                     ).asComposeRenderEffect()

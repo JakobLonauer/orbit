@@ -103,7 +103,7 @@ object DigestScheduler {
         val startOfToday = todayDate.startMillis()
         val meetingsToAsk = data.meetings.filter { !it.asked && !it.resolved && it.end < startOfToday }
         meetingsToAsk.forEach { m ->
-            data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null }?.let { c ->
+            data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived }?.let { c ->
                 Notifications.meetingFollowUp(ctx, m, c)
             }
         }
@@ -183,6 +183,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ACTION_UNARCHIVE -> {
                 val contactId = intent.getStringExtra(EXTRA_CONTACT) ?: return
                 val number = intent.getStringExtra(EXTRA_NUMBER)
+                val tappedAt = android.os.SystemClock.elapsedRealtime()
                 runAsync(context) {
                     OrbitRepository.update { d -> Mutations.unarchive(d, contactId) }
                     OrbitRepository.flush()
@@ -192,7 +193,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         io.github.thelony97.orbit.store.CallerIndexFile.read(context)
                             ?.lookup(n) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
                     }
-                    if (card != null && !card.archived) Notifications.callerInfo(context, card, number)
+                    val ongoing = { !io.github.thelony97.orbit.sync.PhoneStateReceiver.endedSince(tappedAt) && Notifications.callerShown(context) }
+                    if (card != null && !card.archived) Notifications.callerInfo(context, card, number, ongoing)
                     else Notifications.cancel(context, Notifications.ID_CALLER)
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         android.widget.Toast.makeText(context, "Zurückgeholt", android.widget.Toast.LENGTH_SHORT).show()

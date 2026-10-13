@@ -168,7 +168,13 @@ object Notifications {
      * Anrufer-Info beim Klingeln (PLAN 3.12, without the dialer role): name, photo, role, last
      * contact, open topics, customer number. The lock screen only gets name and role.
      */
-    fun callerInfo(ctx: Context, card: io.github.thelony97.orbit.core.domain.CallerCard, number: String) {
+    fun callerInfo(
+        ctx: Context,
+        card: io.github.thelony97.orbit.core.domain.CallerCard,
+        number: String,
+        /** Checked right before posting: the call may have ended while the card was built. */
+        stillValid: () -> Boolean = { true },
+    ) {
         val n = io.github.thelony97.orbit.core.domain.CallerNotice.of(card, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
         val photo = card.photo?.let { name ->
             runCatching {
@@ -197,7 +203,7 @@ object Notifications {
         // „Später zurückrufen“ (PLAN 3.12/3.13a): one tap while it rings, a reminder later.
         builder.addAction(0, "In 15 Min erinnern", callbackIntent(ctx, card.name, number, card.contactId, 15))
         builder.addAction(0, "In 1 Std erinnern", callbackIntent(ctx, card.name, number, card.contactId, 60))
-        post(ctx, ID_CALLER, builder)
+        if (stillValid()) post(ctx, ID_CALLER, builder)
     }
 
     /** Unknown number that called before: how often and when, plus the reminder actions. */

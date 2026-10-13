@@ -77,10 +77,14 @@ fun Dialpad(
 ) {
     var digits by rememberSaveable { mutableStateOf(initial) }
     val lastNameFirst = data.settings.sortByLastName
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val homeCc = remember { T9.callingCode(io.github.thelony97.orbit.domain.Phones.countryIso(ctx)) }
     val rows = remember(digits, data) {
         T9.search(
             data.contacts, digits,
-            name = { Logic.displayName(it, lastNameFirst) },
+            // Search the real name only: a nameless contact must not match „Ohne Namen“.
+            name = { c -> if (io.github.thelony97.orbit.core.domain.CallerIndex.nameOf(c).isBlank()) "" else Logic.displayName(c, lastNameFirst) },
+            homeCc = homeCc,
             lastAt = { c -> c.entries.maxOfOrNull { it.at } },
             limit = 4,
         ).mapNotNull { h -> data.contacts.firstOrNull { it.id == h.contactId }?.let { DialRow(h, it, contactColor(it, idx)) } }
@@ -232,7 +236,7 @@ private fun Suggestion(r: DialRow, onClick: () -> Unit) {
         Avatar(r.contact, r.color, 40.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(marked(r.hit.name, r.hit.nameMarks), style = MaterialTheme.typography.titleMedium, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(if (r.hit.name.isBlank()) AnnotatedString("Ohne Namen") else marked(r.hit.name, r.hit.nameMarks), style = MaterialTheme.typography.titleMedium, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 marked(phone.value, r.hit.numberMarks).let { v -> if (phone.label.isBlank()) v else AnnotatedString(phone.label + " · ") + v },
                 style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),

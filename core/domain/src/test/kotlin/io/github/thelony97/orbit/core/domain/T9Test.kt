@@ -17,7 +17,7 @@ class T9Test {
     private val juergen = person("j", "Jürgen", "Öller", "+43 732 778899")
     private val arzt = Contact(id = "arzt", kind = ContactKind.ORG, company = "Arzt Müller", phones = listOf(LabeledValue("Zentrale", "+43 732 600100")))
     private fun name(c: Contact) = if (c.kind == ContactKind.ORG) c.company else "${c.firstName} ${c.lastName}"
-    private fun search(d: String, vararg cs: Contact) = T9.search(cs.toList(), d, ::name).map { it.contactId }
+    private fun search(d: String, vararg cs: Contact) = T9.search(cs.toList(), d, ::name, homeCc = "43").map { it.contactId }
 
     @Test fun lettersSitOnTheirKeysUmlautsOnTheBaseLetter() {
         assertEquals('2', T9.digitOf('ä'))
@@ -25,6 +25,8 @@ class T9Test {
         assertEquals('8', T9.digitOf('ü'))
         assertEquals('7', T9.digitOf('ß'))
         assertEquals('3', T9.digitOf('é'))
+        assertEquals('5', T9.digitOf('ł'))
+        assertEquals('6', T9.digitOf('ø'))
         assertNull(T9.digitOf(' '))
     }
 
@@ -53,9 +55,22 @@ class T9Test {
         val stored = T9.search(listOf(anna), "1234", ::name).single()
         assertEquals(T9.How.NUMBER, stored.how)
         assertEquals("1234", stored.numberMarks.map { "+43 660 1234567"[it] }.joinToString(""))
-        val national = T9.search(listOf(anna), "06601", ::name).single()
+        val national = T9.search(listOf(anna), "06601", ::name, homeCc = T9.callingCode("at")).single()
         assertEquals("6601", national.numberMarks.map { "+43 660 1234567"[it] }.joinToString(""))
         assertEquals(listOf("bea"), search("0699", anna, bea))
+    }
+
+    @Test fun nationalTypingOnlyStandsForTheHomeCountry() {
+        val vienna = person("w", "Wien", "Amt", "+43 1 6000")
+        val munich = person("m", "Max", "Mustermann", "+49 89 123456")
+        // „03…“ is a region code, not „+43“ followed by 3; Graz is not Vienna.
+        assertEquals(emptyList<String>(), search("03", anna, vienna))
+        assertEquals(emptyList<String>(), search("0316", vienna))
+        // A German number typed the German way only works with the German home code.
+        assertEquals(emptyList<String>(), search("089", munich))
+        assertEquals(listOf("m"), T9.search(listOf(munich), "089", ::name, homeCc = "49").map { it.contactId })
+        // Without a known home code there is no national matching at all.
+        assertTrue(T9.search(listOf(anna), "0660", ::name).isEmpty())
     }
 
     @Test fun organisationsAreDialable() {

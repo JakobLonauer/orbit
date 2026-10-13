@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.Motion
@@ -109,7 +110,8 @@ fun AddRow(items: List<AddItem>, modifier: Modifier = Modifier) {
         val count = AddRowFit.count(chips.map { it.width }, more.width, gap, constraints.maxWidth)
         val shown = chips.take(count) + if (count < chips.size) listOf(more) else emptyList()
         val height = shown.maxOfOrNull { it.height } ?: 0
-        layout(constraints.maxWidth, height) {
+        val used = shown.sumOf { it.width } + gap * (shown.size - 1).coerceAtLeast(0)
+        layout(constraints.constrainWidth(if (constraints.hasBoundedWidth) constraints.maxWidth else used), height) {
             var x = 0
             shown.forEach { p ->
                 p.placeRelative(x, (height - p.height) / 2)

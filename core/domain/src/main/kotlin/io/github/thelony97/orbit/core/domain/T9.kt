@@ -31,12 +31,27 @@ object T9 {
         '6' to "mno", '7' to "pqrs", '8' to "tuv", '9' to "wxyz",
     ).flatMap { (d, ls) -> ls.map { it to d } }.toMap()
 
+    private val extra = mapOf('ł' to 'l', 'ø' to 'o', 'œ' to 'o', 'æ' to 'a', 'đ' to 'd', 'ð' to 'd', 'ı' to 'i', 'þ' to 't')
+
+    /** Calling codes for typing numbers nationally ("0660 …" for "+43 660 …"); unknown → no such matching. */
+    private val callingCodes = mapOf(
+        "AT" to "43", "DE" to "49", "CH" to "41", "LI" to "423", "IT" to "39", "FR" to "33", "GB" to "44",
+        "NL" to "31", "BE" to "32", "LU" to "352", "CZ" to "420", "SK" to "421", "HU" to "36", "SI" to "386",
+        "HR" to "385", "PL" to "48", "ES" to "34", "PT" to "351", "DK" to "45", "SE" to "46", "NO" to "47",
+        "FI" to "358", "IE" to "353", "GR" to "30", "RO" to "40", "BG" to "359", "RS" to "381", "BA" to "387",
+        "TR" to "90", "US" to "1", "CA" to "1",
+    )
+
+    fun callingCode(iso: String?): String? = iso?.uppercase()?.let { callingCodes[it] }
+
     /** The key a character is on: letters by T9 (umlauts on their base letter), digits on themselves. */
     fun digitOf(ch: Char): Char? {
         if (ch in '0'..'9') return ch
         val l = ch.lowercaseChar()
         keys[l]?.let { return it }
         if (l == 'ß') return '7'
+        // Letters without a decomposed form would otherwise break words („Łukasz“, „Søren“).
+        extra[l]?.let { return keys[it] }
         val base = Normalizer.normalize(l.toString(), Normalizer.Form.NFD).firstOrNull() ?: return null
         return keys[base]
     }
@@ -52,6 +67,8 @@ object T9 {
         name: (Contact) -> String,
         lastAt: (Contact) -> Long? = { null },
         limit: Int = 20,
+        /** Home calling code ("43"), see [callingCode]; enables national typing. */
+        homeCc: String? = null,
     ): List<Hit> {
         val d = digits.filter { it in '0'..'9' }
         if (d.isEmpty()) return emptyList()
@@ -67,7 +84,7 @@ object T9 {
                 hits += Hit(c.id, n, dial, byName.first, nameMarks = byName.second) to c
                 continue
             }
-            phones.firstNotNullOfOrNull { (i, p) -> numberMarks(p.value, d)?.let { i to it } }?.let { (i, marks) ->
+            phones.firstNotNullOfOrNull { (i, p) -> numberMarks(p.value, d, homeCc)?.let { i to it } }?.let { (i, marks) ->
                 hits += Hit(c.id, n, i, How.NUMBER, numberMarks = marks) to c
             }
         }
@@ -111,20 +128,18 @@ object T9 {
     }
 
     /**
-     * [d] inside a number, in the stored form or the national one ("0660 …" for "+43 660 …").
-     * Returns the positions of the matched digits in [value], or null.
+     * [d] inside a number, in the stored form or – with the home calling code [homeCc] – the
+     * national one ("0660 …" for "+43 660 …"). Positions of the matched digits in [value], or null.
      */
-    fun numberMarks(value: String, d: String): List<Int>? {
+    fun numberMarks(value: String, d: String, homeCc: String? = null): List<Int>? {
         val positions = value.indices.filter { value[it] in '0'..'9' }
         val digits = positions.map { value[it] }.joinToString("")
         digits.indexOf(d).takeIf { it >= 0 }?.let { at -> return (at until at + d.length).map { positions[it] } }
-        // Typed nationally, stored internationally: the leading 0 stands for the country code.
-        if (d.length > 1 && d[0] == '0' && value.trimStart().startsWith("+")) {
+        // Typed nationally, stored internationally: the leading 0 stands for the home country only.
+        if (homeCc != null && d.length > 1 && d[0] == '0' && value.trimStart().startsWith("+")) {
             val rest = d.substring(1)
-            for (cc in 1..3) {
-                if (digits.length > cc && digits.startsWith(rest, cc)) {
-                    return (cc until cc + rest.length).map { positions[it] }
-                }
+            if (digits.startsWith(homeCc + rest)) {
+                return (homeCc.length until homeCc.length + rest.length).map { positions[it] }
             }
         }
         return null
