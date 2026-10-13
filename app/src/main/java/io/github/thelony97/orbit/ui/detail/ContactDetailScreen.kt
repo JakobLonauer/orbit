@@ -674,7 +674,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val days = Logic.daysUntil(b, todayDate)
                         val age = Logic.turningAge(b, todayDate)
                         InfoRow(
-                            label = "Geburtstag · " + if (days == 0L) "heute${age?.let { " $it" } ?: ""} 🎂" else Fmt.until(days) + (age?.let { " · wird $it" } ?: ""),
+                            label = "Geburtstag · " + if (days == 0L) "heute${age?.let { " $it" } ?: ""} 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
                             value = Fmt.dayOfYear(b),
                             onClick = { birthdayDialog = true },
                         )
@@ -683,7 +683,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val days = Logic.daysUntil(a.date, todayDate)
                         val years = a.date.year?.let { Logic.nextOccurrence(a.date, todayDate).year - it }
                         InfoRow(
-                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
+                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days) + weekdayHint(days, a.date, todayDate)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
                             value = Fmt.dayOfYear(a.date),
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
@@ -991,6 +991,13 @@ private fun MeetingRow(m: Meeting) {
  * Three slots of "zuletzt" per kind, in a fixed order so columns never swap between contacts
  * (W2): Treffen, Anruf, Nachricht first, then other kinds this contact actually has.
  */
+/** PLAN 1.4: „in 12 Tagen – ein Donnerstag“, only when it helps planning (within two months, not tomorrow). */
+internal fun weekdayHint(days: Long, day: io.github.thelony97.orbit.data.DayOfYear, today: java.time.LocalDate): String {
+    if (days < 2 || days > 60) return ""
+    val date = Logic.nextOccurrence(day, today)
+    return " – ein " + io.github.thelony97.orbit.core.domain.AtFormat.weekday(date)
+}
+
 internal fun lastPerType(c: Contact): List<Pair<String, Long?>> {
     val latest = c.entries.groupBy { it.typeId }.mapValues { (_, l) -> l.maxOf { it.at } }
     val order = listOf(TypeIds.MEET, TypeIds.CALL, TypeIds.MESSAGE, TypeIds.VIDEO, TypeIds.EMAIL, TypeIds.EVENT)

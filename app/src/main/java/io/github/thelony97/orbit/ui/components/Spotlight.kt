@@ -41,7 +41,8 @@ private data class SpotlightElement(val color: Color) : ModifierNodeElement<Spot
 
 private class SpotlightNode(var color: Color) : Modifier.Node(), DrawModifierNode, PointerInputModifierNode {
     private val glow = Animatable(0f)
-    private var center = Offset.Unspecified
+    // Not called `center`: inside draw() that name would resolve to DrawScope.center.
+    private var touch = Offset.Unspecified
     private var job: Job? = null
 
     private fun fade(target: Float, spec: AnimationSpec<Float>) {
@@ -57,11 +58,11 @@ private class SpotlightNode(var color: Color) : Modifier.Node(), DrawModifierNod
         when (pass) {
             PointerEventPass.Main -> when (pointerEvent.type) {
                 PointerEventType.Press -> {
-                    center = change.position
+                    touch = change.position
                     fade(1f, tween(Motion.FAST_MS))
                 }
                 PointerEventType.Move -> if (change.pressed && glow.targetValue > 0f) {
-                    center = change.position
+                    touch = change.position
                     invalidateDraw()
                 }
                 PointerEventType.Release -> fade(0f, tween(Motion.MAX_MS))
@@ -81,12 +82,12 @@ private class SpotlightNode(var color: Color) : Modifier.Node(), DrawModifierNod
 
     override fun ContentDrawScope.draw() {
         val g = glow.value
-        if (g > 0f && center.isSpecified) {
+        if (g > 0f && touch.isSpecified) {
             val radius = maxOf(size.minDimension * 0.9f, 120f)
             drawRect(
                 Brush.radialGradient(
                     listOf(color.copy(alpha = 0.11f * g), color.copy(alpha = 0.04f * g), color.copy(alpha = 0f)),
-                    center = center,
+                    center = touch,
                     radius = radius,
                 ),
             )

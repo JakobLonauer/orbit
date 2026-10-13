@@ -132,3 +132,4 @@
 - Mehrfachauswahl: Zustand `selection: Set<String>?` in ContactListScreen (null = normal), `initialSelection` nur für Screenshot-Tests. Auswahl wird per LaunchedEffect(visible) auf sichtbare Kontakte geschnitten. GroupAssignDialog: Schnappschuss beim Öffnen, EIN Undo beim Schließen (Undo-Leiste liegt hinter dem Dialog-Scrim).
 - Einstellungen: `SettingsScreen(data, nav, area)` – area null = Startseite (Aufmerksamkeit + fünf Bereiche), sonst nur die Items des Bereichs (capture/notify/contacts/security/about). Alle Launcher/Dialoge bleiben in der einen Funktion.
 - Zuschneiden: CropDialog im Edit-Screen nach PickVisualMedia; Rahmen = kürzere Seite − 56 dp (BoxWithConstraints), Overlay mit CompositingStrategy.Offscreen + BlendMode.Clear.
+- !! In `ContentDrawScope.draw()` eines Modifier.Node verdeckt DrawScope.center ein Feld namens `center` (Erweiterungs-Empfänger gewinnt) – Felder dort nie center/size nennen.
