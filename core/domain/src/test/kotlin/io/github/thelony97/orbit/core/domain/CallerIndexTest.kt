@@ -71,6 +71,46 @@ class CallerIndexTest {
         assertNull(idx.lookup("0650 3", at))
     }
 
+    @Test fun lastContactTopicsAndOrgNameFromCompany() {
+        val call = io.github.thelony97.orbit.core.model.HistoryEntry("e1", "anna", "call", at = 5_000, note = "x")
+        val talk = io.github.thelony97.orbit.core.model.HistoryEntry("e2", "anna", "meet", at = 9_000)
+        val org = Contact("praxis", kind = ContactKind.ORG, company = "Praxis Dr. Huber", phones = listOf(ph("0732 555")))
+        val d = doc.copy(
+            contacts = doc.contacts.map {
+                if (it.id == "anna") it.copy(
+                    entries = listOf(call, talk),
+                    topics = listOf(
+                        io.github.thelony97.orbit.core.model.CheckItem("t1", "Wohnung"),
+                        io.github.thelony97.orbit.core.model.CheckItem("t2", "Erledigt", done = true),
+                    ),
+                ) else it
+            } + org,
+            entryTypes = listOf(
+                io.github.thelony97.orbit.core.model.EntryType("call", "Anruf", "call"),
+                io.github.thelony97.orbit.core.model.EntryType("meet", "Treffen", "meet"),
+            ),
+        )
+        val i = CallerIndex.build(d, at)
+        val a = i.lookup("0664 2", at)!!
+        assertEquals(9_000L, a.lastAt)
+        assertEquals("Treffen", a.lastKind)
+        assertEquals(listOf("Wohnung"), a.topics)
+        assertEquals("Praxis Dr. Huber", i.lookup("0732 555", at)!!.name)
+        assertTrue(i.callerInfo)
+        val off = CallerIndex.build(d.copy(settings = d.settings.copy(callerInfo = false)), at)
+        assertEquals(false, off.callerInfo)
+    }
+
+    @Test fun oldIndexFileStillReads() {
+        // Written by 1.0.101 without the new fields.
+        val json = Json { ignoreUnknownKeys = true }
+        val old = """{"exact":{"+436642":{"contactId":"anna","name":"Anna"}}}"""
+        val i = json.decodeFromString(CallerIndex.serializer(), old)
+        assertTrue(i.callerInfo)
+        assertEquals("Anna", i.exact["+436642"]!!.name)
+        assertEquals(emptyList<String>(), i.exact["+436642"]!!.topics)
+    }
+
     @Test fun survivesJson() {
         val json = Json { ignoreUnknownKeys = true }
         val text = json.encodeToString(CallerIndex.serializer(), idx)

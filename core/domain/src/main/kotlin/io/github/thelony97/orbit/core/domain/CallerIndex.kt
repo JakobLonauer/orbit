@@ -18,6 +18,11 @@ data class CallerCard(
     val archived: Boolean = false,
     val memberId: String? = null,
     val org: Boolean = false,
+    /** Last contact (PLAN 3.12 „zuletzt“): time and kind name; the screen turns it into "vor 3 T". */
+    val lastAt: Long? = null,
+    val lastKind: String = "",
+    /** Open "Nächstes Mal ansprechen" topics, a few at most. */
+    val topics: List<String> = emptyList(),
 )
 
 @Serializable
@@ -29,6 +34,8 @@ data class CallerPrefix(val prefix: String, val card: CallerCard)
  */
 @Serializable
 data class CallerIndex(
+    /** Settings switch „Anrufer-Info beim Klingeln“, copied here so ringing needs no full load. */
+    val callerInfo: Boolean = true,
     val exact: Map<String, CallerCard> = emptyMap(),
     val members: Map<String, CallerCard> = emptyMap(),
     val prefixes: List<CallerPrefix> = emptyList(),
@@ -45,6 +52,7 @@ data class CallerIndex(
 
     companion object {
         private const val NOTE_CHARS = 120
+        private const val TOPICS = 5
 
         fun build(doc: OrbitDoc, normalize: (String) -> String?): CallerIndex {
             val byId = doc.contacts.associateBy { it.id }
@@ -54,7 +62,9 @@ data class CallerIndex(
             val members = LinkedHashMap<String, CallerCard>()
             val prefixes = ArrayList<CallerPrefix>()
 
+            val kinds = doc.entryTypes.associate { it.id to it.name }
             for (c in live) {
+                val last = c.entries.filter { it.memberId == null }.maxByOrNull { it.at }
                 val base = CallerCard(
                     contactId = c.id,
                     name = nameOf(c),
@@ -64,6 +74,9 @@ data class CallerIndex(
                     customerNo = customerNo(c),
                     archived = c.archived,
                     org = c.isOrg,
+                    lastAt = last?.at,
+                    lastKind = last?.let { kinds[it.typeId] }.orEmpty(),
+                    topics = c.topics.filterNot { it.done }.map { it.text }.take(TOPICS),
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue
@@ -72,6 +85,7 @@ data class CallerIndex(
                 }
                 if (!c.isOrg) continue
                 for (m in c.members) {
+                    val talk = c.entries.filter { it.memberId == m.id }.maxByOrNull { it.at }
                     val card = CallerCard(
                         contactId = c.id,
                         name = m.name,
@@ -82,6 +96,8 @@ data class CallerIndex(
                         archived = c.archived,
                         memberId = m.id,
                         org = true,
+                        lastAt = talk?.at,
+                        lastKind = talk?.let { kinds[it.typeId] }.orEmpty(),
                     )
                     for (p in m.phones) normalize(p.value)?.let { members.putIfAbsent(it, card) }
                 }
@@ -93,11 +109,14 @@ data class CallerIndex(
                 }
             }
             prefixes.sortByDescending { it.prefix.length }
-            return CallerIndex(exact, members, prefixes)
+            return CallerIndex(doc.settings.callerInfo, exact, members, prefixes)
         }
 
-        fun nameOf(c: Contact): String =
-            if (c.isOrg) c.firstName.trim() else listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ")
+        /** Organisations keep their name in `company` (edit page, 1.0.7 data); older test data in firstName. */
+        fun nameOf(c: Contact): String {
+            val person = listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ")
+            return if (c.isOrg) c.company.trim().ifBlank { person } else person.ifBlank { c.company.trim() }
+        }
 
         private fun personRole(c: Contact, doc: OrbitDoc, byId: Map<String, Contact>): String {
             val link = doc.orgLinks.firstOrNull { it.personId == c.id && byId[it.orgId]?.deletedAt == null }

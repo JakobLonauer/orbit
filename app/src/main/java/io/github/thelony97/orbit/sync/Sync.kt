@@ -115,11 +115,23 @@ class PhoneStateReceiver : BroadcastReceiver() {
                 val pending = goAsync()
                 scope.launch {
                     try {
-                        OrbitRepository.init(context)
-                        val data = OrbitRepository.ensureLoaded()
-                        if (data.settings.topicsDuringCall) {
-                            SyncEngine.contactFor(data, context, number)?.let { contact ->
-                                Notifications.topics(context, contact)
+                        // PLAN 3.12: who is calling, straight from the small caller index – no
+                        // full load, so it shows while it still rings. Never touches the call.
+                        val shown = runCatching {
+                            val index = io.github.thelony97.orbit.store.CallerIndexFile.read(context)
+                            val iso = io.github.thelony97.orbit.domain.Phones.countryIso(context)
+                            index?.takeIf { it.callerInfo }
+                                ?.lookup(number) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
+                                ?.also { Notifications.callerInfo(context, it) }
+                        }.getOrNull()
+                        // The caller card already lists the open topics; otherwise the old reminder.
+                        if (shown == null) {
+                            OrbitRepository.init(context)
+                            val data = OrbitRepository.ensureLoaded()
+                            if (data.settings.topicsDuringCall) {
+                                SyncEngine.contactFor(data, context, number)?.let { contact ->
+                                    Notifications.topics(context, contact)
+                                }
                             }
                         }
                     } finally {

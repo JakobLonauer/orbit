@@ -49,7 +49,7 @@ object SearchText {
 
     /** Org names each person is assigned to ("gehört zu …" in search). */
     fun orgNamesByPerson(doc: OrbitDoc): Map<String, List<String>> {
-        val names = doc.contacts.filter { it.isOrg }.associate { it.id to it.firstName }
+        val names = doc.contacts.filter { it.isOrg }.associate { it.id to CallerIndex.nameOf(it) }
         return doc.orgLinks.groupBy({ it.personId }, { names[it.orgId].orEmpty() })
     }
 }

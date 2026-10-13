@@ -50,6 +50,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
@@ -488,6 +489,11 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     Icons.Rounded.Schedule, "Tägliche Übersicht",
                     "jeden Tag um %02d:%02d".format(s.digestHour, s.digestMinute),
                     onClick = { timeDialog = true },
+                )
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.Call, "Anrufer-Info beim Klingeln",
+                    trailing = { SpaceSwitch(s.callerInfo) { v -> OrbitRepository.editSettings { it.copy(callerInfo = v) } } },
                 )
                 Hairline()
                 SettingItem(

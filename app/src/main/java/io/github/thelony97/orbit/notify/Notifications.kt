@@ -28,6 +28,7 @@ object Notifications {
     const val ID_DIGEST = 1000
     const val ID_TOPICS = 1001
     const val ID_BACKUP = 1002
+    const val ID_CALLER = 1003
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
 
@@ -148,7 +149,41 @@ object Notifications {
         post(ctx, ID_TOPICS, builder)
     }
 
-    fun cancelTopics(ctx: Context) = cancel(ctx, ID_TOPICS)
+    fun cancelTopics(ctx: Context) {
+        cancel(ctx, ID_TOPICS)
+        cancel(ctx, ID_CALLER)
+    }
+
+    /**
+     * Anrufer-Info beim Klingeln (PLAN 3.12, without the dialer role): name, photo, role, last
+     * contact, open topics, customer number. The lock screen only gets name and role.
+     */
+    fun callerInfo(ctx: Context, card: io.github.thelony97.orbit.core.domain.CallerCard) {
+        val n = io.github.thelony97.orbit.core.domain.CallerNotice.of(card, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
+        val photo = card.photo?.let { name ->
+            runCatching {
+                val file = java.io.File(java.io.File(ctx.filesDir, "photos"), name)
+                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+                android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)
+            }.getOrNull()
+        }
+        val public = base(ctx, CH_CALL)
+            .setContentTitle(n.publicTitle)
+            .setContentText(n.publicLine)
+        val builder = base(ctx, CH_CALL)
+            .setContentTitle(n.title)
+            .setContentText(n.line.ifBlank { n.details.firstOrNull().orEmpty() })
+            .setStyle(NotificationCompat.BigTextStyle().bigText((listOf(n.line) + n.details).filter { it.isNotBlank() }.joinToString("\n")))
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(public.build())
+            .setContentIntent(openContact(ctx, card.contactId, ID_CALLER))
+            .setTimeoutAfter(3 * 60 * 60 * 1000L)
+        if (photo != null) builder.setLargeIcon(photo)
+        post(ctx, ID_CALLER, builder)
+    }
 
     fun afterCallId(entry: Entry) = ID_AFTER_CALL_BASE + (entry.id.hashCode() and 0x7FFF)
 
