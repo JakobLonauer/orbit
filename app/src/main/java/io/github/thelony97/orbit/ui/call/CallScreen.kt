@@ -195,7 +195,7 @@ fun CallScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                     SmallAction(Icons.Rounded.Sms, "SMS", on = templates) { templates = !templates }
-                    SmallAction(Icons.Rounded.Schedule, "Später", actions::remindLater)
+                    SmallAction(Icons.Rounded.Schedule, "Später", onClick = actions::remindLater)
                 }
                 Spacer(Modifier.height(8.dp))
                 AnswerOrbit(color, onAnswer = actions::answer, onDecline = actions::decline)
