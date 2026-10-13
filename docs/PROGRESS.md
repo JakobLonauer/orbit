@@ -19,7 +19,14 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
   - Umstellung 1.0.7 → v2 (`core/domain/migration/MigrateV1`) mit Testdaten im alten Format: Geburtstag/Jahrestage → Anlässe, Webseite → erster Link, Fotos → Ablage, Verlauf → SQLite-Zeilen, Org-Beziehungen → Zuordnungen, Fälligkeit/Rhythmus entfernt.
   - SQLite-Speicher für Verlauf und Ablage (`store/HistoryDb`, Volltextsuche mit Treffer-Satz) und die einmalige Umstellung beim Start (`store/StoreUpgrade`: Kopie der alten Datei → Datenbank → neue Datei; nach Absturz wiederholbar ohne Doppelte) – getestet, aber noch nicht eingeschaltet.
   - Zuordnungs-Maschine (`Matcher`), `de-AT`-Formate (`AtFormat`), Backup-Verschlüsselung (`BackupCrypto`), Sichtbarkeitsregeln, Index (letzter Kontakt je Art, Suchtext, nächste Anlässe), Anrufer-Kurzindex (`CallerIndex`: Name, Bild, Rolle, Notiz, Kundennummer), Fehlerprotokoll (`util/ErrorLog`), Erinnerungs-Planer mit Sammeltext (`ReminderPlan`: „Heute: Annas 30. Geburtstag · In 7 Tagen: …“).
-- **Nächster Schritt (R1a Rest):** App auf `core.model` umstellen (OrbitRepository: Umstellung mit automatischer Kopie `orbit.v1.bak.json`, SQLite für Verlauf und Ablage), Fälligkeit aus App/Widget/Benachrichtigung entfernen, Archiv-Logik in Listen, verschlüsseltes Backup einbauen, Fehlerprotokoll, Token-System/Haptik/Platzhalter in den Screens. Details zur Reihenfolge im Notizbuch.
+- **13.10.2026 (zweite Stunde):** In der App umgesetzt (auf `dev`, grün):
+  - Fälligkeit komplett entfernt (3.0): kein Rhythmus, kein „fällig“, kein Pausieren/Verschieben, keine roten Glows; Gruppen und Eintragsarten ohne Rhythmus/Timer-Schalter. Datenfelder bleiben bis zur gesicherten v2-Umstellung im Speicher.
+  - Kontaktseite: „zuletzt“ je Kontaktart statt Rhythmus. Orbit-Tab zeigt „Zuletzt in Kontakt“ (Heute/Woche/Monat/Länger/Noch nie) bis R1b den Verlauf-Tab bringt.
+  - Widget = nächste Geburtstage (60 Tage). Tägliche Benachrichtigung nur Anlässe + Geburtstag in 7 Tagen mit Geschenkideen.
+  - Archiv in den Einstellungen (3.11, Grundform): eigene Suche, Sortierung, nach Jahr gruppiert, entsättigt, Zurückholen. Archiv-Filter aus dem Filter-Sheet entfernt; Netz und Beziehungen anderer ohne Archivierte.
+  - Fehlerprotokoll aktiv (Einstellungen › Fehlerprotokoll, teilen/leeren). Datumsformate app-weit de-AT.
+  - Screenshot-Tests echter Screens (Orbit-Tab, Liste, Kontaktseite, Archiv) mit Testdaten – Bilder im Branch `ci-log-dev` unter `shots/`.
+- **Nächster Schritt (R1a Rest):** App auf `core.model` umstellen (OrbitRepository: Umstellung mit automatischer Kopie `orbit.v1.bak.json`, SQLite für Verlauf und Ablage), verschlüsseltes Backup einbauen (BackupCrypto ist fertig), Anrufer-Kurzindex beim Speichern schreiben, Token-System/Haptik/Platzhalter in den Screens. Erklärtexte, die noch übrig sind (Beziehungen-Leerzustand, „Tippen zum Bearbeiten“ u. a.), in R1b entfernen. Details zur Reihenfolge im Notizbuch.
 - Letztes Release: v1.0.7 (Organisationen, ICH, Filter, Orbit-Liste, Netz, Karte, E-Mail, Fotos). `dev` ist nicht releasefähig, bis R1a fertig ist – `main` bleibt unverändert.
 
 ## Entscheidungen
