@@ -111,6 +111,10 @@
 - Kontaktliste: dunkle Bänder hinter Sticky-Headern (Space.Void 0.94) und (unklar woher) hinter Zeilen – sichtbar über dem Violett-Verlauf. Nicht neu. TODO R1b: Header-Hintergrund als Verlauf/Glas, Zeilen-Band suchen (SwipeToDismissBox?).
 - A–Z-Leiste: letterIndex muss die Item-Reihenfolge der LazyColumn exakt spiegeln (update, suggestions?, me?, empty?, pro Abschnitt Header + Kontakte). Bei Änderungen an der Liste mitpflegen!
 - Settings: SettingsGroup(title, status); leerer Titel = Fortsetzungskarte des Bereichs darüber.
+- !! `Color.Transparent.copy(alpha = x)` = SCHWARZ mit Alpha (Transparent ist 0,0,0,0) -> war die Ursache der dunklen Bänder hinter jeder Kontaktzeile seit 1.0.7. Für „Farbe oder nichts“ immer bedingt malen.
+- Undo-System: `ui/components/Undo.kt` (Undo.offer(text){…}); UndoBar sitzt in OrbitRoot über allem außer der Sperre. Papierkorb/Archivieren auf der Kontaktseite ohne Nachfrage + Undo.
+- Suche-Treffer-Satz: `ui/list/MatchSentence.kt` (Logic.fold behält Länge nur bei NFC-Text; sonst kein Ausschnitt).
+- Release-Kandidat-Muster: Branch `release-r1a` an grünem R1a-Commit; Fixes per cherry-pick + `gh workflow run build.yml --ref release-r1a`; Veröffentlichen = main fast-forward auf release-r1a, danach main in dev mergen.
 - Kontakt v2 hat berechnete Props `address`, `birthday` (nicht serialisiert) -> erleichtert Umstellung der UI.
 - Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
