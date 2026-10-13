@@ -128,3 +128,4 @@
 - Zeitleiste zeichnet sich: EntryRow(drawIn) startet die Animation in `onPlaced`, nicht in LaunchedEffect (vorab komponierte Prefetch-Zeilen würden sonst unsichtbar fertig animieren).
 - Kopf-Farbe aus dem Foto: `PhotoAccent.hue` (core:domain, Sättigung² gewichtet gegen Hauttöne) + `PhotoAccents`-Cache in Common.kt, Color.hsv(h, 0.5, 1).
 - Brush-Verläufe nie nach Color.Transparent laufen lassen (wird schwärzlich) -> `farbe.copy(alpha = 0f)`.
+- !! Compose (BOM 2026.09): `SharedTransitionScope.ResizeMode.scaleToBounds()` klein geschrieben (ScaleToBounds gibt es nicht mehr). Geteilte Elemente: SharedTransitionLayout um NavDisplay + LocalSharedScope, AnimatedVisibilityScope = LocalNavAnimatedContentScope.current; Modifier.sharedContact(key) in ui/components/Shared.kt (ohne Scope wirkungslos, Tests laufen ohne).

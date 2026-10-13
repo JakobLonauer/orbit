@@ -29,7 +29,7 @@ fun Modifier.sharedContact(key: String, text: Boolean = false): Modifier {
                 rememberSharedContentState(key),
                 animatedVisibilityScope = scope,
                 boundsTransform = { _, _ -> tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized) },
-                resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(),
             )
         } else {
             this@sharedContact.sharedElement(
