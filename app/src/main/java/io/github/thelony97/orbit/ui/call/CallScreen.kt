@@ -30,6 +30,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import io.github.thelony97.orbit.ui.components.GlowButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.CallEnd
@@ -96,6 +103,8 @@ data class CallUi(
     /** Phone unlocked: notes, topics and customer number may show (PLAN 3.12 „App-Sperre blockiert Anrufe nie“). */
     val phoneUnlocked: Boolean = false,
     val doneTopics: Set<String> = emptySet(),
+    /** Hung up: the screen stays for the note line (PLAN 3.12 „Danach“). */
+    val ended: Boolean = false,
 )
 
 interface CallActions {
@@ -111,6 +120,9 @@ interface CallActions {
     fun toggleTopic(topic: String) {}
     /** Archived caller (PLAN 3.11): back into the list with one tap. */
     fun unarchive() {}
+    /** After the call: the note goes into this call's Verlauf entry. */
+    fun saveNote(text: String) {}
+    fun close() {}
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
@@ -146,6 +158,7 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
                 overflow = TextOverflow.Ellipsis,
             )
             val sub = when {
+                ui.ended -> "Beendet · " + timer(ui.elapsed)
                 ui.active -> listOfNotNull(timer(ui.elapsed), "gehalten".takeIf { ui.onHold }).joinToString(" · ")
                 notice != null -> notice.publicLine.ifBlank { ui.number }
                 else -> "Unbekannt"
@@ -153,7 +166,7 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
             Text(
                 sub,
                 style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                color = if (ui.active) Space.Teal else Space.TextDim,
+                color = if (ui.active && !ui.ended) Space.Teal else Space.TextDim,
                 modifier = Modifier.padding(top = 4.dp),
             )
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
@@ -162,7 +175,9 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
                 Details(notice, ui, actions)
             }
             Spacer(Modifier.weight(1f))
-            if (ui.active) {
+            if (ui.ended) {
+                AfterCall(ui.phoneUnlocked, actions)
+            } else if (ui.active) {
                 ActiveControls(ui, actions)
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
@@ -173,6 +188,33 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
                 AnswerOrbit(color, onAnswer = actions::answer, onDecline = actions::decline)
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * After hanging up: one note line into the Verlauf. On a locked phone only „Schließen“ – notes
+ * outside the call stay behind the phone's lock (PLAN 3.12).
+ */
+@Composable
+private fun AfterCall(unlocked: Boolean, actions: CallActions) {
+    val note = rememberTextFieldState()
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (unlocked) {
+            OutlinedTextField(
+                state = note,
+                placeholder = { Text("Notiz zum Anruf") },
+                lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 1, maxHeightInLines = 4),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+            GhostButton("Schließen", actions::close)
+            if (unlocked) {
+                GlowButton("Speichern", { actions.saveNote(note.text.toString().trim()) }, color = Space.Teal, enabled = note.text.isNotBlank())
+            }
         }
     }
 }

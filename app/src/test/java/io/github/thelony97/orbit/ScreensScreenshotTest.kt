@@ -265,6 +265,13 @@ class ScreensScreenshotTest {
         )
     }
 
+    @Test fun callEnded() = shot("call_ended") {
+        io.github.thelony97.orbit.ui.call.CallScreen(
+            io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, ended = true, elapsed = 754, phoneUnlocked = true, doneTopics = setOf("Wohnung in Wien?")),
+            noActions, now,
+        )
+    }
+
     @Test fun callArchived() = shot("call_archived") {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard.copy(archived = true), phoneUnlocked = true), noActions, now)
     }
