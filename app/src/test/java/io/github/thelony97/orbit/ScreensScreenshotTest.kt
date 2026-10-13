@@ -265,6 +265,10 @@ class ScreensScreenshotTest {
         )
     }
 
+    @Test fun callSms() = shot("call_sms") {
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard), noActions, now, smsOpen = true)
+    }
+
     @Test fun callEnded() = shot("call_ended") {
         io.github.thelony97.orbit.ui.call.CallScreen(
             io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, ended = true, elapsed = 754, phoneUnlocked = true, doneTopics = setOf("Wohnung in Wien?")),

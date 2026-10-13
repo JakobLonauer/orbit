@@ -110,7 +110,8 @@ data class CallUi(
 interface CallActions {
     fun answer() {}
     fun decline() {}
-    fun declineWithSms() {}
+    /** Ablehnen mit SMS-Vorlage (PLAN 3.12): declines and sends [text] to the caller. */
+    fun declineWithSms(text: String) {}
     fun remindLater() {}
     fun hangUp() {}
     fun toggleMute() {}
@@ -137,7 +138,14 @@ private fun callerColor(card: CallerCard?, unlocked: Boolean): Color {
 }
 
 @Composable
-fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeMillis()) {
+fun CallScreen(
+    ui: CallUi,
+    actions: CallActions,
+    now: Long = System.currentTimeMillis(),
+    /** Opens with the SMS templates shown (screenshots). */
+    smsOpen: Boolean = false,
+) {
+    var templates by remember { mutableStateOf(smsOpen) }
     val color = callerColor(ui.card, ui.phoneUnlocked)
     val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
     SpaceBackground(nebula = { color.copy(alpha = 1f) }) {
@@ -170,7 +178,8 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
                 modifier = Modifier.padding(top = 4.dp),
             )
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
-            if (ui.phoneUnlocked && notice != null) {
+            // The templates take the details' place, so everything fits without scrolling.
+            if (ui.phoneUnlocked && notice != null && !(templates && !ui.active)) {
                 Spacer(Modifier.height(16.dp))
                 Details(notice, ui, actions)
             }
@@ -180,14 +189,46 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
             } else if (ui.active) {
                 ActiveControls(ui, actions)
             } else {
+                if (templates) {
+                    SmsTemplates { text -> templates = false; actions.declineWithSms(text) }
+                    Spacer(Modifier.height(12.dp))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    SmallAction(Icons.Rounded.Sms, "SMS", actions::declineWithSms)
+                    SmallAction(Icons.Rounded.Sms, "SMS") { templates = !templates }
                     SmallAction(Icons.Rounded.Schedule, "Später", actions::remindLater)
                 }
                 Spacer(Modifier.height(8.dp))
                 AnswerOrbit(color, onAnswer = actions::answer, onDecline = actions::decline)
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Fixed for now; editable templates come with the settings for the phone role. */
+private val SMS_TEMPLATES = listOf(
+    "Kann gerade nicht – ich rufe zurück.",
+    "Bin im Termin, melde mich später.",
+    "Schreib mir bitte kurz.",
+)
+
+@Composable
+private fun SmsTemplates(onPick: (String) -> Unit) {
+    val haptics = rememberHaptics()
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SMS_TEMPLATES.forEach { t ->
+            Text(
+                t,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Space.Text,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Space.Panel.copy(alpha = 0.8f))
+                    .border(1.dp, Space.Line, RoundedCornerShape(16.dp))
+                    .clickable { haptics.perform(Haptic.Confirm); onPick(t) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
         }
     }
 }
