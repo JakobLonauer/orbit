@@ -87,7 +87,7 @@ object DigestScheduler {
         val anniversaries = active.flatMap { c ->
             c.anniversaries.filter { Logic.isToday(it.date, todayDate) }.map { a ->
                 val years = a.date.year?.let { todayDate.year - it }
-                c to (if (years != null && years > 0) "${a.label} ($years Jahre)" else a.label)
+                c to (if (years != null && years > 0) "${a.title} ($years Jahre)" else a.title)
             }
         }
         Notifications.digest(

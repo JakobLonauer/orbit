@@ -91,7 +91,7 @@ object ContactActions {
             val c = d.contacts.firstOrNull { it.id == contactId } ?: return@edit d
             val recent = c.entries.any { it.source == EntrySource.APP_ACTION && it.typeId == typeId && it.at > cutoff }
             if (recent) d
-            else Mutations.addEntry(d, contactId, Entry(newId(), typeId, now(), note, EntrySource.APP_ACTION))
+            else Mutations.addEntry(d, contactId, Entry(id = newId(), contactId = contactId, typeId = typeId, at = now(), note = note, source = EntrySource.APP_ACTION))
         }
     }
 

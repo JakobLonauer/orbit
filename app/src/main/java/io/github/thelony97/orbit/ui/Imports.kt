@@ -133,13 +133,11 @@ object PhoneImport {
             lastName = last,
             phones = phones,
             emails = emails,
-            address = address,
-            birthday = birthday,
             company = company,
             position = position,
             notes = notes,
             photo = photo,
-        )
+        ).withAddress(address).withBirthday(birthday, ::newId)
     }
 
     private fun phoneLabel(type: Int?, custom: String?): String = when (type) {

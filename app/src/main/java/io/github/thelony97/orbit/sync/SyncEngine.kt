@@ -170,6 +170,7 @@ object SyncEngine {
             ids += ext
             val entry = Entry(
                 id = newId(),
+                contactId = contactId,
                 typeId = TypeIds.CALL,
                 at = call.date,
                 source = EntrySource.CALL_LOG,
@@ -196,6 +197,7 @@ object SyncEngine {
             if (existing == null) {
                 pending[ext] = Entry(
                     id = newId(),
+                    contactId = contactId,
                     typeId = TypeIds.MESSAGE,
                     at = msg.date,
                     source = EntrySource.SMS,

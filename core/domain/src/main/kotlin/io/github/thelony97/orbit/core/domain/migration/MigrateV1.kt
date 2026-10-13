@@ -122,7 +122,7 @@ object MigrateV1 {
     )
 
     /** Free-text anniversary labels -> kind. */
-    internal fun kindFor(label: String): OccasionKind {
+    fun kindFor(label: String): OccasionKind {
         val l = label.lowercase()
         return when {
             "hochzeit" in l -> OccasionKind.WEDDING

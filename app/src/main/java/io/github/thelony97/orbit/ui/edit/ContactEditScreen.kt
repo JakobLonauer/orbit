@@ -149,22 +149,22 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         return original.copy(
             kind = kind,
             orgCategory = if (kind == ContactKind.ORG) orgCategory else null,
-            website = website.text.toString().trim(),
             firstName = first.text.toString().trim(),
             lastName = last.text.toString().trim(),
             company = company.text.toString().trim(),
             position = position.text.toString().trim(),
-            address = address.text.toString().trim(),
             howWeMet = howWeMet.text.toString().trim(),
             notes = notes.text.toString().trim(),
             phones = phoneValues,
             defaultPhone = defaultPhone.coerceIn(0, (phoneValues.size - 1).coerceAtLeast(0)),
             emails = emailValues,
-            birthday = birthday,
             groupIds = data.groups.map { it.id }.filter { it in groups },
             favorite = favorite,
             photo = photo,
         )
+            .withAddress(address.text.toString())
+            .withWebsite(website.text.toString(), ::newId)
+            .withBirthday(birthday, ::newId)
     }
 
     fun save() {

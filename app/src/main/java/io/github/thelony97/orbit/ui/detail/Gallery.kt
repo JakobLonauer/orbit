@@ -102,7 +102,8 @@ object GalleryStore {
                 }
                 val name = "g-${newId()}.jpg"
                 OrbitRepository.photoFile(name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 86, it) }
-                GalleryPhoto(id = newId(), file = name, addedAt = now())
+                // contactId is filled in by the store when the contact is saved.
+                GalleryPhoto(id = newId(), contactId = "", file = name, addedAt = now())
             }.getOrNull()
         }
     }

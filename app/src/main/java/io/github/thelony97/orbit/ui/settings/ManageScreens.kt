@@ -250,7 +250,7 @@ fun EntryTypesScreen(data: OrbitData, nav: Nav) {
     }
     if (creating) {
         TypeDialog(
-            initial = EntryType(newId(), "", "coffee", resetsTimer = true),
+            initial = EntryType(newId(), "", "coffee"),
             onDismiss = { creating = false },
             onSave = { t -> OrbitRepository.edit { d -> Mutations.upsertType(d, t) } },
             onDelete = null,

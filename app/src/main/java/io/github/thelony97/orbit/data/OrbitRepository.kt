@@ -16,12 +16,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import io.github.thelony97.orbit.store.HistoryDb
+import io.github.thelony97.orbit.store.Store
 import java.io.File
-import java.io.FileOutputStream
 
 /**
- * Single source of truth. All data lives in one JSON document in app storage,
- * held in memory as a [StateFlow] and written back atomically after changes.
+ * Single source of truth, held in memory as a [StateFlow]. Storage v2 (ADR 0003): the JSON
+ * core is written atomically, Verlauf and Ablage go into SQLite as differences ([Store]).
+ * The first start after 1.0.7 keeps a copy of the old file and converts it ([StoreUpgrade]).
  */
 object OrbitRepository {
 
@@ -36,6 +38,12 @@ object OrbitRepository {
     }
 
     private lateinit var appContext: Context
+    private lateinit var store: Store
+    lateinit var history: HistoryDb
+        private set
+
+    /** What the last save wrote; the next save stores only the difference. */
+    private var lastSaved: OrbitData? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val loadMutex = Mutex()
     private val writeMutex = Mutex()
@@ -55,6 +63,8 @@ object OrbitRepository {
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
+        history = HistoryDb(appContext)
+        store = Store(File(appContext.filesDir, FILE), history, ::newId)
         scope.launch { ensureLoaded() }
         scope.launch {
             for (signal in saveSignal) {
@@ -101,13 +111,14 @@ object OrbitRepository {
     }
 
     private fun readFromDisk(): OrbitData {
-        val file = File(appContext.filesDir, FILE)
-        if (!file.exists()) return Defaults.fresh()
+        val file = store.file
         return try {
-            migrate(json.decodeFromString(OrbitData.serializer(), file.readText()))
+            val loaded = store.load()
+            lastSaved = loaded
+            loaded?.let(::migrate) ?: Defaults.fresh()
         } catch (e: Exception) {
             Log.e(TAG, "could not read $FILE, keeping a copy", e)
-            file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true)
+            if (file.exists()) file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true)
             Defaults.fresh()
         }
     }
@@ -140,18 +151,9 @@ object OrbitRepository {
     private suspend fun persist() {
         val written = writeMutex.withLock {
             val snapshot = _data.value ?: return@withLock false
-            withContext(Dispatchers.IO) {
-                val target = File(appContext.filesDir, FILE)
-                val tmp = File(appContext.filesDir, "$FILE.tmp")
-                FileOutputStream(tmp).use { out ->
-                    out.write(json.encodeToString(OrbitData.serializer(), snapshot).toByteArray())
-                    out.fd.sync()
-                }
-                if (!tmp.renameTo(target)) {
-                    tmp.copyTo(target, overwrite = true)
-                    tmp.delete()
-                }
-            }
+            if (snapshot === lastSaved) return@withLock false
+            withContext(Dispatchers.IO) { store.save(lastSaved, snapshot) }
+            lastSaved = snapshot
             true
         }
         val callback = onSaved

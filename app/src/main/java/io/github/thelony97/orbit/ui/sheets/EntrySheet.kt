@@ -79,7 +79,8 @@ fun EntrySheet(
             Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                types.forEach { t ->
+                // "Gratuliert"/"Geschenk" are ticked in the birthday tab (R3), not logged here.
+                types.filter { it.id !in occasionTypes || it.id == initial?.typeId }.forEach { t ->
                     SpaceChip(t.name, typeId == t.id, { typeId = t.id }, leading = entryIcon(t.icon))
                 }
             }
@@ -113,7 +114,8 @@ fun EntrySheet(
                     val entry = if (initial != null) {
                         initial.copy(typeId = typeId, at = if (fromSystem) initial.at else at, note = text)
                     } else {
-                        Entry(id = newId(), typeId = typeId, at = at, note = text)
+                        // contactId is set by Mutations.addEntry.
+                        Entry(id = newId(), contactId = "", typeId = typeId, at = at, note = text)
                     }
                     onSave(entry)
                     onDismiss()
@@ -125,3 +127,8 @@ fun EntrySheet(
     if (pickDate) DateDialog(initial = date, onDismiss = { pickDate = false }, onPick = { date = it })
     if (pickTime) TimeDialog(initial = time, onDismiss = { pickTime = false }, onPick = { time = it })
 }
+
+private val occasionTypes = setOf(
+    io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS,
+    io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT,
+)

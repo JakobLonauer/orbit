@@ -18,9 +18,9 @@ class LastPerTypeTest {
         val c = Contact(
             "a",
             entries = listOf(
-                Entry("1", "coffee", at = 50),
-                Entry("2", TypeIds.CALL, at = 10),
-                Entry("3", TypeIds.CALL, at = 40),
+                Entry("1", "a", "coffee", at = 50),
+                Entry("2", "a", TypeIds.CALL, at = 10),
+                Entry("3", "a", TypeIds.CALL, at = 40),
             ),
         )
         assertEquals(

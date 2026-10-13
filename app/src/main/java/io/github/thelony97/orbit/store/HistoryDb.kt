@@ -187,6 +187,66 @@ class HistoryDb(context: Context, name: String? = NAME) :
         writableDatabase.delete("attachments", "id = ?", arrayOf(id))
     }
 
+    fun allAttachments(): List<Attachment> =
+        readableDatabase.rawQuery("SELECT json FROM attachments ORDER BY added_at DESC", null)
+            .use { c -> buildList { while (c.moveToNext()) add(DocJson.decodeAttachment(c.getString(0))) } }
+
+    /** One change set, applied atomically (the repository's save step). */
+    class Changes(
+        val upserts: List<HistoryEntry> = emptyList(),
+        val deletes: List<String> = emptyList(),
+        val attachmentUpserts: List<Attachment> = emptyList(),
+        val attachmentDeletes: List<String> = emptyList(),
+        val contactsGone: List<String> = emptyList(),
+    ) {
+        val isEmpty: Boolean
+            get() = upserts.isEmpty() && deletes.isEmpty() && attachmentUpserts.isEmpty() &&
+                attachmentDeletes.isEmpty() && contactsGone.isEmpty()
+    }
+
+    fun apply(ch: Changes) {
+        if (ch.isEmpty) return
+        val db = writableDatabase
+        folded // resolve the tokenizer flag outside the transaction
+        db.beginTransaction()
+        try {
+            for (id in ch.contactsGone) {
+                db.execSQL("DELETE FROM entries_fts WHERE docid IN (SELECT rowid FROM entries WHERE contact_id = ?)", arrayOf<Any>(id))
+                db.delete("entries", "contact_id = ?", arrayOf(id))
+                db.delete("attachments", "contact_id = ?", arrayOf(id))
+            }
+            for (id in ch.deletes) {
+                db.execSQL("DELETE FROM entries_fts WHERE docid = (SELECT rowid FROM entries WHERE id = ?)", arrayOf<Any>(id))
+                db.delete("entries", "id = ?", arrayOf(id))
+            }
+            for (e in ch.upserts) {
+                val updated = db.update("entries", values(e), "id = ?", arrayOf(e.id))
+                if (updated > 0) {
+                    db.execSQL(
+                        "UPDATE entries_fts SET body = ? WHERE docid = (SELECT rowid FROM entries WHERE id = ?)",
+                        arrayOf<Any>(ftsBody(e), e.id),
+                    )
+                } else {
+                    val rowId = db.insertWithOnConflict("entries", null, values(e), SQLiteDatabase.CONFLICT_IGNORE)
+                    if (rowId != -1L) {
+                        db.execSQL("INSERT INTO entries_fts(docid, body) VALUES (?, ?)", arrayOf<Any>(rowId, ftsBody(e)))
+                    }
+                }
+            }
+            for (id in ch.attachmentDeletes) db.delete("attachments", "id = ?", arrayOf(id))
+            for (a in ch.attachmentUpserts) {
+                val v = ContentValues().apply {
+                    put("id", a.id); put("contact_id", a.contactId); put("file", a.file)
+                    put("added_at", a.addedAt); put("json", DocJson.encode(a))
+                }
+                db.insertWithOnConflict("attachments", null, v, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     private fun values(e: HistoryEntry) = ContentValues().apply {
         put("id", e.id)
         put("contact_id", e.contactId)

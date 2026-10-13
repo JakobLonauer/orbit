@@ -119,7 +119,7 @@ object Logic {
             c.groupIds.forEach { id -> idx.groups[id]?.let { append(it.name).append(' ') } }
             c.topics.forEach { append(it.text).append(' ') }
             c.gifts.forEach { append(it.text).append(' ') }
-            c.anniversaries.forEach { append(it.label).append(' ') }
+            c.anniversaries.forEach { append(it.title).append(' ') }
             c.entries.forEach { e ->
                 append(e.note).append(' ')
                 e.messages.forEach { m -> append(m.text).append(' ') }

@@ -8,14 +8,20 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.thelony97.orbit.core.domain.migration.MigrateV1
+import io.github.thelony97.orbit.core.model.Attachment
+import io.github.thelony97.orbit.core.model.HistoryEntry
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.data.newId
 import io.github.thelony97.orbit.data.now
+import io.github.thelony97.orbit.store.Store
 import io.github.thelony97.orbit.notify.Notifications
 import io.github.thelony97.orbit.domain.today
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
@@ -51,8 +57,15 @@ object Backups {
     suspend fun writeZip(out: OutputStream) = withContext(Dispatchers.IO) {
         val data = OrbitRepository.snapshot()
         ZipOutputStream(out.buffered()).use { zip ->
+            // Storage v2: core, Verlauf and Ablage as separate JSON files (ADR 0003).
             zip.putNextEntry(ZipEntry("orbit.json"))
             zip.write(pretty.encodeToString(OrbitData.serializer(), data).toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("history.json"))
+            zip.write(OrbitRepository.json.encodeToString(HISTORY, Store.historyOf(data)).toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("attachments.json"))
+            zip.write(OrbitRepository.json.encodeToString(ATTACHMENTS, Store.attachmentsOf(data)).toByteArray())
             zip.closeEntry()
             data.contacts.flatMap { Mutations.files(it) }.distinct().forEach { name ->
                 val file = OrbitRepository.photoFile(name)
@@ -67,15 +80,16 @@ object Backups {
 
     /** Reads a backup and returns its data without applying it (photos are restored right away). */
     suspend fun readZip(input: InputStream): OrbitData = withContext(Dispatchers.IO) {
-        var data: OrbitData? = null
+        var core: String? = null
+        var history: String? = null
+        var attachments: String? = null
         ZipInputStream(input.buffered()).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 when {
-                    entry.name == "orbit.json" -> {
-                        val text = zip.readBytes().decodeToString()
-                        data = OrbitRepository.json.decodeFromString(OrbitData.serializer(), text)
-                    }
+                    entry.name == "orbit.json" -> core = zip.readBytes().decodeToString()
+                    entry.name == "history.json" -> history = zip.readBytes().decodeToString()
+                    entry.name == "attachments.json" -> attachments = zip.readBytes().decodeToString()
                     entry.name.startsWith("photos/") && !entry.isDirectory -> {
                         val name = File(entry.name).name
                         if (name.isNotBlank() && !name.contains("..")) {
@@ -86,7 +100,23 @@ object Backups {
                 zip.closeEntry()
             }
         }
-        data ?: throw IllegalArgumentException("Das ist keine Orbit-Sicherung (orbit.json fehlt).")
+        val text = core ?: throw IllegalArgumentException("Das ist keine Orbit-Sicherung (orbit.json fehlt).")
+        fromBackup(text, history, attachments)
+    }
+
+    private val HISTORY = ListSerializer(HistoryEntry.serializer())
+    private val ATTACHMENTS = ListSerializer(Attachment.serializer())
+
+    /** Backups from 1.0.7 (schema 1, everything in orbit.json) and from v2 both restore. */
+    internal fun fromBackup(core: String, history: String?, attachments: String?): OrbitData {
+        if (MigrateV1.schemaOf(core) < 2) {
+            val r = MigrateV1.fromJson(core, ::newId)
+            return Store.assemble(r.doc, r.history, r.attachments)
+        }
+        val doc = OrbitRepository.json.decodeFromString(OrbitData.serializer(), core)
+        val h = history?.let { OrbitRepository.json.decodeFromString(HISTORY, it) }.orEmpty()
+        val a = attachments?.let { OrbitRepository.json.decodeFromString(ATTACHMENTS, it) }.orEmpty()
+        return Store.assemble(doc, h, a)
     }
 
     /** Applies restored data but keeps device-specific settings of this phone. */

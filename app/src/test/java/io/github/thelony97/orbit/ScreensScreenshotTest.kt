@@ -60,7 +60,7 @@ class ScreensScreenshotTest {
     private val today = LocalDate.now()
     private fun inDays(n: Long) = today.plusDays(n).let { DayOfYear(it.dayOfMonth, it.monthValue, 1996) }
     private fun e(id: String, type: String, daysAgo: Long, note: String = "", sec: Long? = null, incoming: Boolean? = null) =
-        Entry(id, type, now - daysAgo * day - 3_600_000, note = note, durationSec = sec, incoming = incoming,
+        Entry(id = id, contactId = "", typeId = type, at = now - daysAgo * day - 3_600_000, note = note, durationSec = sec, incoming = incoming,
             source = if (type == TypeIds.CALL) EntrySource.CALL_LOG else EntrySource.MANUAL)
 
     private val groups = listOf(
@@ -73,13 +73,15 @@ class ScreensScreenshotTest {
             Contact("me", isMe = true, firstName = "Jakob", createdAt = 1),
             Contact("anna", firstName = "Anna", lastName = "Berger", groupIds = listOf("fr"), favorite = true,
                 phones = listOf(LabeledValue("Mobil", "+43 660 1234567")),
-                birthday = inDays(0), position = "Lehrerin",
+                position = "Lehrerin",
                 topics = listOf(CheckItem("t1", "Wohnung in Wien?")),
                 gifts = listOf(CheckItem("g1", "Bücher von Zweig")),
-                entries = listOf(e("a1", TypeIds.CALL, 0, sec = 754, incoming = true), e("a2", TypeIds.MEET, 6, "Kaffee am Hauptplatz"), e("a3", TypeIds.MESSAGE, 2))),
+                entries = listOf(e("a1", TypeIds.CALL, 0, sec = 754, incoming = true), e("a2", TypeIds.MEET, 6, "Kaffee am Hauptplatz"), e("a3", TypeIds.MESSAGE, 2)))
+                .withBirthday(inDays(0)) { "bd-anna" },
             Contact("papa", firstName = "Peter", lastName = "Lonauer", groupIds = listOf("fam"),
-                phones = listOf(LabeledValue("Mobil", "+43 664 7654321")), birthday = inDays(7),
-                entries = listOf(e("p1", TypeIds.CALL, 3, sec = 1820, incoming = false))),
+                phones = listOf(LabeledValue("Mobil", "+43 664 7654321")),
+                entries = listOf(e("p1", TypeIds.CALL, 3, sec = 1820, incoming = false)))
+                .withBirthday(inDays(7)) { "bd-papa" },
             Contact("tom", firstName = "Tom", lastName = "Huber", groupIds = listOf("uni"),
                 entries = listOf(e("t1", TypeIds.MEET, 21, "Lernen für Linguistik"))),
             Contact("lisa", firstName = "Lisa", lastName = "Wagner", groupIds = listOf("fr"),

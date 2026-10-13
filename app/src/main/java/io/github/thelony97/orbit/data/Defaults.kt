@@ -44,14 +44,8 @@ object Defaults {
 
     fun me(): Contact = Contact(id = newId(), firstName = ME_DEFAULT_NAME, isMe = true, createdAt = now(), updatedAt = now())
 
-    val entryTypes = listOf(
-        EntryType(TypeIds.MEET, "Treffen", "meet", resetsTimer = true, builtin = true),
-        EntryType(TypeIds.CALL, "Anruf", "call", resetsTimer = true, builtin = true),
-        EntryType(TypeIds.VIDEO, "Videocall", "video", resetsTimer = true, builtin = true),
-        EntryType(TypeIds.MESSAGE, "Nachricht", "message", resetsTimer = false, builtin = true),
-        EntryType(TypeIds.EMAIL, "E-Mail", "email", resetsTimer = false, builtin = true),
-        EntryType(TypeIds.EVENT, "Event", "event", resetsTimer = true, builtin = true),
-    )
+    /** Built-in kinds of entries, including "Gratuliert" and "Geschenk" (PLAN 3.5). */
+    val entryTypes = io.github.thelony97.orbit.core.model.BuiltinTypes.all
 
     /** Palette for groups – readable on light and dark backgrounds. */
     val groupColors: List<Long> = listOf(

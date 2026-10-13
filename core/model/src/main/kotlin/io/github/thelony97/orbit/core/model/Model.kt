@@ -3,6 +3,7 @@ package io.github.thelony97.orbit.core.model
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /*
  * Storage format v2 (PLAN 4). The JSON core holds everything small and relational.
@@ -54,7 +55,15 @@ data class GeoPoint(
 )
 
 @Serializable
-enum class OccasionKind { BIRTHDAY, WEDDING, ANNIVERSARY, MET, NAME_DAY, MEMORIAL, CUSTOM }
+enum class OccasionKind(val label: String) {
+    BIRTHDAY("Geburtstag"),
+    WEDDING("Hochzeitstag"),
+    ANNIVERSARY("Jahrestag"),
+    MET("Kennenlerntag"),
+    NAME_DAY("Namenstag"),
+    MEMORIAL("Gedenktag"),
+    CUSTOM("Anlass"),
+}
 
 @Serializable
 enum class Repeat { YEARLY, ONCE }
@@ -74,6 +83,9 @@ data class Occasion(
     val sharedWith: String? = null,
     val note: String = "",
 ) {
+    /** What to call it: the own label, else the kind ("Hochzeitstag"). */
+    val title: String get() = label.ifBlank { kind.label }
+
     companion object {
         val BIRTHDAY_REMINDERS = listOf(0, 7)
     }
@@ -155,10 +167,47 @@ data class Contact(
     val mapsUrl: String? = null,
     /** OSM opening_hours syntax, e.g. "Mo-Fr 08:00-12:00". */
     val openingHours: String = "",
+    /**
+     * In memory only: this contact's Verlauf, newest first. Stored in SQLite, never in the JSON
+     * core (ADR 0003); the repository fills it on load and writes the difference on save.
+     */
+    @Transient val entries: List<HistoryEntry> = emptyList(),
+    /** In memory only: the photo folder (Ablage), newest first. Stored in SQLite. */
+    @Transient val gallery: List<Attachment> = emptyList(),
 ) {
     val isOrg: Boolean get() = kind == ContactKind.ORG
     val address: String get() = addresses.firstOrNull()?.value.orEmpty()
-    val birthday: Occasion? get() = dates.firstOrNull { it.kind == OccasionKind.BIRTHDAY }
+    val birthday: CalendarDay? get() = dates.firstOrNull { it.kind == OccasionKind.BIRTHDAY }?.date
+    /** Anlässe except the birthday. */
+    val anniversaries: List<Occasion> get() = dates.filter { it.kind != OccasionKind.BIRTHDAY }
+    val website: String get() = links.firstOrNull()?.url.orEmpty()
+
+    fun withAddress(value: String): Contact {
+        val v = value.trim()
+        val rest = addresses.drop(1)
+        return copy(addresses = if (v.isEmpty()) rest else listOf((addresses.firstOrNull() ?: LabeledValue()).copy(value = v)) + rest)
+    }
+
+    /** Sets or removes the birthday; keeps its id, reminders and note when it already exists. */
+    fun withBirthday(day: CalendarDay?, newId: () -> String): Contact {
+        val existing = dates.firstOrNull { it.kind == OccasionKind.BIRTHDAY }
+        val others = dates.filter { it.kind != OccasionKind.BIRTHDAY }
+        return when {
+            day == null -> copy(dates = others)
+            existing != null -> copy(dates = listOf(existing.copy(date = day)) + others)
+            else -> copy(dates = listOf(Occasion(newId(), OccasionKind.BIRTHDAY, date = day, reminders = Occasion.BIRTHDAY_REMINDERS)) + others)
+        }
+    }
+
+    /** Sets the first link (the web site); blank removes it. */
+    fun withWebsite(url: String, newId: () -> String): Contact {
+        val v = url.trim()
+        val rest = links.drop(1)
+        if (v.isEmpty()) return copy(links = rest)
+        val full = if (v.startsWith("http://") || v.startsWith("https://")) v else "https://$v"
+        val first = links.firstOrNull()?.copy(url = full) ?: Link(newId(), "Webseite", full)
+        return copy(links = listOf(first) + rest)
+    }
 }
 
 @Serializable

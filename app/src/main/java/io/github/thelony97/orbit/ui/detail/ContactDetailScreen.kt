@@ -74,6 +74,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.actions.ContactActions
+import io.github.thelony97.orbit.core.domain.migration.MigrateV1
+import io.github.thelony97.orbit.core.model.OccasionKind
 import io.github.thelony97.orbit.data.Anniversary
 import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Contact
@@ -388,11 +390,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val days = Logic.daysUntil(a.date, todayDate)
                         val years = a.date.year?.let { Logic.nextOccurrence(a.date, todayDate).year - it }
                         InfoRow(
-                            label = a.label + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
+                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
                             value = Fmt.dayOfYear(a.date),
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
-                                    edit { it.copy(anniversaries = it.anniversaries.filterNot { x -> x.id == a.id }) }
+                                    edit { it.copy(dates = it.dates.filterNot { x -> x.id == a.id }) }
                                 }
                             },
                         )
@@ -624,7 +626,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     if (anniversaryDialog) {
         AnniversaryDialog(
             onDismiss = { anniversaryDialog = false },
-            onPick = { label, date -> edit { it.copy(anniversaries = it.anniversaries + Anniversary(newId(), label, date)) } },
+            onPick = { label, date ->
+                val kind = MigrateV1.kindFor(label)
+                val occasion = Anniversary(newId(), kind, label = if (kind == OccasionKind.CUSTOM) label else "", date = date)
+                edit { it.copy(dates = it.dates + occasion) }
+            },
         )
     }
 
@@ -632,7 +638,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
         DayOfYearDialog(
             initial = c.birthday,
             onDismiss = { birthdayDialog = false },
-            onPick = { d -> edit { it.copy(birthday = d) } },
+            onPick = { d -> edit { it.withBirthday(d, ::newId) } },
         )
     }
 

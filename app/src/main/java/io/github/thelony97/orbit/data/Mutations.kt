@@ -7,10 +7,20 @@ object Mutations {
 
     private val TRASH_KEEP = TimeUnit.DAYS.toMillis(30)
 
+    /**
+     * Saves a contact from the edit screen. Verlauf and photo folder always come from the current
+     * state: the screen started from an older copy and must not drop entries synced meanwhile.
+     */
     fun upsertContact(d: OrbitData, c: Contact): OrbitData {
         val stamped = c.copy(updatedAt = now(), createdAt = if (c.createdAt == 0L) now() else c.createdAt)
         val exists = d.contacts.any { it.id == c.id }
-        return d.copy(contacts = if (exists) d.contacts.map { if (it.id == c.id) stamped else it } else d.contacts + stamped)
+        return d.copy(
+            contacts = if (exists) {
+                d.contacts.map { if (it.id == c.id) stamped.copy(entries = it.entries, gallery = it.gallery) else it }
+            } else {
+                d.contacts + stamped
+            },
+        )
     }
 
     fun trash(d: OrbitData, id: String): OrbitData =
@@ -41,13 +51,13 @@ object Mutations {
     fun addEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->
             if (c.id != contactId) c
-            else c.copy(entries = (c.entries + entry).sortedByDescending { it.at })
+            else c.copy(entries = (c.entries + entry.copy(contactId = contactId)).sortedByDescending { it.at })
         })
 
     fun updateEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->
             if (c.id != contactId) c
-            else c.copy(entries = c.entries.map { if (it.id == entry.id) entry else it }.sortedByDescending { it.at })
+            else c.copy(entries = c.entries.map { if (it.id == entry.id) entry.copy(contactId = contactId) else it }.sortedByDescending { it.at })
         })
 
     fun deleteEntry(d: OrbitData, contactId: String, entryId: String): OrbitData =
@@ -108,7 +118,7 @@ object Mutations {
             result = addEntry(
                 result, m.contactId,
                 Entry(
-                    id = newId(), typeId = TypeIds.MEET, at = m.start,
+                    id = newId(), contactId = m.contactId, typeId = TypeIds.MEET, at = m.start,
                     note = m.place.takeIf { it.isNotBlank() }?.let { "Treffen: $it" } ?: "",
                     source = EntrySource.MEETING, externalId = "meeting:${m.id}",
                 ),
