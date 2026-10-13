@@ -138,6 +138,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_NOTE = "io.github.thelony97.orbit.NOTE"
         const val ACTION_MEETING = "io.github.thelony97.orbit.MEETING"
+        const val ACTION_CALLBACK = "io.github.thelony97.orbit.CALLBACK"
+        const val EXTRA_NAME = "name"
+        const val EXTRA_NUMBER = "number"
+        const val EXTRA_MINUTES = "minutes"
         const val EXTRA_CONTACT = "contact"
         const val EXTRA_ENTRY = "entry"
         const val EXTRA_MEETING = "meeting"
@@ -166,6 +170,14 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     }
                     if (notifId >= 0) Notifications.cancel(context, notifId)
                 }
+            }
+            ACTION_CALLBACK -> {
+                val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+                val name = intent.getStringExtra(EXTRA_NAME).orEmpty().ifBlank { number }
+                val minutes = intent.getIntExtra(EXTRA_MINUTES, 15)
+                CallbackWorker.schedule(context, name, number, intent.getStringExtra(EXTRA_CONTACT), minutes)
+                Notifications.cancel(context, Notifications.ID_CALLER)
+                android.widget.Toast.makeText(context, if (minutes >= 60) "Erinnerung in 1 Std" else "Erinnerung in $minutes Min", android.widget.Toast.LENGTH_SHORT).show()
             }
             ACTION_MEETING -> {
                 val meetingId = intent.getStringExtra(EXTRA_MEETING) ?: return
@@ -207,6 +219,36 @@ class CallActionActivity : ComponentActivity() {
                 ContactActions.call(this@CallActionActivity, c, null, data.settings)
             }
             finish()
+        }
+    }
+}
+
+/** „Später zurückrufen“: posts the reminder after the chosen delay (survives reboots via WorkManager). */
+class CallbackWorker(ctx: Context, params: androidx.work.WorkerParameters) : androidx.work.CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        val number = inputData.getString(KEY_NUMBER) ?: return Result.success()
+        Notifications.callback(applicationContext, inputData.getString(KEY_NAME).orEmpty().ifBlank { number }, number, inputData.getString(KEY_CONTACT))
+        return Result.success()
+    }
+
+    companion object {
+        private const val KEY_NAME = "name"
+        private const val KEY_NUMBER = "number"
+        private const val KEY_CONTACT = "contact"
+
+        fun schedule(ctx: Context, name: String, number: String, contactId: String?, minutes: Int) {
+            val data = androidx.work.Data.Builder()
+                .putString(KEY_NAME, name)
+                .putString(KEY_NUMBER, number)
+                .putString(KEY_CONTACT, contactId)
+                .build()
+            val request = androidx.work.OneTimeWorkRequestBuilder<CallbackWorker>()
+                .setInitialDelay(minutes.toLong(), java.util.concurrent.TimeUnit.MINUTES)
+                .setInputData(data)
+                .build()
+            // One reminder per number: a new choice replaces the old one.
+            androidx.work.WorkManager.getInstance(ctx)
+                .enqueueUniqueWork("callback-" + number.filter { it.isDigit() }, androidx.work.ExistingWorkPolicy.REPLACE, request)
         }
     }
 }

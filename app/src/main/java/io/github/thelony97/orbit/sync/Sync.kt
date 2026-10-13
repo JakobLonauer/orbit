@@ -122,16 +122,21 @@ class PhoneStateReceiver : BroadcastReceiver() {
                             val iso = io.github.thelony97.orbit.domain.Phones.countryIso(context)
                             index?.takeIf { it.callerInfo }
                                 ?.lookup(number) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
-                                ?.also { Notifications.callerInfo(context, it) }
+                                ?.also { Notifications.callerInfo(context, it, number) }
                         }.getOrNull()
                         // The caller card already lists the open topics; otherwise the old reminder.
                         if (shown == null) {
                             OrbitRepository.init(context)
                             val data = OrbitRepository.ensureLoaded()
-                            if (data.settings.topicsDuringCall) {
-                                SyncEngine.contactFor(data, context, number)?.let { contact ->
-                                    Notifications.topics(context, contact)
-                                }
+                            val contact = SyncEngine.contactFor(data, context, number)
+                            if (contact != null && data.settings.topicsDuringCall) {
+                                Notifications.topics(context, contact)
+                            }
+                            // Unknown number that called before (PLAN 3.12: „3 Anrufe …“).
+                            if (contact == null && data.settings.callerInfo) {
+                                val key = io.github.thelony97.orbit.domain.Phones.normalize(number, io.github.thelony97.orbit.domain.Phones.countryIso(context))
+                                data.unknownNumbers.firstOrNull { it.key == key && !it.dismissed && it.calls > 0 }
+                                    ?.let { Notifications.unknownCaller(context, it, number) }
                             }
                         }
                     } finally {

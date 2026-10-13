@@ -31,6 +31,7 @@ object Notifications {
     const val ID_CALLER = 1003
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
+    private const val ID_CALLBACK_BASE = 40_000
 
     const val KEY_NOTE = "note"
 
@@ -158,7 +159,7 @@ object Notifications {
      * Anrufer-Info beim Klingeln (PLAN 3.12, without the dialer role): name, photo, role, last
      * contact, open topics, customer number. The lock screen only gets name and role.
      */
-    fun callerInfo(ctx: Context, card: io.github.thelony97.orbit.core.domain.CallerCard) {
+    fun callerInfo(ctx: Context, card: io.github.thelony97.orbit.core.domain.CallerCard, number: String) {
         val n = io.github.thelony97.orbit.core.domain.CallerNotice.of(card, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
         val photo = card.photo?.let { name ->
             runCatching {
@@ -182,7 +183,68 @@ object Notifications {
             .setContentIntent(openContact(ctx, card.contactId, ID_CALLER))
             .setTimeoutAfter(3 * 60 * 60 * 1000L)
         if (photo != null) builder.setLargeIcon(photo)
+        // „Später zurückrufen“ (PLAN 3.12/3.13a): one tap while it rings, a reminder later.
+        builder.addAction(0, "In 15 Min erinnern", callbackIntent(ctx, card.name, number, card.contactId, 15))
+        builder.addAction(0, "In 1 Std erinnern", callbackIntent(ctx, card.name, number, card.contactId, 60))
         post(ctx, ID_CALLER, builder)
+    }
+
+    /** Unknown number that called before: how often and when, plus the reminder actions. */
+    fun unknownCaller(ctx: Context, unknown: io.github.thelony97.orbit.data.UnknownNumber, number: String) {
+        val days = java.time.temporal.ChronoUnit.DAYS.between(
+            java.time.Instant.ofEpochMilli(unknown.lastAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
+            java.time.LocalDate.now(),
+        )
+        val title = unknown.cachedName?.takeIf { it.isNotBlank() } ?: unknown.display
+        val times = when (unknown.calls) {
+            0 -> null
+            1 -> "1 Anruf"
+            else -> "${unknown.calls} Anrufe"
+        }
+        val line = listOfNotNull("Unbekannt", times, unknown.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
+        val builder = base(ctx, CH_CALL)
+            .setContentTitle(title)
+            .setContentText(line)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(openContact(ctx, null, ID_CALLER))
+            .setTimeoutAfter(3 * 60 * 60 * 1000L)
+            .addAction(0, "In 15 Min erinnern", callbackIntent(ctx, title, number, null, 15))
+            .addAction(0, "In 1 Std erinnern", callbackIntent(ctx, title, number, null, 60))
+        post(ctx, ID_CALLER, builder)
+    }
+
+    private fun callbackIntent(ctx: Context, name: String, number: String, contactId: String?, minutes: Int): PendingIntent {
+        val intent = Intent(ctx, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_CALLBACK
+            putExtra(NotificationActionReceiver.EXTRA_NAME, name)
+            putExtra(NotificationActionReceiver.EXTRA_NUMBER, number)
+            putExtra(NotificationActionReceiver.EXTRA_CONTACT, contactId)
+            putExtra(NotificationActionReceiver.EXTRA_MINUTES, minutes)
+        }
+        return PendingIntent.getBroadcast(ctx, ID_CALLER * 10 + minutes, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    fun callbackId(number: String) = ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and 0x7FFF)
+
+    /** The reminder itself: "Zurückrufen: Anna" with a call button. */
+    fun callback(ctx: Context, name: String, number: String, contactId: String?) {
+        val id = callbackId(number)
+        val callIntent = if (ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Intent(Intent.ACTION_CALL, android.net.Uri.fromParts("tel", number, null))
+        } else {
+            Intent(Intent.ACTION_DIAL, android.net.Uri.fromParts("tel", number, null))
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val call = PendingIntent.getActivity(ctx, id, callIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val builder = base(ctx, CH_CALL)
+            .setContentTitle("Zurückrufen: $name")
+            .setContentText(number)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(contactId?.let { openContact(ctx, it, id) } ?: call)
+            .addAction(0, "Anrufen", call)
+        post(ctx, id, builder)
     }
 
     fun afterCallId(entry: Entry) = ID_AFTER_CALL_BASE + (entry.id.hashCode() and 0x7FFF)
