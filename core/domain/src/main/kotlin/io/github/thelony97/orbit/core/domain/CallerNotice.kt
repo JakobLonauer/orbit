@@ -29,7 +29,8 @@ data class CallerNotice(
                 if (card.topics.isNotEmpty()) add("Ansprechen: " + card.topics.joinToString(" · "))
                 if (card.customerNo.isNotBlank()) add("Kundennummer " + card.customerNo)
             }
-            return CallerNotice(title, line, details, title, card.role)
+            // Lock screen: name and role only – not even "archiviert".
+            return CallerNotice(title, line, details, card.name.ifBlank { "Unbekannt" }, card.role)
         }
     }
 }

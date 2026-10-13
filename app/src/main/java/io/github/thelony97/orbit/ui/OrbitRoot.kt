@@ -134,7 +134,8 @@ private fun MainNavigation(data: OrbitData) {
             kind = if (org) io.github.thelony97.orbit.data.ContactKind.ORG else io.github.thelony97.orbit.data.ContactKind.PERSON,
             phones = listOf(io.github.thelony97.orbit.data.LabeledValue(if (org) "Zentrale" else "Mobil", number)),
         )
-        while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+        // An open edit page with unsaved input stays underneath (it has its own discard prompt).
+        if (backStack.none { it is Route.Edit }) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
         backStack.add(Route.Edit(prefill = io.github.thelony97.orbit.data.OrbitRepository.json.encodeToString(io.github.thelony97.orbit.data.Contact.serializer(), draft)))
         MainActivity.pendingNew.value = null
     }
@@ -143,7 +144,7 @@ private fun MainNavigation(data: OrbitData) {
     LaunchedEffect(pending) {
         val id = pending ?: return@LaunchedEffect
         if (data.contacts.any { it.id == id }) {
-            while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+            if (backStack.none { it is Route.Edit }) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
             backStack.add(Route.Detail(id))
         }
         MainActivity.pendingContact.value = null

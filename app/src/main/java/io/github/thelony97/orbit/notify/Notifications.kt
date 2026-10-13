@@ -22,6 +22,8 @@ object Notifications {
 
     const val CH_DIGEST = "digest"
     const val CH_CALL = "call"
+    /** Caller info while it rings: lock screen forced to the public version (name and role). */
+    const val CH_CALLER = "caller"
     const val CH_MEETING = "meeting"
     const val CH_SYSTEM = "system"
 
@@ -32,6 +34,9 @@ object Notifications {
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
+    private const val ID_UNKNOWN_BASE = 50_000
+    /** Each kind keeps to its own range of 4096 ids (ids double as PendingIntent request codes). */
+    private const val ID_MASK = 0x0FFF
 
     const val KEY_NOTE = "note"
 
@@ -44,6 +49,10 @@ object Notifications {
                 },
                 NotificationChannel(CH_CALL, "Anruf-Helfer", NotificationManager.IMPORTANCE_HIGH).apply {
                     description = "Themen während des Anrufs und Notiz danach"
+                },
+                NotificationChannel(CH_CALLER, "Anrufer-Info", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Wer anruft, beim Klingeln"
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
                 },
                 NotificationChannel(CH_MEETING, "Treffen", NotificationManager.IMPORTANCE_DEFAULT).apply {
                     description = "Nachfrage, ob ein geplantes Treffen stattgefunden hat"
@@ -168,10 +177,10 @@ object Notifications {
                 android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)
             }.getOrNull()
         }
-        val public = base(ctx, CH_CALL)
+        val public = base(ctx, CH_CALLER)
             .setContentTitle(n.publicTitle)
             .setContentText(n.publicLine)
-        val builder = base(ctx, CH_CALL)
+        val builder = base(ctx, CH_CALLER)
             .setContentTitle(n.title)
             .setContentText(n.line.ifBlank { n.details.firstOrNull().orEmpty() })
             .setStyle(NotificationCompat.BigTextStyle().bigText((listOf(n.line) + n.details).filter { it.isNotBlank() }.joinToString("\n")))
@@ -202,7 +211,9 @@ object Notifications {
             else -> "${unknown.calls} Anrufe"
         }
         val line = listOfNotNull("Unbekannt", times, unknown.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
-        val builder = base(ctx, CH_CALL)
+        val builder = base(ctx, CH_CALLER)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(base(ctx, CH_CALLER).setContentTitle("Anruf").setContentText("Unbekannt").build())
             .setContentTitle(title)
             .setContentText(line)
             .setOngoing(true)
@@ -226,18 +237,21 @@ object Notifications {
         return PendingIntent.getBroadcast(ctx, ID_CALLER * 10 + minutes, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    fun callbackId(number: String) = ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and 0x7FFF)
+    fun callbackId(number: String) = ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and ID_MASK)
 
     /** After a call with an unknown number: create it as a person or an organisation in one tap. */
     fun unknownAfterCall(ctx: Context, number: String, durationSec: Long, cachedName: String?) {
-        val id = callbackId(number) + 5_000
+        val id = ID_UNKNOWN_BASE + (number.filter { it.isDigit() }.hashCode() and ID_MASK)
         fun create(org: Boolean): PendingIntent {
             val intent = Intent(ctx, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(MainActivity.EXTRA_NEW_NUMBER, number)
                 putExtra(MainActivity.EXTRA_NEW_ORG, org)
+                // Buttons do not auto-dismiss: the app cancels it when it opens the draft.
+                putExtra(MainActivity.EXTRA_NOTIF, id)
             }
-            return PendingIntent.getActivity(ctx, id + if (org) 1 else 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            // Separate request codes for the two buttons (org flag differs, extras alone don't count).
+            return PendingIntent.getActivity(ctx, id * 2 + if (org) 1 else 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         }
         val builder = base(ctx, CH_CALL)
             .setContentTitle(cachedName?.takeIf { it.isNotBlank() } ?: number)
@@ -265,10 +279,11 @@ object Notifications {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contactId?.let { openContact(ctx, it, id) } ?: call)
             .addAction(0, "Anrufen", call)
+            .setTimeoutAfter(2 * 60 * 60 * 1000L)
         post(ctx, id, builder)
     }
 
-    fun afterCallId(entry: Entry) = ID_AFTER_CALL_BASE + (entry.id.hashCode() and 0x7FFF)
+    fun afterCallId(entry: Entry) = ID_AFTER_CALL_BASE + (entry.id.hashCode() and ID_MASK)
 
     fun afterCall(ctx: Context, contact: Contact, entry: Entry) {
         val notifId = afterCallId(entry)
@@ -297,7 +312,7 @@ object Notifications {
         post(ctx, notifId, builder)
     }
 
-    fun meetingId(m: Meeting) = ID_MEETING_BASE + (m.id.hashCode() and 0x7FFF)
+    fun meetingId(m: Meeting) = ID_MEETING_BASE + (m.id.hashCode() and ID_MASK)
 
     fun meetingFollowUp(ctx: Context, meeting: Meeting, contact: Contact) {
         val notifId = meetingId(meeting)

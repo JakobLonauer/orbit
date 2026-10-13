@@ -229,6 +229,9 @@ object SyncEngine {
     fun lastCall(ctx: Context, since: Long): CallRec? =
         if (canReadCalls(ctx)) readCalls(ctx, since).maxByOrNull { it.date } else null
 
+    /** PLAN 3.12: only calls *from* an unknown number get the "Als Kontakt anlegen" offer. */
+    fun isIncoming(call: CallRec) = call.type == CallLog.Calls.INCOMING_TYPE
+
     private fun readCalls(ctx: Context, since: Long): List<CallRec> {
         val out = ArrayList<CallRec>()
         val projection = arrayOf(

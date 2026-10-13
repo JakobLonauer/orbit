@@ -88,11 +88,18 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 }
                 // PLAN 3.12: talked to an unknown number → offer to create a contact or an organisation.
                 if (!prompted && data.settings.suggestUnknown) {
-                    SyncEngine.lastCall(applicationContext, since)?.let { call ->
+                    SyncEngine.lastCall(applicationContext, since)?.takeIf { SyncEngine.isIncoming(it) && it.duration > 0 }?.let { call ->
                         val number = call.number
                         val iso = io.github.thelony97.orbit.domain.Phones.countryIso(applicationContext)
-                        val known = io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts.filter { it.deletedAt == null }, iso).match(number) != null
-                        if (!number.isNullOrBlank() && !known && call.duration > 0) {
+                        val normalize: (String) -> String? = { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
+                        // Known = a contact, a hidden member or an org's number range (same lookup as the ring).
+                        val known = number != null && (
+                            io.github.thelony97.orbit.store.CallerIndexFile.read(applicationContext)?.lookup(number, normalize) != null ||
+                                io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts.filter { it.deletedAt == null }, iso).match(number) != null
+                            )
+                        val key = number?.let(normalize)
+                        val dismissed = data.unknownNumbers.any { it.key == key && it.dismissed }
+                        if (!number.isNullOrBlank() && !known && !dismissed) {
                             Notifications.unknownAfterCall(applicationContext, number, call.duration, call.cachedName)
                         }
                     }
@@ -111,6 +118,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
  */
 class PhoneStateReceiver : BroadcastReceiver() {
 
+    companion object {
+        /** When the last call ended (process-wide; receivers are new objects each time). */
+        @Volatile private var idleAt = 0L
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Suppress("DEPRECATION")
@@ -120,11 +132,15 @@ class PhoneStateReceiver : BroadcastReceiver() {
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
         when (state) {
             TelephonyManager.EXTRA_STATE_IDLE -> {
+                idleAt = android.os.SystemClock.elapsedRealtime()
                 Notifications.cancelTopics(context)
                 Sync.afterCall(context)
             }
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 if (number.isNullOrBlank()) return
+                val ringAt = android.os.SystemClock.elapsedRealtime()
+                // A very short call can end before the card is ready: never post after "idle".
+                fun stillRinging() = idleAt < ringAt
                 val pending = goAsync()
                 scope.launch {
                     try {
@@ -135,21 +151,21 @@ class PhoneStateReceiver : BroadcastReceiver() {
                             val iso = io.github.thelony97.orbit.domain.Phones.countryIso(context)
                             index?.takeIf { it.callerInfo }
                                 ?.lookup(number) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
-                                ?.also { Notifications.callerInfo(context, it, number) }
+                                ?.also { if (stillRinging()) Notifications.callerInfo(context, it, number) }
                         }.getOrNull()
                         // The caller card already lists the open topics; otherwise the old reminder.
                         if (shown == null) {
                             OrbitRepository.init(context)
                             val data = OrbitRepository.ensureLoaded()
                             val contact = SyncEngine.contactFor(data, context, number)
-                            if (contact != null && data.settings.topicsDuringCall) {
+                            if (contact != null && data.settings.topicsDuringCall && stillRinging()) {
                                 Notifications.topics(context, contact)
                             }
                             // Unknown number that called before (PLAN 3.12: „3 Anrufe …“).
                             if (contact == null && data.settings.callerInfo) {
                                 val key = io.github.thelony97.orbit.domain.Phones.normalize(number, io.github.thelony97.orbit.domain.Phones.countryIso(context))
                                 data.unknownNumbers.firstOrNull { it.key == key && !it.dismissed && it.calls > 0 }
-                                    ?.let { Notifications.unknownCaller(context, it, number) }
+                                    ?.let { if (stillRinging()) Notifications.unknownCaller(context, it, number) }
                             }
                         }
                     } finally {

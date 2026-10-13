@@ -75,11 +75,15 @@ object OrbitRepository {
         history = HistoryDb(appContext)
         store = Store(File(appContext.filesDir, FILE), history, ::newId)
         scope.launch {
-            val loaded = ensureLoaded()
+            ensureLoaded()
             // Refresh the caller index once per start, so an update's new fields (zuletzt,
-            // Themen) are there before the next save. Separate cache file; never blocks loading.
-            if (_loadError.value == null) {
-                runCatching { CallerIndexFile.write(appContext, loaded) }.onFailure { Log.w(TAG, "caller index", it) }
+            // Themen) are there before the next save. Same lock as saving: one writer at a time,
+            // always from the current state.
+            writeMutex.withLock {
+                val current = _data.value
+                if (_loadError.value == null && current != null) {
+                    runCatching { CallerIndexFile.write(appContext, current) }.onFailure { Log.w(TAG, "caller index", it) }
+                }
             }
         }
         scope.launch {

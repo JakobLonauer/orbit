@@ -76,7 +76,7 @@ data class CallerIndex(
                     org = c.isOrg,
                     lastAt = last?.at,
                     lastKind = last?.let { kinds[it.typeId] }.orEmpty(),
-                    topics = c.topics.filterNot { it.done }.map { it.text }.take(TOPICS),
+                    topics = if (doc.settings.topicsDuringCall) c.topics.filterNot { it.done }.map { it.text }.take(TOPICS) else emptyList(),
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue

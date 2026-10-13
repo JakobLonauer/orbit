@@ -31,6 +31,7 @@ class MainActivity : FragmentActivity() {
         /** „Als Kontakt / Organisation anlegen“ after a call from an unknown number (PLAN 3.12). */
         const val EXTRA_NEW_NUMBER = "new_number"
         const val EXTRA_NEW_ORG = "new_org"
+        const val EXTRA_NOTIF = "notif_id"
         val pendingNew = MutableStateFlow<Pair<String, Boolean>?>(null)
     }
 
@@ -67,6 +68,7 @@ class MainActivity : FragmentActivity() {
     private fun handleIntent(intent: Intent?) {
         intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
             pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)
+            intent.getIntExtra(EXTRA_NOTIF, -1).takeIf { it >= 0 }?.let { io.github.thelony97.orbit.notify.Notifications.cancel(this, it) }
             intent.removeExtra(EXTRA_NEW_NUMBER)
             return
         }

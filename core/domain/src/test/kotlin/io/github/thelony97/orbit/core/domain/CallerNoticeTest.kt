@@ -32,6 +32,7 @@ class CallerNoticeTest {
     @Test fun archivedAndBare() {
         val n = CallerNotice.of(CallerCard("k", "Kevin", archived = true), now, zone)
         assertEquals("Kevin · archiviert", n.title)
+        assertEquals("Kevin", n.publicTitle)
         assertEquals("", n.line)
         assertEquals(emptyList<String>(), n.details)
         val today = CallerNotice.of(CallerCard("a", "Anna", lastAt = now - 3_600_000, lastKind = "Treffen"), now, zone)
