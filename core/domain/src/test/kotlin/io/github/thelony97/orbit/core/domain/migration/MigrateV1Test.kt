@@ -119,6 +119,20 @@ class MigrateV1Test {
         assertEquals(r.doc, back)
     }
 
+    @Test fun duplicateRowsAreMergedNotDropped() {
+        val text = """{"schema":1,"contacts":[{"id":"a","entries":[
+            {"id":"1","typeId":"message","at":10,"externalId":"sms:d","note":"x","messages":[{"id":1,"at":10,"incoming":true,"text":"Hi"}]},
+            {"id":"2","typeId":"message","at":20,"externalId":"sms:d","messages":[{"id":2,"at":20,"incoming":false,"text":"Ho"},{"id":1,"at":10,"incoming":true,"text":"Hi"}]},
+            {"id":"3","typeId":"call","at":5},
+            {"id":"3","typeId":"call","at":5}]}]}"""
+        val h = MigrateV1.fromJson(text) { "g" }.history
+        assertEquals(listOf("3", "1"), h.map { it.id }.sorted().reversed())
+        val sms = h.single { it.id == "1" }
+        assertEquals(20L, sms.at)
+        assertEquals(listOf("Hi", "Ho"), sms.messages.map { it.text })
+        assertEquals("x", sms.note)
+    }
+
     @Test fun deterministicIds() {
         assertEquals(r, run())
     }

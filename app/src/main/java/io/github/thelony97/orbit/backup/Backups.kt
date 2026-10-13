@@ -55,20 +55,30 @@ object Backups {
         wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
-    fun fileName(): String = "$PREFIX${today()}.zip"
+    /** Date and time in the name: a new backup never truncates an existing one of the same day. */
+    fun fileName(): String =
+        "$PREFIX${today()}-${java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HHmmss"))}.zip"
 
     /** A backup is encrypted with the stored key once a password is set (PLAN 4). */
     class NeedsPassword : Exception("Diese Sicherung ist verschlüsselt.")
 
     suspend fun writeZip(ctx: Context, out: OutputStream) = withContext(Dispatchers.IO) {
+        // Never back up the empty stand-in state after a failed load.
+        check(OrbitRepository.loadError.value == null) { "Daten konnten nicht geladen werden – keine Sicherung." }
         val key = BackupKey.load(ctx)
+        // Encryption is on but the key is unreadable: fail loudly instead of writing plain text.
+        check(key != null || !BackupKey.isSet(ctx)) { "Backup-Schlüssel nicht lesbar – Passwort neu setzen." }
         if (key == null) {
             zipTo(out)
         } else {
-            // GCM needs the whole plaintext; backups are a few MB of JSON plus resized photos.
-            val plain = ByteArrayOutputStream().also { zipTo(it) }.toByteArray()
-            out.write(BackupCrypto.encrypt(plain, key))
-            out.flush()
+            // Stream through a temp file: memory stays at one chunk even with many photos.
+            val tmp = File.createTempFile("backup", ".zip", ctx.cacheDir)
+            try {
+                tmp.outputStream().use { zipTo(it) }
+                tmp.inputStream().buffered().use { BackupCrypto.encrypt(it, out, key) }
+            } finally {
+                tmp.delete()
+            }
         }
     }
 
@@ -101,20 +111,27 @@ object Backups {
      * Encrypted backups need [password]; without it [NeedsPassword] is thrown, a wrong one
      * throws [BackupCrypto.WrongPassword].
      */
-    suspend fun readZip(input: InputStream, password: CharArray? = null): OrbitData = withContext(Dispatchers.IO) {
+    suspend fun readZip(ctx: Context, input: InputStream, password: CharArray? = null): OrbitData = withContext(Dispatchers.IO) {
+        val buffered = input.buffered()
+        buffered.mark(8)
+        val head = buffered.readNBytes(4)
+        buffered.reset()
+        if (!BackupCrypto.isEncrypted(head)) return@withContext readPlain(buffered)
+        val pw = password ?: throw NeedsPassword()
+        // Decrypt completely first: a wrong password fails before any photo is written.
+        val tmp = File.createTempFile("restore", ".zip", ctx.cacheDir)
+        try {
+            tmp.outputStream().use { BackupCrypto.decrypt(buffered, it, pw) }
+            tmp.inputStream().buffered().use { readPlain(it) }
+        } finally {
+            tmp.delete()
+        }
+    }
+
+    private fun readPlain(source: InputStream): OrbitData {
         var core: String? = null
         var history: String? = null
         var attachments: String? = null
-        val buffered = input.buffered()
-        buffered.mark(8)
-        val head = ByteArray(4).also { buffered.read(it) }
-        buffered.reset()
-        val source: InputStream = if (BackupCrypto.isEncrypted(head)) {
-            val pw = password ?: throw NeedsPassword()
-            ByteArrayInputStream(BackupCrypto.decrypt(buffered.readBytes(), pw))
-        } else {
-            buffered
-        }
         ZipInputStream(source).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
@@ -133,7 +150,7 @@ object Backups {
             }
         }
         val text = core ?: throw IllegalArgumentException("Das ist keine Orbit-Sicherung (orbit.json fehlt).")
-        fromBackup(text, history, attachments)
+        return fromBackup(text, history, attachments)
     }
 
     private val HISTORY = ListSerializer(HistoryEntry.serializer())
@@ -170,18 +187,23 @@ object Backups {
 
     /** Writes a dated backup into the chosen folder and prunes old ones. */
     suspend fun backupToFolder(ctx: Context): Result<String> = runCatching {
+        check(OrbitRepository.loadError.value == null) { "Daten konnten nicht geladen werden – keine Sicherung." }
         val treeString = OrbitRepository.snapshot().settings.backupTreeUri
             ?: throw IllegalStateException("Kein Backup-Ordner gewählt")
         val tree = Uri.parse(treeString)
         val resolver = ctx.contentResolver
         val parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
         val name = fileName()
-        val existing = listBackups(ctx, tree).firstOrNull { it.second == name }
-        val target = existing?.first
-            ?: DocumentsContract.createDocument(resolver, parent, "application/zip", name)
+        val target = DocumentsContract.createDocument(resolver, parent, "application/zip", name)
             ?: throw IllegalStateException("Datei konnte nicht angelegt werden")
-        (resolver.openOutputStream(target, "wt") ?: throw IllegalStateException("Ordner nicht beschreibbar")).use {
-            writeZip(ctx, it)
+        try {
+            (resolver.openOutputStream(target, "w") ?: throw IllegalStateException("Ordner nicht beschreibbar")).use {
+                writeZip(ctx, it)
+            }
+        } catch (e: Throwable) {
+            // A half-written file must not count as one of the kept backups.
+            runCatching { DocumentsContract.deleteDocument(resolver, target) }
+            throw e
         }
         listBackups(ctx, tree).sortedByDescending { it.second }.drop(KEEP).forEach { (uri, _) ->
             runCatching { DocumentsContract.deleteDocument(resolver, uri) }

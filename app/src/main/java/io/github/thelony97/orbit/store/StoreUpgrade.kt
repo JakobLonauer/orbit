@@ -29,6 +29,9 @@ object StoreUpgrade {
         val result = MigrateV1.fromJson(text, newId)
         db.insertAll(result.history)
         db.insertAttachments(result.attachments)
+        // Nothing may be lost: every row must be in the database before the old file is replaced.
+        check(db.count() >= result.history.size) { "Verlauf unvollständig übernommen" }
+        db.checkpoint()
         atomicWrite(file, DocJson.encode(result.doc))
         return Report(true, result.history.size, result.attachments.size)
     }

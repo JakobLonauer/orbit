@@ -224,7 +224,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     fun readBackup(uri: Uri, password: CharArray?) {
         scope.launch {
             runCatching {
-                ctx.contentResolver.openInputStream(uri)?.use { Backups.readZip(it, password) } ?: error("Datei nicht lesbar")
+                ctx.contentResolver.openInputStream(uri)?.use { Backups.readZip(ctx, it, password) } ?: error("Datei nicht lesbar")
             }.onSuccess { restored ->
                 passwordFor = null
                 pendingRestore = restored to restored.contacts.count { it.deletedAt == null }
@@ -470,9 +470,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
             onDismiss = { encryptionDialog = false },
             onConfirm = { pw ->
                 scope.launch {
-                    BackupKey.set(ctx, pw)
-                    encrypted = true
-                    toast("Sicherungen werden verschlüsselt")
+                    runCatching { BackupKey.set(ctx, pw) }
+                        .onSuccess {
+                            encrypted = true
+                            toast("Sicherungen werden verschlüsselt")
+                        }
+                        .onFailure { toast("Schlüssel konnte nicht gespeichert werden: ${it.message}") }
                 }
             },
             extra = if (encrypted) {

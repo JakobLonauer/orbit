@@ -47,11 +47,12 @@ object OrbitRepository {
     private var lastSaved: OrbitData? = null
 
     /**
-     * Set when stored data exists but could not be read. Saving is then blocked so the
-     * unreadable file (and the 1.0.7 copy) is never overwritten by an empty state.
+     * Set when stored data exists but could not be read. Saving and backups are then blocked so
+     * the unreadable file (and the 1.0.7 copy) is never overwritten by an empty state; the UI
+     * shows an error screen instead of onboarding.
      */
-    @Volatile var loadError: Throwable? = null
-        private set
+    private val _loadError = MutableStateFlow<Throwable?>(null)
+    val loadError: StateFlow<Throwable?> = _loadError.asStateFlow()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val loadMutex = Mutex()
     private val writeMutex = Mutex()
@@ -115,7 +116,7 @@ object OrbitRepository {
     suspend fun replaceAll(newData: OrbitData) {
         ensureLoaded()
         // Restoring a backup is an explicit decision and may replace an unreadable state.
-        loadError = null
+        _loadError.value = null
         _data.value = newData
         persist()
     }
@@ -126,11 +127,12 @@ object OrbitRepository {
             val loaded = store.load()
             lastSaved = loaded
             loaded?.let(::migrate) ?: Defaults.fresh()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "could not read $FILE, keeping a copy", e)
+            (appContext as? io.github.thelony97.orbit.OrbitApp)?.errorLog?.log("Daten laden", e)
             if (file.exists()) {
-                loadError = e
-                file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true)
+                _loadError.value = e
+                runCatching { file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true) }
             }
             Defaults.fresh()
         }
@@ -165,7 +167,7 @@ object OrbitRepository {
         val written = writeMutex.withLock {
             val snapshot = _data.value ?: return@withLock false
             if (snapshot === lastSaved) return@withLock false
-            if (loadError != null) {
+            if (_loadError.value != null) {
                 Log.e(TAG, "not saving: stored data could not be read")
                 return@withLock false
             }

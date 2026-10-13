@@ -2,6 +2,7 @@ package io.github.thelony97.orbit.store
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.DatabaseErrorHandler
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import android.database.sqlite.SQLiteOpenHelper
@@ -9,6 +10,7 @@ import io.github.thelony97.orbit.core.domain.DocJson
 import io.github.thelony97.orbit.core.domain.Fold
 import io.github.thelony97.orbit.core.model.Attachment
 import io.github.thelony97.orbit.core.model.HistoryEntry
+import java.io.File
 
 /**
  * Verlauf + Ablage in SQLite (ADR 0003). Each row keeps its full JSON next to the indexed
@@ -19,7 +21,30 @@ import io.github.thelony97.orbit.core.model.HistoryEntry
  * the table falls back to the simple tokenizer and stores folded text (see `meta.fts_folded`).
  */
 class HistoryDb(context: Context, name: String? = NAME) :
-    SQLiteOpenHelper(context, name, null, VERSION) {
+    SQLiteOpenHelper(context, name, null, VERSION, KeepCorruptFile) {
+
+    /**
+     * Android's default handler deletes a corrupt database – and with it the whole Verlauf.
+     * Ours moves the file aside instead and remembers it; the store then refuses to load.
+     */
+    private object KeepCorruptFile : DatabaseErrorHandler {
+        override fun onCorruption(db: SQLiteDatabase) {
+            val path = db.path
+            runCatching { db.close() }
+            if (path != null && path != ":memory:") {
+                val f = File(path)
+                f.renameTo(File(path + ".corrupt-" + System.currentTimeMillis()))
+                File("$path-wal").delete()
+                File("$path-shm").delete()
+            }
+            corrupted = true
+        }
+    }
+
+    /** Makes sure inserted rows are in the main database file (WAL), e.g. before replacing the old JSON. */
+    fun checkpoint() {
+        writableDatabase.rawQuery("PRAGMA wal_checkpoint(FULL)", null).use { it.moveToFirst() }
+    }
 
     data class Hit(val entry: HistoryEntry, val snippet: String)
 
@@ -262,5 +287,9 @@ class HistoryDb(context: Context, name: String? = NAME) :
     companion object {
         const val NAME = "orbit.db"
         const val VERSION = 1
+
+        /** Set when a corrupt database was moved aside during this process. */
+        @Volatile var corrupted = false
+            internal set
     }
 }

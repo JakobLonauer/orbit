@@ -89,7 +89,36 @@ object MigrateV1 {
             },
             settings = old.settings.toV2(),
         )
-        return Result(doc, history, attachments)
+        return Result(doc, mergeDuplicates(history), attachments.distinctBy { it.id })
+    }
+
+    /**
+     * SQLite keeps one row per id and per (contact, externalId). Old data may hold doubles from
+     * earlier syncs; instead of letting the database drop them silently, merge them here:
+     * messages and notes are combined, the newest time wins.
+     */
+    fun mergeDuplicates(history: List<HistoryEntry>): List<HistoryEntry> {
+        val byId = history.distinctBy { it.id }
+        val out = ArrayList<HistoryEntry>(byId.size)
+        val groups = LinkedHashMap<Pair<String, String>, MutableList<HistoryEntry>>()
+        for (e in byId) {
+            val ext = e.externalId
+            if (ext == null) out += e else groups.getOrPut(e.contactId to ext) { ArrayList() } += e
+        }
+        for (list in groups.values) {
+            if (list.size == 1) {
+                out += list[0]
+                continue
+            }
+            val first = list[0]
+            out += first.copy(
+                at = list.maxOf { it.at },
+                note = list.map { it.note.trim() }.filter { it.isNotEmpty() }.distinct().joinToString("\n"),
+                messages = list.flatMap { it.messages }.distinctBy { it.at to it.text }.sortedBy { it.at },
+                durationSec = list.mapNotNull { it.durationSec }.maxOrNull(),
+            )
+        }
+        return out
     }
 
     /** v1 org relation kinds -> assignment roles; anything else keeps its wording as a custom role. */

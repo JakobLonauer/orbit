@@ -55,10 +55,13 @@ class Nav(
 fun OrbitRoot(activity: FragmentActivity) {
     val data by OrbitRepository.data.collectAsStateWithLifecycle()
     val locked by AppLock.locked.collectAsStateWithLifecycle()
+    val loadError by OrbitRepository.loadError.collectAsStateWithLifecycle()
     val current = data
+    val failed = loadError
 
     Box(Modifier.fillMaxSize().background(Space.Void)) {
         when {
+            failed != null -> LoadErrorScreen(failed)
             current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 LoadingIndicator(modifier = Modifier.size(56.dp), color = Space.Violet)
             }

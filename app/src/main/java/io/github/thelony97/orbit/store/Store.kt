@@ -21,7 +21,12 @@ class Store(val file: File, private val db: HistoryDb, private val newId: () -> 
         return hydrate(DocJson.decode(file.readText()))
     }
 
-    fun hydrate(doc: OrbitDoc): OrbitDoc = assemble(doc, db.all(), db.allAttachments())
+    fun hydrate(doc: OrbitDoc): OrbitDoc {
+        val hydrated = assemble(doc, db.all(), db.allAttachments())
+        // A corrupt database was moved aside: an empty Verlauf would look like data loss.
+        check(!HistoryDb.corrupted) { "Verlauf-Datenbank beschädigt (Kopie aufbewahrt)" }
+        return hydrated
+    }
 
     /** Writes [next]; [previous] is what the last save wrote (null on a fresh install). */
     fun save(previous: OrbitDoc?, next: OrbitDoc) {
