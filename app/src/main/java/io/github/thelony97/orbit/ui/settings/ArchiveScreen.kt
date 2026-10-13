@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.core.designsystem.Haptic
+import io.github.thelony97.orbit.core.designsystem.Motion
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.core.domain.AtFormat
 import io.github.thelony97.orbit.data.Contact
@@ -54,6 +55,7 @@ import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.SpaceSearchField
 import io.github.thelony97.orbit.ui.theme.Space
+import kotlinx.coroutines.launch
 
 private enum class ArchiveSort(val label: String) { ARCHIVED("Archiviert"), NAME("Name"), LAST("Letzter Kontakt") }
 
@@ -145,6 +147,15 @@ internal fun archiveLine(c: Contact): String = buildList {
 
 @Composable
 private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRestore: () -> Unit, modifier: Modifier = Modifier) {
+    // Archiv-Moment (PLAN 1.3): „Zurückholen“ gives the colour back first, then the row leaves.
+    val colour = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val restore: () -> Unit = {
+        scope.launch {
+            colour.animateTo(1f, androidx.compose.animation.core.tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized))
+            onRestore()
+        }
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -154,14 +165,19 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // A distant star: photo and ring without colour.
-        val grey = remember {
-            android.graphics.RenderEffect.createColorFilterEffect(
-                android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }),
-            ).asComposeRenderEffect()
-        }
-        Box(Modifier.graphicsLayer { renderEffect = grey; alpha = 0.7f }) {
-            Avatar(c, Space.TextDim, 42.dp)
+        // A distant star: photo and ring without colour (saturation rises while restoring).
+        Box(
+            Modifier.graphicsLayer {
+                val sat = colour.value
+                renderEffect = if (sat >= 1f) null else android.graphics.RenderEffect.createColorFilterEffect(
+                    android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(sat) }),
+                ).asComposeRenderEffect()
+                alpha = 0.7f + 0.3f * sat
+                val grow = 1f + 0.12f * sat
+                scaleX = grow; scaleY = grow
+            },
+        ) {
+            Avatar(c, androidx.compose.ui.graphics.lerp(Space.TextDim, restoredColour(c), colour.value), 42.dp)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -173,6 +189,9 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
             Text(archiveLine(c), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(1.dp))
         }
-        OrbButton(Icons.Rounded.Unarchive, "Zurückholen", onRestore, size = 36.dp, accent = Space.Teal)
+        OrbButton(Icons.Rounded.Unarchive, "Zurückholen", restore, size = 36.dp, accent = Space.Teal)
     }
 }
+
+/** The colour the contact gets back (archive rows have no group index at hand). */
+private fun restoredColour(c: Contact) = if (c.isOrg) Space.Blue else Space.Violet
