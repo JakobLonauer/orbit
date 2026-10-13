@@ -29,6 +29,9 @@ class AtFormatTest {
         assertEquals("vor 2 Jahren", AtFormat.ago(800))
         assertEquals("vor 6 Wochen", AtFormat.ago(45))
         assertEquals("vor 2 Monaten", AtFormat.ago(60))
+        assertEquals("vor 2 Jahren", AtFormat.ago(700))
+        assertEquals("vor 1 Jahr", AtFormat.ago(400))
+        assertEquals("vorgestern", AtFormat.ago(2))
     }
 
     @Test fun phrases() {

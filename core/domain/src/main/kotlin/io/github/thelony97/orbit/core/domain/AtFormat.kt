@@ -55,9 +55,13 @@ object AtFormat {
         days == 2L -> "vorgestern"
         days < 14 -> "vor $days Tagen"
         days < 60 -> "vor ${days / 7} Wochen"
-        days < 365 -> (days / 30).let { if (it == 1L) "vor 1 Monat" else "vor $it Monaten" }
-        else -> (days / 365).let { if (it == 1L) "vor 1 Jahr" else "vor $it Jahren" }
+        days < 365 -> months(days).let { if (it == 1L) "vor 1 Monat" else "vor $it Monaten" }
+        else -> years(days).let { if (it == 1L) "vor 1 Jahr" else "vor $it Jahren" }
     }
+
+    /** Rounded, not cut off: 700 days are "2 Jahre", not "1 Jahr" (PLAN 1.4). */
+    fun months(days: Long): Long = ((days + 15) / 30).coerceAtLeast(1)
+    fun years(days: Long): Long = ((days + 182) / 365).coerceAtLeast(1)
 
     /** "wird 31" / "ist 31 geworden" relative to the occurrence. */
     fun turning(age: Int, past: Boolean = false): String = if (past) "ist $age geworden" else "wird $age"
