@@ -72,16 +72,23 @@ import kotlinx.coroutines.delay
 /** One "+ Anlass" style shortcut for a section that is not shown yet (PLAN 3.3). */
 data class AddItem(val label: String, val onClick: () -> Unit)
 
-/** The line at the end of the page: only what is missing, nothing greyed out (W5). */
+/**
+ * The line at the end of the page: only what is missing, nothing greyed out (W5). The first four
+ * (PLAN 3.3: + Anlass · + Link · + Foto · + Notiz) always show; more fold behind „+ Mehr“ so the
+ * row stays short.
+ */
 @Composable
 fun AddRow(items: List<AddItem>, modifier: Modifier = Modifier) {
     if (items.isEmpty()) return
+    var all by remember { mutableStateOf(false) }
+    val shown = if (all || items.size <= 5) items else items.take(4)
     FlowRow(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        items.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
+        shown.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
+        if (shown.size < items.size) SpaceChip("Mehr", false, { all = true }, leading = Icons.Rounded.Add)
     }
 }
 
