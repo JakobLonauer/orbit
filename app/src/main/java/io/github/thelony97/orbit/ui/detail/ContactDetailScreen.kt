@@ -1,5 +1,12 @@
 package io.github.thelony97.orbit.ui.detail
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.icons.rounded.Search
+import io.github.thelony97.orbit.ui.components.SpaceChip
+import io.github.thelony97.orbit.ui.components.SpaceSearchField
+import io.github.thelony97.orbit.ui.components.entryIcon
 import android.content.Intent
 import android.provider.CalendarContract
 import android.widget.Toast
@@ -161,6 +168,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var birthdayDialog by remember { mutableStateOf(false) }
     var confirmTrash by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
+    var historyType by remember { mutableStateOf<String?>(null) }
+    val historySearch = rememberTextFieldState()
 
     fun edit(transform: (Contact) -> Contact) = OrbitRepository.editContact(c.id, transform)
 
@@ -515,21 +524,59 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             if (c.entries.isEmpty() && !c.isMe) {
                 item(key = "history-empty") {
                     Text(
-                        "Noch nichts eingetragen. Anrufe und SMS erscheinen hier automatisch.",
+                        "Noch kein Eintrag",
                         style = MaterialTheme.typography.bodySmall,
                         color = Space.TextFaint,
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
                 }
             }
-            val visible = if (showAllHistory) c.entries else c.entries.take(30)
+            // PLAN 3.3: chips per kind with its last date, plus a search only in this Verlauf.
+            val kinds = c.entries.groupBy { it.typeId }.mapValues { (_, l) -> l.maxOf { it.at } }
+                .entries.sortedByDescending { it.value }
+            if (kinds.size > 1 || c.entries.size > 10) {
+                item(key = "history-filter") {
+                    Column(Modifier.padding(bottom = 6.dp)) {
+                        if (kinds.size > 1) {
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                SpaceChip("Alle", historyType == null, { historyType = null })
+                                kinds.forEach { (t, at) ->
+                                    val days = ChronoUnit.DAYS.between(at.toLocalDate(), todayDate)
+                                    SpaceChip(
+                                        "${idx.types[t]?.name ?: t} · ${Fmt.short(days)}",
+                                        historyType == t,
+                                        { historyType = if (historyType == t) null else t },
+                                        leading = entryIcon(idx.types[t]?.icon ?: "star"),
+                                    )
+                                }
+                            }
+                        }
+                        if (c.entries.size > 10) {
+                            SpaceSearchField(
+                                historySearch, "Im Verlauf von ${Logic.shortName(c)} suchen",
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                leading = Icons.Rounded.Search,
+                            )
+                        }
+                    }
+                }
+            }
+            val hq = Logic.fold(historySearch.text.toString().trim())
+            val filtered = c.entries.filter { e ->
+                (historyType == null || e.typeId == historyType) &&
+                    (hq.isEmpty() || Logic.fold(e.note + " " + e.messages.joinToString(" ") { it.text }).contains(hq))
+            }
+            val visible = if (showAllHistory || hq.isNotEmpty() || historyType != null) filtered else filtered.take(30)
             itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
                 EntryRow(e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) })
             }
-            if (!showAllHistory && c.entries.size > 30) {
+            if (visible.size < filtered.size) {
                 item(key = "history-more") {
                     Text(
-                        "Alle ${c.entries.size} Einträge anzeigen",
+                        "Alle ${filtered.size} Einträge anzeigen",
                         style = MaterialTheme.typography.labelLarge,
                         color = Space.Violet,
                         modifier = Modifier
