@@ -158,6 +158,17 @@ Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, Se
 - Tablet/Foldable: automatisch zweispaltig (Liste | Kontakt).
 - Kopieren zeigt „Kopiert“, lange Namen werden sauber verkleinert statt abgeschnitten.
 
+**Wow pro Update (eingewoben, nicht nachträglich)**
+
+| Update | Wow-Anteile |
+|---|---|
+| R1+R2 | Übergang Liste → Kontaktkopf, Zurück-Geste mit Vorschau, Milchglas-Leiste und -Köpfe, Haptik-Sprache, A–Z-Leiste mit Ticks, Jahresrad, Kontaktseite in Personenfarbe, rollende Zahlen, Vorschau-Karte per Langdruck, Speichern-zu-Häkchen, Rückgängig mit Zeitring, Suche mit Treffer-Satz, „ein Donnerstag“, animierter Startbildschirm, Themen-Icon |
+| R3 | Übergang Kachel → Organisation, Portal-Kacheln mit Logo und Druck-Morph, Öffnungszeiten live, eingefügte Nummer → „gehört zu …“, Netz-Morph und leuchtender Weg, Homescreen-Shortcuts mit Logo |
+| R4 | Platzhalter statt Ladekreis, Mails klappen im Verlauf weich auf, Wellen-Indikator beim Aktualisieren, „zuletzt abgeglichen vor 2 Std.“ |
+| R5 | Foto wächst aus der Kachel und fällt zurück, Runterwischen zum Schließen, Monats-Scrubber mit Ticks |
+| R6 | Ich-Karte mit Holo-Schimmer, Start „Dein Orbit füllt sich“, Geburtstags-Benachrichtigung mit Foto und Gratulieren, Widget-Vorschauen, zweispaltig auf Tablet/Foldable |
+| Abschluss | Feinschliff über alles: Abstände, Timings, Ruckler, Texte, Screenshot-Durchsicht aller Screens |
+
 ## Qualitätssicherung
 
 - Unit-Tests (Logik, Umstellung, Zuordnung, Planer) und Screenshot-Tests aller Screens mit festen Testdaten im CI; Release nur, wenn alles grün ist.
