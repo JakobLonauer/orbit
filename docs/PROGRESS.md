@@ -13,7 +13,7 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ## Stand
 
-- Nächster Schritt: Test-Build der riskanten Bausteine (InCallService, Haze, geteilte Übergänge, Screenshot-Tests, SQLite FTS4) auf `dev`, danach R1a.
+- Nächster Schritt: Test-Build der riskanten Bausteine (InCallService, Haze, geteilte Übergänge, Roborazzi-Screenshot-Tests, SQLite FTS4, AGSL-Shader) auf `dev`, danach R1a.
 - Letztes Release: v1.0.7 (Organisationen, ICH, Filter, Orbit-Liste, Netz, Karte, E-Mail, Fotos).
 
 ## Entscheidungen
