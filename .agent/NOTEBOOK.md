@@ -142,3 +142,4 @@
 - 13.10. neunte Sitzung: Release-Kandidat `release-r1b` (cb04336) gebaut; signing/.github/update/ unverändert (nur zxing-Abhängigkeit + Share-FileProvider). Veröffentlichen wie bei R1a: nach Jakobs „ja“ main fast-forward auf release-r1b, CI-Release prüfen (tools/apk_cert_sha256.py), dann main in dev mergen.
 - Undo-Regel: Seiten, die eine Kopie bearbeiten (Edit-Screen), rufen beim Öffnen `Undo.clear()` – sonst überschreibt Speichern ein späteres Rückgängig.
 - AppLock: externe Flows (Picker/Teilen) sperren nicht sofort, sondern mit 5 Min Kulanz; `onResume` setzt externalFlow zurück (durchsichtiges Teilen-Sheet stoppt Orbit nie).
+- !! Lange Arbeit (Update-Download!) nie in `rememberCoroutineScope` eines Listen-Items/Banners starten – LazyColumn-Item verlässt beim Scrollen die Composition → CancellationException → „Update fehlgeschlagen“. Dafür `ui/components/AppWork.launch { }` (Prozess-weit). Updates.kt selbst nicht anfassen (Update-Mechanismus geschützt).
