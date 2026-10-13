@@ -100,6 +100,23 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 | Ablage (neu, global) | `Attachment(file, mime, takenAt, contactIds)` – Fotos und PDFs, einmal gespeichert, mehreren Kontakten zuordenbar | `gallery` → Ablage |
 | Gruppe / Eintragsart | – | `rhythmDays`, `resetsTimer` |
 
+## Mitarbeiter in Organisationen
+
+- Volle Personen-Einträge **innerhalb** einer Organisation: Name, Rolle, Foto, Durchwahl, Mail, dauerhafte Notiz, eigene Gespräche (Einträge der Org mit `memberId`).
+- **Nie** in Kontaktliste, Suche, Verlauf-Tab, Anlässe, Netz oder Karte. Erreichbar nur über die Organisation (dort eigene Suche ab vielen Mitarbeitern).
+- Ruft ein Mitarbeiter von seiner Durchwahl an: Anrufbildschirm „Liles Servicecenter · Herr Mayer (Kundenberatung)“ mit seiner Notiz.
+- Gespräch eintragen bei der Org → Mitarbeiter wählen (oder neu anlegen, ein Feld).
+- Bewusster Schritt „Zu eigenem Kontakt machen“, falls jemand doch ins Leben gehört.
+
+## Archiv
+
+- Archivierte Kontakte behalten alles (Notizen, Verlauf, Fotos, Anlässe, Beziehungen) und erscheinen **nirgends**: keine Liste, keine Suche, kein Tab, keine Benachrichtigung, nicht in Beziehungen anderer.
+- Einzige Ausnahme: Anrufer-Erkennung. Ruft jemand aus dem Archiv an, zeigt Orbit den Namen mit Archiv-Hinweis und „Zurückholen“; der Anruf landet still in seinem Verlauf (sonst würde er als unbekannte Nummer vorgeschlagen).
+- Ort: Einstellungen → Archiv. Eigene Übersicht mit Suche nur im Archiv, Sortierung (Name, archiviert am, zuletzt Kontakt), Gruppierung nach Jahr des Archivierens.
+- Karte je Kontakt: entsättigtes Bild, Name, letzte Rolle/Firma, „archiviert März 2026 · zuletzt 2025 · 12 Notizen · 34 Einträge“.
+- Archivierten Kontakt öffnen: volle Kontaktseite, oben „Seit 3 Jahren im Archiv · Zurückholen“ und ein Block „Was du weißt“ (angepinnte Notiz, letzte Notizen, Beziehungen, Anlässe – reine Zusammenstellung).
+- Archivieren per Menü oder Mehrfachauswahl, jeweils mit Rückgängig; Organisationen samt Mitarbeitern archivierbar.
+
 ## Gemeinsame Bausteine (zuerst, damit jede Funktion sie nur nutzt)
 
 1. **Index**: pro Datenänderung einmal vorberechnet – letzter Kontakt je Art, Suchtext, nächste Anlässe, Zuordnungs-Tabellen.
@@ -113,9 +130,9 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 
 | Release | Inhalt |
 |---|---|
-| R1 + R2 (zusammen) | Datenmodell v2, verschlüsseltes Backup, Fehlerprotokoll, Tempo, Tab-Zustand, Rückgängig · neue Leiste Kontakte · Verlauf · Anlässe · Netz · Karte, Einstellungen hinter Zahnrad, neue Kontaktseite mit Verlauf unten und Filtern, Anlässe-Tab, Planer |
+| R1 + R2 (zusammen) | Datenmodell v2, Archiv mit eigener Übersicht, verschlüsseltes Backup, Fehlerprotokoll, Tempo, Tab-Zustand, Rückgängig · neue Leiste Kontakte · Verlauf · Anlässe · Netz · Karte, Einstellungen hinter Zahnrad, neue Kontaktseite mit Verlauf unten und Filtern, Anlässe-Tab, Planer |
 | R2b Orbit als Telefon-App | Standard-Telefon-App (ROLE_DIALER, InCallService): eigener Anrufbildschirm (eingehend, laufend, Anklopfen, Konferenz), Halten, Stumm, Lautsprecher/Bluetooth, Tastenfeld, Wählen mit T9-Suche, Dual-SIM, Benachrichtigung im Anruf-Stil mit Vollbild bei gesperrtem Handy, Näherungssensor; Klingelton bleibt beim System; Rückfall auf die vorinstallierte Telefon-App, falls Orbit nicht startet |
-| R3 Organisationen | Zuordnungen, Ansprechpartner, benannte Nummern/Adressen, Regeln, Links/Portale mit Vorlagen, Schnellzugriff, Teilen aus Google Maps/Chrome, eigene Felder, Öffnungszeiten |
+| R3 Organisationen | Zuordnungen, Mitarbeiter (nur über die Org erreichbar), benannte Nummern/Adressen, Regeln, Links/Portale mit Vorlagen, Schnellzugriff, Teilen aus Google Maps/Chrome, eigene Felder, Öffnungszeiten |
 | R4 E-Mail v2 | Abgleich nur von Neuem, Gesendet-Ordner, Mails im Verlauf, Antworten, Anhänge, Status; Microsoft-Anmeldung, falls App-Registrierung vorhanden |
 | R5 Galerie & Dateien | Ablage, Fotos-Seite, Aufnahmedatum, Fotos an Einträgen, mehrere Kontakte pro Foto, teilen rein/raus |
 | R6 Komfort | Anrufer-Info, Schnelleinstellungs-Kachel, Widgets, Shortcuts, Mehrfachauswahl, Mehrfach-Import, QR-Karte, Export Excel/vCard |
