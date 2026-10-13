@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sms
+import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -69,6 +70,7 @@ import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.core.domain.CallerCard
 import io.github.thelony97.orbit.core.domain.CallerNotice
 import io.github.thelony97.orbit.ui.components.CheckDot
+import io.github.thelony97.orbit.ui.components.GhostButton
 import io.github.thelony97.orbit.ui.components.SpaceBackground
 import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.components.rememberPhoto
@@ -105,6 +107,8 @@ interface CallActions {
     fun toggleHold() {}
     fun dialpad() {}
     fun toggleTopic(topic: String) {}
+    /** Archived caller (PLAN 3.11): back into the list with one tap. */
+    fun unarchive() {}
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
@@ -127,8 +131,9 @@ fun CallScreen(ui: CallUi, actions: CallActions, now: Long = System.currentTimeM
             Spacer(Modifier.height(40.dp))
             CallerPortrait(ui.card, color)
             Spacer(Modifier.height(18.dp))
+            // The name alone; the archive hint sits in the details with „Zurückholen“.
             Text(
-                notice?.title ?: ui.number,
+                notice?.publicTitle ?: ui.number,
                 style = MaterialTheme.typography.headlineMediumEmphasized,
                 color = Space.Text,
                 textAlign = TextAlign.Center,
@@ -201,6 +206,12 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (ui.card?.archived == true) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Im Archiv", style = MaterialTheme.typography.labelLarge, color = Space.TextDim, modifier = Modifier.weight(1f))
+                GhostButton("Zurückholen", actions::unarchive, icon = Icons.Rounded.Unarchive, color = Space.Teal)
+            }
+        }
         if (notice.line.isNotBlank() && notice.line != notice.publicLine) {
             Text(notice.line.removePrefix(notice.publicLine).removePrefix(" · "), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
         }

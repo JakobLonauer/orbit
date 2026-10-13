@@ -192,6 +192,8 @@ object Notifications {
             .setContentIntent(openContact(ctx, card.contactId, ID_CALLER))
             .setTimeoutAfter(3 * 60 * 60 * 1000L)
         if (photo != null) builder.setLargeIcon(photo)
+        // Archived (PLAN 3.11): the hint is in the title, „Zurückholen“ is one tap away.
+        if (card.archived) builder.addAction(0, "Zurückholen", unarchiveIntent(ctx, card.contactId, number))
         // „Später zurückrufen“ (PLAN 3.12/3.13a): one tap while it rings, a reminder later.
         builder.addAction(0, "In 15 Min erinnern", callbackIntent(ctx, card.name, number, card.contactId, 15))
         builder.addAction(0, "In 1 Std erinnern", callbackIntent(ctx, card.name, number, card.contactId, 60))
@@ -237,7 +239,21 @@ object Notifications {
         return PendingIntent.getBroadcast(ctx, ID_CALLER * 10 + minutes, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    fun callbackId(number: String) = ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and ID_MASK)
+    private fun unarchiveIntent(ctx: Context, contactId: String, number: String): PendingIntent {
+        val intent = Intent(ctx, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_UNARCHIVE
+            putExtra(NotificationActionReceiver.EXTRA_CONTACT, contactId)
+            putExtra(NotificationActionReceiver.EXTRA_NUMBER, number)
+        }
+        return PendingIntent.getBroadcast(ctx, ID_CALLER * 10 + 1, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    /** Whether the caller card is still on screen (it is ongoing until the call ends). */
+    fun callerShown(ctx: Context): Boolean = runCatching {
+        ctx.getSystemService(android.app.NotificationManager::class.java)?.activeNotifications?.any { it.id == ID_CALLER } == true
+    }.getOrDefault(false)
+
+    fun callbackId(number: String) =ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and ID_MASK)
 
     /** After a call with an unknown number: create it as a person or an organisation in one tap. */
     fun unknownAfterCall(ctx: Context, number: String, durationSec: Long, cachedName: String?) {

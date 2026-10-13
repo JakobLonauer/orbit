@@ -265,6 +265,10 @@ class ScreensScreenshotTest {
         )
     }
 
+    @Test fun callArchived() = shot("call_archived") {
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard.copy(archived = true), phoneUnlocked = true), noActions, now)
+    }
+
     @Test fun callUnknown() = shot("call_unknown") {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null), noActions, now)
     }

@@ -29,6 +29,10 @@ object Mutations {
     fun restore(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id) it.copy(deletedAt = null) else it })
 
+    /** „Zurückholen“ from the archive (also from the caller card while it rings). */
+    fun unarchive(d: OrbitData, id: String): OrbitData =
+        d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })
+
     /** Removes a contact for good, together with relations and meetings that point at it. */
     fun purge(d: OrbitData, id: String): OrbitData = if (d.contacts.any { it.id == id && it.isMe }) d else d.copy(
         contacts = d.contacts.filterNot { it.id == id },

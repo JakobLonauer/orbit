@@ -139,6 +139,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val ACTION_NOTE = "io.github.thelony97.orbit.NOTE"
         const val ACTION_MEETING = "io.github.thelony97.orbit.MEETING"
         const val ACTION_CALLBACK = "io.github.thelony97.orbit.CALLBACK"
+        const val ACTION_UNARCHIVE = "io.github.thelony97.orbit.UNARCHIVE"
         const val EXTRA_NAME = "name"
         const val EXTRA_NUMBER = "number"
         const val EXTRA_MINUTES = "minutes"
@@ -178,6 +179,25 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 CallbackWorker.schedule(context, name, number, intent.getStringExtra(EXTRA_CONTACT), minutes)
                 Notifications.cancel(context, Notifications.ID_CALLER)
                 android.widget.Toast.makeText(context, if (minutes >= 60) "Erinnerung in 1 Std" else "Erinnerung in $minutes Min", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            ACTION_UNARCHIVE -> {
+                val contactId = intent.getStringExtra(EXTRA_CONTACT) ?: return
+                val number = intent.getStringExtra(EXTRA_NUMBER)
+                runAsync(context) {
+                    OrbitRepository.update { d -> Mutations.unarchive(d, contactId) }
+                    OrbitRepository.flush()
+                    // Still ringing: the card stays, now without the archive hint.
+                    val card = number?.takeIf { Notifications.callerShown(context) }?.let { n ->
+                        val iso = io.github.thelony97.orbit.domain.Phones.countryIso(context)
+                        io.github.thelony97.orbit.store.CallerIndexFile.read(context)
+                            ?.lookup(n) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
+                    }
+                    if (card != null && !card.archived) Notifications.callerInfo(context, card, number)
+                    else Notifications.cancel(context, Notifications.ID_CALLER)
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        android.widget.Toast.makeText(context, "Zurückgeholt", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
             ACTION_MEETING -> {
                 val meetingId = intent.getStringExtra(EXTRA_MEETING) ?: return

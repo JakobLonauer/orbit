@@ -81,7 +81,8 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                         .maxByOrNull { it.entry.at }
                         ?.let { call ->
                             data.contacts.firstOrNull { it.id == call.contactId }?.let { contact ->
-                                Notifications.afterCall(applicationContext, contact, call.entry)
+                                // Archived (PLAN 3.11): the call lands silently in the Verlauf, no prompt.
+                                if (!contact.archived) Notifications.afterCall(applicationContext, contact, call.entry)
                                 prompted = true
                             }
                         }
@@ -158,7 +159,8 @@ class PhoneStateReceiver : BroadcastReceiver() {
                             OrbitRepository.init(context)
                             val data = OrbitRepository.ensureLoaded()
                             val contact = SyncEngine.contactFor(data, context, number)
-                            if (contact != null && data.settings.topicsDuringCall && stillRinging()) {
+                            // Archived contacts never show up in notifications (PLAN 3.11).
+                            if (contact != null && !contact.archived && contact.deletedAt == null && data.settings.topicsDuringCall && stillRinging()) {
                                 Notifications.topics(context, contact)
                             }
                             // Unknown number that called before (PLAN 3.12: „3 Anrufe …“).
