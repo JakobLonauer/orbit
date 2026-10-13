@@ -144,13 +144,14 @@ fun SpaceBackground(
 fun GlassCard(
     modifier: Modifier = Modifier,
     padding: Dp = 14.dp,
+    border: Color = Space.Line,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 4.dp)
-            .glass(RoundedCornerShape(20.dp))
+            .glass(RoundedCornerShape(20.dp), border = border)
             .padding(padding),
         content = content,
     )

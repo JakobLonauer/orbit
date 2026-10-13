@@ -93,6 +93,9 @@ import androidx.compose.ui.unit.sp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.core.domain.migration.MigrateV1
 import io.github.thelony97.orbit.core.model.OccasionKind
+import io.github.thelony97.orbit.core.model.CustomField
+import io.github.thelony97.orbit.core.model.Link as LinkTile
+import androidx.compose.material.icons.rounded.PushPin
 import io.github.thelony97.orbit.data.Anniversary
 import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Contact
@@ -143,6 +146,32 @@ private sealed interface Chooser {
     data object Mail : Chooser
 }
 
+private enum class NoteTarget { Notes, Pinned }
+
+/** One relation as seen from this contact: the other side and the label in this direction. */
+private data class RelView(val id: String, val other: Contact, val label: String)
+
+@Composable
+private fun RelationRow(r: RelView, idx: Index, lastFirst: Boolean, onOpen: () -> Unit, trailing: @Composable () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onOpen)
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Organisations keep their square tile (Avatar), people are round.
+        Avatar(r.other, contactColor(r.other, idx), 34.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(Logic.displayName(r.other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(r.label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+        }
+        trailing()
+    }
+}
+
 private sealed interface EntryTarget {
     data class New(val typeId: String) : EntryTarget
     data class Existing(val entry: Entry) : EntryTarget
@@ -178,6 +207,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var anniversaryDialog by remember { mutableStateOf(false) }
     var birthdayDialog by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
+    var linkDialog by remember { mutableStateOf(false) }
+    var fieldDialog by remember { mutableStateOf(false) }
+    var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
+    // Sections opened from the add row while still empty (topics, gifts).
+    var opened by remember { mutableStateOf(setOf<String>()) }
+    val gallery = rememberGalleryImport(c.id)
     var historyType by remember { mutableStateOf<String?>(null) }
     val historySearch = rememberTextFieldState()
 
@@ -302,8 +337,20 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             b.year?.let { y -> java.time.Period.between(DateMath.inYear(b, y), todayDate).years.takeIf { it in 0..130 } }
                         }?.let { "$it Jahre" }
                         val line = listOfNotNull(job.takeIf { it.isNotBlank() }, age).joinToString(" · ")
+                        // PLAN 3.3: the work field leads to the organisation when it is one of yours.
+                        val employer = remember(c.company, data.contacts) {
+                            if (c.isOrg || c.company.isBlank()) null
+                            else Logic.fold(c.company).let { key -> data.contacts.firstOrNull { it.isOrg && it.deletedAt == null && !it.archived && Logic.fold(it.company) == key } }
+                        }
                         if (line.isNotBlank()) {
-                            Text(line, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                line,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (employer != null) Space.Violet else Space.TextDim,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = if (employer != null) Modifier.clip(RoundedCornerShape(6.dp)).clickable { nav.open(Route.Detail(employer.id)) } else Modifier,
+                            )
                         }
                         val groups = c.groupIds.mapNotNull { idx.groups[it] }
                         if (groups.isNotEmpty() || c.archived || c.isOrg || c.isMe) {
@@ -402,23 +449,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 }
             }
 
-            // Topics
-            if (!c.isMe) item(key = "topics") {
-                SectionCard(title = "Nächstes Mal ansprechen", icon = Icons.Rounded.Checklist) {
-                    Checklist(
-                        items = c.topics,
-                        placeholder = "Thema hinzufügen",
-                        doneLabel = "erledigt",
-                        onAdd = { text -> edit { it.copy(topics = it.topics + CheckItem(newId(), text, createdAt = now())) } },
-                        onToggle = { item -> edit { it.copy(topics = it.topics.map { t -> if (t.id == item.id) t.copy(done = !t.done) else t }) } },
-                        onDelete = { item -> edit { it.copy(topics = it.topics.filterNot { t -> t.id == item.id }) } },
-                        onClearDone = { edit { it.copy(topics = it.topics.filterNot { t -> t.done }) } },
-                    )
-                }
-            }
-
-            // Contact details
-            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.website.isNotBlank()) {
+            // Contact details, links and own fields (PLAN 3.3)
+            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.links.isNotEmpty() || c.fields.isNotEmpty()) {
                 item(key = "contact") {
                     SectionCard(title = "Kontakt", icon = if (c.isOrg) Icons.Rounded.Business else Icons.Rounded.Person) {
                         c.phones.forEachIndexed { i, p ->
@@ -448,8 +480,20 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 },
                             )
                         }
-                        if (c.website.isNotBlank()) {
-                            InfoRow(label = "Webseite", value = c.website, onClick = { ContactActions.web(ctx, c.website) })
+                        c.links.forEach { l ->
+                            InfoRow(
+                                label = l.title.ifBlank { "Link" } + if (l.note.isNotBlank()) " · ${l.note}" else "",
+                                value = l.url.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/'),
+                                onClick = { ContactActions.web(ctx, l.url) },
+                            )
+                        }
+                        c.fields.forEach { f ->
+                            val label = f.label.ifBlank { "Feld" }
+                            InfoRow(
+                                label = label,
+                                value = f.value,
+                                trailing = { CopyButton(f.value, label) },
+                            )
                         }
                     }
                 }
@@ -462,12 +506,131 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 }
             }
 
-            // Dates
-            if (!c.isOrg) item(key = "dates") {
+            // Pinned note (also shown on incoming calls)
+            if (c.pinnedNote.isNotBlank()) item(key = "pinned") {
+                GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp, border = Space.Orange.copy(alpha = 0.45f)) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { noteDialog = NoteTarget.Pinned },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.PushPin, null, tint = Space.Orange, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(c.pinnedNote, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                    }
+                }
+            }
+
+            // Topics – only when there are some or "+ Thema" opened the section (W5)
+            if (!c.isMe && (c.topics.isNotEmpty() || "topics" in opened)) item(key = "topics") {
+                SectionCard(title = "Nächstes Mal ansprechen", icon = Icons.Rounded.Checklist) {
+                    Checklist(
+                        items = c.topics,
+                        placeholder = "Thema hinzufügen",
+                        doneLabel = "erledigt",
+                        onAdd = { text -> edit { it.copy(topics = it.topics + CheckItem(newId(), text, createdAt = now())) } },
+                        onToggle = { item -> edit { it.copy(topics = it.topics.map { t -> if (t.id == item.id) t.copy(done = !t.done) else t }) } },
+                        onDelete = { item -> edit { it.copy(topics = it.topics.filterNot { t -> t.id == item.id }) } },
+                        onClearDone = { edit { it.copy(topics = it.topics.filterNot { t -> t.done }) } },
+                        autoFocus = c.topics.isEmpty() && "topics" in opened,
+                    )
+                }
+            }
+
+            // About / notes – tap to edit right here
+            if (c.howWeMet.isNotBlank() || c.notes.isNotBlank()) {
+                item(key = "about") {
+                    SectionCard(title = if (c.isOrg) "Notizen" else "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
+                        if (c.howWeMet.isNotBlank()) InfoRow(label = "Wie kennengelernt", value = c.howWeMet)
+                        if (c.notes.isNotBlank()) InfoRow(label = "Notizen", value = c.notes, onClick = { noteDialog = NoteTarget.Notes })
+                    }
+                }
+            }
+
+            // Gifts
+            if (!c.isOrg && !c.isMe && (c.gifts.isNotEmpty() || "gifts" in opened)) item(key = "gifts") {
+                SectionCard(title = "Geschenkideen", icon = Icons.Rounded.CardGiftcard) {
+                    Checklist(
+                        items = c.gifts,
+                        placeholder = "Idee notieren",
+                        doneLabel = "verschenkt",
+                        onAdd = { text -> edit { it.copy(gifts = it.gifts + CheckItem(newId(), text, createdAt = now())) } },
+                        onToggle = { item -> edit { it.copy(gifts = it.gifts.map { g -> if (g.id == item.id) g.copy(done = !g.done) else g }) } },
+                        onDelete = { item -> edit { it.copy(gifts = it.gifts.filterNot { g -> g.id == item.id }) } },
+                        onClearDone = { edit { it.copy(gifts = it.gifts.filterNot { g -> g.done }) } },
+                        autoFocus = c.gifts.isEmpty() && "gifts" in opened,
+                    )
+                }
+            }
+
+            // Photo folder
+            if (c.gallery.isNotEmpty() || gallery.importing) item(key = "gallery") { GallerySection(c, gallery) }
+
+            // Archived people never show up in someone else's relations (PLAN 3.11).
+            val rels = data.relations.mapNotNull { r ->
+                val outgoing = r.fromId == c.id
+                val otherId = if (outgoing) r.toId else if (r.toId == c.id) r.fromId else return@mapNotNull null
+                val other = idx.contacts[otherId]?.takeIf { it.deletedAt == null && (c.archived || !it.archived) } ?: return@mapNotNull null
+                val kind = Defaults.relationKind(r.kind)
+                RelView(r.id, other, if (outgoing) kind.backward else kind.forward)
+            }
+            // Zuordnungen schlicht (PLAN 3.3): organisations as square tiles with a call button,
+            // kept apart from the human relations below. Full design comes with R4.
+            val orgRels = rels.filter { it.other.isOrg }
+            val humanRels = rels.filterNot { it.other.isOrg }
+            if (orgRels.isNotEmpty()) item(key = "orgs") {
+                SectionCard(title = "Organisationen", icon = Icons.Rounded.Business) {
+                    orgRels.forEach { r ->
+                        RelationRow(
+                            r, idx, lastFirst,
+                            onOpen = { nav.open(Route.Detail(r.other.id)) },
+                            trailing = {
+                                if (ContactActions.defaultNumber(r.other) != null) {
+                                    SmallIconAction(Icons.Rounded.Call, "${Logic.shortName(r.other)} anrufen") {
+                                        ContactActions.call(ctx, r.other, null, data.settings)
+                                    }
+                                }
+                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
+                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+            if (humanRels.isNotEmpty()) item(key = "relations") {
                 SectionCard(
-                    title = "Geburtstag & Jahrestage",
+                    title = "Beziehungen",
+                    icon = Icons.Rounded.Link,
+                    action = {
+                        Row {
+                            SmallIconAction(Icons.Rounded.Hub, "Im Netz zeigen") {
+                                Session.networkRoot = if (c.isMe) null else c.id
+                                nav.home(2)
+                            }
+                            SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true }
+                        }
+                    },
+                ) {
+                    humanRels.forEach { r ->
+                        RelationRow(
+                            r, idx, lastFirst,
+                            onOpen = { nav.open(Route.Detail(r.other.id)) },
+                            trailing = {
+                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
+                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+            // Anlässe (birthday and the others), soonest first; hidden while there are none.
+            if (c.dates.isNotEmpty()) item(key = "dates") {
+                SectionCard(
+                    title = "Anlässe",
                     icon = Icons.Rounded.Cake,
-                    action = { SmallIconAction(Icons.Rounded.Add, "Jahrestag hinzufügen") { anniversaryDialog = true } },
+                    action = { SmallIconAction(Icons.Rounded.Add, "Anlass hinzufügen") { anniversaryDialog = true } },
                 ) {
                     val b = c.birthday
                     if (b != null) {
@@ -478,8 +641,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             value = Fmt.dayOfYear(b),
                             onClick = { birthdayDialog = true },
                         )
-                    } else {
-                        InfoRow(label = "hinzufügen", value = "Geburtstag", onClick = { birthdayDialog = true })
                     }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
@@ -497,97 +658,21 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 }
             }
 
-            // Relations
-            item(key = "relations") {
-                // Archived people never show up in someone else's relations (PLAN 3.11).
-                val rels = data.relations.filter { r ->
-                    val other = if (r.fromId == c.id) r.toId else if (r.toId == c.id) r.fromId else null
-                    other != null && (c.archived || idx.contacts[other]?.archived != true)
-                }
-                SectionCard(
-                    title = "Beziehungen",
-                    icon = Icons.Rounded.Link,
-                    action = {
-                        Row {
-                            if (rels.isNotEmpty()) {
-                                SmallIconAction(Icons.Rounded.Hub, "Im Netz zeigen") {
-                                    Session.networkRoot = if (c.isMe) null else c.id
-                                    nav.home(2)
-                                }
-                            }
-                            SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true }
-                        }
+            // "+ Anlass · + Link · + Foto · + Notiz" – only for what the page does not show yet.
+            item(key = "add") {
+                AddRow(
+                    buildList {
+                        if (c.dates.isEmpty()) add(AddItem("Anlass") { anniversaryDialog = true })
+                        add(AddItem("Link") { linkDialog = true })
+                        if (c.gallery.isEmpty() && !gallery.importing) add(AddItem("Foto") { gallery.launch() })
+                        if (c.notes.isBlank()) add(AddItem("Notiz") { noteDialog = NoteTarget.Notes })
+                        if (!c.isMe && c.topics.isEmpty() && "topics" !in opened) add(AddItem("Thema") { opened = opened + "topics" })
+                        if (humanRels.isEmpty()) add(AddItem("Beziehung") { relationDialog = true })
+                        if (!c.isOrg && !c.isMe && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
+                        add(AddItem("Feld") { fieldDialog = true })
                     },
-                ) {
-                    if (rels.isEmpty()) {
-                        Text(
-                            "Keine Beziehungen",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Space.TextFaint,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
-                    }
-                    rels.forEach { r ->
-                        val outgoing = r.fromId == c.id
-                        val other = idx.contacts[if (outgoing) r.toId else r.fromId]
-                        if (other != null && other.deletedAt == null) {
-                            val kind = Defaults.relationKind(r.kind)
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { nav.open(Route.Detail(other.id)) }
-                                    .padding(vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Avatar(other, contactColor(other, idx), 30.dp)
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(Logic.displayName(other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text)
-                                        if (other.isOrg) {
-                                            Spacer(Modifier.width(5.dp))
-                                            KindMark(other, size = 12.dp)
-                                        }
-                                    }
-                                    Text(if (outgoing) kind.backward else kind.forward, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
-                                }
-                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
-                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
-                                }
-                            }
-                        }
-                    }
-                }
+                )
             }
-
-            // Gifts
-            if (!c.isOrg && !c.isMe) item(key = "gifts") {
-                SectionCard(title = "Geschenkideen", icon = Icons.Rounded.CardGiftcard) {
-                    Checklist(
-                        items = c.gifts,
-                        placeholder = "Idee notieren",
-                        doneLabel = "verschenkt",
-                        onAdd = { text -> edit { it.copy(gifts = it.gifts + CheckItem(newId(), text, createdAt = now())) } },
-                        onToggle = { item -> edit { it.copy(gifts = it.gifts.map { g -> if (g.id == item.id) g.copy(done = !g.done) else g }) } },
-                        onDelete = { item -> edit { it.copy(gifts = it.gifts.filterNot { g -> g.id == item.id }) } },
-                        onClearDone = { edit { it.copy(gifts = it.gifts.filterNot { g -> g.done }) } },
-                    )
-                }
-            }
-
-            // About
-            if (c.howWeMet.isNotBlank() || c.notes.isNotBlank()) {
-                item(key = "about") {
-                    SectionCard(title = if (c.isOrg) "Notizen" else "Über ${c.firstName.ifBlank { "diese Person" }}", icon = Icons.AutoMirrored.Rounded.Notes) {
-                        if (c.howWeMet.isNotBlank()) InfoRow(label = "Wie kennengelernt", value = c.howWeMet)
-                        if (c.notes.isNotBlank()) InfoRow(label = "Notizen", value = c.notes)
-                    }
-                }
-            }
-
-            // Photo folder
-            item(key = "gallery") { GallerySection(c) }
 
             // History
             if (!c.isMe) item(key = "history-header") {
@@ -755,11 +840,43 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     if (anniversaryDialog) {
         AnniversaryDialog(
             onDismiss = { anniversaryDialog = false },
+            allowBirthday = !c.isOrg && c.birthday == null,
             onPick = { label, date ->
+                if (!c.isOrg && c.birthday == null && label.trim().equals("Geburtstag", ignoreCase = true)) {
+                    edit { it.withBirthday(date, ::newId) }
+                    return@AnniversaryDialog
+                }
                 val kind = MigrateV1.kindFor(label)
                 val occasion = Anniversary(newId(), kind, label = if (label.trim().equals(kind.label, ignoreCase = true)) "" else label.trim(), date = date)
                 edit { it.copy(dates = it.dates + occasion) }
             },
+        )
+    }
+
+    if (linkDialog) {
+        LinkDialog(
+            onDismiss = { linkDialog = false },
+            onSave = { title, url ->
+                val full = if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
+                edit { it.copy(links = it.links + LinkTile(newId(), title, full)) }
+            },
+        )
+    }
+
+    if (fieldDialog) {
+        FieldDialog(
+            suggestions = if (c.isOrg) listOf("Kundennummer", "Vertragsnummer", "Mitgliedsnummer") else listOf("Kundennummer", "Versicherungsnummer", "Matrikelnummer"),
+            onDismiss = { fieldDialog = false },
+            onSave = { label, value -> edit { it.copy(fields = it.fields + CustomField(newId(), label, value)) } },
+        )
+    }
+
+    noteDialog?.let { target ->
+        NoteDialog(
+            title = if (target == NoteTarget.Pinned) "Angepinnt" else "Notiz",
+            initial = if (target == NoteTarget.Pinned) c.pinnedNote else c.notes,
+            onDismiss = { noteDialog = null },
+            onSave = { text -> edit { if (target == NoteTarget.Pinned) it.copy(pinnedNote = text) else it.copy(notes = text) } },
         )
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,8 +86,17 @@ fun Checklist(
     onToggle: (CheckItem) -> Unit,
     onDelete: (CheckItem) -> Unit,
     onClearDone: () -> Unit,
+    autoFocus: Boolean = false,
 ) {
     val input = rememberTextFieldState()
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    // Opened from "+ Thema" / "+ Geschenkidee": straight into typing.
+    androidx.compose.runtime.LaunchedEffect(autoFocus) {
+        if (autoFocus) {
+            androidx.compose.runtime.withFrameNanos { }
+            runCatching { focus.requestFocus() }
+        }
+    }
     var showDone by remember { mutableStateOf(false) }
     val open = items.filterNot { it.done }
     val done = items.filter { it.done }
@@ -104,7 +114,7 @@ fun Checklist(
             placeholder = placeholder,
             leading = Icons.Rounded.Add,
             onSubmit = { submit() },
-            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp).focusRequester(focus),
             trailing = if (input.text.isNotBlank()) {
                 {
                     Text(

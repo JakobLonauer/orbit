@@ -138,6 +138,30 @@ class ScreensScreenshotTest {
         shot("detail_long") { ContactDetailScreen("long", long, Index(long), nav) }
     }
 
+    /** The whole contact page in PLAN 3.3 order: fields with copy, links, pinned note, organisations apart from people, add row. */
+    @Config(qualifiers = "w411dp-h2400dp-xxhdpi")
+    @Test fun fullDetail() {
+        val kathi = Contact(
+            "kathi", firstName = "Katharina", lastName = "Leitner", position = "Projektleitung", company = "JKU Linz",
+            phones = listOf(LabeledValue("Mobil", "+43 676 5550123")),
+            emails = listOf(LabeledValue("Privat", "kathi@example.at")),
+            links = listOf(io.github.thelony97.orbit.core.model.Link("l1", "Portfolio", "https://kathi.example.at")),
+            fields = listOf(io.github.thelony97.orbit.core.model.CustomField("f1", "Kundennummer", "KD-48213")),
+            pinnedNote = "Lieber per SMS als anrufen",
+            notes = "Lernt Japanisch, will 2027 nach Kyoto.",
+            topics = listOf(CheckItem("kt1", "Wie war die Präsentation?")),
+            entries = listOf(e("ka1", TypeIds.CALL, 1, sec = 300, incoming = true), e("ka2", TypeIds.MEET, 12, "Mittagessen Mensa")),
+        ).withBirthday(inDays(40)) { "bd-kathi" }
+        val full = data.copy(
+            contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468"))),
+            relations = listOf(
+                io.github.thelony97.orbit.data.Relation("r1", "kathi", "arzt", "patient"),
+                io.github.thelony97.orbit.data.Relation("r2", "kathi", "anna", "friend"),
+            ),
+        )
+        shot("detail_full") { ContactDetailScreen("kathi", full, Index(full), nav) }
+    }
+
     /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */
     @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
 

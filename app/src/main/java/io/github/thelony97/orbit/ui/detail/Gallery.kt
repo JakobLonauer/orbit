@@ -133,25 +133,45 @@ object GalleryStore {
     }
 }
 
+/** Photo import for one contact; remembered at screen level so "+ Foto" works with no section. */
+@androidx.compose.runtime.Stable
+class GalleryImport(private val running: androidx.compose.runtime.State<Boolean>, private val start: () -> Unit) {
+    val importing: Boolean get() = running.value
+
+    fun launch() = start()
+}
+
 @Composable
-fun GallerySection(contact: Contact) {
+fun rememberGalleryImport(contactId: String): GalleryImport {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var viewer by remember { mutableStateOf<Int?>(null) }
-    var importing by remember { mutableStateOf(false) }
+    val running = remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
         if (uris.isNotEmpty()) {
-            importing = true
+            running.value = true
             scope.launch {
                 // Finish even if the user leaves the screen meanwhile, otherwise the copied files would be orphaned.
                 withContext(NonCancellable) {
                     val added = GalleryStore.import(ctx.applicationContext, uris)
-                    OrbitRepository.editContact(contact.id) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contact.id) } + it.gallery) }
+                    OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
                 }
-                importing = false
+                running.value = false
             }
         }
     }
+    return remember(contactId, picker) {
+        GalleryImport(running) {
+            AppLock.allowExternal()
+            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+    }
+}
+
+/** The photo folder; only composed when there are photos or an import is running (W5). */
+@Composable
+fun GallerySection(contact: Contact, import: GalleryImport) {
+    var viewer by remember { mutableStateOf<Int?>(null) }
+    val importing = import.importing
     val photos = contact.gallery
 
     SectionCard(
@@ -164,22 +184,11 @@ fun GallerySection(contact: Contact) {
                 modifier = Modifier
                     .size(28.dp)
                     .clip(RoundedCornerShape(50))
-                    .clickable {
-                        AppLock.allowExternal()
-                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }
+                    .clickable { import.launch() }
                     .padding(5.dp),
             )
         },
     ) {
-        if (photos.isEmpty() && !importing) {
-            Text(
-                "Noch keine Fotos",
-                style = MaterialTheme.typography.bodySmall,
-                color = Space.TextFaint,
-                modifier = Modifier.padding(vertical = 4.dp),
-            )
-        }
         if (importing) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                 LoadingIndicator(Modifier.size(28.dp), color = Space.Violet)

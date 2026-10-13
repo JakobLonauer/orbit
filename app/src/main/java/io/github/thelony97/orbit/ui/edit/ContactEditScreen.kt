@@ -69,6 +69,8 @@ import io.github.thelony97.orbit.data.ContactKind
 import io.github.thelony97.orbit.ui.components.orgIcon
 import io.github.thelony97.orbit.data.Defaults
 import io.github.thelony97.orbit.data.LabeledValue
+import io.github.thelony97.orbit.core.model.CustomField
+import io.github.thelony97.orbit.core.model.Link
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
@@ -102,6 +104,12 @@ private class ValueRow(label: String, value: String) {
     val state = TextFieldState(value)
 }
 
+/** Two free-text halves (link title + address, field label + value) of one editable row. */
+private class PairRow(val id: String, first: String, second: String) {
+    val first = TextFieldState(first)
+    val second = TextFieldState(second)
+}
+
 @Composable
 fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index, nav: Nav) {
     val ctx = LocalContext.current
@@ -120,7 +128,9 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val address = remember { TextFieldState(original.address) }
     val howWeMet = remember { TextFieldState(original.howWeMet) }
     val notes = remember { TextFieldState(original.notes) }
-    val website = remember { TextFieldState(original.website) }
+    val pinnedNote = remember { TextFieldState(original.pinnedNote) }
+    val links = remember { mutableStateListOf<PairRow>().apply { original.links.forEach { add(PairRow(it.id, it.title, it.url)) } } }
+    val fields = remember { mutableStateListOf<PairRow>().apply { original.fields.forEach { add(PairRow(it.id, it.label, it.value)) } } }
     var kind by remember { mutableStateOf(original.kind) }
     var orgCategory by remember { mutableStateOf(original.orgCategory ?: Defaults.orgCategories.first().key) }
     val isOrg = kind == ContactKind.ORG
@@ -156,6 +166,18 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             position = position.text.toString().trim(),
             howWeMet = howWeMet.text.toString().trim(),
             notes = notes.text.toString().trim(),
+            pinnedNote = pinnedNote.text.toString().trim(),
+            // Rows keep their id, so note, logo and "open with" of a link survive editing.
+            links = links.mapNotNull { row ->
+                val url = row.second.text.toString().trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                val full = if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
+                val title = row.first.text.toString().trim()
+                original.links.firstOrNull { it.id == row.id }?.copy(title = title, url = full) ?: Link(row.id, title, full)
+            },
+            fields = fields.mapNotNull { row ->
+                val value = row.second.text.toString().trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                CustomField(row.id, row.first.text.toString().trim(), value)
+            },
             phones = phoneValues,
             defaultPhone = defaultPhone.coerceIn(0, (phoneValues.size - 1).coerceAtLeast(0)),
             emails = emailValues,
@@ -164,7 +186,6 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             photo = photo,
         )
             .withAddress(address.text.toString())
-            .withWebsite(website.text.toString(), ::newId)
             .withBirthday(birthday, ::newId)
     }
 
@@ -300,13 +321,6 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                                 kind = ContactKind.ORG
                             }, leading = Icons.Rounded.Business, accent = Space.Blue)
                         }
-                        Text(
-                            if (isOrg) "Firma, Praxis, Krankenhaus, Amt … – taucht nur auf, wenn du Organisationen im Filter einblendest."
-                            else "Ein echter Mensch aus deinem Leben.",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Space.TextFaint,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
                         if (isOrg) {
                             Spacer(Modifier.size(10.dp))
                             SectionTitle("Kategorie")
@@ -338,11 +352,26 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("Adresse")
                     SpaceField(address, "", singleLine = false, placeholder = "Straße, PLZ Ort", keyboardOptions = caps)
-                    if (isOrg) {
-                        Spacer(Modifier.size(8.dp))
-                        SectionTitle("Webseite")
-                        SpaceField(website, "", placeholder = "www.beispiel.at", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
-                    }
+                    Spacer(Modifier.size(8.dp))
+                    SectionTitle("Links")
+                    PairList(
+                        links, "Titel", "www.beispiel.at", "Link hinzufügen",
+                        firstWeight = 0.4f,
+                        secondKeyboard = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        suggestions = emptyList(),
+                    )
+                }
+
+                // PLAN 3.3: Kundennummer, Versicherungsnummer, Matrikelnummer … each copyable on the page.
+                GlassCard {
+                    SectionTitle("Eigene Felder")
+                    PairList(
+                        fields, "Bezeichnung", "Wert", "Feld hinzufügen",
+                        firstWeight = 0.45f,
+                        secondKeyboard = KeyboardOptions.Default,
+                        suggestions = if (isOrg) listOf("Kundennummer", "Vertragsnummer", "Mitgliedsnummer")
+                        else listOf("Kundennummer", "Versicherungsnummer", "Matrikelnummer"),
+                    )
                 }
 
                 GlassCard {
@@ -375,11 +404,15 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
                 GlassCard {
                     SectionTitle(if (isOrg) "Notizen" else "Über")
+                    if (!isMe) {
+                        SpaceField(pinnedNote, "Angepinnt", placeholder = "", keyboardOptions = caps)
+                        Spacer(Modifier.size(8.dp))
+                    }
                     if (!isOrg && !isMe) {
                         SpaceField(howWeMet, "Wie kennengelernt", singleLine = false, keyboardOptions = caps)
                         Spacer(Modifier.size(8.dp))
                     }
-                    SpaceField(notes, if (isOrg) "" else "Notizen", singleLine = false, keyboardOptions = caps, placeholder = if (isOrg) "Öffnungszeiten, Kundennummer, Ansprechpartner …" else "")
+                    SpaceField(notes, if (isOrg) "" else "Notizen", singleLine = false, keyboardOptions = caps, placeholder = "")
                     if (!isMe) Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = Space.Orange, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
@@ -464,5 +497,39 @@ private fun ValueList(
             }
         }
         SpaceChip(addLabel, false, { rows.add(ValueRow(labels.first(), "")) }, leading = Icons.Rounded.Add)
+    }
+}
+
+/** Rows of two free-text fields; empty rows are dropped on save. Suggestions fill the first half. */
+@Composable
+private fun PairList(
+    rows: SnapshotStateList<PairRow>,
+    firstHint: String,
+    secondHint: String,
+    addLabel: String,
+    firstWeight: Float,
+    secondKeyboard: KeyboardOptions,
+    suggestions: List<String>,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        rows.forEachIndexed { i, row ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SpaceField(row.first, "", Modifier.weight(firstWeight), placeholder = firstHint, keyboardOptions = caps)
+                Spacer(Modifier.width(6.dp))
+                SpaceField(row.second, "", Modifier.weight(1f - firstWeight), placeholder = secondHint, keyboardOptions = secondKeyboard)
+                Icon(
+                    Icons.Rounded.Close, "Entfernen",
+                    tint = Space.TextFaint,
+                    modifier = Modifier.size(32.dp).clip(CircleShape).clickable { rows.removeAt(i) }.padding(7.dp),
+                )
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SpaceChip(addLabel, false, { rows.add(PairRow(newId(), "", "")) }, leading = Icons.Rounded.Add)
+            // Suggestions only while nothing is entered yet (W5: no clutter once used).
+            if (rows.isEmpty()) suggestions.forEach { s ->
+                SpaceChip(s, false, { rows.add(PairRow(newId(), s, "")) })
+            }
+        }
     }
 }

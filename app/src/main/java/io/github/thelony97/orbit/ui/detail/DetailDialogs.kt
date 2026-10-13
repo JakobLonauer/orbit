@@ -208,25 +208,24 @@ fun RelationDialog(
 }
 
 @Composable
-fun AnniversaryDialog(onDismiss: () -> Unit, onPick: (String, DayOfYear) -> Unit) {
+fun AnniversaryDialog(onDismiss: () -> Unit, allowBirthday: Boolean = false, onPick: (String, DayOfYear) -> Unit) {
     val label = rememberTextFieldState()
     var date by remember { mutableStateOf<DayOfYear?>(null) }
     var pickDate by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Jahrestag hinzufügen") },
+        title = { Text("Anlass") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     state = label,
                     label = { Text("Bezeichnung") },
-                    placeholder = { Text("z. B. Hochzeitstag, Namenstag") },
                     lineLimits = TextFieldLineLimits.SingleLine,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Hochzeitstag", "Namenstag", "Jahrestag", "Kennenlerntag").forEach { s ->
+                    (listOfNotNull("Geburtstag".takeIf { allowBirthday }) + listOf("Hochzeitstag", "Namenstag", "Jahrestag", "Kennenlerntag", "Gedenktag")).forEach { s ->
                         AssistChip(onClick = {
                             label.edit { replace(0, length, s) }
                         }, label = { Text(s) })
