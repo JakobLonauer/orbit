@@ -316,7 +316,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
 
         item(key = "calls") {
             SettingsGroup("Mitschreiben", status = "Anrufe ab ${s.minCallSeconds} s · ${mailAccounts.size} Mail-Konten") {
-                SettingItem(Icons.Rounded.Timer, "Anruf zählt ab", "kürzere Anrufe landen nicht im Verlauf", iconTint = Space.Teal)
+                SettingItem(Icons.Rounded.Timer, "Anruf zählt ab", iconTint = Space.Teal)
                 FlowRow(
                     Modifier.padding(start = 56.dp, end = 14.dp, bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -332,7 +332,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     trailing = { SpaceSwitch(s.suggestUnknown) { v -> OrbitRepository.editSettings { it.copy(suggestUnknown = v) } } },
                 )
                 Hairline()
-                SettingItem(Icons.Rounded.Sync, "Jetzt abgleichen", "Anrufliste und SMS neu einlesen", iconTint = Space.Teal, onClick = {
+                SettingItem(Icons.Rounded.Sync, "Jetzt abgleichen", iconTint = Space.Teal, onClick = {
                     Sync.requestNow(ctx)
                     toast("Abgleich läuft")
                 })
@@ -348,7 +348,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                 SettingItem(
                     Icons.Rounded.Email, "E-Mail-Konten",
                     when (mailAccounts.size) {
-                        0 -> "verbinden, um Mails im Kontakt zu sehen"
+                        0 -> "keine"
                         1 -> mailAccounts.first().email + if (mailAccounts.first().lastError != null) " · Fehler" else ""
                         else -> "${mailAccounts.size} Konten verbunden" + if (mailAccounts.any { it.lastError != null }) " · Fehler" else ""
                     },
