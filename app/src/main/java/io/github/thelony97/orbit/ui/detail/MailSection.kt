@@ -1,7 +1,9 @@
 package io.github.thelony97.orbit.ui.detail
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -101,7 +103,9 @@ fun MailSection(contact: Contact) {
     ) {
         val r: MailResult? = result
         if (r == null) {
-            LinearWavyProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp), color = Space.Violet, trackColor = Space.PanelHighest)
+            // The rows the mailbox is about to fill, in their final shape (PLAN 1.2).
+            val breath = io.github.thelony97.orbit.ui.components.rememberBreath()
+            listOf(0.7f, 0.5f, 0.62f).forEach { w -> io.github.thelony97.orbit.ui.components.MailRowPlaceholder(breath, w) }
             return@SectionCard
         }
         r.errors.forEach { e ->
@@ -190,7 +194,14 @@ private fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 when {
                     error != null -> Text(error!!, style = MaterialTheme.typography.bodySmall, color = Space.Coral)
-                    text == null -> LoadingIndicator(Modifier.size(40.dp), color = Space.Violet)
+                    text == null -> {
+                        val breath = io.github.thelony97.orbit.ui.components.rememberBreath()
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1f, 0.92f, 0.97f, 0.6f, 0f, 0.85f, 0.4f).forEach { w ->
+                                if (w == 0f) Spacer(Modifier.height(6.dp)) else io.github.thelony97.orbit.ui.components.PlaceholderLine(breath, w, 11.dp)
+                            }
+                        }
+                    }
                     else -> SelectionContainer { Text(text!!, style = MaterialTheme.typography.bodySmall, color = Space.Text) }
                 }
             }

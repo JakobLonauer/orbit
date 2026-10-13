@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -67,8 +68,9 @@ fun OrbitRoot(activity: FragmentActivity) {
     Box(Modifier.fillMaxSize().background(Space.Void)) {
         when {
             failed != null -> LoadErrorScreen(failed)
-            current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                LoadingIndicator(modifier = Modifier.size(56.dp), color = Space.Violet)
+            // While the file loads: the list in its final shape, no spinner (PLAN 1.2).
+            current == null -> Box(Modifier.fillMaxSize().statusBarsPadding()) {
+                io.github.thelony97.orbit.ui.components.ListPlaceholder()
             }
             !current.settings.onboardingDone -> OnboardingScreen(current)
             else -> MainNavigation(current)

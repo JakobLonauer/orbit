@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import io.github.thelony97.orbit.ui.components.placeholder
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -127,6 +128,9 @@ object GalleryStore {
         decode(file, 320)?.asImageBitmap()?.also { thumbs.put(name, it) }
     }
 
+    /** The already decoded small version, if any – the viewer shows it until the sharp one is ready. */
+    fun cachedThumb(name: String): ImageBitmap? = thumbs.get(name)
+
     suspend fun full(name: String): ImageBitmap? = withContext(Dispatchers.IO) {
         val file = OrbitRepository.photoFile(name)
         if (!file.exists()) null else decode(file, 1600)?.asImageBitmap()
@@ -135,8 +139,10 @@ object GalleryStore {
 
 /** Photo import for one contact; remembered at screen level so "+ Foto" works with no section. */
 @androidx.compose.runtime.Stable
-class GalleryImport(private val running: androidx.compose.runtime.State<Boolean>, private val start: () -> Unit) {
-    val importing: Boolean get() = running.value
+class GalleryImport(private val running: androidx.compose.runtime.State<Int>, private val start: () -> Unit) {
+    val importing: Boolean get() = running.value > 0
+    /** Pictures still being copied (placeholders in their final place). */
+    val pending: Int get() = running.value
 
     fun launch() = start()
 }
@@ -145,17 +151,17 @@ class GalleryImport(private val running: androidx.compose.runtime.State<Boolean>
 fun rememberGalleryImport(contactId: String): GalleryImport {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    val running = remember { mutableStateOf(false) }
+    val running = remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
         if (uris.isNotEmpty()) {
-            running.value = true
+            running.intValue = uris.size
             scope.launch {
                 // Finish even if the user leaves the screen meanwhile, otherwise the copied files would be orphaned.
                 withContext(NonCancellable) {
                     val added = GalleryStore.import(ctx.applicationContext, uris)
                     OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
                 }
-                running.value = false
+                running.intValue = 0
             }
         }
     }
@@ -190,10 +196,15 @@ fun GallerySection(contact: Contact, import: GalleryImport) {
         },
     ) {
         if (importing) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                LoadingIndicator(Modifier.size(28.dp), color = Space.Violet)
-                Spacer(Modifier.width(8.dp))
-                Text("Fotos werden übernommen …", style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
+            // New pictures appear as tiles in their final place while they are copied (PLAN 1.2).
+            val breath = io.github.thelony97.orbit.ui.components.rememberBreath()
+            List(import.pending.coerceAtMost(9)) { it }.chunked(3).forEach { chunk ->
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    chunk.forEach { _ ->
+                        Box(Modifier.weight(1f).aspectRatio(1f).placeholder(breath, RoundedCornerShape(12.dp)))
+                    }
+                    repeat(3 - chunk.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
         val shown = photos.take(9)
@@ -299,7 +310,7 @@ private fun GalleryViewer(contact: Contact, start: Int, onDismiss: () -> Unit) {
 
 @Composable
 private fun ZoomableImage(name: String) {
-    val bitmap by produceState<ImageBitmap?>(null, name) { value = GalleryStore.full(name) }
+    val bitmap by produceState(GalleryStore.cachedThumb(name), name) { GalleryStore.full(name)?.let { value = it } }
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     Box(
@@ -340,10 +351,9 @@ private fun ZoomableImage(name: String) {
             ),
         contentAlignment = Alignment.Center,
     ) {
+        // Until the sharp picture is decoded, the small one stands in at the same size.
         val b = bitmap
-        if (b == null) {
-            LoadingIndicator(Modifier.size(48.dp), color = Space.Violet)
-        } else {
+        if (b != null) {
             Image(
                 b, null,
                 contentScale = ContentScale.Fit,
