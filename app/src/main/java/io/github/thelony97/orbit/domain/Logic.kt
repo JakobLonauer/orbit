@@ -138,7 +138,9 @@ object Logic {
             c.topics.forEach { append(it.text).append(' ') }
             c.gifts.forEach { append(it.text).append(' ') }
             c.anniversaries.forEach { append(it.title).append(' ') }
+            // Talks with hidden org members never show up in search (PLAN 3.6).
             c.entries.forEach { e ->
+                if (e.memberId != null) return@forEach
                 append(e.note).append(' ')
                 e.messages.forEach { m -> append(m.text).append(' ') }
             }

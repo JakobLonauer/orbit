@@ -72,6 +72,11 @@ class MainActivity : FragmentActivity() {
         if (OrbitRepository.data.value?.settings?.onboardingDone == true) Sync.requestNow(this)
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppLock.onResume()
+    }
+
     override fun onStop() {
         super.onStop()
         val settings = OrbitRepository.data.value?.settings

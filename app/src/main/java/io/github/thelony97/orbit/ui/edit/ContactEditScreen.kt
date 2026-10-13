@@ -120,6 +120,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             ?: Contact(id = newId())
     }
     val isNew = id == null
+    // The page edits a copy taken now; an undo tapped afterwards would be overwritten by Save.
+    androidx.compose.runtime.LaunchedEffect(Unit) { io.github.thelony97.orbit.ui.components.Undo.clear() }
 
     val first = remember { TextFieldState(original.firstName) }
     val last = remember { TextFieldState(original.lastName) }

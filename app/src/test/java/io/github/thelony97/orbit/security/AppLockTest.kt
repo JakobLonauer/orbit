@@ -48,6 +48,24 @@ class AppLockTest {
         AppLock.onStart()
     }
 
+    @Test fun ownPickerOrShareSheetLocksAfterALongTrip() {
+        AppLock.unlock()
+        AppLock.allowExternal()
+        AppLock.onStop(changingConfigurations = false, lockEnabled = true, delaySeconds = 0)
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(6))
+        AppLock.onStart()
+        assertTrue(AppLock.locked.value)
+    }
+
+    @Test fun shareSheetCancelledThenHomeLocks() {
+        // See-through share sheet: Orbit resumes without a stop, the next leave counts again.
+        AppLock.unlock()
+        AppLock.allowExternal()
+        AppLock.onResume()
+        AppLock.onStop(changingConfigurations = false, lockEnabled = true, delaySeconds = 0)
+        assertTrue(AppLock.locked.value)
+    }
+
     @Test fun disabledLockNeverLocks() {
         leaveAndReturn(0, Duration.ofMinutes(10))
         // delay 0 locks in onStop already; with the lock switched off nothing happens.

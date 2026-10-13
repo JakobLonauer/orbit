@@ -18,7 +18,8 @@ fun matchSentence(c: Contact, query: String, before: Int = 24, after: Int = 44):
         yield(c.notes); yield(c.pinnedNote); yield(c.howWeMet); yield(c.position)
         c.topics.forEach { yield(it.text) }
         c.gifts.forEach { yield(it.text) }
-        c.entries.forEach { e ->
+        // Never the content of talks with hidden org members (PLAN 3.6).
+        c.entries.filter { it.memberId == null }.forEach { e ->
             yield(e.note)
             e.messages.forEach { yield(it.text) }
         }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 object AppLock {
 
     private val AUTHENTICATORS = BIOMETRIC_WEAK or DEVICE_CREDENTIAL
+    private const val EXTERNAL_GRACE_SECONDS = 300
 
     private val _locked = MutableStateFlow(true)
     val locked: StateFlow<Boolean> = _locked.asStateFlow()
@@ -37,6 +38,11 @@ object AppLock {
     @Volatile private var awaySince = 0L
     @Volatile private var delayMs = 0L
 
+    /** See-through share sheets never stop Orbit; back on screen, the next leave counts again. */
+    fun onResume() {
+        externalFlow = false
+    }
+
     fun onStart() {
         externalFlow = false
         val since = awaySince
@@ -46,7 +52,14 @@ object AppLock {
 
     /** [delaySeconds] 0 locks at once, so the recent-apps preview already shows the lock. */
     fun onStop(changingConfigurations: Boolean, lockEnabled: Boolean, delaySeconds: Int = 0) {
-        if (!lockEnabled || changingConfigurations || externalFlow || prompting) return
+        if (!lockEnabled || changingConfigurations || prompting) return
+        if (externalFlow) {
+            // A picker or share sheet Orbit opened itself: no lock for a short trip, but coming
+            // back much later (or never returning from a see-through share sheet) still locks.
+            delayMs = maxOf(delaySeconds, EXTERNAL_GRACE_SECONDS) * 1000L
+            awaySince = android.os.SystemClock.elapsedRealtime()
+            return
+        }
         if (delaySeconds <= 0) {
             _locked.value = true
             return

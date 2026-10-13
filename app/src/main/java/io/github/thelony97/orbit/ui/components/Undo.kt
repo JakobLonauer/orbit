@@ -55,6 +55,11 @@ object Undo {
         _current.value = Offer(text, undo)
     }
 
+    /** Drops any pending offer, e.g. when the edit page opens with a copy that would undo the undo. */
+    fun clear() {
+        _current.value = null
+    }
+
     fun dismiss(offer: Offer) {
         if (_current.value?.id == offer.id) _current.value = null
     }

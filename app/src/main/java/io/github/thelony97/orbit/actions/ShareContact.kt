@@ -24,8 +24,9 @@ object ShareContact {
         if (contacts.isEmpty()) return
         try {
             val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
-            // Only the latest shared card stays in the cache.
-            dir.listFiles()?.forEach { it.delete() }
+            // Old shared cards are cleaned up; recent ones stay until the receiving app has read them.
+            val cutoff = System.currentTimeMillis() - 10 * 60_000L
+            dir.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.delete() }
             val name = if (contacts.size == 1) VCard.fileName(contacts.first()) else "Orbit-${contacts.size}-Kontakte.vcf"
             val file = File(dir, name).apply { writeText(contacts.joinToString("") { VCard.of(it) }) }
             val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".share", file)
