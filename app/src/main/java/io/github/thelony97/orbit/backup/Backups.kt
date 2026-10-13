@@ -8,6 +8,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.thelony97.orbit.core.domain.BackupCrypto
 import io.github.thelony97.orbit.core.domain.migration.MigrateV1
 import io.github.thelony97.orbit.core.model.Attachment
 import io.github.thelony97.orbit.core.model.HistoryEntry
@@ -23,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -54,7 +57,22 @@ object Backups {
 
     fun fileName(): String = "$PREFIX${today()}.zip"
 
-    suspend fun writeZip(out: OutputStream) = withContext(Dispatchers.IO) {
+    /** A backup is encrypted with the stored key once a password is set (PLAN 4). */
+    class NeedsPassword : Exception("Diese Sicherung ist verschlüsselt.")
+
+    suspend fun writeZip(ctx: Context, out: OutputStream) = withContext(Dispatchers.IO) {
+        val key = BackupKey.load(ctx)
+        if (key == null) {
+            zipTo(out)
+        } else {
+            // GCM needs the whole plaintext; backups are a few MB of JSON plus resized photos.
+            val plain = ByteArrayOutputStream().also { zipTo(it) }.toByteArray()
+            out.write(BackupCrypto.encrypt(plain, key))
+            out.flush()
+        }
+    }
+
+    private suspend fun zipTo(out: OutputStream) {
         val data = OrbitRepository.snapshot()
         ZipOutputStream(out.buffered()).use { zip ->
             // Storage v2: core, Verlauf and Ablage as separate JSON files (ADR 0003).
@@ -78,12 +96,26 @@ object Backups {
         }
     }
 
-    /** Reads a backup and returns its data without applying it (photos are restored right away). */
-    suspend fun readZip(input: InputStream): OrbitData = withContext(Dispatchers.IO) {
+    /**
+     * Reads a backup and returns its data without applying it (photos are restored right away).
+     * Encrypted backups need [password]; without it [NeedsPassword] is thrown, a wrong one
+     * throws [BackupCrypto.WrongPassword].
+     */
+    suspend fun readZip(input: InputStream, password: CharArray? = null): OrbitData = withContext(Dispatchers.IO) {
         var core: String? = null
         var history: String? = null
         var attachments: String? = null
-        ZipInputStream(input.buffered()).use { zip ->
+        val buffered = input.buffered()
+        buffered.mark(8)
+        val head = ByteArray(4).also { buffered.read(it) }
+        buffered.reset()
+        val source: InputStream = if (BackupCrypto.isEncrypted(head)) {
+            val pw = password ?: throw NeedsPassword()
+            ByteArrayInputStream(BackupCrypto.decrypt(buffered.readBytes(), pw))
+        } else {
+            buffered
+        }
+        ZipInputStream(source).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 when {
@@ -149,7 +181,7 @@ object Backups {
             ?: DocumentsContract.createDocument(resolver, parent, "application/zip", name)
             ?: throw IllegalStateException("Datei konnte nicht angelegt werden")
         (resolver.openOutputStream(target, "wt") ?: throw IllegalStateException("Ordner nicht beschreibbar")).use {
-            writeZip(it)
+            writeZip(ctx, it)
         }
         listBackups(ctx, tree).sortedByDescending { it.second }.drop(KEEP).forEach { (uri, _) ->
             runCatching { DocumentsContract.deleteDocument(resolver, uri) }

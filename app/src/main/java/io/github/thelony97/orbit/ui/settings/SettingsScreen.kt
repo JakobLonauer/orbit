@@ -1,5 +1,9 @@
 package io.github.thelony97.orbit.ui.settings
 
+import androidx.compose.material3.OutlinedSecureTextField
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import io.github.thelony97.orbit.backup.BackupKey
+import io.github.thelony97.orbit.core.domain.BackupCrypto
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material3.AlertDialog
@@ -178,6 +182,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     var errorText by remember { mutableStateOf(errorLog?.read().orEmpty()) }
     var errorDialog by remember { mutableStateOf(false) }
     var pendingRestore by remember { mutableStateOf<Pair<OrbitData, Int>?>(null) }
+    var passwordFor by remember { mutableStateOf<Uri?>(null) }
+    var encryptionDialog by remember { mutableStateOf(false) }
+    var encrypted by remember { mutableStateOf(BackupKey.isSet(ctx)) }
     var permissionTick by remember { mutableIntStateOf(0) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
@@ -210,18 +217,28 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) scope.launch {
             runCatching {
-                ctx.contentResolver.openOutputStream(uri)?.use { Backups.writeZip(it) }
+                ctx.contentResolver.openOutputStream(uri)?.use { Backups.writeZip(ctx, it) }
             }.onSuccess { toast("Sicherung exportiert") }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
         }
     }
-    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
+    fun readBackup(uri: Uri, password: CharArray?) {
+        scope.launch {
             runCatching {
-                ctx.contentResolver.openInputStream(uri)?.use { Backups.readZip(it) } ?: error("Datei nicht lesbar")
+                ctx.contentResolver.openInputStream(uri)?.use { Backups.readZip(it, password) } ?: error("Datei nicht lesbar")
             }.onSuccess { restored ->
+                passwordFor = null
                 pendingRestore = restored to restored.contacts.count { it.deletedAt == null }
-            }.onFailure { toast(it.message ?: "Keine gültige Sicherung") }
+            }.onFailure { e ->
+                when (e) {
+                    is Backups.NeedsPassword -> passwordFor = uri
+                    is BackupCrypto.WrongPassword -> toast("Passwort falsch")
+                    else -> toast(e.message ?: "Keine gültige Sicherung")
+                }
+            }
         }
+    }
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) readBackup(uri, null)
     }
 
     val lockAvailable = remember(permissionTick) { AppLock.isAvailable(ctx) }
@@ -395,6 +412,10 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     }
                 })
                 Hairline()
+                SettingItem(Icons.Rounded.Lock, "Verschlüsselung", if (encrypted) "an · mit deinem Passwort" else "aus", iconTint = Space.Blue, onClick = {
+                    encryptionDialog = true
+                })
+                Hairline()
                 SettingItem(Icons.Rounded.Download, "Als Datei exportieren", iconTint = Space.Blue, onClick = {
                     AppLock.allowExternal()
                     exporter.launch(Backups.fileName())
@@ -440,6 +461,39 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                 SettingItem(Icons.Rounded.Info, "Orbit ${BuildConfig.VERSION_NAME}", "Kotlin · Compose · Material 3 Expressive", iconTint = Space.TextDim)
             }
         }
+    }
+
+    if (encryptionDialog) {
+        BackupPasswordDialog(
+            title = if (encrypted) "Neues Backup-Passwort" else "Backups verschlüsseln",
+            confirmTwice = true,
+            onDismiss = { encryptionDialog = false },
+            onConfirm = { pw ->
+                scope.launch {
+                    BackupKey.set(ctx, pw)
+                    encrypted = true
+                    toast("Sicherungen werden verschlüsselt")
+                }
+            },
+            extra = if (encrypted) {
+                {
+                    TextButton(onClick = {
+                        BackupKey.clear(ctx)
+                        encrypted = false
+                        encryptionDialog = false
+                    }) { Text("Ausschalten", color = Space.Coral) }
+                }
+            } else null,
+        )
+    }
+
+    passwordFor?.let { uri ->
+        BackupPasswordDialog(
+            title = "Passwort der Sicherung",
+            confirmTwice = false,
+            onDismiss = { passwordFor = null },
+            onConfirm = { pw -> readBackup(uri, pw) },
+        )
     }
 
     if (errorDialog) {
@@ -505,3 +559,45 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
 private fun folderName(uri: Uri): String =
     runCatching { DocumentsContract.getTreeDocumentId(uri).substringAfter(':').ifBlank { "Hauptordner" } }
         .getOrDefault("Gewählter Ordner")
+
+/** Password entry for backups. [confirmTwice] asks for it twice (setting a new one). */
+@Composable
+private fun BackupPasswordDialog(
+    title: String,
+    confirmTwice: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (CharArray) -> Unit,
+    extra: (@Composable () -> Unit)? = null,
+) {
+    val first = rememberTextFieldState()
+    val second = rememberTextFieldState()
+    val a = first.text.toString()
+    val ok = if (confirmTwice) a.length >= 8 && a == second.text.toString() else a.isNotEmpty()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedSecureTextField(state = first, label = { Text("Passwort") }, modifier = Modifier.fillMaxWidth())
+                if (confirmTwice) {
+                    OutlinedSecureTextField(
+                        state = second,
+                        label = { Text("Wiederholen") },
+                        supportingText = { Text("mindestens 8 Zeichen · ohne Passwort keine Wiederherstellung") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                extra?.invoke()
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = ok, onClick = {
+                onConfirm(first.text.toString().toCharArray())
+                onDismiss()
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
