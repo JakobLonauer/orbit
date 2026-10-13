@@ -86,7 +86,8 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 1. **Nichts Intelligentes, keine KI.** Orbit tut nur, was du auslöst oder was einer festen, sichtbaren Regel folgt (z. B. „Nummer exakt gleich“, „Nummer beginnt mit …“, „Adresse endet auf @firma.at“).
 2. **Keine Fälligkeit.** Kein Rhythmus, kein „fällig“, kein Drängeln. Orbit schreibt weiter mit (Anrufe, SMS, E-Mails, eigene Einträge); sichtbar im Verlauf.
 3. **Organisationen sind keine Menschen.** Standardmäßig ausgeblendet; ihre Verknüpfungen zu Menschen („Zuordnungen“) sind bewusst getrennt von Beziehungen zwischen Menschen.
-4. **Qualität vor Menge.** Jede Funktion bekommt Leerzustand, Rückgängig, Haptik, Animation, Barrierefreiheit.
+4. **Qualität vor Menge.** Jede Funktion bekommt Leerzustand, Rückgängig, Haptik, Animation.
+5. **Für Profis gebaut.** Keine Barrierefreiheits-Arbeit, keine Tutorials, keine Erklärtexte. Dichte Oberfläche, kurze Texte, Gesten und Langdruck-Menüs statt Hilfen.
 
 ## Datenmodell v2 (eine einzige Umstellung, mit automatischer Sicherung vorher)
 
@@ -129,7 +130,7 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 
 ## Wow durch Ausarbeitung (v2)
 
-Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, alles respektiert „Animationen entfernen“ und den Energiesparmodus.
+Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, Sensor-Effekte aus im Energiesparmodus. Keine Barrierefreiheits-Anpassungen, keine Erklärtexte, kein „Was ist neu“-Popup (nur kurz in den Einstellungen).
 
 **Signature-Momente**
 - Anlässe-Tab: **Jahresrad** – das Jahr als Umlaufbahn, Anlässe als Punkte, heute als leuchtender Planet; Monat antippen springt in die Liste.
