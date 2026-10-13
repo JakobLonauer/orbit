@@ -107,6 +107,10 @@
 - Review-Agent (general-purpose, read-only) nach großem Diff hat 5 echte Logikfehler gefunden, 0 Compile-Fehler -> lohnt sich, parallel zur CI laufen lassen.
 - SPEICHER v2 AKTIV (13.10.): data/Model.kt = typealiases auf core.model. Contact.entries/gallery sind @Transient (nur RAM), Store.kt füllt/speichert Differenz (ADR-0005). OrbitRepository: lastSaved-Snapshot, loadError (StateFlow) sperrt persist + Backups, LoadErrorScreen in OrbitRoot. HistoryDb: UNIQUE(contact_id, external_id), KeepCorruptFile-Handler, checkpoint(). Backups: history.json/attachments.json, BackupCrypto v2 gestreamt (Temp-Datei im cacheDir), BackupKey (Keystore-Alias orbit-backup-key, noBackupFilesDir/backup_key.json). Neue HistoryEntry IMMER mit contactId (EntrySheet setzt "", addEntry überschreibt).
 - Work-Branch-Trick: Workflow läuft nur auf main/dev-Push -> für Feature-Branch `gh workflow run build.yml --ref <branch>`; Log in `ci-log-<branch>`.
+- R1b-Hülle (13.10.): HomeScreen = Box{ SpaceBackground(Modifier.glassSource(state)) { AnimatedContent+SaveableStateProvider }, Column{FAB, OrbitNavBar(hazeGlass)} }. !! hazeSource auf transparentem Inhalts-Box statt auf dem opaken Weltraum war fragwürdig -> ganze SpaceBackground als Quelle, Leiste als Geschwister AUSSERHALB. designsystem.glass als `hazeGlass` importieren (Namenskonflikt mit ui.components.glass).
+- Kontaktliste: dunkle Bänder hinter Sticky-Headern (Space.Void 0.94) und (unklar woher) hinter Zeilen – sichtbar über dem Violett-Verlauf. Nicht neu. TODO R1b: Header-Hintergrund als Verlauf/Glas, Zeilen-Band suchen (SwipeToDismissBox?).
+- A–Z-Leiste: letterIndex muss die Item-Reihenfolge der LazyColumn exakt spiegeln (update, suggestions?, me?, empty?, pro Abschnitt Header + Kontakte). Bei Änderungen an der Liste mitpflegen!
+- Settings: SettingsGroup(title, status); leerer Titel = Fortsetzungskarte des Bereichs darüber.
 - Kontakt v2 hat berechnete Props `address`, `birthday` (nicht serialisiert) -> erleichtert Umstellung der UI.
 - Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
