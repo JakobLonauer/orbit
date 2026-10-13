@@ -1,5 +1,8 @@
 package io.github.thelony97.orbit.ui.components
 
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
@@ -73,18 +76,34 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(20.dp), tint: Color = Space
 
 // ---------------------------------------------------------------- background
 
-/** Night sky with a few stars and two faint nebulae – drawn once, no animation. */
+/**
+ * Camera over the living space (PLAN 1.2): [scroll] moves the three star layers at different
+ * speeds (parallax), [pan] glides them sideways on a tab change. Read only in the draw phase,
+ * so moving the camera never recomposes anything.
+ */
+@Stable
+class SpaceCamera {
+    var scroll by mutableFloatStateOf(0f)
+    var pan by mutableFloatStateOf(0f)
+}
+
+/** Night sky with stars in three depths and two nebulae; [nebula] tints the upper one per tab. */
 @Composable
-fun SpaceBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun SpaceBackground(
+    modifier: Modifier = Modifier,
+    camera: SpaceCamera? = null,
+    nebula: Color = Space.VioletDeep,
+    content: @Composable BoxScope.() -> Unit,
+) {
     val stars = remember {
         val r = Random(42)
-        List(110) { Triple(r.nextFloat(), r.nextFloat(), r.nextFloat()) }
+        List(140) { Triple(r.nextFloat(), r.nextFloat(), r.nextFloat()) }
     }
     Box(modifier.fillMaxSize().background(Space.Void)) {
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
                 Brush.radialGradient(
-                    listOf(Space.VioletDeep.copy(alpha = 0.22f), Color.Transparent),
+                    listOf(nebula.copy(alpha = 0.22f), Color.Transparent),
                     center = Offset(size.width * 0.15f, size.height * 0.05f),
                     radius = size.maxDimension * 0.55f,
                 ),
@@ -96,11 +115,21 @@ fun SpaceBackground(modifier: Modifier = Modifier, content: @Composable BoxScope
                     radius = size.maxDimension * 0.5f,
                 ),
             )
+            val scroll = camera?.scroll ?: 0f
+            val pan = camera?.pan ?: 0f
             stars.forEach { (x, y, s) ->
+                // Brighter stars are nearer and move more: three depth layers.
+                val depth = when {
+                    s < 0.45f -> 0.15f
+                    s < 0.8f -> 0.4f
+                    else -> 0.8f
+                }
+                val px = (x * size.width - pan * depth * size.width * 0.18f).mod(size.width)
+                val py = (y * size.height - scroll * depth * 0.25f).mod(size.height)
                 drawCircle(
                     Color.White.copy(alpha = 0.10f + s * 0.35f),
                     radius = 0.6f + s * 1.3f,
-                    center = Offset(x * size.width, y * size.height),
+                    center = Offset(px, py),
                 )
             }
         }

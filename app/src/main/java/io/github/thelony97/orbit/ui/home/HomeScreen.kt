@@ -1,5 +1,9 @@
 package io.github.thelony97.orbit.ui.home
 
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import io.github.thelony97.orbit.ui.components.SpaceCamera
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -62,14 +66,14 @@ import kotlin.math.abs
 import kotlin.math.sin
 import io.github.thelony97.orbit.core.designsystem.glass as hazeGlass
 
-private data class Tab(val label: String, val icon: ImageVector)
+private data class Tab(val label: String, val icon: ImageVector, val nebula: Color)
 
 /** PLAN 3.1: Kontakte · Verlauf · (Anlässe ab R3) · Netz · Karte. Einstellungen hinter dem Zahnrad. */
 private val tabs = listOf(
-    Tab("Kontakte", Icons.Rounded.Contacts),
-    Tab("Verlauf", Icons.Rounded.History),
-    Tab("Netz", Icons.Rounded.Hub),
-    Tab("Karte", Icons.Rounded.Map),
+    Tab("Kontakte", Icons.Rounded.Contacts, Space.VioletDeep),
+    Tab("Verlauf", Icons.Rounded.History, Space.Teal),
+    Tab("Netz", Icons.Rounded.Hub, Space.Blue),
+    Tab("Karte", Icons.Rounded.Map, Space.Orange),
 )
 
 /** Space reserved at the bottom of scrolling content for the floating bar. */
@@ -81,10 +85,26 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
     // Tabs keep their scroll position and saved state when you come back (PLAN 3.1).
     val saved = rememberSaveableStateHolder()
     val current = tab.coerceIn(0, tabs.lastIndex)
+    // Living space (PLAN 1.2): scrolling drags the star layers (parallax), a tab change is a
+    // short sideways camera move, every tab has its own nebula tint.
+    val camera = remember { SpaceCamera().apply { pan = current.toFloat() } }
+    val pan = remember { Animatable(current.toFloat()) }
+    LaunchedEffect(current) {
+        pan.animateTo(current.toFloat(), tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized)) { camera.pan = value }
+    }
+    val nebula by animateColorAsState(tabs[current].nebula, tween(Motion.EMPHASIZED_MS), label = "nebula")
+    val parallax = remember(camera) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                camera.scroll -= consumed.y
+                return Offset.Zero
+            }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         // The whole opaque space (stars + content) is the glass source; the bar is a sibling
         // outside it, so it never blurs itself and transparent rows never punch holes.
-        SpaceBackground(Modifier.glassSource(glass)) {
+        SpaceBackground(Modifier.glassSource(glass).nestedScroll(parallax), camera = camera, nebula = nebula) {
             AnimatedContent(
                 targetState = current,
                 transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
