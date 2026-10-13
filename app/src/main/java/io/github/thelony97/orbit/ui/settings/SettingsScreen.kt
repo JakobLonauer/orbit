@@ -1,5 +1,12 @@
 package io.github.thelony97.orbit.ui.settings
 
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import io.github.thelony97.orbit.OrbitApp
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -166,6 +173,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     val scope = rememberCoroutineScope()
     val s = data.settings
     var timeDialog by remember { mutableStateOf(false) }
+    val errorLog = remember { (ctx.applicationContext as? OrbitApp)?.errorLog }
+    var errorText by remember { mutableStateOf(errorLog?.read().orEmpty()) }
+    var errorDialog by remember { mutableStateOf(false) }
     var pendingRestore by remember { mutableStateOf<Pair<OrbitData, Int>?>(null) }
     var permissionTick by remember { mutableIntStateOf(0) }
     val update by Updates.state.collectAsState()
@@ -415,9 +425,46 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     trailing = { SpaceSwitch(s.autoUpdateCheck) { v -> OrbitRepository.editSettings { it.copy(autoUpdateCheck = v) } } },
                 )
                 Hairline()
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.BugReport, "Fehlerprotokoll",
+                    if (errorText.isBlank()) "leer" else "${errorText.split("\n\n").count { it.isNotBlank() }} Einträge",
+                    iconTint = Space.TextDim,
+                    onClick = { errorDialog = true },
+                )
+                Hairline()
                 SettingItem(Icons.Rounded.Info, "Orbit ${BuildConfig.VERSION_NAME}", "Kotlin · Compose · Material 3 Expressive", iconTint = Space.TextDim)
             }
         }
+    }
+
+    if (errorDialog) {
+        AlertDialog(
+            onDismissRequest = { errorDialog = false },
+            containerColor = Space.PanelHigh,
+            title = { Text("Fehlerprotokoll") },
+            text = {
+                Text(
+                    errorText.ifBlank { "leer" },
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = Space.TextDim,
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(enabled = errorText.isNotBlank(), onClick = {
+                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, errorText)
+                    ctx.startActivity(Intent.createChooser(send, "Fehlerprotokoll teilen"))
+                }) { Text("Teilen") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    errorLog?.clear()
+                    errorText = ""
+                    errorDialog = false
+                }) { Text("Leeren") }
+            },
+        )
     }
 
     if (timeDialog) {

@@ -8,18 +8,24 @@ import io.github.thelony97.orbit.mail.MailAccounts
 import io.github.thelony97.orbit.notify.DigestScheduler
 import io.github.thelony97.orbit.notify.Notifications
 import io.github.thelony97.orbit.sync.Sync
+import io.github.thelony97.orbit.util.ErrorLog
 import io.github.thelony97.orbit.widget.OrbitWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.io.File
 
 class OrbitApp : Application() {
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Local error log (Einstellungen › Fehlerprotokoll). */
+    val errorLog by lazy { ErrorLog(File(filesDir, "logs/errors.txt")) }
+
     override fun onCreate() {
         super.onCreate()
+        errorLog.installUncaughtHandler()
         OrbitRepository.init(this)
         MailAccounts.init(this)
         OrbitRepository.onSaved = { ctx -> OrbitWidget.refresh(ctx) }
