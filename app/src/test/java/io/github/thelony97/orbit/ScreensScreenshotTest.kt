@@ -269,6 +269,13 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, dialing = true, phoneUnlocked = true), noActions, now)
     }
 
+    @Test fun callPickSim() = shot("call_sim") {
+        io.github.thelony97.orbit.ui.call.CallScreen(
+            io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, dialing = true, phoneUnlocked = true, accounts = listOf("A1", "Magenta")),
+            noActions, now,
+        )
+    }
+
     @Test fun callSms() = shot("call_sms") {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard), noActions, now, smsOpen = true)
     }
