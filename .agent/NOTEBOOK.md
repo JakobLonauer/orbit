@@ -115,6 +115,9 @@
 - Undo-System: `ui/components/Undo.kt` (Undo.offer(text){…}); UndoBar sitzt in OrbitRoot über allem außer der Sperre. Papierkorb/Archivieren auf der Kontaktseite ohne Nachfrage + Undo.
 - Suche-Treffer-Satz: `ui/list/MatchSentence.kt` (Logic.fold behält Länge nur bei NFC-Text; sonst kein Ausschnitt).
 - Release-Kandidat-Muster: Branch `release-r1a` an grünem R1a-Commit; Fixes per cherry-pick + `gh workflow run build.yml --ref release-r1a`; Veröffentlichen = main fast-forward auf release-r1a, danach main in dev mergen.
+- Langdruck-Vorschau: `ui/list/PreviewCard.kt` als nicht-fokussierbares Popup; Finger bleibt beim Zeilen-pointerInput (detectDragGesturesAfterLongPress). Koordinaten IMMER positionOnScreen() (Popup = eigenes Fenster). Screenshot von Popups: `captureScreenRoboImage()` (@OptIn ExperimentalRoborazziApi), nicht onRoot().
+- Dunkle Streifen in der Kontaktliste waren die Sticky-Header-Hintergründe (Pixelmessung!), nicht die Zeilen. Jetzt nur der angeheftete Header mit Hintergrund (derivedStateOf über firstVisibleItemIndex/Offset, damit nicht jeder Frame neu komponiert).
+- Wow-Bausteine vorhanden: CountStat (zählt hoch), SaveMorphButton, UndoBar/Undo, AlphabetRail, Banner (jetzt components), Afterglow via Session.lastOpened, Archiv-Restore-Animation.
 - Kontakt v2 hat berechnete Props `address`, `birthday` (nicht serialisiert) -> erleichtert Umstellung der UI.
 - Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
