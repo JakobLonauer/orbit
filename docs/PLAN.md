@@ -114,6 +114,7 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 | Release | Inhalt |
 |---|---|
 | R1 + R2 (zusammen) | Datenmodell v2, verschlüsseltes Backup, Fehlerprotokoll, Tempo, Tab-Zustand, Rückgängig · neue Leiste Kontakte · Verlauf · Anlässe · Netz · Karte, Einstellungen hinter Zahnrad, neue Kontaktseite mit Verlauf unten und Filtern, Anlässe-Tab, Planer |
+| R2b Orbit als Telefon-App | Standard-Telefon-App (ROLE_DIALER, InCallService): eigener Anrufbildschirm (eingehend, laufend, Anklopfen, Konferenz), Halten, Stumm, Lautsprecher/Bluetooth, Tastenfeld, Wählen mit T9-Suche, Dual-SIM, Benachrichtigung im Anruf-Stil mit Vollbild bei gesperrtem Handy, Näherungssensor; Klingelton bleibt beim System; Rückfall auf die vorinstallierte Telefon-App, falls Orbit nicht startet |
 | R3 Organisationen | Zuordnungen, Ansprechpartner, benannte Nummern/Adressen, Regeln, Links/Portale mit Vorlagen, Schnellzugriff, Teilen aus Google Maps/Chrome, eigene Felder, Öffnungszeiten |
 | R4 E-Mail v2 | Abgleich nur von Neuem, Gesendet-Ordner, Mails im Verlauf, Antworten, Anhänge, Status; Microsoft-Anmeldung, falls App-Registrierung vorhanden |
 | R5 Galerie & Dateien | Ablage, Fotos-Seite, Aufnahmedatum, Fotos an Einträgen, mehrere Kontakte pro Foto, teilen rein/raus |
@@ -163,6 +164,7 @@ Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, Se
 | Update | Wow-Anteile |
 |---|---|
 | R1+R2 | Übergang Liste → Kontaktkopf, Zurück-Geste mit Vorschau, Milchglas-Leiste und -Köpfe, Haptik-Sprache, A–Z-Leiste mit Ticks, Jahresrad, Kontaktseite in Personenfarbe, rollende Zahlen, Vorschau-Karte per Langdruck, Speichern-zu-Häkchen, Rückgängig mit Zeitring, Suche mit Treffer-Satz, „ein Donnerstag“, animierter Startbildschirm, Themen-Icon |
+| R2b | Anrufbildschirm in der Farbe des Anrufers mit Foto, Rolle („Hausarzt von Papa“), letztem Kontakt, offenen Themen und anstehendem Anlass; Annehmen per Wisch mit Haptik; während des Gesprächs Themen abhaken und Notiz tippen; laufender Anruf als Chip in der Statusleiste |
 | R3 | Übergang Kachel → Organisation, Portal-Kacheln mit Logo und Druck-Morph, Öffnungszeiten live, eingefügte Nummer → „gehört zu …“, Netz-Morph und leuchtender Weg, Homescreen-Shortcuts mit Logo |
 | R4 | Platzhalter statt Ladekreis, Mails klappen im Verlauf weich auf, Wellen-Indikator beim Aktualisieren, „zuletzt abgeglichen vor 2 Std.“ |
 | R5 | Foto wächst aus der Kachel und fällt zurück, Runterwischen zum Schließen, Monats-Scrubber mit Ticks |
