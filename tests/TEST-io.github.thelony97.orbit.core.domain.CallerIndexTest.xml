@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.CallerIndexTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-13T16:16:42.810Z" hostname="runnervmmprz5" time="0.101">
+  <properties/>
+  <testcase name="orgNumberLabelAndCustomerNumber" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.055"/>
+  <testcase name="fallbackRoleAndMeExcluded" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.001"/>
+  <testcase name="memberAndRange" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.003"/>
+  <testcase name="personWithAssignmentAndNote" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.0"/>
+  <testcase name="survivesJson" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.039"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

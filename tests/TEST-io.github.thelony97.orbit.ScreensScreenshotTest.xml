@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensScreenshotTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-10-13T16:17:36.726Z" hostname="runnervmmprz5" time="28.826">
+  <properties/>
+  <testcase name="startMoment" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="14.447"/>
+  <testcase name="emptyHome" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.762"/>
+  <testcase name="previewCard" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.978"/>
+  <testcase name="fullDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="2.156"/>
+  <testcase name="qrCode" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.634"/>
+  <testcase name="archive" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.567"/>
+  <testcase name="archivedDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.946"/>
+  <testcase name="contactListSelecting" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.752"/>
+  <testcase name="homeVerlauf" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.938"/>
+  <testcase name="home" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.85"/>
+  <testcase name="contactList" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.347"/>
+  <testcase name="contactDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.453"/>
+  <testcase name="emptyVerlauf" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.235"/>
+  <testcase name="longNameDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.775"/>
+  <testcase name="settingsArea" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.741"/>
+  <testcase name="cropPhoto" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.731"/>
+  <testcase name="settings" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.747"/>
+  <testcase name="verlaufTab" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.591"/>
+  <system-out><![CDATA[Roborazzi: View.captureToImage Could not find window for view. Falling back to View#draw instead of PixelCopy(If you are using Material3 dialogs, this is expected).
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

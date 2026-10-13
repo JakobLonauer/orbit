@@ -1,0 +1,201 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :core:designsystem:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :core:designsystem:preDebugBuild UP-TO-DATE
+> Task :core:domain:processResources NO-SOURCE
+> Task :core:domain:processTestResources
+> Task :app:generateDebugBuildConfig
+> Task :core:designsystem:processDebugNavigationResources
+> Task :app:generateDebugResources
+> Task :core:designsystem:generateDebugResources
+> Task :core:designsystem:packageDebugResources
+> Task :app:packageDebugResources
+> Task :core:model:processResources NO-SOURCE
+> Task :core:model:processTestResources NO-SOURCE
+> Task :core:designsystem:parseDebugLocalResources
+> Task :core:designsystem:javaPreCompileDebug
+> Task :core:designsystem:writeDebugAarMetadata
+> Task :core:designsystem:extractDeepLinksDebug
+> Task :core:designsystem:generateDebugRFile
+> Task :app:processDebugNavigationResources
+> Task :core:designsystem:processDebugManifest
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:checkDebugAarMetadata
+> Task :app:parseDebugLocalResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugRFile
+> Task :app:compileDebugNavigationResources
+> Task :core:designsystem:mapDebugSourceSetPaths
+> Task :core:designsystem:compileDebugLibraryResources
+> Task :core:designsystem:generateDebugAssets UP-TO-DATE
+> Task :core:designsystem:mergeDebugAssets
+> Task :core:designsystem:preReleaseBuild UP-TO-DATE
+> Task :core:designsystem:mergeReleaseJniLibFolders
+> Task :core:designsystem:mergeReleaseNativeLibs NO-SOURCE
+> Task :core:designsystem:copyReleaseJniLibsProjectOnly
+> Task :core:designsystem:generateReleaseResources FROM-CACHE
+> Task :core:designsystem:packageReleaseResources
+> Task :core:designsystem:processReleaseNavigationResources FROM-CACHE
+> Task :core:designsystem:parseReleaseLocalResources FROM-CACHE
+> Task :core:designsystem:generateReleaseRFile FROM-CACHE
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :core:designsystem:compileDebugKotlin
+> Task :core:designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:designsystem:compileReleaseKotlin
+> Task :core:designsystem:bundleLibCompileToJarDebug
+> Task :core:designsystem:processDebugJavaRes
+> Task :core:designsystem:javaPreCompileRelease FROM-CACHE
+> Task :core:designsystem:compileReleaseJavaWithJavac NO-SOURCE
+> Task :core:designsystem:mergeReleaseGeneratedProguardFiles
+> Task :core:designsystem:bundleLibRuntimeToJarDebug
+> Task :core:designsystem:exportReleaseConsumerProguardFiles
+> Task :core:designsystem:prepareReleaseArtProfile
+> Task :core:designsystem:writeReleaseAarMetadata
+> Task :core:designsystem:bundleLibCompileToJarRelease
+> Task :core:designsystem:extractDeepLinksRelease FROM-CACHE
+> Task :core:designsystem:processReleaseManifest FROM-CACHE
+> Task :core:designsystem:mapReleaseSourceSetPaths
+> Task :core:designsystem:compileReleaseLibraryResources
+> Task :core:designsystem:bundleLibRuntimeToJarRelease
+> Task :core:designsystem:processReleaseJavaRes
+> Task :core:designsystem:generateReleaseAssets UP-TO-DATE
+> Task :core:designsystem:mergeReleaseAssets
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :core:designsystem:checkReleaseAarMetadata
+> Task :core:designsystem:stripReleaseDebugSymbols NO-SOURCE
+> Task :core:designsystem:copyReleaseJniLibsProjectAndLocalJars
+> Task :core:designsystem:extractDeepLinksForAarRelease
+> Task :app:mergeDebugAssets
+> Task :app:mergeDebugUnitTestManifest
+> Task :app:processDebugUnitTestManifest
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:processDebugResources
+> Task :core:designsystem:extractReleaseAnnotations
+> Task :core:designsystem:mergeReleaseConsumerProguardFiles
+> Task :core:designsystem:prepareLintJarForPublish
+> Task :core:designsystem:mergeReleaseJavaResource
+> Task :core:model:compileKotlin
+> Task :core:model:compileJava NO-SOURCE
+> Task :core:model:classes UP-TO-DATE
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:generateDebugUnitTestConfig
+> Task :app:generateReleaseBuildConfig
+> Task :app:generateReleaseResources FROM-CACHE
+> Task :app:packageReleaseResources
+> Task :core:designsystem:mergeReleaseResources
+> Task :app:processReleaseNavigationResources FROM-CACHE
+> Task :app:parseReleaseLocalResources FROM-CACHE
+> Task :core:designsystem:syncReleaseLibJars
+> Task :app:generateReleaseRFile FROM-CACHE
+> Task :app:javaPreCompileRelease FROM-CACHE
+> Task :core:designsystem:bundleReleaseAar
+> Task :core:model:jar
+> Task :app:mergeReleaseArtProfile
+> Task :app:checkReleaseAarMetadata
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:compileReleaseNavigationResources FROM-CACHE
+> Task :core:designsystem:verifyReleaseResources
+> Task :core:designsystem:assembleRelease
+> Task :core:model:compileTestKotlin
+> Task :core:model:compileTestJava NO-SOURCE
+> Task :core:model:testClasses UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease FROM-CACHE
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :app:extractProguardFiles
+> Task :app:mergeReleaseStartupProfile
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:collectReleaseDependencies
+> Task :app:mergeReleaseResources
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :core:model:test
+> Task :app:processReleaseResources
+> Task :core:domain:compileKotlin
+> Task :core:domain:compileJava NO-SOURCE
+> Task :core:domain:classes UP-TO-DATE
+> Task :core:domain:jar
+> Task :app:mergeReleaseNativeLibs
+
+> Task :core:domain:compileTestKotlin
+w: file:///home/runner/work/orbit/orbit/core/domain/src/test/kotlin/io/github/thelony97/orbit/core/domain/migration/MigrateV1Test.kt:113:19 Redundant creation of Json format. Creating instances for each use can be slow.
+w: file:///home/runner/work/orbit/orbit/core/domain/src/test/kotlin/io/github/thelony97/orbit/core/domain/migration/MigrateV1Test.kt:118:20 Redundant creation of Json format. Creating instances for each use can be slow.
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libmaplibre.so. Run with --info option to learn more.
+
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :core:domain:compileTestJava NO-SOURCE
+> Task :core:domain:testClasses
+> Task :core:domain:test
+
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/list/FilterSheet.kt:61:17 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/mail/MailAccountsScreen.kt:168:17 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/sheets/EntrySheet.kt:58:22 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/sheets/EntrySheet.kt:97:42 Unnecessary non-null assertion (!!) on a non-null receiver of type 'HistoryEntry'.
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/list/FilterSheet.kt:61:17 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/mail/MailAccountsScreen.kt:168:17 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/sheets/EntrySheet.kt:58:22 'fun rememberModalBottomSheetState(skipPartiallyExpanded: Boolean = ..., confirmValueChange: (SheetValue) -> Boolean = ...): SheetState' is deprecated. Use rememberBottomSheetState with Hidden initial value.
+w: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/sheets/EntrySheet.kt:97:42 Unnecessary non-null assertion (!!) on a non-null receiver of type 'HistoryEntry'.
+
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:compileDebugJavaWithJavac
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:expandReleaseArtProfileWildcards
+> Task :app:mergeReleaseGeneratedProguardFiles
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///home/runner/work/orbit/orbit/app/src/test/java/io/github/thelony97/orbit/ScreensScreenshotTest.kt:52:19 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///home/runner/work/orbit/orbit/app/src/test/java/io/github/thelony97/orbit/ScreenshotTest.kt:42:19 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///home/runner/work/orbit/orbit/app/src/test/java/io/github/thelony97/orbit/ui/components/SpotlightTest.kt:35:19 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:produceReleaseComposeMapping
+> Task :app:minifyReleaseWithR8
+> Task :app:testDebugUnitTest
+> Task :app:finalizeTestRoborazziDebug
+> Task :app:recordRoborazziDebug
+> Task :app:reportReleaseComposeMappingErrors
+> Task :app:mergeReleaseComposeMapping
+> Task :app:convertShrunkResourcesToBinaryRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:optimizeReleaseResources
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1791908152092.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/orbit/orbit/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 3m 33s
+137 actionable tasks: 121 executed, 16 from cache
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.0/userguide/configuration_cache_enabling.html

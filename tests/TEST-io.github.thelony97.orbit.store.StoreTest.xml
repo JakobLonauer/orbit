@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.store.StoreTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-13T16:18:09.073Z" hostname="runnervmmprz5" time="0.464">
+  <properties/>
+  <testcase name="savesOnlyDifferencesAndRoundTrips" classname="io.github.thelony97.orbit.store.StoreTest" time="0.197"/>
+  <testcase name="upgradesAndHydratesNewestFirst" classname="io.github.thelony97.orbit.store.StoreTest" time="0.062"/>
+  <testcase name="freshInstallHasNothing" classname="io.github.thelony97.orbit.store.StoreTest" time="0.048"/>
+  <testcase name="movedEntryChangesOwner" classname="io.github.thelony97.orbit.store.StoreTest" time="0.058"/>
+  <testcase name="removedContactTakesItsRowsAlong" classname="io.github.thelony97.orbit.store.StoreTest" time="0.044"/>
+  <testcase name="unchangedListsProduceNoWork" classname="io.github.thelony97.orbit.store.StoreTest" time="0.034"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

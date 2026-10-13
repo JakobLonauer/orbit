@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.CropMathTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-13T16:16:42.914Z" hostname="runnervmmprz5" time="0.003">
+  <properties/>
+  <testcase name="zoomShrinksTheSquareAroundTheCentre" classname="io.github.thelony97.orbit.core.domain.CropMathTest" time="0.002"/>
+  <testcase name="noZoomNoPanIsTheCentredSquare" classname="io.github.thelony97.orbit.core.domain.CropMathTest" time="0.0"/>
+  <testcase name="panningRightShowsTheLeftPart" classname="io.github.thelony97.orbit.core.domain.CropMathTest" time="0.0"/>
+  <testcase name="zoomBelowOneCountsAsOne" classname="io.github.thelony97.orbit.core.domain.CropMathTest" time="0.0"/>
+  <testcase name="panIsClampedSoTheFrameStaysCovered" classname="io.github.thelony97.orbit.core.domain.CropMathTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
