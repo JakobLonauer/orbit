@@ -185,9 +185,11 @@ private sealed interface EntryTarget {
 
 @Composable
 private fun SmallIconAction(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    // One rule for trailing icons: actions are violet, removing is quiet (W9).
+    val remove = icon == Icons.Rounded.Close
     Icon(
         icon, description,
-        tint = Space.Violet,
+        tint = if (remove) Space.TextFaint else Space.Violet,
         modifier = Modifier.size(28.dp).clip(CircleShape).clickable(onClick = onClick).padding(5.dp),
     )
 }

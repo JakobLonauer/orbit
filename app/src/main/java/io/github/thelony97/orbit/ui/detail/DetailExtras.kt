@@ -108,7 +108,7 @@ fun CopyButton(value: String, label: String) {
         Icon(
             if (done) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
             "$label kopieren",
-            tint = if (done) Space.Teal else Space.TextDim,
+            tint = if (done) Space.Teal else Space.Violet,
             modifier = Modifier
                 .size(34.dp)
                 .clip(CircleShape)

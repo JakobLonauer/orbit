@@ -103,7 +103,7 @@ object NetworkLayout {
         return Network(root, nodes, edges, nodes.maxOfOrNull { it.level } ?: 0, isolated)
     }
 
-    /** How [other] relates to [self] through [r] – e.g. "Partner/in", "Kind", "Arbeitgeber". */
+    /** How [other] relates to [self] through [r] – e.g. "Partner:in", "Kind", "Arbeitgeber". */
     fun roleOf(other: String, r: Relation): String {
         val kind = Defaults.relationKind(r.kind)
         return if (r.fromId == other) kind.forward else kind.backward

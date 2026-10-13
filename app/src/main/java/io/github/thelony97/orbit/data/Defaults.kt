@@ -60,22 +60,23 @@ object Defaults {
         Group(newId(), "Uni", groupColors[3]),
     )
 
+    // One gender form everywhere (":in"), matching the Zuordnungs-Rollen.
     val relationKinds = listOf(
-        RelationKind("partner", "Partner/in", "Partner/in"),
-        RelationKind("spouse", "Ehepartner/in", "Ehepartner/in"),
+        RelationKind("partner", "Partner:in", "Partner:in"),
+        RelationKind("spouse", "Ehepartner:in", "Ehepartner:in"),
         RelationKind("parent", "Elternteil", "Kind"),
         RelationKind("sibling", "Geschwister", "Geschwister"),
         RelationKind("grandparent", "Großelternteil", "Enkelkind"),
         RelationKind("relative", "Verwandt", "Verwandt"),
-        RelationKind("friend", "Freund/in", "Freund/in"),
-        RelationKind("colleague", "Kolleg/in", "Kolleg/in"),
-        RelationKind("boss", "Vorgesetzte/r", "Teammitglied"),
-        RelationKind("roommate", "Mitbewohner/in", "Mitbewohner/in"),
+        RelationKind("friend", "Freund:in", "Freund:in"),
+        RelationKind("colleague", "Kolleg:in", "Kolleg:in"),
+        RelationKind("boss", "Vorgesetzte:r", "Teammitglied"),
+        RelationKind("roommate", "Mitbewohner:in", "Mitbewohner:in"),
         // Person → organisation
-        RelationKind("works_at", "Mitarbeiter/in", "Arbeitgeber", toOrg = true),
-        RelationKind("patient", "Patient/in", "Ärzt:in / Praxis", toOrg = true),
-        RelationKind("client", "Kunde/Kundin", "Dienstleister", toOrg = true),
-        RelationKind("member", "Mitglied", "Verein / Organisation", toOrg = true),
+        RelationKind("works_at", "Mitarbeiter:in", "Arbeitgeber", toOrg = true),
+        RelationKind("patient", "Patient:in", "Ärzt:in", toOrg = true),
+        RelationKind("client", "Kund:in", "Dienstleister", toOrg = true),
+        RelationKind("member", "Mitglied", "Verein", toOrg = true),
     )
 
     fun relationKind(key: String): RelationKind =

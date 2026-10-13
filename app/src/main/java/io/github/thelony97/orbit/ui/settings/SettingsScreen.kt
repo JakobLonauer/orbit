@@ -257,7 +257,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             }.onSuccess {
                 // A saved file is a full backup too: the attention card must calm down.
                 OrbitRepository.editSettings { it.copy(lastBackupAt = now()) }
-                toast("Sicherung exportiert")
+                toast("Backup gespeichert")
             }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
         }
     }
@@ -272,7 +272,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 when (e) {
                     is Backups.NeedsPassword -> passwordFor = uri
                     is BackupCrypto.WrongPassword -> toast("Passwort falsch")
-                    else -> toast(e.message ?: "Keine gültige Sicherung")
+                    else -> toast(e.message ?: "Kein gültiges Backup")
                 }
             }
         }
@@ -291,7 +291,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         if (folder != null) {
             scope.launch {
                 Backups.backupToFolder(ctx)
-                    .onSuccess { toast("Gesichert: $it") }
+                    .onSuccess { toast("Backup gespeichert: $it") }
                     .onFailure { toast("Fehlgeschlagen: ${it.message}") }
             }
         } else {
@@ -337,9 +337,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         // PLAN 3.13: only when something needs Jakob – permissions, backup, mail accounts.
         val backupDays = s.lastBackupAt?.let { ChronoUnit.DAYS.between(it.toLocalDate(), today()) }
         val backupIssue = when {
-            backupDays == null -> "Noch nie gesichert"
-            s.autoBackup && folder != null && backupDays > 9 -> "Letzte Sicherung " + Fmt.ago(backupDays)
-            folder == null && backupDays > 30 -> "Letzte Sicherung " + Fmt.ago(backupDays)
+            backupDays == null -> "Noch kein Backup"
+            s.autoBackup && folder != null && backupDays > 9 -> "Letztes Backup " + Fmt.ago(backupDays)
+            folder == null && backupDays > 30 -> "Letztes Backup " + Fmt.ago(backupDays)
             else -> null
         }
         val brokenMail = mailAccounts.filter { it.lastError != null }
@@ -520,7 +520,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     Hairline()
                     SettingItem(
                         Icons.Rounded.Backup, "Wöchentlich automatisch",
-                        s.lastBackupAt?.let { "zuletzt ${Fmt.date(it)}" } ?: "noch keine Sicherung",
+                        s.lastBackupAt?.let { "zuletzt ${Fmt.date(it)}" } ?: "noch kein Backup",
                         iconTint = Space.Blue,
                         trailing = { SpaceSwitch(s.autoBackup) { v -> OrbitRepository.editSettings { it.copy(autoBackup = v) } } },
                     )
@@ -531,13 +531,16 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Lock, "Verschlüsselung", if (encrypted) "an · mit deinem Passwort" else "aus", iconTint = Space.Blue, onClick = {
                     encryptionDialog = true
                 })
+                // Without a folder "Jetzt sichern" already saves a file – no second row for the same (W5).
+                if (folder != null) {
+                    Hairline()
+                    SettingItem(Icons.Rounded.Download, "An anderem Ort speichern", iconTint = Space.Blue, onClick = {
+                        AppLock.allowExternal()
+                        exporter.launch(Backups.fileName())
+                    })
+                }
                 Hairline()
-                SettingItem(Icons.Rounded.Download, "Als Datei exportieren", iconTint = Space.Blue, onClick = {
-                    AppLock.allowExternal()
-                    exporter.launch(Backups.fileName())
-                })
-                Hairline()
-                SettingItem(Icons.Rounded.Restore, "Wiederherstellen", "aus einer Orbit-Sicherung (.zip)", iconTint = Space.Blue, onClick = {
+                SettingItem(Icons.Rounded.Restore, "Wiederherstellen", "aus einem Orbit-Backup (.zip)", iconTint = Space.Blue, onClick = {
                     AppLock.allowExternal()
                     importer.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                 })
@@ -584,7 +587,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     runCatching { BackupKey.set(ctx, pw) }
                         .onSuccess {
                             encrypted = true
-                            toast("Sicherungen werden verschlüsselt")
+                            toast("Backups werden verschlüsselt")
                         }
                         .onFailure { toast("Schlüssel konnte nicht gespeichert werden: ${it.message}") }
                 }
@@ -603,7 +606,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
 
     passwordFor?.let { uri ->
         BackupPasswordDialog(
-            title = "Passwort der Sicherung",
+            title = "Passwort des Backups",
             confirmTwice = false,
             onDismiss = { passwordFor = null },
             onConfirm = { pw -> readBackup(uri, pw) },
@@ -654,8 +657,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
 
     pendingRestore?.let { (restored, count) ->
         ConfirmDialog(
-            title = "Sicherung wiederherstellen?",
-            text = "Alle aktuellen Daten in Orbit werden durch die Sicherung ersetzt ($count Kontakte).",
+            title = "Backup wiederherstellen?",
+            text = "Alle aktuellen Daten in Orbit werden durch das Backup ersetzt ($count Kontakte).",
             confirm = "Ersetzen",
             onConfirm = {
                 scope.launch {

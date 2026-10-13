@@ -10,7 +10,7 @@ object AssignmentRoles {
         AssignmentRole("gp", "Hausarzt", "Patient:in"),
         AssignmentRole("dentist", "Zahnarzt", "Patient:in"),
         AssignmentRole("specialist", "Facharzt", "Patient:in"),
-        AssignmentRole("doctor", "Ärzt:in / Praxis", "Patient:in"),
+        AssignmentRole("doctor", "Ärzt:in", "Patient:in"),
         AssignmentRole("employer", "Arbeitgeber", "Mitarbeiter:in"),
         AssignmentRole("colleague", "Team", "Kolleg:in"),
         AssignmentRole("supervisor", "Team", "Vorgesetzte:r"),
