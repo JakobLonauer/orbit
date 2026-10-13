@@ -33,6 +33,8 @@ object Notifications {
     const val ID_TOPICS = 1001
     const val ID_BACKUP = 1002
     const val ID_CALLER = 1003
+    /** 1004 is the call itself (call/CallNotification). */
+    const val ID_PHONE_FALLBACK = 1005
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
@@ -359,6 +361,15 @@ object Notifications {
             .addAction(0, "Nein", answer(false))
             .setContentIntent(openContact(ctx, contact.id, notifId))
         post(ctx, notifId, builder)
+    }
+
+    /** PLAN 3.12: Android used the preinstalled phone app although Orbit is the phone app. */
+    fun phoneFallback(ctx: Context) {
+        val builder = base(ctx, CH_SYSTEM)
+            .setContentTitle("Anruf lief über die System-Telefon-App")
+            .setContentText("Orbit konnte den Anruf nicht übernehmen")
+            .setContentIntent(openContact(ctx, null, ID_PHONE_FALLBACK))
+        post(ctx, ID_PHONE_FALLBACK, builder)
     }
 
     fun backupFailed(ctx: Context, reason: String) {

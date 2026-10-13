@@ -78,7 +78,11 @@ object CallSession {
         _version.value = _version.value + 1
     }
 
+    /** SystemClock.elapsedRealtime of the last call Telecom handed to Orbit (fallback check). */
+    @Volatile var lastCallAddedAt = 0L
+
     fun add(call: Call) {
+        lastCallAddedAt = android.os.SystemClock.elapsedRealtime()
         // The after-call screen of an earlier call stays until it is closed; a new call shows first.
         _calls.value = _calls.value + call
         changed()

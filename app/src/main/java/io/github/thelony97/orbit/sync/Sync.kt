@@ -127,6 +127,31 @@ class PhoneStateReceiver : BroadcastReceiver() {
 
         /** Whether a call ended at or after [elapsed] (SystemClock.elapsedRealtime). */
         fun endedSince(elapsed: Long): Boolean = idleAt >= elapsed
+
+        /** One fallback notice per call at most. */
+        @Volatile private var fallbackCheckedAt = 0L
+    }
+
+    /**
+     * Orbit holds the phone role, yet Telecom did not hand the call to Orbit (service not bound a
+     * few seconds in): the preinstalled phone app took it – say so afterwards (PLAN 3.12).
+     */
+    private fun checkFallback(context: Context) {
+        val t = android.os.SystemClock.elapsedRealtime()
+        if (t - fallbackCheckedAt < 60_000L) return
+        fallbackCheckedAt = t
+        val pending = goAsync()
+        scope.launch {
+            try {
+                kotlinx.coroutines.delay(4000)
+                // Handed over = Orbit got a call around this moment (the service may already be
+                // gone again after a very short call, so not „is bound now“).
+                val bound = io.github.thelony97.orbit.call.CallSession.lastCallAddedAt >= t - 30_000L
+                if (!bound && io.github.thelony97.orbit.call.PhoneRole.held(context)) Notifications.phoneFallback(context)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -137,6 +162,10 @@ class PhoneStateReceiver : BroadcastReceiver() {
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
         when (state) {
+            TelephonyManager.EXTRA_STATE_OFFHOOK -> {
+                // Outgoing or answered: same check while Orbit is the phone app.
+                if (io.github.thelony97.orbit.call.PhoneRole.held(context)) checkFallback(context)
+            }
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 idleAt = android.os.SystemClock.elapsedRealtime()
                 Notifications.cancelTopics(context)
@@ -145,7 +174,10 @@ class PhoneStateReceiver : BroadcastReceiver() {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 if (number.isNullOrBlank()) return
                 // Orbit is the phone app: its call screen shows all this already.
-                if (io.github.thelony97.orbit.call.PhoneRole.held(context)) return
+                if (io.github.thelony97.orbit.call.PhoneRole.held(context)) {
+                    checkFallback(context)
+                    return
+                }
                 val ringAt = android.os.SystemClock.elapsedRealtime()
                 // A very short call can end before the card is ready: never post after "idle".
                 fun stillRinging() = idleAt < ringAt
