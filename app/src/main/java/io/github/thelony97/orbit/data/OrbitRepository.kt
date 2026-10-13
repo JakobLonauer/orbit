@@ -83,6 +83,18 @@ object OrbitRepository {
         }
     }
 
+    /** Tests only: forget the in-memory state so the next [init] starts like a fresh process. */
+    @androidx.annotation.VisibleForTesting
+    internal fun resetForTest(context: Context) {
+        if (::history.isInitialized) runCatching { history.close() }
+        _data.value = null
+        _loadError.value = null
+        lastSaved = null
+        appContext = context.applicationContext
+        history = HistoryDb(appContext)
+        store = Store(File(appContext.filesDir, FILE), history, ::newId)
+    }
+
     suspend fun ensureLoaded(): OrbitData = loadMutex.withLock {
         _data.value ?: withContext(Dispatchers.IO) { readFromDisk() }.also { _data.value = it }
     }
