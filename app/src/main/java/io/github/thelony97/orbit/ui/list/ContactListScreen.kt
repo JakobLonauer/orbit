@@ -430,6 +430,15 @@ private fun ContactRow(
 ) {
     var origin by remember { mutableStateOf(Offset.Zero) }
     var previewState by remember { mutableStateOf<PreviewState?>(null) }
+    // Coming back from this contact: a short afterglow on its row.
+    val afterglow = remember { androidx.compose.animation.core.Animatable(if (Session.lastOpened == contact.id) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (afterglow.value > 0f) {
+            Session.lastOpened = null
+            kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+            afterglow.animateTo(0f, tween(Motion.MAX_MS))
+        }
+    }
     val scope = rememberCoroutineScope()
     val state = rememberSwipeToDismissBoxState()
     val hit = remember(contact, query) { if (query.isBlank()) null else matchSentence(contact, query) }
@@ -472,6 +481,7 @@ private fun ContactRow(
         Row(
             Modifier
                 .fillMaxWidth()
+                .drawBehind { if (afterglow.value > 0f) drawRect(color.copy(alpha = 0.16f * afterglow.value)) }
                 .onGloballyPositioned { origin = it.positionOnScreen() }
                 // Long press opens the preview card; the same finger picks an action (PLAN 3.2).
                 .pointerInput(contact.id) {
@@ -485,7 +495,10 @@ private fun ContactRow(
                         onDragCancel = { previewState?.let { onPreviewEnd(it, false) }; previewState = null },
                     )
                 }
-                .clickable(onClick = onOpen)
+                .clickable {
+                    Session.lastOpened = contact.id
+                    onOpen()
+                }
                 .padding(horizontal = 18.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

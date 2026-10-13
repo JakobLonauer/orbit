@@ -20,6 +20,9 @@ object Session {
     var networkRoot by mutableStateOf<String?>(null)
     var networkDepth by mutableIntStateOf(2)
 
+    /** „Zurück mit Gedächtnis“ (PLAN 1.2): the row you opened glows once when you come back. */
+    var lastOpened: String? = null
+
     /** Contact the map should centre on next time it opens. */
     var mapFocus by mutableStateOf<String?>(null)
 
