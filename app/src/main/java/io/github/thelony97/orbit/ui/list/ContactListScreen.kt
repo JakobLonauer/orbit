@@ -1,5 +1,6 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.rounded.Settings
 import io.github.thelony97.orbit.update.UpdateState
 import io.github.thelony97.orbit.update.Updates
@@ -215,9 +216,29 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
         }
         Spacer(Modifier.height(8.dp))
 
+        val listState = rememberLazyListState()
+        val railScope = rememberCoroutineScope()
+        // Index of each letter's header: must follow the item order below exactly.
+        val letterIndex = remember(sections, suggestions, defaultView, me, audience) {
+            var i = 1 // update banner
+            if (suggestions > 0 && defaultView) i++
+            if (me != null && defaultView && audience != Audience.ORGS) i++
+            if (sections.all { it.contacts.isEmpty() }) i++
+            val out = LinkedHashMap<String, Int>()
+            sections.forEach { sec ->
+                if (sec.contacts.isEmpty()) return@forEach
+                out[sec.title] = i
+                i += 1 + sec.contacts.size
+            }
+            out
+        }
+        // A–Z only where it means something: name order, no search, enough sections.
+        val showRail = sort == SortMode.NAME && query.isEmpty() && letterIndex.size >= 6
+        Box(Modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
+            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp, end = if (showRail) 18.dp else 0.dp),
         ) {
             item(key = "update") { UpdateBanner() }
             if (suggestions > 0 && defaultView) {
@@ -292,6 +313,14 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                     )
                 }
             }
+        }
+        if (showRail) {
+            AlphabetRail(
+                letters = letterIndex.keys.toList(),
+                onLetter = { l -> letterIndex[l]?.let { railScope.launch { listState.scrollToItem(it) } } },
+                modifier = Modifier.align(Alignment.CenterEnd).padding(bottom = BottomBarSpace),
+            )
+        }
         }
     }
 
