@@ -74,3 +74,75 @@ Plan v2 mit den Ergänzungen aus Abgleich 2. Technische Eckpunkte:
 | Karte | Neuer Tab, MapLibre + OpenFreeMap dark, Geocoder-Cache, Google-Maps-Links |
 | E-Mail | Konten in Einstellungen, IMAP (`com.sun.mail:android-mail`), Abschnitt im Kontakt |
 | Fotos | Abschnitt „Fotos“ im Kontakt, Vollbild-Pager, im Backup enthalten |
+
+---
+
+# Gesamtplan v2 (13. Oktober 2026)
+
+Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
+
+## Grundsätze
+
+1. **Nichts Intelligentes, keine KI.** Orbit tut nur, was du auslöst oder was einer festen, sichtbaren Regel folgt (z. B. „Nummer exakt gleich“, „Nummer beginnt mit …“, „Adresse endet auf @firma.at“).
+2. **Keine Fälligkeit.** Kein Rhythmus, kein „fällig“, kein Drängeln. Orbit schreibt weiter mit (Anrufe, SMS, E-Mails, eigene Einträge); sichtbar im Verlauf.
+3. **Organisationen sind keine Menschen.** Standardmäßig ausgeblendet; ihre Verknüpfungen zu Menschen („Zuordnungen“) sind bewusst getrennt von Beziehungen zwischen Menschen.
+4. **Qualität vor Menge.** Jede Funktion bekommt Leerzustand, Rückgängig, Haptik, Animation, Barrierefreiheit.
+
+## Datenmodell v2 (eine einzige Umstellung, mit automatischer Sicherung vorher)
+
+| Bereich | Neu | Entfällt / wird umgewandelt |
+|---|---|---|
+| Kontakt | `dates` (Anlässe), `links`, `fields` (eigene Felder), `members` (Ansprechpartner, nur Orgs), `numberPrefixes`, `emailDomains`, `mapsUrl`, `pinnedNote` | `rhythmDays`, `paused`, `snoozedUntil`, `remindedDueDay`; `birthday` + `anniversaries` → `dates`; `website` → erster Link |
+| Zuordnung (neu, eigene Liste) | `OrgLink(personId, orgId, role, note)` – z. B. Papa → Hausarzt → „Arzt Müller“ | bisherige Org-Beziehungsarten (works_at, patient, client, member) → Zuordnungen |
+| Beziehung | nur noch Mensch ↔ Mensch | – |
+| Eintrag | `memberId` (mit wem bei der Org), `attachmentIds`, `sharedId` (ein Treffen mit mehreren Personen), Mail-Verweis | – |
+| Ablage (neu, global) | `Attachment(file, mime, takenAt, contactIds)` – Fotos und PDFs, einmal gespeichert, mehreren Kontakten zuordenbar | `gallery` → Ablage |
+| Gruppe / Eintragsart | – | `rhythmDays`, `resetsTimer` |
+
+## Gemeinsame Bausteine (zuerst, damit jede Funktion sie nur nutzt)
+
+1. **Index**: pro Datenänderung einmal vorberechnet – letzter Kontakt je Art, Suchtext, nächste Anlässe, Zuordnungs-Tabellen.
+2. **Zuordnungs-Maschine**: Nummer → Kontakt/Ansprechpartner (exakt, dann längster Nummernbereich), Mail-Adresse → Kontakt (exakt, dann Domain-Regel). Genutzt von Anruf-/SMS-/Mail-Abgleich, Anrufer-Info, Doppelte-Nummer-Hinweis.
+3. **Ablage** für Fotos und Dateien mit Referenzzählung.
+4. **Planer** für alle Benachrichtigungen (Anlässe mit Vorlauf, Themen mit Datum, Treffen am Morgen, Nachfrage nach Treffen, Backup-Fehler).
+5. **Teilen-Eingang**: eine Stelle für Text, Links, Google-Maps-Orte, Bilder, PDFs → „Wohin damit?“.
+6. **UI-Bausteine**: Kacheln, generisches Filter-Sheet, Rückgängig-Leiste, Leerzustände, Abschnittsköpfe.
+
+## Releases
+
+| Release | Inhalt |
+|---|---|
+| R1 + R2 (zusammen) | Datenmodell v2, verschlüsseltes Backup, Fehlerprotokoll, Tempo, Tab-Zustand, Rückgängig · neue Leiste Kontakte · Verlauf · Anlässe · Netz · Karte, Einstellungen hinter Zahnrad, neue Kontaktseite mit Verlauf unten und Filtern, Anlässe-Tab, Planer |
+| R3 Organisationen | Zuordnungen, Ansprechpartner, benannte Nummern/Adressen, Regeln, Links/Portale mit Vorlagen, Schnellzugriff, Teilen aus Google Maps/Chrome, eigene Felder, Öffnungszeiten |
+| R4 E-Mail v2 | Abgleich nur von Neuem, Gesendet-Ordner, Mails im Verlauf, Antworten, Anhänge, Status; Microsoft-Anmeldung, falls App-Registrierung vorhanden |
+| R5 Galerie & Dateien | Ablage, Fotos-Seite, Aufnahmedatum, Fotos an Einträgen, mehrere Kontakte pro Foto, teilen rein/raus |
+| R6 Komfort | Anrufer-Info, Schnelleinstellungs-Kachel, Widgets, Shortcuts, Mehrfachauswahl, Mehrfach-Import, QR-Karte, Export Excel/vCard |
+
+## Verwandte Kleinigkeiten (nicht genannt, aber dazugehörig)
+
+- Zuordnungen: „Papas Hausarzt anrufen“ mit einem Tipp in Papas Kontakt; in der Org „Papa und Mama gehen hierher“; Rollen aus beiden Blickrichtungen; auch für dich selbst (Hausarzt, Unis).
+- Verlauf: ein Treffen mit mehreren Personen als ein Eintrag; schnelles Rückdatieren (gestern, letzte Woche); verpasste Anrufe mit Rückruf; Suche im Verlauf; Notiz zu automatischen Einträgen.
+- Anlässe: Gratulieren-Knopf mit eigener Textvorlage; Geschenke pro Jahr abhaken (keine Doppelgeschenke); Alter im Kopf; optional in den Handy-Kalender.
+- Organisationen: Öffnungszeiten mit „jetzt geöffnet / schließt um 18:00“; Logo der Webseite als Bild (bestätigen); Kopier-Knöpfe (Kunden-, Matrikelnummer).
+- Kontakte: Profilbild zuschneiden; angepinnte Notiz oben; Kontakt als vCard/QR teilen.
+- Einstellungen: Speicher-Übersicht; Sperre sofort / nach 1 / 5 Minuten.
+
+## Wow durch Ausarbeitung
+
+- Bewegung: Avatar gleitet aus der Liste in den Kontaktkopf, Zurück-Geste mit Vorschau, federnde Übergänge.
+- Haptik bei Wischen, Anpinnen, Speichern.
+- Tempo: Suche sofort, flüssige Listen, Karte lädt nicht neu, Platzhalter statt Ladekreis.
+- Keine Sackgassen: jeder Leerzustand erklärt sich und bietet genau eine Aktion; Rückgängig statt Nachfrage; Berechtigungen erst beim Einschalten der Funktion, mit Begründung.
+- Erster Start in drei Schritten: Ich (Name, Foto) → Kontakte aus dem Handy auswählen → fertig.
+- Konsistenz: ein Abstandsraster, überall dieselben Bausteine, Texte in Du-Form ohne Fachbegriffe, TalkBack, Schrift bis 200 %.
+
+## Qualitätssicherung
+
+- Unit-Tests (Logik, Umstellung, Zuordnung, Planer) und Screenshot-Tests aller Screens mit festen Testdaten im CI; Release nur, wenn alles grün ist.
+- Screenshots landen im Branch `ci-log`, damit sie vor jedem Release angesehen werden können.
+- Unabhängige Code-Prüfung durch einen zweiten Agenten vor jedem Release.
+
+## Offene Entscheidungen
+
+- Microsoft-Anmeldung (Outlook, Microsoft 365/PHOÖ): braucht eine einmalige App-Registrierung durch dich.
+- WhatsApp-Erkennung: optional, standardmäßig aus.
