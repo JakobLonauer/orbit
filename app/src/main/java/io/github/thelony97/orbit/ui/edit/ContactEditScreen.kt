@@ -83,6 +83,7 @@ import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.GlassCard
 import io.github.thelony97.orbit.ui.components.GlowButton
+import io.github.thelony97.orbit.ui.components.SaveMorphButton
 import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.PhotoCache
 import io.github.thelony97.orbit.ui.components.SectionTitle
@@ -167,11 +168,14 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             .withBirthday(birthday, ::newId)
     }
 
-    fun save() {
+    var savedId by remember { mutableStateOf<String?>(null) }
+
+    /** Persists; the page closes after the save button's check morph (see [leave]). */
+    fun save(): Boolean {
         val contact = build()
         if ((contact.isOrg && contact.company.isBlank()) || (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank())) {
             Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         val oldPhoto = original.photo
         if (oldPhoto != null && oldPhoto != contact.photo && !isNew) {
@@ -181,7 +185,13 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         val phonesChanged = contact.phones.map { it.value } != original.phones.map { it.value } || isNew
         OrbitRepository.edit { d -> Mutations.upsertContact(d, contact) }
         if (phonesChanged && contact.phones.isNotEmpty()) Sync.backfill(ctx, contact.id)
-        if (isNew) nav.replace(Route.Detail(contact.id)) else nav.back()
+        savedId = contact.id
+        return true
+    }
+
+    fun leave() {
+        val id = savedId ?: return
+        if (isNew) nav.replace(Route.Detail(id)) else nav.back()
     }
 
     fun discard() {
@@ -212,7 +222,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     color = Space.Text,
                     modifier = Modifier.weight(1f),
                 )
-                GlowButton("Speichern", { save() }, icon = Icons.Rounded.Check)
+                SaveMorphButton(onSave = { save() }, onDone = { leave() })
             }
 
             Column(
