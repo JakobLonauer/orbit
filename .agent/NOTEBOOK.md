@@ -139,3 +139,6 @@
 - CI-Warteschleife: nach einem Push erst ~20 s warten oder auf den headSha filtern, sonst meldet `gh run list --limit 1` noch den vorigen Lauf.
 - Start-Moment: `Session.startPlayed` (einmal je Prozess), Animatable `intro` in HomeScreen, Overlay `StartMoment` liest den Fortschritt nur beim Zeichnen; `derivedStateOf` für das Ein-/Ausblenden. OrbitNavBar meldet die Planetenposition per onGloballyPositioned (positionInRoot + Slot-Mitte). Screenshot-Tests setzen `Session.startPlayed = true` im @Before, sonst ist Home schwarz übermalt.
 - !! `MaterialShapes.X.toShape()` ist @Composable – nicht in remember { } aufrufen (merkt sich selbst).
+- 13.10. neunte Sitzung: Release-Kandidat `release-r1b` (cb04336) gebaut; signing/.github/update/ unverändert (nur zxing-Abhängigkeit + Share-FileProvider). Veröffentlichen wie bei R1a: nach Jakobs „ja“ main fast-forward auf release-r1b, CI-Release prüfen (tools/apk_cert_sha256.py), dann main in dev mergen.
+- Undo-Regel: Seiten, die eine Kopie bearbeiten (Edit-Screen), rufen beim Öffnen `Undo.clear()` – sonst überschreibt Speichern ein späteres Rückgängig.
+- AppLock: externe Flows (Picker/Teilen) sperren nicht sofort, sondern mit 5 Min Kulanz; `onResume` setzt externalFlow zurück (durchsichtiges Teilen-Sheet stoppt Orbit nie).
