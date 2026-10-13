@@ -55,7 +55,7 @@ import io.github.thelony97.orbit.ui.list.ContactFabMenu
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.map.MapScreen
 import io.github.thelony97.orbit.ui.network.NetworkScreen
-import io.github.thelony97.orbit.ui.orbit.OrbitScreen
+import io.github.thelony97.orbit.ui.verlauf.VerlaufScreen
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlin.math.PI
 import kotlin.math.abs
@@ -91,7 +91,7 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             ) { shown ->
                 saved.SaveableStateProvider(shown) {
                     when (shown) {
-                        1 -> OrbitScreen(data, idx, nav)
+                        1 -> VerlaufScreen(data, idx, nav)
                         2 -> NetworkScreen(data, idx, nav)
                         3 -> MapScreen(data, idx, nav)
                         else -> ContactListScreen(data, idx, nav)

@@ -1,0 +1,244 @@
+package io.github.thelony97.orbit.ui.verlauf
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import io.github.thelony97.orbit.core.designsystem.Motion
+import io.github.thelony97.orbit.core.domain.AtFormat
+import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.Entry
+import io.github.thelony97.orbit.data.OrbitData
+import io.github.thelony97.orbit.domain.Audience
+import io.github.thelony97.orbit.domain.Index
+import io.github.thelony97.orbit.domain.Logic
+import io.github.thelony97.orbit.domain.toLocalDate
+import io.github.thelony97.orbit.domain.today
+import io.github.thelony97.orbit.ui.Nav
+import io.github.thelony97.orbit.ui.Route
+import io.github.thelony97.orbit.ui.Session
+import io.github.thelony97.orbit.ui.components.Avatar
+import io.github.thelony97.orbit.ui.components.EmptyHint
+import io.github.thelony97.orbit.ui.components.SpaceChip
+import io.github.thelony97.orbit.ui.components.SpaceSearchField
+import io.github.thelony97.orbit.ui.components.contactColor
+import io.github.thelony97.orbit.ui.components.entryIcon
+import io.github.thelony97.orbit.ui.home.BottomBarSpace
+import io.github.thelony97.orbit.ui.theme.Space
+import io.github.thelony97.orbit.util.Fmt
+import java.time.LocalDate
+
+/** One Verlauf row with its contact. */
+internal data class VerlaufItem(val contact: Contact, val entry: Entry)
+
+/**
+ * All entries of all visible contacts, newest first (PLAN 3.4). Archived contacts never appear,
+ * organisations only when shown; talks with hidden members appear as „Gespräch · <Org>“
+ * without name or note.
+ */
+internal fun verlaufRows(data: OrbitData, showOrgs: Boolean, typeId: String?, query: String): List<VerlaufItem> {
+    val q = Logic.fold(query.trim())
+    return data.contacts.asSequence()
+        .filter { it.deletedAt == null && !it.archived && (showOrgs || !it.isOrg || it.isMe) }
+        .flatMap { c -> c.entries.asSequence().map { VerlaufItem(c, it) } }
+        .filter { typeId == null || it.entry.typeId == typeId }
+        .filter { r ->
+            if (q.isEmpty()) return@filter true
+            val hay = buildString {
+                append(Logic.displayName(r.contact, false)).append(' ')
+                if (r.entry.memberId == null) {
+                    append(r.entry.note).append(' ')
+                    r.entry.messages.forEach { append(it.text).append(' ') }
+                }
+            }
+            Logic.fold(hay).let { h -> q.split(' ').filter { it.isNotBlank() }.all { it in h } }
+        }
+        .sortedByDescending { it.entry.at }
+        .toList()
+}
+
+/** "Heute", "Gestern", "Mo., 12. Okt." this year, else with year. */
+internal fun dayHeader(d: LocalDate, today: LocalDate): String = when {
+    d == today -> "Heute"
+    d == today.minusDays(1) -> "Gestern"
+    d.year == today.year -> AtFormat.weekdayDate(d)
+    else -> "${AtFormat.weekdayDate(d)} ${d.year}"
+}
+
+@Composable
+fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
+    val search = rememberTextFieldState()
+    val query = search.text.toString()
+    var typeFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val showOrgs = Session.audience != Audience.PEOPLE
+    val todayDate = today()
+    val rows = remember(data, showOrgs, typeFilter, query) { verlaufRows(data, showOrgs, typeFilter, query) }
+    // Kinds that actually occur, most used first (W5: only what applies).
+    val kinds = remember(data) {
+        data.contacts.asSequence().filter { !it.archived && it.deletedAt == null }
+            .flatMap { c -> c.entries.asSequence() }.groupingBy { it.typeId }.eachCount()
+            .entries.sortedByDescending { it.value }.map { it.key }
+    }
+    // Entries newer than the moment this tab opened glide in with a short glow (signature moment).
+    val openedAt = remember { System.currentTimeMillis() - 60_000 }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
+    ) {
+        item(key = "header") {
+            Column(Modifier.padding(start = 18.dp, end = 14.dp, top = 10.dp)) {
+                Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                Spacer(Modifier.height(10.dp))
+                SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
+            }
+        }
+        if (kinds.size > 1) {
+            item(key = "kinds") {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SpaceChip("Alle", typeFilter == null, { typeFilter = null })
+                    kinds.forEach { t ->
+                        val type = idx.types[t]
+                        SpaceChip(type?.name ?: t, typeFilter == t, { typeFilter = if (typeFilter == t) null else t }, leading = entryIcon(type?.icon ?: "star"))
+                    }
+                }
+            }
+        }
+        if (rows.isEmpty()) {
+            item(key = "empty") {
+                when {
+                    query.isNotEmpty() -> EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() })
+                    typeFilter != null -> EmptyHint("Keine Einträge dieser Art", "", action = "Alle zeigen" to { typeFilter = null })
+                    else -> EmptyHint("Noch kein Verlauf", "", action = "Zu den Kontakten" to { nav.home(0) })
+                }
+            }
+        }
+        var lastDay: LocalDate? = null
+        rows.forEach { r ->
+            val day = r.entry.at.toLocalDate()
+            if (day != lastDay) {
+                lastDay = day
+                item(key = "d-$day") {
+                    Text(
+                        dayHeader(day, todayDate),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        color = if (day == todayDate) Space.Teal else Space.TextDim,
+                        modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                    )
+                }
+            }
+            item(key = "e-${r.contact.id}-${r.entry.id}") {
+                VerlaufRow(r, idx, fresh = r.entry.at > openedAt, onOpen = { nav.open(Route.Detail(r.contact.id)) }, modifier = Modifier.animateItem())
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val c = r.contact
+    val e = r.entry
+    val color = contactColor(c, idx)
+    val glow = remember { Animatable(if (fresh) 1f else 0f) }
+    LaunchedEffect(fresh) { if (fresh) glow.animateTo(0f, tween(Motion.MAX_MS, delayMillis = Motion.MEDIUM_MS)) }
+    val member = e.memberId != null
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 1.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .drawBehind { if (glow.value > 0f) drawRect(color.copy(alpha = 0.18f * glow.value)) }
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Avatar(c, color, 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (member) "Gespräch · ${Logic.displayName(c, false)}" else Logic.displayName(c, false),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    color = Space.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(Fmt.time(e.at), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextFaint)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val icon = when (e.incoming) {
+                    true -> Icons.AutoMirrored.Rounded.CallReceived
+                    false -> Icons.AutoMirrored.Rounded.CallMade
+                    null -> entryIcon(idx.types[e.typeId]?.icon ?: "star")
+                }
+                Icon(icon, null, tint = if (e.incoming == true) Space.Teal else Space.TextFaint, modifier = Modifier.size(12.dp))
+                Spacer(Modifier.width(4.dp))
+                val kind = idx.types[e.typeId]?.name ?: "Eintrag"
+                Text(
+                    kind + (e.durationSec?.let { " · " + Fmt.duration(it) } ?: ""),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Space.TextDim,
+                )
+            }
+            // Never the content of a hidden member talk (PLAN 3.4).
+            val text = if (member) "" else e.note.ifBlank { e.messages.lastOrNull()?.text.orEmpty() }
+            if (text.isNotBlank()) {
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Space.TextFaint,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
+}

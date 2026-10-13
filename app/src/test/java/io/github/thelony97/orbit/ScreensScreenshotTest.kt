@@ -27,7 +27,7 @@ import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.detail.ContactDetailScreen
 import io.github.thelony97.orbit.ui.home.HomeScreen
 import io.github.thelony97.orbit.ui.list.ContactListScreen
-import io.github.thelony97.orbit.ui.orbit.OrbitScreen
+import io.github.thelony97.orbit.ui.verlauf.VerlaufScreen
 import io.github.thelony97.orbit.ui.settings.ArchiveScreen
 import io.github.thelony97.orbit.ui.theme.OrbitTheme
 import io.github.thelony97.orbit.ui.theme.Space
@@ -109,7 +109,7 @@ class ScreensScreenshotTest {
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_$name.png")
     }
 
-    @Test fun orbitTab() = shot("orbit") { OrbitScreen(data, idx, nav) }
+    @Test fun verlaufTab() = shot("verlauf") { VerlaufScreen(data, idx, nav) }
 
     @Test fun contactList() = shot("list") { ContactListScreen(data, idx, nav) }
 
