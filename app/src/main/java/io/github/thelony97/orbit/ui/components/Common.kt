@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -96,6 +97,39 @@ fun rememberPhoto(name: String?): ImageBitmap? {
         value = name?.let { PhotoCache.load(it) }
     }
     return bitmap
+}
+
+/** Head colours taken from profile pictures, per photo file; `null` means a grey photo. */
+object PhotoAccents {
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private const val NONE = Long.MIN_VALUE
+
+    fun cached(name: String): Color? = cache[name]?.takeIf { it != NONE }?.let { Color(it.toULong()) }
+    fun known(name: String): Boolean = cache.containsKey(name)
+
+    fun compute(name: String, photo: ImageBitmap): Color? {
+        val color = runCatching {
+            val small = android.graphics.Bitmap.createScaledBitmap(photo.asAndroidBitmap(), 24, 24, true)
+            val px = IntArray(24 * 24)
+            small.getPixels(px, 0, 24, 0, 0, 24, 24)
+            io.github.thelony97.orbit.core.domain.PhotoAccent.hue(px)?.let { Color.hsv(it, 0.5f, 1f) }
+        }.getOrNull()
+        cache[name] = color?.value?.toLong() ?: NONE
+        return color
+    }
+}
+
+/** The person's colour from the profile picture (PLAN 1.3); computed off the main thread once. */
+@Composable
+fun rememberPhotoAccent(name: String?, photo: ImageBitmap?): Color? {
+    val accent by produceState(initialValue = name?.let { PhotoAccents.cached(it) }, name, photo) {
+        value = when {
+            name == null || photo == null -> null
+            PhotoAccents.known(name) -> PhotoAccents.cached(name)
+            else -> withContext(Dispatchers.Default) { PhotoAccents.compute(name, photo) }
+        }
+    }
+    return accent
 }
 
 private val fallbackPalette = listOf(

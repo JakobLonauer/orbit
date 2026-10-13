@@ -7,6 +7,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.thelony97.orbit.ui.components.rememberPhoto
+import io.github.thelony97.orbit.ui.components.rememberPhotoAccent
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -223,11 +224,28 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
     fun edit(transform: (Contact) -> Contact) = OrbitRepository.editContact(c.id, transform)
 
+    /** Removes a relation with an undo that brings back exactly that one. */
+    fun removeRelation(r: RelView) {
+        val original = data.relations.firstOrNull { it.id == r.id } ?: return
+        OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
+        Undo.offer("${Logic.shortName(r.other)} entfernt") {
+            OrbitRepository.edit { d -> if (d.relations.any { it.id == original.id }) d else d.copy(relations = d.relations + original) }
+        }
+    }
+
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val listState = rememberLazyListState()
     val photo = rememberPhoto(c.photo)
+    // Kopf in der Farbe der Person (PLAN 1.3): palette from the photo; "Ich" stays the sun,
+    // organisations stay blue. Glides over from the normal colour once it is known.
+    val photoAccent = rememberPhotoAccent(c.photo, photo)
+    val head by androidx.compose.animation.animateColorAsState(
+        if (c.isOrg || c.isMe) color else photoAccent ?: color,
+        androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS),
+        label = "head",
+    )
     SpaceBackground {
         // Signature (PLAN 1.3): the head glows in the person's colour, the profile picture lies
         // blurred behind it; both fade out as the page scrolls (read in the draw phase only).
@@ -249,7 +267,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
             Box(
                 Modifier.matchParentSize().background(
-                    Brush.verticalGradient(listOf(color.copy(alpha = 0.30f), color.copy(alpha = 0.08f), Color.Transparent)),
+                    Brush.verticalGradient(listOf(head.copy(alpha = 0.30f), head.copy(alpha = 0.08f), head.copy(alpha = 0f))),
                 ),
             )
         }
@@ -332,7 +350,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(c, color, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = color)
+                    Avatar(c, head, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = head)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
                         // Long names shrink cleanly instead of being cut (PLAN 1.4).
@@ -607,7 +625,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                     }
                                 }
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
-                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
+                                    removeRelation(r)
                                 }
                             },
                         )
@@ -634,7 +652,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onOpen = { nav.open(Route.Detail(r.other.id)) },
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
-                                    OrbitRepository.edit { d -> Mutations.removeRelation(d, r.id) }
+                                    removeRelation(r)
                                 }
                             },
                         )
@@ -668,6 +686,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
                                     edit { it.copy(dates = it.dates.filterNot { x -> x.id == a.id }) }
+                                    Undo.offer("${a.title} entfernt") { edit { it.copy(dates = it.dates + a) } }
                                 }
                             },
                         )
@@ -786,7 +805,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             types = data.entryTypes,
             initial = target.entry,
             onSave = { e -> OrbitRepository.edit { d -> Mutations.updateEntry(d, c.id, e) } },
-            onDelete = { OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, target.entry.id) } },
+            onDelete = {
+                val gone = target.entry
+                OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, gone.id) }
+                Undo.offer("Eintrag gelöscht") { OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, gone) } }
+            },
             onDismiss = { entryTarget = null },
         )
         null -> Unit

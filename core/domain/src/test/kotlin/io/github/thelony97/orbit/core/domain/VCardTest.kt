@@ -54,8 +54,8 @@ class VCardTest {
         assertTrue("BDAY:--02-29" in VCard.of(c))
         val org = Contact("o", kind = ContactKind.ORG, company = "Arzt Müller; Praxis", phones = listOf(LabeledValue("Zentrale", "0732 111")))
         val v = VCard.of(org)
-        assertTrue("FN:Arzt Müller\; Praxis" in v)
-        assertTrue("ORG:Arzt Müller\; Praxis" in v)
+        assertTrue("FN:Arzt Müller\\; Praxis" in v)
+        assertTrue("ORG:Arzt Müller\\; Praxis" in v)
         assertTrue("TEL;TYPE=WORK,PREF:0732 111" in v)
     }
 

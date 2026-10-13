@@ -125,6 +125,7 @@ import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
 import io.github.thelony97.orbit.ui.sheets.EntrySheet
 import io.github.thelony97.orbit.ui.theme.Space
+import io.github.thelony97.orbit.ui.components.Undo
 import io.github.thelony97.orbit.util.Fmt
 import kotlinx.coroutines.launch
 import java.time.temporal.ChronoUnit
@@ -380,7 +381,11 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
             types = data.entryTypes,
             initial = null,
             defaultType = if (c.isOrg) TypeIds.CALL else TypeIds.MEET,
-            onSave = { e -> OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) } },
+            onSave = { e ->
+                OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) }
+                // Swiped by mistake? One tap takes it back (PLAN 1.2).
+                Undo.offer("Eingetragen bei ${Logic.shortName(c)}") { OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, e.id) } }
+            },
             onDismiss = { quickEntry = null },
         )
     }
