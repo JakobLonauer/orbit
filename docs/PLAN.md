@@ -127,14 +127,35 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 - Kontakte: Profilbild zuschneiden; angepinnte Notiz oben; Kontakt als vCard/QR teilen.
 - Einstellungen: Speicher-Übersicht; Sperre sofort / nach 1 / 5 Minuten.
 
-## Wow durch Ausarbeitung
+## Wow durch Ausarbeitung (v2)
 
-- Bewegung: Avatar gleitet aus der Liste in den Kontaktkopf, Zurück-Geste mit Vorschau, federnde Übergänge.
-- Haptik bei Wischen, Anpinnen, Speichern.
-- Tempo: Suche sofort, flüssige Listen, Karte lädt nicht neu, Platzhalter statt Ladekreis.
-- Keine Sackgassen: jeder Leerzustand erklärt sich und bietet genau eine Aktion; Rückgängig statt Nachfrage; Berechtigungen erst beim Einschalten der Funktion, mit Begründung.
-- Erster Start in drei Schritten: Ich (Name, Foto) → Kontakte aus dem Handy auswählen → fertig.
-- Konsistenz: ein Abstandsraster, überall dieselben Bausteine, Texte in Du-Form ohne Fachbegriffe, TalkBack, Schrift bis 200 %.
+Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, alles respektiert „Animationen entfernen“ und den Energiesparmodus.
+
+**Signature-Momente**
+- Anlässe-Tab: **Jahresrad** – das Jahr als Umlaufbahn, Anlässe als Punkte, heute als leuchtender Planet; Monat antippen springt in die Liste.
+- Erster Start: ausgewählte Handy-Kontakte **fliegen als Bilder in deinen Orbit** um dich (die Sonne), dann wird daraus die Liste.
+- Netz: Wechsel der Mitte **morpht** die Knoten an ihre neuen Plätze; Auswahl dimmt den Rest und lässt den **Weg zur Mitte aufleuchten**.
+- Fotos: Vollbild **wächst aus der Kachel** und fällt beim Runterwischen in sie zurück.
+- Ich-Karte: Visitenkarte mit QR und **Holo-Schimmer, der sich beim Neigen bewegt** (AGSL-Shader + Lagesensor).
+- Echte **Glas-Unschärfe** hinter Leiste und Köpfen (Haze, Android 12+).
+- Kontaktseite **nimmt die Farbe der Person an** (Palette aus dem Profilbild, Organisationen blau).
+
+**Gefühl**
+- Geteilte Übergänge (Bild Liste → Kopf, Kachel → Organisation), Zurück-Geste mit Vorschau.
+- Haptik-Sprache: Tick an Schwellen, Bestätigen, Ablehnen, sanfte Ticks beim A–Z-Scrubber und Monatswechsel.
+- Federnde Wisch-Aktionen, Knöpfe verformen sich beim Drücken (Expressive Shape-Morph), Speichern morpht zum Häkchen.
+- Lange drücken auf Kontakt: **Vorschau-Karte** mit letzten Einträgen und Aktionen.
+- Zahlen in Tabellenziffern, Zähler rollen statt zu springen.
+
+**Details zum zweiten Hinsehen**
+- „Annas 30er ist in 12 Tagen – ein Donnerstag.“
+- Suche markiert Treffer und zeigt den Satz aus Notiz oder Verlauf.
+- Öffnungszeiten: „schließt in 40 Min“, Farbe wechselt kurz vor Schluss.
+- Eingefügte Nummer in der Suche: „gehört zu Arzt Müller“.
+- Geburtstags-Benachrichtigung mit Foto und „Gratulieren“ mit deiner Textvorlage.
+- Animierter Startbildschirm, Themen-Icon, Widget-Vorschauen im Auswahlmenü.
+- Tablet/Foldable: automatisch zweispaltig (Liste | Kontakt).
+- Kopieren zeigt „Kopiert“, lange Namen werden sauber verkleinert statt abgeschnitten.
 
 ## Qualitätssicherung
 
