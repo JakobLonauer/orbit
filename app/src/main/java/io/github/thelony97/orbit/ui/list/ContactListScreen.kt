@@ -66,6 +66,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CallMade
@@ -331,7 +332,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp, end = if (showRail) 18.dp else 0.dp),
+            // The rail's room is reserved for the whole name sort, so typing never shifts the rows (W2).
+            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp, end = if (sort == SortMode.NAME) 18.dp else 0.dp),
         ) {
             item(key = "update") { UpdateBanner() }
             if (suggestions > 0 && defaultView) {
@@ -352,11 +354,18 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
 
             if (sections.all { it.contacts.isEmpty() }) {
                 item(key = "empty") {
+                    // W6/W7: one line, one action – no instructions.
                     when {
-                        query.isNotEmpty() -> EmptyHint("Nichts gefunden", "Für „$query“ gibt es keinen Treffer.")
+                        query.isNotEmpty() -> EmptyHint("Kein Treffer", "", action = "Suche leeren" to { search.clearText() })
                         audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
-                            EmptyHint("Keine Organisationen", "Lege Firma, Praxis oder Amt über + → „Neue Organisation“ an.")
-                        !defaultView -> EmptyHint("Leer", "In diesem Filter ist niemand.")
+                            EmptyHint("Keine Organisationen", "", action = "Organisation anlegen" to {
+                                nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), Contact(id = io.github.thelony97.orbit.data.newId(), kind = io.github.thelony97.orbit.data.ContactKind.ORG))))
+                            })
+                        !defaultView -> EmptyHint("Niemand in diesem Filter", "", action = "Filter zurücksetzen" to {
+                            Session.status = StatusFilter.ALL
+                            Session.groups = emptySet()
+                            Session.audience = Audience.PEOPLE
+                        })
                         else -> EmptyHint("Dein Orbit ist leer", "", action = "Kontakt anlegen" to { nav.open(Route.Edit()) })
                     }
                 }

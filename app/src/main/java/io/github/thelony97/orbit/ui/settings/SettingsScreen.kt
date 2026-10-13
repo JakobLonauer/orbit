@@ -513,13 +513,16 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     AppLock.allowExternal()
                     folderPicker.launch(null)
                 })
-                Hairline()
-                SettingItem(
-                    Icons.Rounded.Backup, "Wöchentlich automatisch",
-                    s.lastBackupAt?.let { "zuletzt ${Fmt.date(it)}" } ?: "noch keine Sicherung",
-                    iconTint = Space.Blue,
-                    trailing = { SpaceSwitch(s.autoBackup) { v -> OrbitRepository.editSettings { it.copy(autoBackup = v) } } },
-                )
+                // Automatic backups need a folder: without one the switch would promise nothing (W5).
+                if (folder != null) {
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Backup, "Wöchentlich automatisch",
+                        s.lastBackupAt?.let { "zuletzt ${Fmt.date(it)}" } ?: "noch keine Sicherung",
+                        iconTint = Space.Blue,
+                        trailing = { SpaceSwitch(s.autoBackup) { v -> OrbitRepository.editSettings { it.copy(autoBackup = v) } } },
+                    )
+                }
                 Hairline()
                 SettingItem(Icons.Rounded.Upload, "Jetzt sichern", if (folder != null) "in den Backup-Ordner" else "als Datei speichern", iconTint = Space.Blue, onClick = { backupNow() })
                 Hairline()
