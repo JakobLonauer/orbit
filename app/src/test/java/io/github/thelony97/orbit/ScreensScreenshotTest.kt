@@ -123,6 +123,21 @@ class ScreensScreenshotTest {
 
     @Test fun archivedDetail() = shot("detail_archived") { ContactDetailScreen("alt1", data, idx, nav) }
 
+    // W6: every state designed – empty and very long.
+    private val empty = OrbitData(contacts = listOf(Contact("me", isMe = true, firstName = "Jakob")), entryTypes = Defaults.entryTypes, settings = Settings(onboardingDone = true))
+
+    @Test fun emptyHome() = shot("home_empty") { HomeScreen(empty, Index(empty), nav, tab = 0, onTab = {}) }
+
+    @Test fun emptyVerlauf() = shot("verlauf_empty") { VerlaufScreen(empty, Index(empty), nav) }
+
+    @Test fun longNameDetail() {
+        val long = data.copy(contacts = data.contacts + Contact(
+            "long", firstName = "Maximiliane-Theresia", lastName = "von Hohenzollern-Sigmaringen-Wolkenstein",
+            position = "Leiterin der Abteilung für interdisziplinäre Bildungsforschung", company = "Pädagogische Hochschule Oberösterreich",
+        ))
+        shot("detail_long") { ContactDetailScreen("long", long, Index(long), nav) }
+    }
+
     /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */
     @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
 
