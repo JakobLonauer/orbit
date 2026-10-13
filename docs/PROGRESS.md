@@ -6,7 +6,8 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 - Entwicklung auf Branch `dev`. Push auf `dev` baut per CI ohne Release; Log im Branch `ci-log-dev`.
 - Erst wenn ein Update fertig, grün gebaut und per Review geprüft ist: `dev` nach `main` mergen → CI baut und veröffentlicht das signierte Release (Log im Branch `ci-log`).
-- Maßgeblich ist `docs/PLAN.md`, Abschnitt „Gesamtplan v3“ plus die Abschnitte davor (Grundsätze, Datenmodell v2, Mitarbeiter, Archiv, Geburtstage, Wow pro Update, Qualitätssicherung).
+- Maßgeblich ist allein `docs/PLAN.md` (Rangfolge: Datensicherheit → Wow-Charta → Funktionen). `PLAN-history.md` ist nur Hintergrund.
+- Pro Release eine Wow-Gate-Checkliste (PLAN 1.5) hier abhaken.
 
 ## Stand
 
