@@ -1,5 +1,8 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.rounded.Settings
 import io.github.thelony97.orbit.update.UpdateState
@@ -299,6 +302,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         onCall = { ContactActions.call(ctx, c, null, data.settings) },
                         onQuickEntry = { quickEntry = c },
                         modifier = Modifier.animateItem(),
+                        query = query,
                     )
                 }
             }
@@ -397,9 +401,11 @@ private fun ContactRow(
     onCall: () -> Unit,
     onQuickEntry: () -> Unit,
     modifier: Modifier = Modifier,
+    query: String = "",
 ) {
     val scope = rememberCoroutineScope()
     val state = rememberSwipeToDismissBoxState()
+    val hit = remember(contact, query) { if (query.isBlank()) null else matchSentence(contact, query) }
     val todayDate = today()
     val color = contactColor(contact, idx)
     val last = if (sort == SortMode.RECENT) ListQuery.lastEntry(contact) else null
@@ -477,7 +483,20 @@ private fun ContactRow(
                     contact.isOrg -> listOf(Defaults.orgCategory(contact.orgCategory).label, contact.position).filter { it.isNotBlank() }.joinToString(" · ")
                     else -> null
                 }
-                if (sub != null) {
+                if (hit != null) {
+                    // The sentence the search found, match highlighted (PLAN 1.4).
+                    Text(
+                        buildAnnotatedString {
+                            append(hit.text.substring(0, hit.start))
+                            withStyle(SpanStyle(color = Space.Violet, fontWeight = FontWeight.SemiBold)) { append(hit.text.substring(hit.start, hit.end)) }
+                            append(hit.text.substring(hit.end))
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Space.TextDim,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else if (sub != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (last != null) {
                             val dirIcon = when (last.incoming) {
