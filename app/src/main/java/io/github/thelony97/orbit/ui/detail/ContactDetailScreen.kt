@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.core.domain.migration.MigrateV1
@@ -286,11 +287,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val nameStyle = MaterialTheme.typography.headlineSmallEmphasized
                         androidx.compose.foundation.text.BasicText(
                             Logic.displayName(c, false),
-                            style = nameStyle.copy(color = Space.Text),
+                            // Relative line height so shrinking also tightens the lines.
+                            style = nameStyle.copy(color = Space.Text, lineHeight = 1.18.em),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
-                                minFontSize = 15.sp,
+                                minFontSize = 13.sp,
                                 maxFontSize = nameStyle.fontSize,
                             ),
                         )
@@ -477,7 +479,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onClick = { birthdayDialog = true },
                         )
                     } else {
-                        InfoRow(label = "Geburtstag", value = "hinzufügen", onClick = { birthdayDialog = true })
+                        InfoRow(label = "hinzufügen", value = "Geburtstag", onClick = { birthdayDialog = true })
                     }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
