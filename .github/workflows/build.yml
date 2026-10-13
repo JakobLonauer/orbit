@@ -51,7 +51,10 @@ jobs:
           ORBIT_KEY_PASSWORD: ${{ secrets.ORBIT_SIGNING_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleRelease -PorbitVersionCode=${{ github.run_number }} 2>&1 | tee build.log
+          # Tests and screenshots first; --continue so one CI round reports every failure.
+          ./gradlew --no-daemon --stacktrace --continue \
+            :core:model:test :core:domain:test :app:recordRoborazziDebug assembleRelease \
+            -PorbitVersionCode=${{ github.run_number }} 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
 
       - name: Show compiler errors
@@ -67,7 +70,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cilog"
           cp build.log "$RUNNER_TEMP/cilog/build.log" 2>/dev/null || echo "no build log" > "$RUNNER_TEMP/cilog/build.log"
           cd "$RUNNER_TEMP/cilog"
-          grep -E "^e: |error:|FAILURE|What went wrong|Could not|Execution failed" -A6 build.log > errors.txt || true
+          grep -E "^e: |error:|FAILURE|What went wrong|Could not|Execution failed| FAILED$" -A6 build.log > errors.txt || true
+          mkdir -p shots tests
+          cp "$GITHUB_WORKSPACE"/app/build/outputs/roborazzi/*.png shots/ 2>/dev/null || true
+          find "$GITHUB_WORKSPACE" -path "*/build/test-results/*" -name "TEST-*.xml" -exec cp {} tests/ \; 2>/dev/null || true
+          grep -l "<failure" tests/*.xml > tests/failed.txt 2>/dev/null || true
           echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
           if [ "$GITHUB_REF_NAME" = "main" ]; then LOGBRANCH=ci-log; else LOGBRANCH="ci-log-$GITHUB_REF_NAME"; fi
           echo "branch $GITHUB_REF_NAME" >> meta.txt

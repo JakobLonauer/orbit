@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose)
+    alias(libs.plugins.roborazzi)
 }
 
 val orbitVersionCode = (findProperty("orbitVersionCode") as String?)?.toIntOrNull() ?: 1
@@ -74,6 +75,12 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -90,7 +97,16 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    // Real hardware-accelerated rendering in Robolectric (blur, shadows, RenderEffect).
+    systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+}
+
 dependencies {
+    implementation(project(":core:model"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:designsystem"))
+
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
 
@@ -121,4 +137,13 @@ dependencies {
     implementation(libs.maplibre.android)
     implementation(libs.android.mail)
     implementation(libs.android.activation)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(composeBom)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
