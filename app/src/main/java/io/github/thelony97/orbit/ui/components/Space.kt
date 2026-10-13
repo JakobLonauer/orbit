@@ -68,10 +68,11 @@ import kotlin.random.Random
 fun Modifier.glow(color: Color, radius: Dp = 14.dp, shape: Shape = CircleShape, alpha: Float = 0.55f): Modifier =
     dropShadow(shape, Shadow(radius = radius, color = color, alpha = alpha))
 
-/** Frosted panel: translucent fill with a hairline border. */
+/** Frosted panel: translucent fill with a hairline border; lights up under the finger (Spotlight). */
 fun Modifier.glass(shape: Shape = RoundedCornerShape(20.dp), tint: Color = Space.Panel, border: Color = Space.Line): Modifier =
     clip(shape)
         .background(Brush.verticalGradient(listOf(tint.copy(alpha = 0.92f), tint.copy(alpha = 0.78f))))
+        .spotlight()
         .border(1.dp, border, shape)
 
 // ---------------------------------------------------------------- background
