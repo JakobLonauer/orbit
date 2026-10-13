@@ -747,7 +747,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     "Verlauf · ${c.entries.size}",
                     Icons.Rounded.History,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
-                    action = { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } },
+                    action = if (c.archived) null else { { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } } },
                 )
             }
             if (c.entries.isEmpty() && !c.isMe) {
