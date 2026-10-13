@@ -318,6 +318,9 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         }
         // A–Z only where it means something: name order, no search, enough sections.
         val showRail = sort == SortMode.NAME && query.isEmpty() && letterIndex.size >= 6
+        // The rail's room is reserved inside rows and headers for the whole name sort, so typing
+        // never shifts them (W2); cards and banners keep the full 16-dp gutter.
+        val railPad = if (sort == SortMode.NAME) 18.dp else 0.dp
         // Only the header pinned at the top gets a backdrop; the others sit on the open space
         // (otherwise every section draws a dark strip across the violet sky).
         val pinnedHeader by remember(letterIndex) {
@@ -332,8 +335,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            // The rail's room is reserved for the whole name sort, so typing never shifts the rows (W2).
-            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp, end = if (sort == SortMode.NAME) 18.dp else 0.dp),
+            contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner() }
             if (suggestions > 0 && defaultView) {
@@ -387,7 +389,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                                     drawRect(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.92f * backdrop), Space.Void.copy(alpha = 0.7f * backdrop))))
                                 }
                             }
-                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                            .padding(start = 16.dp, end = 16.dp + railPad, top = 8.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(section.title, style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Violet)
@@ -411,6 +413,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         modifier = Modifier.animateItem(),
                         query = query,
                         selecting = selection != null,
+                        endInset = railPad,
                         selected = selection?.contains(c.id) == true,
                         onToggle = {
                             val sel = selection.orEmpty()
@@ -632,6 +635,7 @@ private fun ContactRow(
     selecting: Boolean = false,
     selected: Boolean = false,
     onToggle: () -> Unit = {},
+    endInset: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     var origin by remember { mutableStateOf(Offset.Zero) }
     var previewState by remember { mutableStateOf<PreviewState?>(null) }
@@ -715,7 +719,7 @@ private fun ContactRow(
                         onOpen()
                     }
                 }
-                .padding(horizontal = 16.dp, vertical = 7.dp),
+                .padding(start = 16.dp, end = 16.dp + endInset, top = 7.dp, bottom = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Selected: the avatar turns over to a check (front fades as the back grows in).
