@@ -124,7 +124,7 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Orbit", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                    Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
                     Text("Zuletzt in Kontakt", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
                 }
                 if (audience != Audience.PEOPLE) {

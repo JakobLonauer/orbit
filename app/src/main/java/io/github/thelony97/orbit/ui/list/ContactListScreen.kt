@@ -1,5 +1,10 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.material.icons.rounded.Settings
+import io.github.thelony97.orbit.update.UpdateState
+import io.github.thelony97.orbit.update.Updates
+import androidx.compose.runtime.collectAsState
+import io.github.thelony97.orbit.ui.components.OrbButton
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -150,6 +155,20 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
             Spacer(Modifier.width(8.dp))
             Text("$total", style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
             Spacer(Modifier.weight(1f))
+            // Settings live behind the gear (PLAN 3.1); a dot marks an available update.
+            val update by Updates.state.collectAsState()
+            Box {
+                OrbButton(Icons.Rounded.Settings, "Einstellungen", { nav.open(Route.Settings) }, size = 38.dp)
+                if (update is UpdateState.Available) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .size(9.dp)
+                            .glow(Space.Coral, 6.dp)
+                            .background(Space.Coral, CircleShape),
+                    )
+                }
+            }
         }
 
         Row(

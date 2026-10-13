@@ -1,5 +1,7 @@
 package io.github.thelony97.orbit.ui.settings
 
+import io.github.thelony97.orbit.ui.components.OrbButton
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import io.github.thelony97.orbit.backup.BackupKey
@@ -249,15 +251,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
 
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = BottomBarSpace + 24.dp),
+        contentPadding = PaddingValues(bottom = 32.dp),
     ) {
         item(key = "title") {
-            Text(
-                "Einstellungen",
-                style = MaterialTheme.typography.headlineSmallEmphasized,
-                color = Space.Text,
-                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp),
-            )
+            // A page behind the gear in the contact list (PLAN 3.1), no longer a tab.
+            Row(
+                Modifier.padding(start = 12.dp, top = 6.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
+                Spacer(Modifier.width(12.dp))
+                Text("Einstellungen", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+            }
         }
         item(key = "update") { UpdateBanner(showWhenIdle = true) }
 

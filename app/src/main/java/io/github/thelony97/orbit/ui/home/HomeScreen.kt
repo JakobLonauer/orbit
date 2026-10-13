@@ -1,92 +1,102 @@
 package io.github.thelony97.orbit.ui.home
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Map
-import androidx.compose.material.icons.rounded.TrackChanges
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
+import io.github.thelony97.orbit.core.designsystem.Haptic
+import io.github.thelony97.orbit.core.designsystem.Motion
+import io.github.thelony97.orbit.core.designsystem.glassSource
+import io.github.thelony97.orbit.core.designsystem.rememberGlassState
+import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.components.SpaceBackground
-import io.github.thelony97.orbit.ui.components.glass
 import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.list.ContactFabMenu
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.map.MapScreen
 import io.github.thelony97.orbit.ui.network.NetworkScreen
 import io.github.thelony97.orbit.ui.orbit.OrbitScreen
-import io.github.thelony97.orbit.ui.settings.SettingsScreen
 import io.github.thelony97.orbit.ui.theme.Space
-import io.github.thelony97.orbit.update.UpdateState
-import io.github.thelony97.orbit.update.Updates
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sin
+import io.github.thelony97.orbit.core.designsystem.glass as hazeGlass
 
 private data class Tab(val label: String, val icon: ImageVector)
 
+/** PLAN 3.1: Kontakte · Verlauf · (Anlässe ab R3) · Netz · Karte. Einstellungen hinter dem Zahnrad. */
 private val tabs = listOf(
     Tab("Kontakte", Icons.Rounded.Contacts),
-    Tab("Orbit", Icons.Rounded.TrackChanges),
+    Tab("Verlauf", Icons.Rounded.History),
     Tab("Netz", Icons.Rounded.Hub),
     Tab("Karte", Icons.Rounded.Map),
-    Tab("Einstellungen", Icons.Rounded.Tune),
 )
-
-const val TAB_SETTINGS = 4
 
 /** Space reserved at the bottom of scrolling content for the floating bar. */
 val BottomBarSpace = 104.dp
 
 @Composable
 fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> Unit) {
-    val update by Updates.state.collectAsState()
+    val glass = rememberGlassState()
+    // Tabs keep their scroll position and saved state when you come back (PLAN 3.1).
+    val saved = rememberSaveableStateHolder()
+    val current = tab.coerceIn(0, tabs.lastIndex)
     SpaceBackground {
-        AnimatedContent(
-            targetState = tab,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "tab",
-            modifier = Modifier.fillMaxSize(),
-        ) { current ->
-            when (current) {
-                0 -> ContactListScreen(data, idx, nav)
-                1 -> OrbitScreen(data, idx, nav)
-                2 -> NetworkScreen(data, idx, nav)
-                3 -> MapScreen(data, idx, nav)
-                else -> SettingsScreen(data, nav)
+        Box(Modifier.fillMaxSize().glassSource(glass)) {
+            AnimatedContent(
+                targetState = current,
+                transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
+                label = "tab",
+                modifier = Modifier.fillMaxSize(),
+            ) { shown ->
+                saved.SaveableStateProvider(shown) {
+                    when (shown) {
+                        1 -> OrbitScreen(data, idx, nav)
+                        2 -> NetworkScreen(data, idx, nav)
+                        3 -> MapScreen(data, idx, nav)
+                        else -> ContactListScreen(data, idx, nav)
+                    }
+                }
             }
         }
 
@@ -98,66 +108,79 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
                 .padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (tab == 0) {
+            if (current == 0) {
                 Box(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 10.dp), contentAlignment = Alignment.BottomEnd) {
                     ContactFabMenu(nav)
                 }
             }
-            OrbitNavBar(selected = tab, onSelect = onTab, settingsBadge = update is UpdateState.Available)
+            OrbitNavBar(glass = glass, selected = current, onSelect = onTab)
         }
     }
 }
 
+/**
+ * Orbit-Leiste (PLAN 1.2): frosted glass over the content; the active tab is a glowing planet
+ * that flies to the new tab in an arc with a light trail. Haptic tick on every switch (W1).
+ */
 @Composable
-private fun OrbitNavBar(selected: Int, onSelect: (Int) -> Unit, settingsBadge: Boolean) {
+private fun OrbitNavBar(glass: HazeState, selected: Int, onSelect: (Int) -> Unit) {
+    val haptics = rememberHaptics()
     val pill = RoundedCornerShape(50)
-    Row(
+    val slot = 64.dp
+    val planet = remember { Animatable(selected.toFloat()) }
+    var from by remember { mutableFloatStateOf(selected.toFloat()) }
+    LaunchedEffect(selected) {
+        from = planet.value
+        planet.animateTo(selected.toFloat(), tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized))
+    }
+    Box(
         Modifier
             .glow(Space.VioletDeep, 26.dp, pill, 0.22f)
-            .glass(pill, tint = Space.PanelHigh, border = Space.LineStrong)
-            .padding(5.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clip(pill)
+            .hazeGlass(glass, Space.PanelHigh, tint = 0.55f)
+            .border(1.dp, Space.LineStrong, pill)
+            .padding(horizontal = 6.dp, vertical = 4.dp),
     ) {
-        tabs.forEachIndexed { i, t ->
-            val isSelected = selected == i
-            val bg by animateColorAsState(if (isSelected) Space.Violet.copy(alpha = 0.20f) else Color.Transparent, label = "navBg")
-            Row(
-                Modifier
-                    .height(44.dp)
-                    .clip(pill)
-                    .background(bg)
-                    .clickable { onSelect(i) }
-                    .padding(horizontal = if (isSelected) 14.dp else 12.dp)
-                    .animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec()),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box {
-                    Icon(
-                        t.icon, t.label,
-                        tint = if (isSelected) Space.Violet else Space.TextDim,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    if (i == TAB_SETTINGS && settingsBadge) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 3.dp, y = (-2).dp)
-                                .size(8.dp)
-                                .glow(Space.Coral, 6.dp)
-                                .background(Space.Coral, CircleShape),
-                        )
-                    }
-                }
-                AnimatedVisibility(visible = isSelected) {
-                    Text(
-                        t.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Space.Text,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
+        Row {
+            tabs.forEachIndexed { i, t ->
+                val tint by animateColorAsState(if (selected == i) Space.Text else Space.TextDim, tween(Motion.FAST_MS), label = "navTint")
+                Box(
+                    Modifier
+                        .size(slot, 48.dp)
+                        .clip(pill)
+                        .clickable {
+                            if (i != selected) haptics.perform(Haptic.Tick)
+                            onSelect(i)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(t.icon, t.label, tint = tint, modifier = Modifier.size(22.dp).padding(bottom = 2.dp))
                 }
             }
+        }
+        Canvas(Modifier.matchParentSize()) {
+            val slotPx = slot.toPx()
+            val v = planet.value
+            val span = selected - from
+            val progress = if (abs(span) < 0.001f) 1f else ((v - from) / span).coerceIn(0f, 1f)
+            val lift = sin(progress * PI).toFloat() * 12.dp.toPx()
+            val baseY = size.height - 5.dp.toPx()
+            fun at(x: Float, p: Float) = Offset((x + 0.5f) * slotPx, baseY - sin(p * PI).toFloat() * 12.dp.toPx())
+            val center = Offset((v + 0.5f) * slotPx, baseY - lift)
+            // Light trail while flying.
+            if (progress < 1f) {
+                for (k in 1..6) {
+                    val p = (progress - k * 0.06f).coerceAtLeast(0f)
+                    val x = from + span * p
+                    drawCircle(Space.Violet.copy(alpha = 0.32f * (1f - k / 7f)), radius = (3.2f - k * 0.35f).dp.toPx(), center = at(x, p))
+                }
+            }
+            drawCircle(
+                Brush.radialGradient(listOf(Space.Violet.copy(alpha = 0.55f), Color.Transparent), center, 14.dp.toPx()),
+                radius = 14.dp.toPx(),
+                center = center,
+            )
+            drawCircle(Space.Text, radius = 3.dp.toPx(), center = center)
         }
     }
 }

@@ -25,6 +25,7 @@ import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.mail.MailAccounts
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.detail.ContactDetailScreen
+import io.github.thelony97.orbit.ui.home.HomeScreen
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.orbit.OrbitScreen
 import io.github.thelony97.orbit.ui.settings.ArchiveScreen
@@ -115,4 +116,9 @@ class ScreensScreenshotTest {
     @Test fun contactDetail() = shot("detail") { ContactDetailScreen("anna", data, idx, nav) }
 
     @Test fun archive() = shot("archive") { ArchiveScreen(data, idx, nav) }
+
+    /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */
+    @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
+
+    @Test fun homeVerlauf() = shot("home_verlauf") { HomeScreen(data, idx, nav, tab = 1, onTab = {}) }
 }

@@ -35,7 +35,9 @@ import io.github.thelony97.orbit.ui.home.HomeScreen
 import io.github.thelony97.orbit.ui.lock.LockScreen
 import io.github.thelony97.orbit.ui.mail.MailAccountsScreen
 import io.github.thelony97.orbit.ui.onboarding.OnboardingScreen
+import io.github.thelony97.orbit.ui.components.SpaceBackground
 import io.github.thelony97.orbit.ui.settings.ArchiveScreen
+import io.github.thelony97.orbit.ui.settings.SettingsScreen
 import io.github.thelony97.orbit.ui.settings.EntryTypesScreen
 import io.github.thelony97.orbit.ui.settings.GroupsScreen
 import io.github.thelony97.orbit.ui.settings.TrashScreen
@@ -122,6 +124,7 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.EntryTypes> { EntryTypesScreen(data = data, nav = nav) }
             entry<Route.Trash> { TrashScreen(data = data, idx = idx, nav = nav) }
             entry<Route.Archive> { ArchiveScreen(data = data, idx = idx, nav = nav) }
+            entry<Route.Settings> { SpaceBackground { SettingsScreen(data = data, nav = nav) } }
             entry<Route.Suggestions> { SuggestionsScreen(data = data, nav = nav) }
             entry<Route.MailAccounts> { MailAccountsScreen(nav = nav) }
         },
