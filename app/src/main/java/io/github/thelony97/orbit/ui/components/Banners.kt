@@ -34,7 +34,6 @@ import kotlinx.coroutines.launch
 fun UpdateBanner(modifier: Modifier = Modifier, showWhenIdle: Boolean = false) {
     val state by Updates.state.collectAsState()
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val visible = state is UpdateState.Available || state is UpdateState.Downloading ||
         state is UpdateState.Installing || (showWhenIdle && state is UpdateState.Failed)
     if (!visible) return
@@ -64,7 +63,10 @@ fun UpdateBanner(modifier: Modifier = Modifier, showWhenIdle: Boolean = false) {
                     text = if (Updates.canInstall(ctx)) "Installieren" else "Erlauben",
                     onClick = {
                         if (Updates.canInstall(ctx)) {
-                            scope.launch { Updates.downloadAndInstall(ctx, s.info) }
+                            // App-wide scope: the download must not stop when the banner scrolls
+                            // away or the tab changes (the update logic itself is unchanged).
+                            val app = ctx.applicationContext
+                            AppWork.launch { Updates.downloadAndInstall(app, s.info) }
                         } else {
                             AppLock.allowExternal()
                             ctx.startActivity(Updates.installPermissionIntent(ctx))

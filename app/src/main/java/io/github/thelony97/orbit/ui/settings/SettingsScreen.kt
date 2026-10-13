@@ -596,7 +596,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         is UpdateState.Available -> "neue Version verfügbar"
                         else -> "Version ${BuildConfig.VERSION_NAME}"
                     },
-                    onClick = { scope.launch { Updates.check() } },
+                    onClick = { io.github.thelony97.orbit.ui.components.AppWork.launch { Updates.check() } },
                 )
                 Hairline()
                 SettingItem(
