@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import io.github.thelony97.orbit.store.CallerIndexFile
 import io.github.thelony97.orbit.store.HistoryDb
 import io.github.thelony97.orbit.store.Store
 import java.io.File
@@ -168,7 +169,11 @@ object OrbitRepository {
                 Log.e(TAG, "not saving: stored data could not be read")
                 return@withLock false
             }
-            withContext(Dispatchers.IO) { store.save(lastSaved, snapshot) }
+            withContext(Dispatchers.IO) {
+                store.save(lastSaved, snapshot)
+                // Small side file for the call screen; never allowed to break a save.
+                runCatching { CallerIndexFile.write(appContext, snapshot) }.onFailure { Log.w(TAG, "caller index", it) }
+            }
             lastSaved = snapshot
             true
         }
