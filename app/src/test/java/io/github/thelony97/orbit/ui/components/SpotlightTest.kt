@@ -51,12 +51,13 @@ class SpotlightTest {
         compose.setContent {
             OrbitTheme {
                 Box(Modifier.fillMaxSize().background(Space.Void).padding(24.dp)) {
-                    Box(Modifier.size(340.dp, 160.dp).testTag("card").glass().clickable { }) { Text("Karte", Modifier.padding(16.dp), color = Space.Text) }
+                    // No clickable here: the picture shows only the spotlight, not the ripple.
+                    Box(Modifier.size(340.dp, 160.dp).testTag("card").glass()) { Text("Karte", Modifier.padding(16.dp), color = Space.Text) }
                 }
             }
         }
         compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag("card").performTouchInput { down(Offset(width * 0.7f, height * 0.5f)) }
+        compose.onNodeWithTag("card").performTouchInput { down(Offset(width * 0.2f, height * 0.3f)) }
         compose.mainClock.advanceTimeBy(300)
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/spotlight.png")
         compose.onNodeWithTag("card").performTouchInput { up() }
