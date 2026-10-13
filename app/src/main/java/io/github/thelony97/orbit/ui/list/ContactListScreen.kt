@@ -275,7 +275,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         AnimatedVisibility(showBar) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (sort != SortMode.NAME || reversed) {
                     SpaceChip(sort.label(reversed), true, { filterSheet = true }, leading = Icons.AutoMirrored.Rounded.Sort, accent = Space.Teal)

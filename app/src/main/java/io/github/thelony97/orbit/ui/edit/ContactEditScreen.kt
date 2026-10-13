@@ -258,7 +258,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     .verticalScroll(rememberScrollState())
                     .navigationBarsPadding()
                     .padding(bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // Photo + names
                 Row(
@@ -315,7 +315,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                 if (!isMe) {
                     GlassCard {
                         SectionTitle("Art")
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SpaceChip("Mensch", !isOrg, {
                                 kind = ContactKind.PERSON
                             }, leading = Icons.Rounded.Person)
@@ -330,7 +330,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         if (isOrg) {
                             Spacer(Modifier.size(10.dp))
                             SectionTitle("Kategorie")
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Defaults.orgCategories.forEach { cat ->
                                     SpaceChip(cat.label, orgCategory == cat.key, { orgCategory = cat.key }, leading = orgIcon(cat.key), accent = Space.Blue)
                                 }
@@ -383,7 +383,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                 GlassCard {
                     if (!isOrg) {
                         SectionTitle("Geburtstag")
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SpaceChip(birthday?.let { Fmt.dayOfYear(it) } ?: "Datum wählen", birthday != null, { birthdayDialog = true }, leading = Icons.Rounded.Cake, accent = Space.Orange)
                             if (birthday != null) {
                                 SpaceChip("entfernen", false, { birthday = null })
@@ -393,7 +393,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     if (!isMe) {
                     if (!isOrg) Spacer(Modifier.size(10.dp))
                     SectionTitle("Gruppen")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         data.groups.forEach { g ->
                             val selected = g.id in groups
                             SpaceChip(
@@ -481,7 +481,7 @@ private fun ValueList(
     onDefault: ((Int) -> Unit)?,
     addLabel: String,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row ->
             var menu by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -532,7 +532,7 @@ private fun PairList(
     secondKeyboard: KeyboardOptions,
     suggestions: List<String>,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SpaceField(row.first, "", Modifier.weight(firstWeight), placeholder = firstHint, keyboardOptions = caps)
@@ -545,7 +545,7 @@ private fun PairList(
                 )
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SpaceChip(addLabel, false, { rows.add(PairRow(newId(), "", "")) }, leading = Icons.Rounded.Add)
             // Suggestions only while nothing is entered yet (W5: no clutter once used).
             if (rows.isEmpty()) suggestions.forEach { s ->

@@ -312,7 +312,7 @@ fun EmptyHint(
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
             Modifier.size(14.dp).glow(Space.Orange, 12.dp).background(Space.Orange, CircleShape),

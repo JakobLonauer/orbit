@@ -149,7 +149,7 @@ fun RelationDialog(
         title = { Text("${Logic.shortName(contact)} ist …") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     options.forEach { o ->
                         FilterChip(
                             selected = option == o,
@@ -224,7 +224,7 @@ fun AnniversaryDialog(onDismiss: () -> Unit, allowBirthday: Boolean = false, onP
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (listOfNotNull("Geburtstag".takeIf { allowBirthday }) + listOf("Hochzeitstag", "Namenstag", "Jahrestag", "Kennenlerntag", "Gedenktag")).forEach { s ->
                         AssistChip(onClick = {
                             label.edit { replace(0, length, s) }

@@ -93,7 +93,7 @@ fun MailAccountsScreen(nav: Nav) {
             }
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 GlassCard {
                     Row(verticalAlignment = Alignment.Top) {
@@ -249,7 +249,7 @@ private fun AddAccountSheet(onDismiss: () -> Unit) {
             Text("Postfach verbinden", style = MaterialTheme.typography.titleLargeEmphasized)
             SpaceField(email, "E-Mail-Adresse", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
             SectionTitle("Anbieter")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 MailProviders.all.forEach { p ->
                     SpaceChip(
                         p.label,

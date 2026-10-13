@@ -372,7 +372,7 @@ private fun PinCard(
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .glass(RoundedCornerShape(20.dp), tint = Space.PanelHigh, border = Space.LineStrong)
-            .padding(14.dp),
+            .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(c, contactColor(c, idx), 40.dp)
@@ -393,7 +393,7 @@ private fun PinCard(
         }
         if (nearby.isNotEmpty()) {
             Text("In der Nähe", style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 nearby.forEach { (p, km) ->
                     SpaceChip("${Logic.shortName(p.contact)} · ${Geo.formatDistance(km)}", false, { onSelect(p.contact.id) })
                 }

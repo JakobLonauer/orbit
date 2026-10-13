@@ -75,7 +75,7 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
                 .navigationBarsPadding()
                 .padding(horizontal = 18.dp)
                 .padding(bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Tune, null, tint = Space.Violet, modifier = Modifier.size(20.dp))
@@ -100,7 +100,7 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
             }
 
             SectionTitle("Anzeigen", Icons.Rounded.Business, modifier = Modifier.padding(top = 8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Audience.entries.forEach { a ->
                     SpaceChip(a.label, Session.audience == a, { Session.audience = a }, accent = if (a == Audience.PEOPLE) Space.Violet else Space.Blue)
                 }
@@ -112,7 +112,7 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
             )
 
             SectionTitle("Status", modifier = Modifier.padding(top = 10.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusFilter.entries.forEach { f ->
                     SpaceChip(
                         f.label, Session.status == f, { Session.status = f },
@@ -173,7 +173,7 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
             )
 
             SectionTitle("Sortieren", Icons.AutoMirrored.Rounded.Sort, modifier = Modifier.padding(top = 10.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SortMode.entries.forEach { m ->
                     SpaceChip(m.label, sort == m, { OrbitRepository.editSettings { it.copy(listSort = m.key, listSortReversed = false) } }, accent = Space.Teal)
                 }

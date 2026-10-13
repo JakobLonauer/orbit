@@ -92,7 +92,7 @@ fun ArchiveScreen(data: OrbitData, idx: Index, nav: Nav) {
             item(key = "search") {
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     SpaceSearchField(search, "Im Archiv suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
-                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ArchiveSort.entries.forEach { s ->
                             SpaceChip(s.label, sort == s, { sort = s })
                         }

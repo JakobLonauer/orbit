@@ -142,7 +142,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
             item(key = "kinds") {
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SpaceChip("Alle", typeFilter == null, { typeFilter = null })
                     kinds.forEach { t ->

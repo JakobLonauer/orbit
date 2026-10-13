@@ -129,7 +129,7 @@ private data class SettingsArea(val key: String, val title: String, val icon: Im
 /** One line of the attention card: what is wrong, an optional small hint, the fix as buttons. */
 @Composable
 private fun AttentionRow(text: String, hint: String?, actions: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
         if (hint != null) Text(hint, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
@@ -241,6 +241,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     var permissionTick by remember { mutableIntStateOf(0) }
     // The long "restricted settings" help only after Android actually refused (W7).
     var permissionDenied by remember { mutableStateOf(false) }
+    var permissionsOpen by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
 
@@ -381,7 +382,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                                 cornerRadius = CornerRadius(20.dp.toPx()),
                             )
                         }
-                        .padding(14.dp),
+                        .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -390,7 +391,14 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         Text("Braucht deine Aufmerksamkeit", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
                     }
                     // PLAN 1.2: each permission on its own with one sentence why – never all at once.
-                    missing.forEachIndexed { i, p ->
+                    // Many missing: one line that opens the list, so the card stays short (W4).
+                    if (missing.size > 2 && !permissionsOpen) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${missing.size} Berechtigungen fehlen", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))
+                            GlowButton("Ansehen", { permissionsOpen = true }, color = Space.Coral)
+                        }
+                    }
+                    if (missing.size <= 2 || permissionsOpen) missing.forEachIndexed { i, p ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(p.title, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
@@ -444,8 +452,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Timer, "Anruf zählt ab", iconTint = Space.Teal)
                 FlowRow(
                     Modifier.padding(start = 56.dp, end = 14.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(0 to "jeder", 30 to "30 s", 60 to "1 Min", 120 to "2 Min", 300 to "5 Min").forEach { (sec, label) ->
                         SpaceChip(label, s.minCallSeconds == sec, { OrbitRepository.editSettings { it.copy(minCallSeconds = sec) } }, accent = Space.Teal)
@@ -543,8 +551,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     // PLAN 3.13: sofort / 1 / 5 Min.
                     FlowRow(
                         Modifier.padding(start = 56.dp, end = 14.dp, bottom = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(0 to "sofort", 60 to "nach 1 Min", 300 to "nach 5 Min").forEach { (sec, label) ->
                             SpaceChip(label, s.lockDelaySeconds == sec, { OrbitRepository.editSettings { it.copy(lockDelaySeconds = sec) } })

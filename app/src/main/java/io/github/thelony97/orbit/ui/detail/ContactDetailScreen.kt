@@ -481,7 +481,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
             // Status strip
             if (!c.isMe) item(key = "status") {
-                GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
+                GlassCard(Modifier.padding(top = 8.dp), padding = 16.dp) {
                     // Last contact per kind (PLAN 3.4): facts only, no due dates, and only kinds
                     // that happened – no dashes for nothing (W5).
                     val perType = lastPerType(c).filter { it.second != null }
@@ -573,7 +573,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
             // Pinned note (also shown on incoming calls)
             if (c.pinnedNote.isNotBlank()) item(key = "pinned") {
-                GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp, border = Space.Orange.copy(alpha = 0.45f)) {
+                GlassCard(Modifier.padding(top = 8.dp), padding = 16.dp, border = Space.Orange.copy(alpha = 0.45f)) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { noteDialog = NoteTarget.Pinned },
                         verticalAlignment = Alignment.CenterVertically,
@@ -769,7 +769,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         if (kinds.size > 1) {
                             Row(
                                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 SpaceChip("Alle", historyType == null, { historyType = null })
                                 kinds.forEach { (t, at) ->

@@ -78,7 +78,7 @@ fun EntrySheet(
         ) {
             Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
 
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // "Gratuliert"/"Geschenk" are ticked in the birthday tab (R3), not logged here.
                 types.filter { it.id !in occasionTypes || it.id == initial?.typeId }.forEach { t ->
                     SpaceChip(t.name, typeId == t.id, { typeId = t.id }, leading = entryIcon(t.icon))
@@ -86,7 +86,7 @@ fun EntrySheet(
             }
 
             if (!fromSystem) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SpaceChip(
                         if (date == LocalDate.now(zone())) "Heute" else Fmt.weekdayDate(date),
                         false, { pickDate = true }, leading = Icons.Rounded.CalendarMonth,

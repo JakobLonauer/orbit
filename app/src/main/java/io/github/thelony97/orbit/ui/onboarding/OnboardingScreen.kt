@@ -245,7 +245,7 @@ private fun PermissionStep() {
     if (askedOnce && missing.isNotEmpty()) {
         Spacer(Modifier.size(16.dp))
         Column(
-            Modifier.fillMaxWidth().glass(RoundedCornerShape(20.dp), border = Space.Orange.copy(alpha = 0.5f)).padding(14.dp),
+            Modifier.fillMaxWidth().glass(RoundedCornerShape(20.dp), border = Space.Orange.copy(alpha = 0.5f)).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(Permissions.RESTRICTED_HELP, style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
@@ -262,7 +262,7 @@ private fun GroupStep(data: OrbitData) {
     Title("Deine Gruppen", "")
     data.groups.forEach { g ->
         Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(RoundedCornerShape(20.dp))) {
-            Column(Modifier.padding(14.dp)) {
+            Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(10.dp).glow(Color(g.color), 6.dp).background(Color(g.color), CircleShape))
                     Text(g.name, style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text, modifier = Modifier.padding(start = 10.dp).weight(1f))

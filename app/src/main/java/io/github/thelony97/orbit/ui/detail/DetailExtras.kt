@@ -84,8 +84,8 @@ fun AddRow(items: List<AddItem>, modifier: Modifier = Modifier) {
     val shown = if (all || items.size <= 4) items else items.take(3)
     FlowRow(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         shown.forEach { SpaceChip(it.label, false, it.onClick, leading = Icons.Rounded.Add) }
         if (shown.size < items.size) SpaceChip("Mehr", false, { all = true }, leading = Icons.Rounded.Add)
@@ -195,7 +195,7 @@ fun FieldDialog(suggestions: List<String>, onDismiss: () -> Unit, onSave: (label
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     suggestions.forEach { s ->
                         AssistChip(onClick = { label.edit { replace(0, length, s) } }, label = { Text(s) })
                     }

@@ -144,7 +144,7 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SpaceChip(
@@ -383,7 +383,7 @@ private fun NodeCard(node: NetNode, path: String, color: Color, onOpen: () -> Un
             .fillMaxWidth()
             .padding(horizontal = 14.dp)
             .glass(RoundedCornerShape(20.dp), tint = Space.PanelHigh, border = Space.LineStrong)
-            .padding(14.dp),
+            .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(c, color, 40.dp)

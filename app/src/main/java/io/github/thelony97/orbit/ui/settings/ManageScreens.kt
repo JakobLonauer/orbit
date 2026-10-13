@@ -283,7 +283,7 @@ private fun TypeDialog(initial: EntryType, onDismiss: () -> Unit, onSave: (Entry
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Defaults.entryIcons.forEach { key ->
                         val selected = key == icon
                         Box(

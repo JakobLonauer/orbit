@@ -147,7 +147,7 @@ fun SpaceBackground(
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    padding: Dp = 14.dp,
+    padding: Dp = 16.dp,
     border: Color = Space.Line,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -208,7 +208,7 @@ fun SpaceChip(
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (dot != null) Box(Modifier.size(7.dp).background(dot, CircleShape))
         if (leading != null) Icon(leading, null, tint = if (selected) accent else Space.TextDim, modifier = Modifier.size(14.dp))
@@ -255,7 +255,7 @@ fun GlowPill(text: String, color: Color, modifier: Modifier = Modifier, onClick:
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(Modifier.size(6.dp).glow(color, 4.dp).background(color, CircleShape))
         Text(text, style = MaterialTheme.typography.labelLarge, color = color)
@@ -410,7 +410,7 @@ fun GlowButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (icon != null) Icon(icon, null, tint = if (enabled) Space.Void else Space.TextFaint, modifier = Modifier.size(16.dp))
         Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = if (enabled) Space.Void else Space.TextFaint)
@@ -429,7 +429,7 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (icon != null) Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
         Text(text, style = MaterialTheme.typography.labelLarge, color = color)
