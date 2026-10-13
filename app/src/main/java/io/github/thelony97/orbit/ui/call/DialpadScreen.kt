@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -74,6 +75,8 @@ fun Dialpad(
     onCall: (String) -> Unit,
     onClose: () -> Unit,
     initial: String = "",
+    /** Long press on 1 (PLAN 3.12 „Mailbox“). */
+    onVoicemail: () -> Unit = {},
 ) {
     var digits by rememberSaveable { mutableStateOf(initial) }
     val lastNameFirst = data.settings.sortByLastName
@@ -97,6 +100,7 @@ fun Dialpad(
         onClear = { digits = "" },
         onCall = onCall,
         onClose = onClose,
+        onVoicemail = onVoicemail,
     )
 }
 
@@ -109,6 +113,7 @@ fun DialpadContent(
     onClear: () -> Unit,
     onCall: (String) -> Unit,
     onClose: () -> Unit,
+    onVoicemail: () -> Unit = {},
 ) {
     val haptics = rememberHaptics()
     SpaceBackground {
@@ -156,7 +161,7 @@ fun DialpadContent(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Keypad(onKey)
+            Keypad(onKey, onVoicemail)
             Spacer(Modifier.height(16.dp))
             val number = digits.takeIf { it.any(Char::isDigit) }
             Box(
@@ -186,13 +191,18 @@ private val KEYS = listOf(
 )
 
 @Composable
-private fun Keypad(onKey: (Char) -> Unit) {
+private fun Keypad(onKey: (Char) -> Unit, onVoicemail: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         KEYS.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 row.forEach { (d, letters) ->
-                    // Long press on 0 types „+“ for international numbers.
-                    Key(d, letters, { onKey(d) }, if (d == '0') ({ onKey('+') }) else null)
+                    // Long press: 0 types „+“ for international numbers, 1 calls the mailbox.
+                    val long: (() -> Unit)? = when (d) {
+                        '0' -> ({ onKey('+') })
+                        '1' -> onVoicemail
+                        else -> null
+                    }
+                    Key(d, letters, { onKey(d) }, long, voicemail = d == '1')
                 }
             }
         }
@@ -200,7 +210,7 @@ private fun Keypad(onKey: (Char) -> Unit) {
 }
 
 @Composable
-private fun Key(digit: Char, letters: String, onTap: () -> Unit, onLong: (() -> Unit)?) {
+private fun Key(digit: Char, letters: String, onTap: () -> Unit, onLong: (() -> Unit)?, voicemail: Boolean = false) {
     val haptics = rememberHaptics()
     Column(
         Modifier
@@ -218,6 +228,8 @@ private fun Key(digit: Char, letters: String, onTap: () -> Unit, onLong: (() -> 
         Text(digit.toString(), fontFamily = Grotesk, fontWeight = FontWeight.Medium, fontSize = 28.sp, color = Space.Text)
         if (letters.isNotEmpty()) {
             Text(letters, style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp), color = Space.TextFaint)
+        } else if (voicemail) {
+            Icon(Icons.Rounded.Voicemail, "Mailbox", tint = Space.TextFaint, modifier = Modifier.size(16.dp))
         }
     }
 }
