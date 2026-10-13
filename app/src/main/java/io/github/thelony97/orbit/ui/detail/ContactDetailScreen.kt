@@ -327,20 +327,23 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Quick actions
-            if (!c.isMe) item(key = "actions") {
-                val number = ContactActions.defaultNumber(c)
-                val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
+            val number = ContactActions.defaultNumber(c)
+            val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
+            // W5: the row only exists when at least one action applies.
+            if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
                     // Fixed rhythm instead of spreading: 3 actions must not drift apart (W9).
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    ActionOrb(
-                        Icons.Rounded.Call, "Anrufen", number != null,
-                        onClick = { ContactActions.call(ctx, c, null, data.settings) },
-                        onLongClick = { chooser = Chooser.Call },
-                        accent = Space.Teal,
-                    )
+                    if (number != null) {
+                        ActionOrb(
+                            Icons.Rounded.Call, "Anrufen", true,
+                            onClick = { ContactActions.call(ctx, c, null, data.settings) },
+                            onLongClick = { chooser = Chooser.Call },
+                            accent = Space.Teal,
+                        )
+                    }
                     // Only what applies (W5): no greyed-out orbs.
                     if (number != null) {
                         ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
@@ -468,7 +471,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onClick = { birthdayDialog = true },
                         )
                     } else {
-                        InfoRow(label = "Tippen zum Eintragen", value = "Kein Geburtstag", onClick = { birthdayDialog = true })
+                        InfoRow(label = "Geburtstag", value = "–", onClick = { birthdayDialog = true })
                     }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)

@@ -174,7 +174,7 @@ fun GallerySection(contact: Contact) {
     ) {
         if (photos.isEmpty() && !importing) {
             Text(
-                "Eigener Ordner für Bilder mit ${if (contact.isOrg) "dieser Organisation" else contact.firstName.ifBlank { "dieser Person" }} – getrennt vom Profilbild.",
+                "Noch keine Fotos",
                 style = MaterialTheme.typography.bodySmall,
                 color = Space.TextFaint,
                 modifier = Modifier.padding(vertical = 4.dp),
