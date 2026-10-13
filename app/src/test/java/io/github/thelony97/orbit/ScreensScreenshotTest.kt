@@ -201,4 +201,27 @@ class ScreensScreenshotTest {
         compose.waitForIdle()
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_qr.png")
     }
+
+    /** Profilbild zuschneiden (PLAN 3.3): circle frame over a landscape picture. */
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    @Test fun cropPhoto() {
+        val bmp = android.graphics.Bitmap.createBitmap(900, 600, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).apply {
+            val p = android.graphics.Paint()
+            p.shader = android.graphics.LinearGradient(0f, 0f, 900f, 600f, 0xFF3A6FD8.toInt(), 0xFFE8A060.toInt(), android.graphics.Shader.TileMode.CLAMP)
+            drawRect(0f, 0f, 900f, 600f, p)
+            p.shader = null
+            p.color = 0xFFF2D5C0.toInt()
+            drawCircle(450f, 260f, 120f, p)
+        }
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.edit.CropDialog(bmp, onDismiss = {}, onCrop = {})
+                }
+            }
+        }
+        compose.waitForIdle()
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_crop.png")
+    }
 }

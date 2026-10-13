@@ -23,14 +23,26 @@ object Photos {
 
     /** Crops to a centred square, scales down and stores as JPEG. Returns the file name. */
     suspend fun saveFromUri(ctx: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+        runCatching { decode(ctx, uri)?.let { store(it) } }.getOrNull()
+    }
+
+    /** Picked picture for the crop frame (PLAN 3.3), at most twice the stored size. */
+    suspend fun decode(ctx: Context, uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
         runCatching {
             val source = ImageDecoder.createSource(ctx.contentResolver, uri)
-            val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 val longest = maxOf(info.size.width, info.size.height)
                 if (longest > SIZE * 2) decoder.setTargetSampleSize(longest / (SIZE * 2))
             }
-            store(bitmap)
+        }.getOrNull()
+    }
+
+    /** Stores the square the user framed. Returns the file name. */
+    suspend fun storeSquare(bitmap: Bitmap, square: io.github.thelony97.orbit.core.domain.CropMath.Square): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val cut = Bitmap.createBitmap(bitmap, square.left, square.top, square.side, square.side)
+            store(cut)
         }.getOrNull()
     }
 

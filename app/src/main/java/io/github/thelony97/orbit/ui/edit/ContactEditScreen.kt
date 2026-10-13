@@ -145,11 +145,15 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     var birthdayDialog by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
+    // Picked pictures go through the crop frame first (PLAN 3.3).
+    var cropSource by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch {
-            Photos.saveFromUri(ctx, uri)?.let { name ->
-                if (photo != original.photo) Photos.delete(photo)
-                photo = name
+            val bitmap = Photos.decode(ctx, uri)
+            if (bitmap != null) {
+                cropSource = bitmap
+            } else {
+                Toast.makeText(ctx, "Bild konnte nicht gelesen werden", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -426,6 +430,21 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
     if (birthdayDialog) {
         DayOfYearDialog(initial = birthday, onDismiss = { birthdayDialog = false }, onPick = { birthday = it })
+    }
+    cropSource?.let { bitmap ->
+        CropDialog(
+            bitmap = bitmap,
+            onDismiss = { cropSource = null },
+            onCrop = { square ->
+                cropSource = null
+                scope.launch {
+                    Photos.storeSquare(bitmap, square)?.let { name ->
+                        if (photo != original.photo) Photos.delete(photo)
+                        photo = name
+                    }
+                }
+            },
+        )
     }
     if (confirmDiscard) {
         ConfirmDialog(
