@@ -117,6 +117,9 @@ class ScreensScreenshotTest {
 
     @Test fun contactList() = shot("list") { ContactListScreen(data, idx, nav) }
 
+    /** Mehrfachauswahl (PLAN 3.2): header turns into the bulk bar, picked avatars turn into checks. */
+    @Test fun contactListSelecting() = shot("list_select") { ContactListScreen(data, idx, nav, initialSelection = setOf("anna", "tom")) }
+
     @Test fun contactDetail() = shot("detail") { ContactDetailScreen("anna", data, idx, nav) }
 
     @Test fun archive() = shot("archive") { ArchiveScreen(data, idx, nav) }

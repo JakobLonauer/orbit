@@ -1,5 +1,25 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.automirrored.rounded.Label
+import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.thelony97.orbit.actions.ShareContact
+import io.github.thelony97.orbit.core.designsystem.Haptic
+import io.github.thelony97.orbit.core.designsystem.rememberHaptics
+import io.github.thelony97.orbit.data.now
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -131,12 +151,17 @@ import kotlinx.coroutines.launch
 import java.time.temporal.ChronoUnit
 
 @Composable
-fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
+fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: Set<String>? = null) {
     val ctx = LocalContext.current
     val search = rememberTextFieldState()
     var quickEntry by remember { mutableStateOf<Contact?>(null) }
     var preview by remember { mutableStateOf<PreviewState?>(null) }
     var filterSheet by remember { mutableStateOf(false) }
+    // Mehrfachauswahl (PLAN 3.2): null = normal list, otherwise the selected contact ids.
+    var selection by remember { mutableStateOf(initialSelection) }
+    var groupDialog by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
+    BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
     val query = search.text.toString()
     val todayDate = today()
@@ -161,7 +186,37 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
     val pinned = data.groups.filter { it.pinned }
     val activeCount = activeFilterCount(data)
 
+    val visible = remember(sections) { sections.flatMap { it.contacts } }
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        AnimatedContent(
+            targetState = selection != null,
+            transitionSpec = { fadeIn(tween(Motion.FAST_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
+            label = "header",
+        ) { selecting ->
+        if (selecting) {
+            val sel = selection.orEmpty()
+            val chosen = visible.filter { it.id in sel }
+            SelectionBar(
+                count = sel.size,
+                allSelected = visible.isNotEmpty() && visible.all { it.id in sel },
+                onClose = { selection = null },
+                onAll = { selection = if (visible.all { it.id in sel }) emptySet() else visible.map { it.id }.toSet() },
+                onGroup = { if (sel.isNotEmpty()) groupDialog = true },
+                onArchive = {
+                    val ids = chosen.filter { !it.isMe && !it.archived }.map { it.id }.toSet()
+                    if (ids.isNotEmpty()) {
+                        val at = now()
+                        OrbitRepository.edit { d -> d.copy(contacts = d.contacts.map { if (it.id in ids) it.copy(archived = true, archivedAt = at, updatedAt = at) else it }) }
+                        Undo.offer(if (ids.size == 1) "1 Kontakt archiviert" else "${ids.size} Kontakte archiviert") {
+                            OrbitRepository.edit { d -> d.copy(contacts = d.contacts.map { if (it.id in ids) it.copy(archived = false, archivedAt = null) else it }) }
+                        }
+                        haptics.perform(Haptic.Confirm)
+                    }
+                    selection = null
+                },
+                onShare = { ShareContact.vcards(ctx, chosen) },
+            )
+        } else {
         // Header
         Row(
             Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
@@ -187,6 +242,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                     )
                 }
             }
+        }
+        }
         }
 
         Row(
@@ -335,6 +392,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         onQuickEntry = { quickEntry = c },
                         modifier = Modifier.animateItem(),
                         query = query,
+                        selecting = selection != null,
+                        selected = selection?.contains(c.id) == true,
+                        onToggle = {
+                            val sel = selection.orEmpty()
+                            selection = if (c.id in sel) sel - c.id else sel + c.id
+                            haptics.perform(Haptic.Tick)
+                        },
                         onPreview = { pc -> PreviewState(pc).also { preview = it } },
                         onPreviewEnd = { st, released ->
                             val action = if (released) st.hovered() else null
@@ -343,6 +407,10 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                                 PreviewAction.CALL -> ContactActions.call(ctx, st.contact, null, data.settings)
                                 PreviewAction.SMS -> ContactActions.sms(ctx, st.contact, null)
                                 PreviewAction.LOG -> quickEntry = st.contact
+                                PreviewAction.SELECT -> {
+                                    selection = setOf(st.contact.id)
+                                    haptics.perform(Haptic.Confirm)
+                                }
                                 PreviewAction.OPEN -> nav.open(Route.Detail(st.contact.id))
                                 null -> Unit
                             }
@@ -390,6 +458,110 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
         )
     }
     if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })
+    if (groupDialog) {
+        GroupAssignDialog(
+            data = data,
+            ids = selection.orEmpty(),
+            onDismiss = { groupDialog = false },
+        )
+    }
+}
+
+/** Replaces the header while selecting: count, all, and the three bulk actions (PLAN 3.2). */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    allSelected: Boolean,
+    onClose: () -> Unit,
+    onAll: () -> Unit,
+    onGroup: () -> Unit,
+    onArchive: () -> Unit,
+    onShare: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OrbButton(Icons.Rounded.Close, "Auswahl beenden", onClose, size = 38.dp)
+        AnimatedContent(
+            targetState = count,
+            transitionSpec = {
+                val up = targetState > initialState
+                (slideInVertically(tween(Motion.FAST_MS)) { if (up) it else -it } + fadeIn(tween(Motion.FAST_MS))) togetherWith
+                    (slideOutVertically(tween(Motion.FAST_MS)) { if (up) -it else it } + fadeOut(tween(Motion.FAST_MS)))
+            },
+            label = "count",
+            modifier = Modifier.weight(1f),
+        ) { n ->
+            Text(
+                if (n == 1) "1 ausgewählt" else "$n ausgewählt",
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = Space.Text,
+                maxLines = 1,
+            )
+        }
+        SpaceChip("Alle", allSelected, onAll)
+        OrbButton(Icons.AutoMirrored.Rounded.Label, "Gruppe", onGroup, size = 38.dp, enabled = count > 0)
+        OrbButton(Icons.Rounded.Archive, "Archivieren", onArchive, size = 38.dp, enabled = count > 0)
+        OrbButton(Icons.Rounded.Share, "Exportieren", onShare, size = 38.dp, enabled = count > 0)
+    }
+}
+
+/**
+ * Groups for the selected contacts: a check when all have it, a dash when some do. Tapping adds
+ * the group to everyone (or removes it when all already have it); one undo per tap.
+ */
+@Composable
+private fun GroupAssignDialog(data: OrbitData, ids: Set<String>, onDismiss: () -> Unit) {
+    val chosen = data.contacts.filter { it.id in ids }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(if (chosen.size == 1) "Gruppe für 1 Kontakt" else "Gruppe für ${chosen.size} Kontakte") },
+        text = {
+            Column {
+                if (data.groups.isEmpty()) {
+                    Text("Noch keine Gruppen", style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+                }
+                data.groups.forEach { g ->
+                    val have = chosen.count { g.id in it.groupIds }
+                    val all = have == chosen.size && have > 0
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                val before = chosen.associate { it.id to it.groupIds }
+                                OrbitRepository.edit { d ->
+                                    d.copy(contacts = d.contacts.map { c ->
+                                        if (c.id !in ids) c
+                                        else if (all) c.copy(groupIds = c.groupIds - g.id, updatedAt = now())
+                                        else if (g.id in c.groupIds) c
+                                        else c.copy(groupIds = c.groupIds + g.id, updatedAt = now())
+                                    })
+                                }
+                                Undo.offer(if (all) "Aus „${g.name}“ entfernt" else "Zu „${g.name}“ hinzugefügt") {
+                                    OrbitRepository.edit { d -> d.copy(contacts = d.contacts.map { c -> before[c.id]?.let { c.copy(groupIds = it) } ?: c }) }
+                                }
+                            }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(10.dp).background(Color(g.color), CircleShape))
+                        Spacer(Modifier.width(12.dp))
+                        Text(g.name, style = MaterialTheme.typography.bodyLarge, color = Space.Text, modifier = Modifier.weight(1f))
+                        when {
+                            all -> Icon(Icons.Rounded.Check, "alle", tint = Color(g.color))
+                            have > 0 -> Icon(Icons.Rounded.Remove, "einige", tint = Space.TextDim)
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },
+    )
 }
 
 /** "Meine Karte" – the user's own entry, always on top. */
@@ -432,6 +604,9 @@ private fun ContactRow(
     query: String = "",
     onPreview: (Contact) -> PreviewState = { PreviewState(it) },
     onPreviewEnd: (PreviewState, Boolean) -> Unit = { _, _ -> },
+    selecting: Boolean = false,
+    selected: Boolean = false,
+    onToggle: () -> Unit = {},
 ) {
     var origin by remember { mutableStateOf(Offset.Zero) }
     var previewState by remember { mutableStateOf<PreviewState?>(null) }
@@ -454,6 +629,8 @@ private fun ContactRow(
         state = state,
         modifier = modifier,
         enableDismissFromStartToEnd = contact.phones.isNotEmpty(),
+        // While selecting, a swipe must not call anyone or open a sheet.
+        gesturesEnabled = !selecting,
         onDismiss = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> onCall()
@@ -483,13 +660,18 @@ private fun ContactRow(
             }
         },
     ) {
+        val picked by animateFloatAsState(if (selected) 1f else 0f, tween(Motion.FAST_MS), label = "picked")
         Row(
             Modifier
                 .fillMaxWidth()
-                .drawBehind { if (afterglow.value > 0f) drawRect(color.copy(alpha = 0.16f * afterglow.value)) }
+                .drawBehind {
+                    if (afterglow.value > 0f) drawRect(color.copy(alpha = 0.16f * afterglow.value))
+                    if (picked > 0f) drawRect(Space.Violet.copy(alpha = 0.14f * picked))
+                }
                 .onGloballyPositioned { origin = it.positionOnScreen() }
                 // Long press opens the preview card; the same finger picks an action (PLAN 3.2).
-                .pointerInput(contact.id) {
+                .pointerInput(contact.id, selecting) {
+                    if (selecting) return@pointerInput
                     detectDragGesturesAfterLongPress(
                         onDragStart = { pos -> previewState = onPreview(contact).also { it.pointer = origin + pos } },
                         onDrag = { change, _ ->
@@ -501,13 +683,29 @@ private fun ContactRow(
                     )
                 }
                 .clickable {
-                    Session.lastOpened = contact.id
-                    onOpen()
+                    if (selecting) {
+                        onToggle()
+                    } else {
+                        Session.lastOpened = contact.id
+                        onOpen()
+                    }
                 }
                 .padding(horizontal = 18.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Avatar(contact, color, 36.dp)
+            // Selected: the avatar turns over to a check (front fades as the back grows in).
+            Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Avatar(contact, color, 36.dp, modifier = Modifier.graphicsLayer { alpha = 1f - picked; rotationY = 180f * picked.coerceAtMost(0.5f) })
+                if (picked > 0f) {
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .graphicsLayer { alpha = picked; rotationY = 180f * (1f - picked).coerceAtMost(0.5f) }
+                            .background(Space.Violet, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Check, null, tint = Space.Void, modifier = Modifier.size(20.dp)) }
+                }
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

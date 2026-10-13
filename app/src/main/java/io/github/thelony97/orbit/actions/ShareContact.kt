@@ -17,12 +17,17 @@ import java.io.File
 /** Contact as vCard file or QR code (PLAN 3.3). Business-card fields only, see [VCard]. */
 object ShareContact {
 
-    fun vcard(ctx: Context, c: Contact) {
+    fun vcard(ctx: Context, c: Contact) = vcards(ctx, listOf(c))
+
+    /** Several contacts in one .vcf (multi-select export, PLAN 3.2). */
+    fun vcards(ctx: Context, contacts: List<Contact>) {
+        if (contacts.isEmpty()) return
         try {
             val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
             // Only the latest shared card stays in the cache.
             dir.listFiles()?.forEach { it.delete() }
-            val file = File(dir, VCard.fileName(c)).apply { writeText(VCard.of(c)) }
+            val name = if (contacts.size == 1) VCard.fileName(contacts.first()) else "Orbit-${contacts.size}-Kontakte.vcf"
+            val file = File(dir, name).apply { writeText(contacts.joinToString("") { VCard.of(it) }) }
             val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".share", file)
             val send = Intent(Intent.ACTION_SEND)
                 .setType("text/x-vcard")

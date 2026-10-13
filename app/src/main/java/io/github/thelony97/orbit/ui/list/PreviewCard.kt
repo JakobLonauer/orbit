@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material.icons.rounded.Sms
@@ -65,6 +66,7 @@ enum class PreviewAction(val label: String, val icon: ImageVector) {
     CALL("Anrufen", Icons.Rounded.Call),
     SMS("SMS", Icons.Rounded.Sms),
     LOG("Eintragen", Icons.Rounded.EditNote),
+    SELECT("Auswählen", Icons.Rounded.CheckCircle),
     OPEN("Öffnen", Icons.Rounded.OpenInFull),
 }
 
@@ -96,6 +98,7 @@ fun PreviewCard(state: PreviewState, idx: Index) {
     val actions = buildList {
         if (c.phones.isNotEmpty()) { add(PreviewAction.CALL); add(PreviewAction.SMS) }
         add(PreviewAction.LOG)
+        add(PreviewAction.SELECT)
         add(PreviewAction.OPEN)
     }
     Popup(alignment = Alignment.Center, properties = PopupProperties(focusable = false, clippingEnabled = false)) {
