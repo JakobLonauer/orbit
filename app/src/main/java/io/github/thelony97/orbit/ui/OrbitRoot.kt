@@ -117,6 +117,9 @@ private fun MainNavigation(data: OrbitData) {
         MainActivity.pendingContact.value = null
     }
 
+    // Shared elements between pages (avatar and name fly from the list into the contact page).
+    androidx.compose.animation.SharedTransitionLayout {
+    androidx.compose.runtime.CompositionLocalProvider(io.github.thelony97.orbit.ui.components.LocalSharedScope provides this) {
     NavDisplay(
         backStack = backStack,
         onBack = { nav.back() },
@@ -139,4 +142,6 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.MailAccounts> { MailAccountsScreen(nav = nav) }
         },
     )
+    }
+    }
 }

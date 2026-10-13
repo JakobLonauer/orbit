@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.thelony97.orbit.ui.components.rememberPhoto
 import io.github.thelony97.orbit.ui.components.rememberPhotoAccent
+import io.github.thelony97.orbit.ui.components.sharedContact
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -350,13 +351,14 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(c, head, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = head)
+                    Avatar(c, head, 72.dp, modifier = Modifier.sharedContact("avatar-${c.id}"), shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = head)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
                         // Long names shrink cleanly instead of being cut (PLAN 1.4).
                         val nameStyle = MaterialTheme.typography.headlineSmallEmphasized
                         androidx.compose.foundation.text.BasicText(
                             Logic.displayName(c, false),
+                            modifier = Modifier.sharedContact("name-${c.id}", text = true),
                             // Relative line height so shrinking also tightens the lines.
                             style = nameStyle.copy(color = Space.Text, lineHeight = 1.18.em),
                             maxLines = 2,

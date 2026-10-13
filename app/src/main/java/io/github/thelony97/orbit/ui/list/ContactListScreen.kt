@@ -20,6 +20,7 @@ import io.github.thelony97.orbit.actions.ShareContact
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.data.now
+import io.github.thelony97.orbit.ui.components.sharedContact
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -695,7 +696,12 @@ private fun ContactRow(
         ) {
             // Selected: the avatar turns over to a check (front fades as the back grows in).
             Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                Avatar(contact, color, 36.dp, modifier = Modifier.graphicsLayer { alpha = 1f - picked; rotationY = 180f * picked.coerceAtMost(0.5f) })
+                Avatar(
+                    contact, color, 36.dp,
+                    modifier = Modifier
+                        .sharedContact("avatar-${contact.id}")
+                        .graphicsLayer { alpha = 1f - picked; rotationY = 180f * picked.coerceAtMost(0.5f) },
+                )
                 if (picked > 0f) {
                     Box(
                         Modifier
@@ -715,7 +721,7 @@ private fun ContactRow(
                         color = Space.Text,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).sharedContact("name-${contact.id}", text = true),
                     )
                     if (contact.isOrg) {
                         Spacer(Modifier.width(6.dp))
