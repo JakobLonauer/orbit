@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.AtFormatTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-13T10:13:01.087Z" hostname="runnervmmprz5" time="0.078">
+  <properties/>
+  <testcase name="austrianMonths" classname="io.github.thelony97.orbit.core.domain.AtFormatTest" time="0.064"/>
+  <testcase name="phrases" classname="io.github.thelony97.orbit.core.domain.AtFormatTest" time="0.0"/>
+  <testcase name="relative" classname="io.github.thelony97.orbit.core.domain.AtFormatTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

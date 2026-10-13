@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.data.FirstStartUpgradeTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-13T10:14:10.949Z" hostname="runnervmmprz5" time="0.474">
+  <properties/>
+  <testcase name="firstStartKeepsEverythingAndSavesDifferences" classname="io.github.thelony97.orbit.data.FirstStartUpgradeTest" time="0.467"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
