@@ -74,7 +74,14 @@ object OrbitRepository {
         appContext = context.applicationContext
         history = HistoryDb(appContext)
         store = Store(File(appContext.filesDir, FILE), history, ::newId)
-        scope.launch { ensureLoaded() }
+        scope.launch {
+            val loaded = ensureLoaded()
+            // Refresh the caller index once per start, so an update's new fields (zuletzt,
+            // Themen) are there before the next save. Separate cache file; never blocks loading.
+            if (_loadError.value == null) {
+                runCatching { CallerIndexFile.write(appContext, loaded) }.onFailure { Log.w(TAG, "caller index", it) }
+            }
+        }
         scope.launch {
             for (signal in saveSignal) {
                 delay(250)
