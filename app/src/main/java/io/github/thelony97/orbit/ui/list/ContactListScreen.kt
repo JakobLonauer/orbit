@@ -290,7 +290,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
                             EmptyHint("Keine Organisationen", "Lege Firma, Praxis oder Amt über + → „Neue Organisation“ an.")
                         !defaultView -> EmptyHint("Leer", "In diesem Filter ist niemand.")
-                        else -> EmptyHint("Dein Orbit ist leer", "Tippe auf + und hol die ersten Menschen in deinen Orbit.")
+                        else -> EmptyHint("Dein Orbit ist leer", "", action = "Kontakt anlegen" to { nav.open(Route.Edit()) })
                     }
                 }
             }

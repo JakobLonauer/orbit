@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.core.domain.migration.MigrateV1
 import io.github.thelony97.orbit.core.model.OccasionKind
@@ -281,12 +282,17 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     Avatar(c, color, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = color)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(
+                        // Long names shrink cleanly instead of being cut (PLAN 1.4).
+                        val nameStyle = MaterialTheme.typography.headlineSmallEmphasized
+                        androidx.compose.foundation.text.BasicText(
                             Logic.displayName(c, false),
-                            style = MaterialTheme.typography.headlineSmallEmphasized,
-                            color = Space.Text,
+                            style = nameStyle.copy(color = Space.Text),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
+                            autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                                minFontSize = 15.sp,
+                                maxFontSize = nameStyle.fontSize,
+                            ),
                         )
                         val job = if (c.isOrg) c.position else listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
                         // Age in the head (PLAN 3.3), only when the birth year is known.
@@ -471,7 +477,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onClick = { birthdayDialog = true },
                         )
                     } else {
-                        InfoRow(label = "Geburtstag", value = "–", onClick = { birthdayDialog = true })
+                        InfoRow(label = "Geburtstag", value = "hinzufügen", onClick = { birthdayDialog = true })
                     }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
