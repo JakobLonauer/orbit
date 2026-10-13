@@ -117,6 +117,20 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 - Archivierten Kontakt öffnen: volle Kontaktseite, oben „Seit 3 Jahren im Archiv · Zurückholen“ und ein Block „Was du weißt“ (angepinnte Notiz, letzte Notizen, Beziehungen, Anlässe – reine Zusammenstellung).
 - Archivieren per Menü oder Mehrfachauswahl, jeweils mit Rückgängig; Organisationen samt Mitarbeitern archivierbar.
 
+## Geburtstage
+
+- Anlässe-Tab bekommt oben drei Reiter: **Geburtstage** (Standard) · Angepinnt · Alle Anlässe. Kein sechster Platz in der unteren Leiste.
+- Geburtstage: alle Menschen mit Geburtstag (ohne Archiv, Organisationen, Mitarbeiter), als Liste ab heute fortlaufend durchs Jahr.
+  - Abschnitte: Gerade vorbei (letzte 7 Tage) · Heute · Diese Woche · Diesen Monat · dann Monate.
+  - Zeile: Datumskachel mit Wochentag des nächsten Termins, Name, „wird 31“, Bezug zu heute („heute“, „morgen“, „in 12 Tagen“, „vor 3 Tagen · wurde 30“), Status-Symbole Gratuliert / Geschenk für dieses Jahr.
+  - Unten: „12 Kontakte ohne Geburtstag“ → Liste mit direkter Datumseingabe in der Zeile.
+- Abhaken ohne Fenster:
+  - Gratuliert: ein Tipp auf das Häkchen in der Zeile (oder Wisch nach rechts); automatisch, wenn der Gratulieren-Knopf benutzt wurde; auch als Aktion in der Geburtstags-Benachrichtigung.
+  - Geschenk: Zeile klappt auf zu einer Textzeile „Was?“, darunter Chips „mit …“ (zuletzt Mitschenkende) und Datums-Chip (Standard: Geburtstag). Enter speichert.
+  - Beides wird Eintrag im Verlauf (Arten „Gratuliert“, „Geschenk“, mit Mitschenkenden und Bezug auf Anlass und Jahr); Status gilt pro Jahr.
+  - Geschenkidee antippen → als verschenkt in diesem Jahr übernommen. Im Kontakt: „2025: Buch (mit Tom) · 2024: Gutschein“.
+  - Schalter in den Einstellungen blendet das Abhaken komplett aus.
+
 ## Gemeinsame Bausteine (zuerst, damit jede Funktion sie nur nutzt)
 
 1. **Index**: pro Datenänderung einmal vorberechnet – letzter Kontakt je Art, Suchtext, nächste Anlässe, Zuordnungs-Tabellen.
