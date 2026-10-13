@@ -18,7 +18,7 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
   - Datenmodell v2 (`core/model`) und eingefrorenes Format 1.0.7 (`core/model/v1`).
   - Umstellung 1.0.7 → v2 (`core/domain/migration/MigrateV1`) mit Testdaten im alten Format: Geburtstag/Jahrestage → Anlässe, Webseite → erster Link, Fotos → Ablage, Verlauf → SQLite-Zeilen, Org-Beziehungen → Zuordnungen, Fälligkeit/Rhythmus entfernt.
   - SQLite-Speicher für Verlauf und Ablage (`store/HistoryDb`, Volltextsuche mit Treffer-Satz) und die einmalige Umstellung beim Start (`store/StoreUpgrade`: Kopie der alten Datei → Datenbank → neue Datei; nach Absturz wiederholbar ohne Doppelte) – getestet, aber noch nicht eingeschaltet.
-  - Zuordnungs-Maschine (`Matcher`), `de-AT`-Formate (`AtFormat`), Backup-Verschlüsselung (`BackupCrypto`), Sichtbarkeitsregeln, Index (letzter Kontakt je Art, Suchtext, nächste Anlässe).
+  - Zuordnungs-Maschine (`Matcher`), `de-AT`-Formate (`AtFormat`), Backup-Verschlüsselung (`BackupCrypto`), Sichtbarkeitsregeln, Index (letzter Kontakt je Art, Suchtext, nächste Anlässe), Anrufer-Kurzindex (`CallerIndex`: Name, Bild, Rolle, Notiz, Kundennummer), Fehlerprotokoll (`util/ErrorLog`).
 - **Nächster Schritt (R1a Rest):** App auf `core.model` umstellen (OrbitRepository: Umstellung mit automatischer Kopie `orbit.v1.bak.json`, SQLite für Verlauf und Ablage), Fälligkeit aus App/Widget/Benachrichtigung entfernen, Archiv-Logik in Listen, verschlüsseltes Backup einbauen, Fehlerprotokoll, Token-System/Haptik/Platzhalter in den Screens. Details zur Reihenfolge im Notizbuch.
 - Letztes Release: v1.0.7 (Organisationen, ICH, Filter, Orbit-Liste, Netz, Karte, E-Mail, Fotos). `dev` ist nicht releasefähig, bis R1a fertig ist – `main` bleibt unverändert.
 

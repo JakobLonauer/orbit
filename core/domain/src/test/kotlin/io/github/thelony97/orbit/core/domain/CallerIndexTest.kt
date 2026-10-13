@@ -1,0 +1,79 @@
+package io.github.thelony97.orbit.core.domain
+
+import io.github.thelony97.orbit.core.model.Contact
+import io.github.thelony97.orbit.core.model.ContactKind
+import io.github.thelony97.orbit.core.model.CustomField
+import io.github.thelony97.orbit.core.model.LabeledValue
+import io.github.thelony97.orbit.core.model.Member
+import io.github.thelony97.orbit.core.model.OrbitDoc
+import io.github.thelony97.orbit.core.model.OrgLink
+import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class CallerIndexTest {
+    private val at: (String) -> String? = { raw ->
+        val d = raw.filter { it.isDigit() }
+        when {
+            d.length < 3 -> null
+            raw.trim().startsWith("+") -> "+$d"
+            d.startsWith("0") -> "+43" + d.drop(1)
+            else -> d
+        }
+    }
+    private fun ph(v: String, l: String = "") = LabeledValue(l, v)
+
+    private val papa = Contact("papa", firstName = "Peter", lastName = "Lonauer", photo = "p.jpg",
+        phones = listOf(ph("0660 1")), pinnedNote = "Fragt immer nach dem Auto")
+    private val arzt = Contact("arzt", kind = ContactKind.ORG, firstName = "Arzt Müller",
+        phones = listOf(ph("0732 111", "Termine")),
+        fields = listOf(CustomField("f", "Patientennummer", "P-77")))
+    private val liles = Contact("liles", kind = ContactKind.ORG, firstName = "LiLES",
+        members = listOf(Member("m1", "Frau Huber", role = "Sachbearbeiterin", phones = listOf(ph("0732 2468 12")))),
+        numberPrefixes = listOf("0732 2468"))
+    private val anna = Contact("anna", firstName = "Anna", phones = listOf(ph("0664 2")), position = "Lehrerin")
+    private val doc = OrbitDoc(
+        contacts = listOf(papa, arzt, liles, anna, Contact("me", isMe = true, phones = listOf(ph("0650 3")))),
+        orgLinks = listOf(OrgLink("l", "papa", "arzt", "gp")),
+    )
+    private val idx = CallerIndex.build(doc, at)
+
+    @Test fun personWithAssignmentAndNote() {
+        val c = idx.lookup("+43 660 1", at)!!
+        assertEquals("Peter Lonauer", c.name)
+        assertEquals("Patient:in · Arzt Müller", c.role)
+        assertEquals("Fragt immer nach dem Auto", c.note)
+        assertEquals("p.jpg", c.photo)
+    }
+
+    @Test fun orgNumberLabelAndCustomerNumber() {
+        val c = idx.lookup("0732111", at)!!
+        assertEquals("Arzt Müller", c.name)
+        assertEquals("Termine", c.role)
+        assertEquals("P-77", c.customerNo)
+        assertTrue(c.org)
+    }
+
+    @Test fun memberAndRange() {
+        val m = idx.lookup("0732 246812", at)!!
+        assertEquals("Frau Huber", m.name)
+        assertEquals("Sachbearbeiterin · LiLES", m.role)
+        assertEquals("m1", m.memberId)
+        val r = idx.lookup("0732 2468 99", at)!!
+        assertEquals("LiLES", r.name)
+        assertNull(r.memberId)
+    }
+
+    @Test fun fallbackRoleAndMeExcluded() {
+        assertEquals("Lehrerin", idx.lookup("0664 2", at)!!.role)
+        assertNull(idx.lookup("0650 3", at))
+    }
+
+    @Test fun survivesJson() {
+        val json = Json { ignoreUnknownKeys = true }
+        val text = json.encodeToString(CallerIndex.serializer(), idx)
+        assertEquals(idx, json.decodeFromString(CallerIndex.serializer(), text))
+    }
+}
