@@ -106,7 +106,9 @@ Ergebnis aus den Gesprächen nach Version 1.0.7, drei Meta-Iterationen.
 - **Nie** in Kontaktliste, Suche, Verlauf-Tab, Anlässe, Netz oder Karte. Erreichbar nur über die Organisation (dort eigene Suche ab vielen Mitarbeitern).
 - Ruft ein Mitarbeiter von seiner Durchwahl an: Anrufbildschirm „Liles Servicecenter · Herr Mayer (Kundenberatung)“ mit seiner Notiz.
 - Gespräch eintragen bei der Org → Mitarbeiter wählen (oder neu anlegen, ein Feld).
-- Bewusster Schritt „Zu eigenem Kontakt machen“, falls jemand doch ins Leben gehört.
+- Bewusster Schritt „Zu eigenem Kontakt machen“, falls jemand doch ins Leben gehört (wird automatisch per Zuordnung mit der Org verbunden); umgekehrt „Nur in der Organisation führen“.
+- Beides nebeneinander auf der Org-Seite: **Aus deinen Kontakten** (echte Menschen per Zuordnung, z. B. Kolleg:innen im COOL Lab) und **Nur hier** (versteckte Mitarbeiter wie bei Liles).
+- Personen-Seite: „COOL Lab · Kollegin“ und „Auch im COOL Lab: Anna, Tom“. Filter-Sheet der Kontaktliste bekommt „Organisation“ (z. B. alle aus dem COOL Lab).
 
 ## Archiv
 
