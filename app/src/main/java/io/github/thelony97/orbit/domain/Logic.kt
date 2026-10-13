@@ -24,6 +24,16 @@ class Index(val data: OrbitData) {
     val groups: Map<String, Group> = data.groups.associateBy { it.id }
     val types: Map<String, EntryType> = data.entryTypes.associateBy { it.id }
     val contacts: Map<String, Contact> = data.contacts.associateBy { it.id }
+
+    /**
+     * Folded search text per contact, built on first use and kept for this data snapshot: typing
+     * in the search no longer folds every note and SMS again on each key (the Index is rebuilt
+     * whenever the data changes, so the cache can never be stale).
+     */
+    private val haystacks = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun haystack(c: Contact, build: (Contact) -> String): String =
+        if (contacts[c.id] === c) haystacks.getOrPut(c.id) { build(c) } else build(c)
 }
 
 object Logic {
@@ -110,11 +120,19 @@ object Logic {
         if (q.isEmpty()) return true
         val digits = query.filter { it.isDigit() }
         if (digits.length >= 3 && c.phones.any { p -> p.value.filter { it.isDigit() }.contains(digits) }) return true
-        val haystack = buildString {
+        val folded = idx.haystack(c) { fold(haystackOf(it, idx)) }
+        return q.split(' ').filter { it.isNotBlank() }.all { folded.contains(it) }
+    }
+
+    private fun haystackOf(c: Contact, idx: Index): String {
+        return buildString {
             append(c.firstName).append(' ').append(c.lastName).append(' ')
             append(c.company).append(' ').append(c.position).append(' ').append(c.website).append(' ')
             if (c.isOrg) append(io.github.thelony97.orbit.data.Defaults.orgCategory(c.orgCategory).label).append(' ')
-            append(c.howWeMet).append(' ').append(c.notes).append(' ').append(c.address).append(' ')
+            append(c.howWeMet).append(' ').append(c.notes).append(' ').append(c.pinnedNote).append(' ').append(c.address).append(' ')
+            // Own fields (Kundennummer …) and link titles are findable too (PLAN 3.3).
+            c.fields.forEach { append(it.label).append(' ').append(it.value).append(' ') }
+            c.links.forEach { append(it.title).append(' ') }
             c.emails.forEach { append(it.value).append(' ') }
             c.groupIds.forEach { id -> idx.groups[id]?.let { append(it.name).append(' ') } }
             c.topics.forEach { append(it.text).append(' ') }
@@ -125,7 +143,5 @@ object Logic {
                 e.messages.forEach { m -> append(m.text).append(' ') }
             }
         }
-        val folded = fold(haystack)
-        return q.split(' ').filter { it.isNotBlank() }.all { folded.contains(it) }
     }
 }
