@@ -143,3 +143,7 @@
 - Undo-Regel: Seiten, die eine Kopie bearbeiten (Edit-Screen), rufen beim Öffnen `Undo.clear()` – sonst überschreibt Speichern ein späteres Rückgängig.
 - AppLock: externe Flows (Picker/Teilen) sperren nicht sofort, sondern mit 5 Min Kulanz; `onResume` setzt externalFlow zurück (durchsichtiges Teilen-Sheet stoppt Orbit nie).
 - !! Lange Arbeit (Update-Download!) nie in `rememberCoroutineScope` eines Listen-Items/Banners starten – LazyColumn-Item verlässt beim Scrollen die Composition → CancellationException → „Update fehlgeschlagen“. Dafür `ui/components/AppWork.launch { }` (Prozess-weit). Updates.kt selbst nicht anfassen (Update-Mechanismus geschützt).
+- 13.10. abends (R2): Sperrbildschirm-Datenschutz geht NUR über einen Kanal mit `lockscreenVisibility = VISIBILITY_PRIVATE` (Kanal CH_CALLER); `setVisibility(PRIVATE)` + publicVersion allein reicht nicht, wenn der Nutzer „sensible Inhalte anzeigen“ an hat (Standard). Kanäle lassen sich nachträglich nicht ändern → neuen Kanal anlegen.
+- Benachrichtigungs-IDs je Art in eigenem Bereich (Basis + Hash and 0x0FFF); IDs sind zugleich PendingIntent-Request-Codes – Extras zählen beim Abgleich nicht.
+- PhoneStateReceiver: `idleAt` (prozessweit) verhindert, dass eine asynchron gebaute Anruferkarte nach dem Auflegen erscheint.
+- Anrufbildschirm `ui/call/CallScreen.kt` ist reine Oberfläche (CallUi + CallActions), Screenshots call_*; Verdrahtung mit InCallService kommt erst, wenn am Gerät getestet werden kann.
