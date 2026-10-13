@@ -19,7 +19,7 @@ Rangfolge bei Zielkonflikten: **1. Datensicherheit → 2. Wow (Kapitel 1) → 3.
 | W3 | **Kontinuität.** Elemente reisen zwischen Screens (geteilte Übergänge), statt zu verschwinden und neu aufzutauchen. |
 | W4 | **Ein großer Moment pro Screen** – perfekt statt viele halbe. |
 | W5 | **Nur zeigen, was zutrifft.** Dual-SIM nur mit zwei SIMs, Bluetooth nur mit Gerät, Abschnitte nur mit Inhalt. |
-| W6 | **Jeder Zustand ist gestaltet:** leer, lädt, Fehler, offline, ein Eintrag, tausend Einträge, sehr langer Name, kein Foto. |
+| W6 | **Jeder Zustand ist gestaltet:** leer, lädt, Fehler, offline, ein Eintrag, tausend Einträge, sehr langer Name, kein Foto. Leerzustand = ein kurzer Satz + genau eine Aktion. |
 | W7 | **Sprache präzise und österreichisch:** `de-AT` (Jänner), richtige Einzahl/Mehrzahl („1 Tag“, „2 Tage“), relative Zeiten, die live aktuell bleiben, Wochentag bei nahen Terminen. Kurz, für Profis, keine Erklärtexte. |
 | W8 | **Tempo ist Wow:** Kaltstart bis Liste < 400 ms, Suche pro Tastendruck < 16 ms, Scrollen ohne Ruckler, Anrufbildschirm sofort. |
 | W9 | **Ein Token-System:** Bewegung schnell 150 / mittel 250 / betont 350 ms mit Expressive-Federn; Abstände 4/8 dp; feste Radien, Glow-Stufen und Haptik-Typen. Keine Einzellösungen. |
@@ -36,7 +36,9 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - **Geteilte Übergänge überall:** Bild Liste → Kontaktkopf, Kachel → Organisation, Foto → Vollbild, Datumskachel → Anlass, Benachrichtigung → Anrufbildschirm.
 - **Zurück mit Gedächtnis:** Zurück-Geste mit Vorschau; Rückkehr an exakt dieselbe Scrollposition, die berührte Zeile glimmt kurz nach.
 - **Typografie in Bewegung:** große Titel schrumpfen beim Scrollen in die Kopfzeile, Zahlen rollen, Tabellenziffern überall, wo gezählt wird.
-- **Rückgängig statt Nachfragen:** Leiste mit ablaufendem Zeitring.
+- **Physik statt Animation:** Wisch-Aktionen mit Widerstand, die federnd zurückschnappen; Knöpfe verformen sich beim Drücken (Expressive Shape-Morph); „Speichern“ morpht zum Häkchen, dann schließt sich die Seite.
+- **Rückgängig statt Nachfragen:** Leiste mit ablaufendem Zeitring (nach Löschen, Archivieren, Eintragen, Wischen).
+- **Berechtigungen erst, wenn du die Funktion einschaltest**, mit einem Satz warum – nie gesammelt beim Start.
 - **Platzhalter in exakter Endform** statt Ladekreisen.
 
 ### 1.3 Signature-Moment je Screen
@@ -56,7 +58,7 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 | Fotos | Vollbild **wächst aus der Kachel** und fällt beim Runterwischen zurück, Hintergrund blendet mit dem Finger aus. |
 | Einstellungen | Statuszeilen mit Live-Indikatoren; die Achtung-Karte glimmt; Schalter morphen mit Haptik. |
 | Ich-Karte | Visitenkarte mit QR und **Holo-Schimmer, der sich beim Neigen bewegt** (AGSL-Shader + Lagesensor). |
-| Erster Start | **„Dein Orbit füllt sich“** – ausgewählte Handy-Kontakte fliegen als Bilder in die Umlaufbahn um dich und ordnen sich zur Liste. |
+| Erster Start | Zwei Schritte: ICH (Name, Foto) → Handy-Kontakte auswählen. Dann **„Dein Orbit füllt sich“** – die ausgewählten Kontakte fliegen als Bilder in die Umlaufbahn um dich und ordnen sich zur Liste. |
 | Widgets | Gleiche Sprache, echte Vorschauen im Auswahlmenü. |
 
 ### 1.4 Details-Katalog („daran hat jemand gedacht“) – Mindestumfang
@@ -98,8 +100,21 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 
 ## 3. Funktionen
 
+### 3.0 Bestand aus Version 1.0.7 – bleibt, mit Anpassungen
+
+**Bleibt:** Anruf- und SMS-Abgleich (Mindestdauer, SMS pro Tag gebündelt) · Vorschläge für unbekannte Nummern (anlegen als Mensch oder Organisation) · eigene Einträge und frei definierbare Eintragsarten · Gruppen (Farbe, Pin) · Themen „Nächstes Mal ansprechen“ inkl. Benachrichtigung während des Anrufs · Notiz nach dem Anruf per Benachrichtigung · Treffen planen (Kalender-Eintrag, Nachfrage am Tag danach) · Geschenkideen · „Wie kennengelernt“, Notizen, Favoriten · Papierkorb (30 Tage) · App-Sperre per Biometrie/PIN · Backup-ZIP, wöchentlich in einen Ordner · In-App-Updates · Onboarding · **ICH** (automatisch, umbenennbar, nicht löschbar, keine Erinnerungen, Mitte des Netzes, Bezugspunkt für Entfernungen) · Filter-Sheet mit angepinnten Gruppen · Organisationen als eigene Art (eckiges Bild, Gebäude-Symbol, standardmäßig ausgeblendet, Treffer-Hinweis in der Suche) · **Netz-Tab** (Mitte wählbar, Tiefe 1–4, Pan/Zoom, Auswahlkarte) · **Karte-Tab** (MapLibre + OpenFreeMap dark, Geocoder-Cache, Entfernung zu ICH, „In der Nähe“, Google Maps/Route) · E-Mail-Konten per IMAP mit App-Passwort, Passwort im Android-Keystore, nicht im Backup · Fotos-Ordner pro Kontakt (wird zur Ablage, 3.10).
+
+**Anpassungen:**
+- Netz und Karte zeigen keine archivierten Kontakte und keine versteckten Mitarbeiter. Im Netz erscheinen Zuordnungen zu Organisationen nur bei eingeschaltetem Org-Schalter, als eigene blaue Linie, getrennt von Beziehungen.
+- Eintragsarten verlieren „setzt Timer zurück“; Gruppen verlieren den Rhythmus.
+- Das Homescreen-Widget zeigt statt „fällig“ die nächsten Anlässe und Favoriten; die tägliche Benachrichtigung enthält nur noch Anlässe.
+- Der E-Mail-Abschnitt im Kontakt entfällt (Mails stehen im Verlauf, 3.9).
+- Der Status-Filter „Archiv“ verschwindet aus dem Filter-Sheet (Archiv nur noch in den Einstellungen, 3.11).
+
+**Entfällt komplett:** Rhythmus, „fällig“, Pausieren, „Um eine Woche verschieben“, Orbit-Tab als Fälligkeitsliste, Filter und Sortierung „Fällig“, Anzeige „N fällig“, roter Glow für Fällige, Fälligkeit im Widget und in der Benachrichtigung.
+
 ### 3.1 Hülle und Navigation
-- Untere Leiste: **Kontakte · Verlauf · Anlässe · Netz · Karte**. Einstellungen hinter dem **Zahnrad** oben rechts in der Kontaktliste.
+- Untere Leiste: **Kontakte · Verlauf · Anlässe · Netz · Karte** (der Orbit-Tab wird zum Verlauf-Tab, der Einstellungs-Tab entfällt). Einstellungen hinter dem **Zahnrad** oben rechts in der Kontaktliste.
 - Tabs behalten Scrollposition, Suche und Zustand; die Karte bleibt geladen.
 
 ### 3.2 Kontaktliste
@@ -114,6 +129,7 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - Über dem Verlauf Filter-Chips je Art mit letztem Datum: `Alle` `Anruf · vor 3 T` `Treffen · vor 2 M` `E-Mail · vor 5 T` `SMS · vor 1 W`.
 - Leere Abschnitte verschwinden; unten eine Zeile `+ Anlass · + Link · + Foto · + Notiz`.
 - Profilbild zuschneiden; Kontakt als vCard/QR teilen.
+- Ist eine Person einer Organisation zugeordnet, führt ihr Firmen-/Arbeitsfeld per Tipp zur Organisation.
 - Themen optional mit Datum → Benachrichtigung an dem Tag.
 
 ### 3.4 Verlauf
@@ -128,7 +144,12 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - Geburtstage: alle Menschen mit Geburtstag (ohne Archiv, Organisationen, Mitarbeiter), ab heute fortlaufend; Abschnitte Gerade vorbei (7 Tage) · Heute · Diese Woche · Diesen Monat · Monate; Zeile mit Datumskachel und Wochentag, „wird 31“, Bezug zu heute, Status Gratuliert/Geschenk; unten „N Kontakte ohne Geburtstag“ mit Eingabe in der Zeile.
 - Abhaken ohne Fenster: Gratuliert per Tipp/Wisch, automatisch beim Gratulieren-Knopf, aus der Benachrichtigung; Geschenk als aufklappende Textzeile mit Chips „mit …“ und Datum; beides Verlaufseinträge pro Jahr; Geschenkideen antippen = verschenkt; Geschenk-Historie im Kontakt; Schalter blendet Abhaken aus.
 - Filter (Art, Gruppe, Zeitraum, nur runde Jahreszahlen, Orgs) und Sortierung (nächste zuerst, Kalender, Name, Jahre) für „Angepinnt“/„Alle“.
-- Gratulations-Vorlage pro Kontakt (Du/Sie, Sprache). Tägliche Benachrichtigung nur noch mit Anlässen; optional Übernahme in den Handy-Kalender.
+- Gratulations-Vorlage pro Kontakt (Du/Sie, Sprache). Tägliche Benachrichtigung nur noch mit Anlässen, gesammelt („Heute: Annas 30. Geburtstag · In 7 Tagen: Hochzeitstag Anna & Tom“), mit „Anrufen“, wenn es eine Person betrifft; Vorlauf-Erinnerungen zeigen die Geschenkideen der Person; optional Übernahme in den Handy-Kalender.
+- Im Kontakt: Abschnitt „Anlässe“ mit Art, Datum, Zusatz („wird 30“), Countdown, Nadel, „Alle anpinnen“; Hinzufügen-Dialog mit Art-Chips, Datum, Jahr optional, Wiederholung, Erinnerungen, „gemeinsam mit“, Notiz, Anpinnen.
+- Auch Organisationen können Anlässe haben (z. B. einmalig „Vertrag endet“).
+- Einmalige Anlässe verschwinden nach dem Tag aus „nächste“, bleiben aber im Kontakt. Der 29. Februar wird in Nicht-Schaltjahren am 28. angezeigt.
+- Zeilen in „Angepinnt“/„Alle“: Datumskachel, Name, Art, „wird 30“/„5. Hochzeitstag“, Countdown, Nadel; heute hervorgehoben mit Anrufen/WhatsApp; Antippen öffnet den Kontakt, Langdruck pinnt/bearbeitet.
+- Umstellung: `birthday` → Anlass „Geburtstag“; `anniversaries` → Anlässe, Art aus der Bezeichnung (Hochzeitstag, Namenstag, Jahrestag, Kennenlerntag), sonst eigene Bezeichnung.
 
 ### 3.6 Organisationen
 - Benannte Nummern und Adressen (Zentrale, Empfang, Termine, Fax, Notfall, eigene), Standardnummer.
@@ -151,6 +172,7 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - Optional „Daten ergänzen“ aus OpenStreetMap (Webseite, Telefon, Öffnungszeiten), jeder Wert einzeln bestätigt, Nominatim-Regeln einhalten.
 
 ### 3.9 E-Mail v2
+- Abgleich beim Öffnen eines Kontakts und alle 6 Stunden im Hintergrund.
 - Abgleich nur von Neuem: pro Konto und Ordner UIDVALIDITY + letzte UID; Hintergrund-Abgleich (nur mit Netz, Wiederholung mit wachsender Pause) holt nur Kopfzeilen und ordnet lokal zu; erster Abgleich 12 Monate; neue Adresse → einmalige Suche (Gmail: X-GM-RAW `from:(…) OR to:(…)`).
 - Ordner: Gmail nur „Alle Nachrichten“; sonst Posteingang, Gesendet, Archiv (SPECIAL-USE), Ordnerliste einen Tag gecacht.
 - Eine Verbindung pro Abgleich, COMPRESS, ID-Befehl.
@@ -168,7 +190,8 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - Archivierten Kontakt öffnen: volle Seite, oben „Seit 3 Jahren im Archiv · Zurückholen“, Block „Was du weißt“ (Zusammenstellung eigener Einträge). Archivieren per Menü/Mehrfachauswahl mit Rückgängig; Organisationen samt Mitarbeitern.
 
 ### 3.12 Orbit als Telefon-App
-- Standard-Telefon-App (ROLE_DIALER, InCallService); Jakob aktiviert sie selbst; Klingelton bleibt beim System; Rückfall auf die vorinstallierte Telefon-App, falls Orbit nicht gebunden werden kann.
+- Standard-Telefon-App (ROLE_DIALER, InCallService); Jakob aktiviert sie selbst unter Einstellungen → Mitschreiben; beim Aktivieren ein Satz: ggf. „Eingeschränkte Einstellungen zulassen“ nötig, Extras der Google-Telefon-App (Spam-Warnung, Anruf-Filter, visuelle Mailbox) entfallen, Rückwechsel jederzeit über die Standard-Apps. Klingelton bleibt beim System; Rückfall auf die vorinstallierte Telefon-App, falls Orbit nicht gebunden werden kann.
+- **Ohne aktivierte Telefon-App-Rolle:** Anrufer-Info als Benachrichtigung beim Klingeln (Name, Rolle, zuletzt, offene Themen, Kundennummer) über den bestehenden Anruf-Empfänger, plus die bisherigen Themen- und Notiz-Benachrichtigungen.
 - Eingehend: Foto groß in Anruferfarbe, Name, Rolle („Arzt Müller · Hausarzt von Papa“, „Liles · Herr Mayer“), zuletzt, offene Themen, anstehender Anlass, Kundennummer; unbekannt: „3 Anrufe in 2 Wochen“; archiviert: Hinweis + Zurückholen.
 - Laufend: Halten, Stumm, Lautsprecher/Bluetooth/Kopfhörer, Tastenfeld (DTMF), Anklopfen, Konferenz, Themen abhaken, Notiz, Timer; Näherungssensor; laufender Anruf als Chip.
 - Danach: Notizzeile → Verlaufseintrag; „Mitarbeiter zuordnen?“ bei unbekannter Durchwahl.
@@ -180,13 +203,16 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 ### 3.13 Einstellungen
 - Startseite: Karte **„Braucht deine Aufmerksamkeit“** nur bei Bedarf (Berechtigung, Backup, Mail-Konto, Update); darunter fünf Bereiche mit Statuszeile:
   - **Mitschreiben** („Anrufe ab 60 s · 2 Mail-Konten“): Mindestdauer, SMS, E-Mail-Konten, unbekannte Nummern, jetzt abgleichen, Berechtigungen, Telefon-App.
-  - **Benachrichtigungen** („Anlässe um 9:00“): Uhrzeit, Themen im Anruf, Notiz nach Anruf, Nachfrage nach Treffen.
+  - **Benachrichtigungen** („Anlässe um 9:00“): Uhrzeit, Themen im Anruf, Notiz nach Anruf, Nachfrage nach Treffen, Treffen am Morgen (siehe unten).
   - **Kontakte** („5 Gruppen · Vorname zuerst“): Gruppen, Eintragsarten, Namensreihenfolge, **Archiv**, Papierkorb, Abhaken bei Geburtstagen an/aus.
   - **Sicherheit & Backup** („Sperre an · Backup vor 3 Tagen“): App-Sperre (sofort / 1 / 5 Min), Backup-Ordner, automatisch, jetzt sichern (verschlüsselt mit Passwort), exportieren (ZIP, Excel, vCard), wiederherstellen, Speicher-Übersicht.
   - **Über Orbit** („Version 1.x · aktuell“): Updates, kurze Änderungszeile, Fehlerprotokoll teilen.
 
+### 3.13a Benachrichtigungen (Planer)
+- Anlässe mit Vorlauf (3.5) · Themen mit Datum (3.3) · **am Morgen eines geplanten Treffens:** offene Themen, letzte Notiz, Partner/Kinder aus den Beziehungen · Nachfrage nach Treffen am Tag danach · Backup fehlgeschlagen · „Später zurückrufen“ (3.12).
+
 ### 3.14 Komfort
-- Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“, Favoriten-Widget, Anlässe-Widget, App-Shortcuts.
+- Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“, Favoriten-Widget (Anrufen/WhatsApp mit einem Tipp), Anlässe-Widget, App-Shortcuts (Neuer Kontakt, Verlauf, Top-Favoriten dynamisch).
 - Mehrere Handy-Kontakte auf einmal übernehmen (Organisation per fester Regel „Firma ohne Personennamen“); Hinweis „Diese Nummer gibt es schon“.
 - ICH-Karte mit QR; Export Excel/vCard.
 
@@ -200,7 +226,7 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 - **Index** pro Datenänderung: letzter Kontakt je Art, Suchtext, nächste Anlässe.
 - **Planer** für alle Benachrichtigungen; **Teilen-Eingang**; **Ablage** mit Referenzzählung; **UI-Bausteine** inkl. Wow-Systeme aus 1.2 als wiederverwendbare Komponenten.
 - **Datenmodell v2** in einer Umstellung mit automatischer Sicherung: entfällt `rhythmDays`, `paused`, `snoozedUntil`, `remindedDueDay`, Gruppen-Rhythmus, `resetsTimer`; `birthday`/`anniversaries` → `dates`; `website` → erster Link; `gallery` → Ablage; Org-Beziehungsarten → Zuordnungen. Neu: `dates`, `links`, `fields`, `members`, `numberPrefixes`, `emailDomains`, `mapsUrl`, `pinnedNote`, `OrgLink`, Eintrag `memberId`/`attachmentIds`/`sharedId`/Mail-Verweis.
-- **Backup** exportiert SQLite-Tabellen als JSON in die verschlüsselte ZIP.
+- **Backup** exportiert SQLite-Tabellen als JSON in die ZIP; verschlüsselt mit einem Schlüssel aus deinem Passwort (PBKDF2-HMAC-SHA256, AES-256-GCM); Wiederherstellen fragt das Passwort. Mail-Passwörter nie im Backup.
 
 ---
 
@@ -209,10 +235,10 @@ Sensor-Effekte (Neigung) aus im Energiesparmodus. Keine Barrierefreiheits-Anpass
 | Update | Inhalt | Wow-Schwerpunkte (zusätzlich zu 1.1/1.2 auf allen berührten Screens) |
 |---|---|---|
 | Test-Build (ohne Release) | riskante Bausteine einmal kompilieren: InCallService, Haze, geteilte Übergänge, Roborazzi, FTS4, AGSL | – |
-| R1a Fundament | Speicher v2 + Umstellung, Index, Zuordnungs-Maschine, Fälligkeit raus, Archiv-Logik, verschlüsseltes Backup, Fehlerprotokoll, Test-/Screenshot-System, `de-AT`-Formate | Token-System (W9), Haptik-Typen, Platzhalter |
+| R1a Fundament | Speicher v2 + Umstellung, Index, Zuordnungs-Maschine, Fälligkeit raus (inkl. Widget und Benachrichtigung, 3.0), Archiv-Logik, verschlüsseltes Backup, Fehlerprotokoll, Test-/Screenshot-System, `de-AT`-Formate | Token-System (W9), Haptik-Typen, Platzhalter |
 | R1b Hülle | 3.1–3.4, 3.11, 3.13 | Lebender Weltraum, Orbit-Leiste, Milchglas, Spotlight, Start-Moment, Kontaktseite-Moment, Verlauf-Moment, Archiv-Moment, Zurück mit Gedächtnis, Rückgängig-Ring |
-| R2 Telefon | 3.12 | Anrufbildschirm-Moment, Anruf-Chip, Benachrichtigungen |
-| R3 Anlässe | 3.5 | Jahresrad, Sternenregen/-funke, Datumskachel → Anlass |
+| R2 Telefon | 3.12 inkl. Anrufer-Info ohne Telefon-App-Rolle | Anrufbildschirm-Moment, Anruf-Chip, Benachrichtigungen |
+| R3 Anlässe | 3.5, 3.13a | Jahresrad, Sternenregen/-funke, Datumskachel → Anlass |
 | R4 Organisationen | 3.6–3.8 | Kachel → Organisation, Satelliten-Reihe, Live-Öffnungszeiten, Schnellzugriff-Schublade, Netz-Federn und Leuchtweg |
 | R5 E-Mail | 3.9 | Mails klappen weich auf, Wellen-Indikator, Offline-Zustände |
 | R6 Fotos & Dateien | 3.10 | Foto wächst aus der Kachel, Monats-Scrubber |
