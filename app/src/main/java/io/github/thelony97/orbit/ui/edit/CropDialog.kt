@@ -111,7 +111,7 @@ fun CropDialog(bitmap: Bitmap, onDismiss: () -> Unit, onCrop: (CropMath.Square) 
                 }
                 // Dim everything outside the frame. The frame has the head's cookie shape, so the
                 // preview is exactly what the contact page will show; a thin line marks its edge.
-                val cookie = remember { MaterialShapes.Cookie9Sided.toShape() }
+                val cookie = MaterialShapes.Cookie9Sided.toShape()
                 Canvas(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
                     val f = frame.toFloat()
                     drawRect(Space.Void.copy(alpha = 0.72f))
