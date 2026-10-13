@@ -73,12 +73,9 @@ class DialerActivity : ComponentActivity() {
         } catch (e: Exception) {
             // Last resort: the preinstalled phone app with the number filled in – a number typed
             // here (above all an emergency number) must always get through.
+            // Emergency numbers too: the preinstalled phone app dials them without any permission.
             val telecom = getSystemService(TelecomManager::class.java)
-            val fallback = if (emergency(uri)) {
-                runCatching { telecom.createLaunchEmergencyDialerIntent(uri.schemeSpecificPart) }.getOrNull()
-            } else {
-                runCatching { telecom.systemDialerPackage }.getOrNull()?.let { Intent(Intent.ACTION_DIAL, uri).setPackage(it) }
-            }
+            val fallback = runCatching { telecom.systemDialerPackage }.getOrNull()?.let { Intent(Intent.ACTION_DIAL, uri).setPackage(it) }
             runCatching {
                 startActivity(fallback!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 finish()
