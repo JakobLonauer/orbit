@@ -121,6 +121,8 @@ class ScreensScreenshotTest {
 
     @Test fun archive() = shot("archive") { ArchiveScreen(data, idx, nav) }
 
+    @Test fun archivedDetail() = shot("detail_archived") { ContactDetailScreen("alt1", data, idx, nav) }
+
     /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */
     @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
 

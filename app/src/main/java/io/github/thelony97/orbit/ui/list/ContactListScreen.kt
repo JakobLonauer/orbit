@@ -114,6 +114,7 @@ import io.github.thelony97.orbit.ui.components.BadgeOrb
 import io.github.thelony97.orbit.ui.components.KindMark
 import io.github.thelony97.orbit.ui.components.entryIcon
 import io.github.thelony97.orbit.ui.components.Avatar
+import io.github.thelony97.orbit.ui.components.Banner
 import io.github.thelony97.orbit.ui.components.EmptyHint
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.SpaceSearchField
@@ -384,28 +385,6 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
         )
     }
     if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })
-}
-
-@Composable
-private fun Banner(icon: ImageVector, color: Color, text: String, onClick: () -> Unit, action: String? = null) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp)
-            .glass(RoundedCornerShape(16.dp), tint = Space.Panel, border = color.copy(alpha = 0.35f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))
-        if (action != null) {
-            Text(action, style = MaterialTheme.typography.labelLarge, color = color)
-        } else {
-            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Space.TextDim)
-        }
-    }
 }
 
 /** "Meine Karte" – the user's own entry, always on top. */

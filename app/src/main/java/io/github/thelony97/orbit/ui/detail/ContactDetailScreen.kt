@@ -1,5 +1,13 @@
 package io.github.thelony97.orbit.ui.detail
 
+import io.github.thelony97.orbit.core.domain.DateMath
+import io.github.thelony97.orbit.ui.components.Banner
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.thelony97.orbit.ui.components.rememberPhoto
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -176,8 +184,35 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
+    val listState = rememberLazyListState()
+    val photo = rememberPhoto(c.photo)
     SpaceBackground {
+        // Signature (PLAN 1.3): the head glows in the person's colour, the profile picture lies
+        // blurred behind it; both fade out as the page scrolls (read in the draw phase only).
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(380.dp)
+                .graphicsLayer {
+                    val scrolled = if (listState.firstVisibleItemIndex > 0) 1f else (listState.firstVisibleItemScrollOffset / 600f).coerceIn(0f, 1f)
+                    alpha = 1f - scrolled
+                },
+        ) {
+            if (photo != null) {
+                androidx.compose.foundation.Image(
+                    photo, null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.matchParentSize().blur(48.dp).graphicsLayer { alpha = 0.32f },
+                )
+            }
+            Box(
+                Modifier.matchParentSize().background(
+                    Brush.verticalGradient(listOf(color.copy(alpha = 0.30f), color.copy(alpha = 0.08f), Color.Transparent)),
+                ),
+            )
+        }
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = top + 6.dp, bottom = bottom + 32.dp),
         ) {
@@ -254,8 +289,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             overflow = TextOverflow.Ellipsis,
                         )
                         val job = if (c.isOrg) c.position else listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
-                        if (job.isNotBlank()) {
-                            Text(job, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // Age in the head (PLAN 3.3), only when the birth year is known.
+                        val age = c.birthday?.let { b ->
+                            b.year?.let { y -> java.time.Period.between(DateMath.inYear(b, y), todayDate).years.takeIf { it in 0..130 } }
+                        }?.let { "$it Jahre" }
+                        val line = listOfNotNull(job.takeIf { it.isNotBlank() }, age).joinToString(" · ")
+                        if (line.isNotBlank()) {
+                            Text(line, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         val groups = c.groupIds.mapNotNull { idx.groups[it] }
                         if (groups.isNotEmpty() || c.archived || c.isOrg || c.isMe) {
@@ -272,6 +312,18 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         }
                     }
                 }
+            }
+
+            // Archived: how long, and one tap to bring them back (PLAN 3.11).
+            if (c.archived) item(key = "archived") {
+                val since = ChronoUnit.DAYS.between(((c.archivedAt ?: c.updatedAt).takeIf { it > 0 } ?: now()).toLocalDate(), todayDate)
+                Banner(
+                    icon = Icons.Rounded.Unarchive,
+                    color = Space.TextDim,
+                    text = if (since <= 0) "Seit heute im Archiv" else "Seit " + Fmt.ago(since).removePrefix("vor ") + " im Archiv",
+                    action = "Zurückholen",
+                    onClick = { edit { it.copy(archived = false, archivedAt = null) } },
+                )
             }
 
             // Quick actions
