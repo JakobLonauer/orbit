@@ -7,6 +7,8 @@
 - Arbeiten auf `dev`. Release = merge dev→main (nur nach DoD, PLAN 8.4).
 - Lokal KEIN Gradle-Build möglich (Google Maven + Maven Central über Proxy 403). Jede Kompilierprüfung = CI-Runde (~3–5 min). -> große, sorgfältige Batches; vor Push selbst gegenlesen (Imports, Scopes, Signaturen).
 - K2 meldet ALLE Frontend-Fehler eines Moduls in einer Runde -> nach Fehlschlag errors.txt komplett abarbeiten, dann erst neu pushen.
+- Module: `:core:model` (Datenklassen v2 + eingefrorenes v1 in `core.model.v1`), `:core:domain` (pure Logik: DateMath, Matcher, AtFormat, BackupCrypto, migration/MigrateV1), `:core:designsystem` (Motion, Haptics, Glass/Haze, Holo/AGSL), `:app`. Pure Logik IMMER nach core:domain -> per JUnit im CI testbar.
+- CI-Kette: `:core:model:test :core:domain:test :app:recordRoborazziDebug assembleRelease` mit `--continue` -> eine Runde zeigt alle Fehler. Testergebnisse: `ci-log-dev:tests/*.xml` + `tests/failed.txt`, Screenshots: `ci-log-dev:shots/*.png` (mit Read ansehen!).
 - Jakob: Deutsch, knapp, mechanistisch, keine Romane. Nachts keine Rückfragen. Keine KI-Features, keine Fälligkeit, keine Barrierefreiheit, Wow extrem wichtig.
 
 ## 1. Umgebung / Runbook
@@ -28,6 +30,8 @@
 - Opt-ins global in app/build.gradle.kts (Material3 Experimental/Expressive, Foundation, Animation, SharedTransition).
 - R8 an (minify + shrinkResources). ProGuard-Regeln: kotlinx.serialization, Route-Klassen, Receiver/Worker, JavaMail (keep javax.mail/com.sun.mail/javax.activation/myjava.awt.datatransfer/org.apache.harmony + dontwarn java.awt/java.beans/javax.security/sun.security).
 - Packaging-Excludes: META-INF/AL2.0, LGPL2.1, versions/9/OSGI-INF/MANIFEST.MF, LICENSE.md, NOTICE.md, LICENSE.txt, NOTICE.txt. mailcap/javamail.* NICHT ausschließen (werden gebraucht).
+- Tests (seit Test-Build 13.10.): junit 4.13.2, Robolectric 4.17 (robolectric.properties: sdk=35, application=TestApp), Roborazzi 1.74.0 (Plugin + compose + junit-rule), compose ui-test-junit4 (+ debugImplementation ui-test-manifest), Haze 1.7.2. System-Property `robolectric.pixelCopyRenderMode=hardware` für alle Test-Tasks.
+- Library-Modul mit AGP 9: `android.library` + compose-Plugin, `kotlin { compilerOptions }` im android-Block wie in app – kompiliert. JVM-Module: `kotlin.jvm`-Plugin geht neben AGP-9-builtin-Kotlin problemlos.
 - ABI-Filter arm64-v8a + armeabi-v7a (MapLibre native) -> APK ~29 MB. Für Emulator-Tests bräuchte man x86_64 (nur in Test-Variante!).
 
 ## 3. Code-Landkarte 1.0.7 (vor dem Umbau)
@@ -74,17 +78,25 @@
 
 ## 8. Plattform-Wissen für kommende Updates
 - Telefon-App: ROLE_DIALER via RoleManager.createRequestRoleIntent; Activity für ACTION_DIAL Pflicht; InCallService mit BIND_INCALL_SERVICE, meta-data IN_CALL_SERVICE_UI=true; IN_CALL_SERVICE_RINGING weglassen/false -> System klingelt; null-Binding -> Telecom fällt auf vorinstallierten Dialer zurück (Absturz-Verhalten nicht dokumentiert -> defensiv!). Incoming UI über Notification (CallStyle) + fullScreenIntent; heads-up wenn Nutzer am Handy. Sideload: Dialer-Rolle ist „eingeschränkte Einstellung“ (Android 15). Emulator kann Anrufe simulieren (`adb emu gsm call`), CI-Emulator auf Standard-Runnern ohne KVM-Garantie.
-- Roborazzi: braucht Robolectric ≥4.10 + `@GraphicsMode(NATIVE)`; Doku zeigt CI nur auf macOS -> auf ubuntu zuerst im Test-Build ausprobieren. Screenshots als Artefakt + in ci-log-Branch.
+- TEST-BUILD 13.10. GRÜN beim 1. Versuch (Run 8): Roborazzi auf ubuntu ok; Haze-Blur rendert in Robolectric WIRKLICH (hardware mode); AGSL-RuntimeShader rendert in Robolectric; SharedTransitionLayout + sharedElement kompiliert (Param-Name `animatedVisibilityScope`); InCallService-Probe kompiliert (onAvailableCallEndpointsChanged, Details.state, answer(VideoProfile.STATE_AUDIO_ONLY)); FTS4 + snippet() + `tokenize=unicode61 "remove_diacritics=2"` (Müller findet muller, Jänner/janner) in Robolectric sdk 35 ok -> auf echtem Gerät beim DB-Anlegen trotzdem try/catch + Fallback ohne unicode61.
+- Screenshot-Test-Muster: `compose.onRoot().captureRoboImage("build/outputs/roborazzi/<name>.png")`, `@GraphicsMode(NATIVE)`, `@Config(qualifiers="w411dp-h891dp-xxhdpi")`, OrbitTheme drumherum. Fenster-Hintergrund ist hell (#FAFAFA), Theme malt keinen Hintergrund -> im Test selbst Hintergrund setzen.
+- !! Glas-Probe: Haze zeigt `backgroundColor` deckend, wenn hinter der Fläche kein hazeSource-Inhalt liegt -> Glas nur über Inhalt sinnvoll; Surface(color=Transparent) braucht explizite contentColor (sonst schwarz auf dunkel).
+- Nummernbereich-Normalisierung (Matcher.prefixKey): Teilnummer + "0000" normalisieren, "0000" wieder abschneiden -> E.164-Präfix aus „0732 2468“. In der App normalize = Phones.normalize(raw, iso).
 - Haze (Milchglas) ab Android 12 RenderEffect – minSdk 34 passt.
 - Nominatim: max 1 req/s, eigener User-Agent, kein Autocomplete, cachen, Attribution.
 - Google Places API braucht Billing -> nicht nutzen; Google Maps nur per Deeplink/Teilen.
 
 ## 9. Fehler-Logbuch (neueste oben, Format: Datum · Symptom -> Ursache -> Fix)
+- 2026-10-13 · Glas-Screenshot nur schwarzer Balken -> Leiste lag über leerem Bereich + Text schwarz -> Inhalt unter die Leiste, contentColor setzen.
+- 2026-10-13 · Eigener Testfehler: Erwartung „vor 1 Monat“ für ago(60..89) unerreichbar (60/30=2) -> Tests rechnen, nicht raten.
 - 2026-10-12 · CI DSL_SCOPE_VIOLATION NetworkScreen -> AnimatedVisibility griff ColumnScope -> Top-Level-Helper BottomPopup.
 - 2026-10-12 · (Review) Absturz beim Aufklappen „Ohne Rhythmus“ -> doppelter Key h-none -> Header nur mit Titel.
 - 2026-10-12 · Netz-Gesten tot nach Wurzelwechsel -> remember(keys) + pointerInput(Unit) -> State stabil.
 - früher · Google-Server/Maven lokal gesperrt -> nur CI. Secrets-API gesperrt -> verschlüsselter Keystore im Repo. Job-Logs gesperrt -> ci-log-Branch.
 
 ## 10. Offene Fäden / Ideen-Parkplatz (nicht verbindlich)
+- R1a-Verdrahtung (nächster großer Schritt): App von `data.*` auf `core.model.*` umstellen. Reihenfolge-Idee: (1) OrbitRepository lädt Text, `MigrateV1.schemaOf` -> bei 1: Datei nach `orbit.v1.bak.json` kopieren (nie überschreiben, falls schon da), migrieren, History+Attachments in SQLite (Transaktion, externalId UNIQUE -> INSERT OR IGNORE), DANN JSON v2 atomar schreiben. Absturz zwischendrin -> beim nächsten Start wieder schema 1 -> wiederholbar, weil INSERT OR IGNORE. (2) Typ-Aliase `typealias Contact = core.model.Contact` im data-Paket, um Import-Churn klein zu halten; dann Felder anpassen (address -> addresses, birthday -> dates, entries -> HistoryStore, gallery -> Attachments). (3) Fälligkeit (Logic rhythm/due, SortMode.DUE, Widget, Digest) entfernen.
+- Kontakt v2 hat berechnete Props `address`, `birthday` (nicht serialisiert) -> erleichtert Umstellung der UI.
+- Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
 - Feature-Module später möglich (ADR-0001).
