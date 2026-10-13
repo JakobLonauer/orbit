@@ -259,3 +259,33 @@ Zeit gesamt: **26–34 h** (Wow-Budget je Update etwa ein Drittel).
 
 - Microsoft-Anmeldung (Outlook, Microsoft 365/PHOÖ): braucht eine App-Registrierung – bis dahin nicht umsetzen.
 - WhatsApp-Erkennung: nicht umsetzen, solange nicht ausdrücklich gewünscht.
+
+---
+
+## 8. Architektur- und Engineering-Standards (verbindlich)
+
+Ziel: moderner, wartbarer Aufbau nach aktuellem Android- und Software-Engineering-Stand – ohne Technik, die in dieser Umgebung riskant ist (kein Codegenerator wegen AGP 9 / KSP-Risiko). Grundsatzentscheidungen stehen als ADRs in `docs/adr/`; wer davon abweicht, schreibt ein neues ADR.
+
+### 8.1 Schichten und Module
+- **Unidirektionaler Datenfluss:** UI (Compose) → State-Holder (ViewModel je Screen, `StateFlow<UiState>`, unveränderliche UiState-Klassen) → Domain (reine Kotlin-Funktionen/Use-Cases) → Data (Repositories über JSON-Store und SQLite). Keine Geschäftslogik und keine schweren Berechnungen in Composables.
+- **Gradle-Module** (ADR-0001): `:core:model` (reines Kotlin, Datenklassen + Serialisierung), `:core:domain` (reines Kotlin: Zuordnungs-Maschine, Index, Listen-/Anlass-/Verlaufslogik, Planer-Regeln, Datums-Mathematik), `:core:designsystem` (Android-Library: Space-Tokens, Bewegungs-/Haptik-Tokens, Komponenten, Wow-Systeme aus 1.2), `:app` (Features, Data, Plattform: Telecom, Sync, Mail, Geo, Benachrichtigungen, Widgets). Abhängigkeiten nur nach innen; `:core:*` kennt `:app` nie.
+- **Feature-Pakete** in `:app`: `feature/<name>/` mit Screen, ViewModel, UiState; Plattform-Code unter `platform/<name>/`.
+- **DI** (ADR-0002): manuelle Konstruktor-Injektion über einen `AppContainer`; keine Hilt/KSP.
+- **Persistenz** (ADR-0003): Kern als JSON-Dokument (atomar geschrieben), Verlauf/Mail-Index/Ablage in SQLite (`android.database.sqlite`, Schema-Version per `PRAGMA user_version`, jede Migration getestet), FTS4. Ein Schreiber pro Speicher, Transaktionen für Mehrfach-Änderungen.
+
+### 8.2 Laufzeit-Qualität
+- **Nebenläufigkeit:** strukturierte Coroutines; App-weiter Scope für Schreibvorgänge; mehrstufige Persistenz unter `NonCancellable`; Hintergrundarbeit nur per WorkManager mit Netz-Bedingung und exponentiellem Backoff; Telecom-Pfade ohne Blockieren des Main-Threads.
+- **Fehlerbehandlung:** an Grenzen (I/O, Netz, Telecom) typisierte Ergebnisse statt Exceptions nach oben; nie still verschlucken – lokales Ringpuffer-Log (1–2 MB) + Absturzbericht, teilbar in „Über Orbit“.
+- **Performance-Budgets** aus W8 sind Abnahmekriterien; stabile Keys, `@Immutable`-UiState, Bilder vorab skaliert, Berechnungen auf `Dispatchers.Default`, Startzeit per Log-Messpunkt überwachen.
+- **Sicherheit:** Berechtigungen erst bei Bedarf, minimal; Geheimnisse nur im Android-Keystore; Backups verschlüsselt; keine Secrets im Repo; nur TLS.
+
+### 8.3 Tests und Prüfungen
+- **Testpyramide:** viele JVM-Unit-Tests für `:core:domain` und alle Datenumstellungen (Fixtures im alten Format, inkl. echter 1.0.7-Struktur); tabellengetriebene Tests für die Zuordnungs-Maschine; Eigenschaftstests für Datums-Mathematik (29. Februar, Jahreswechsel, Zeitzonen); Robolectric + Roborazzi-Screenshots für jeden Screen in allen Zuständen aus 1.1/W6 mit festen Testdaten.
+- **Statische Prüfung:** detekt (mit Compose-Regeln, Baseline für Altbestand) und Android Lint als CI-Berichte; neue Funde in neuem Code beheben. Architektur-Regeln (Abhängigkeitsrichtung) als Test.
+- **CI:** baut, testet, erzeugt Screenshots und Berichte bei jedem Push; Release nur von `main` und nur, wenn alles grün ist.
+
+### 8.4 Prozess
+- **Definition of Done je Update:** Build grün · Tests grün · Wow-Gate (1.5) · Code-Review- und Wow-Review-Subagent ohne offene bestätigte Funde · `PROGRESS.md` aktualisiert · ADR bei Architekturentscheidung · Agent-Notizbuch (`.agent/`) aktualisiert.
+- **Zweige:** `dev` als Integrationszweig (Build ohne Release), fertige Updates nach `main` (signiertes Release). Kleine, thematische Commits im Stil `feat(anlaesse): Jahresrad` / `fix(telefon): …` / `refactor(data): …`, Deutsch.
+- **Riskantes hinter Schaltern:** Telefon-App-Rolle und neue Hintergrund-Abgleiche sind opt-in bzw. abschaltbar.
+- **Release-Tag-Format `v1.0.<run>` nie ändern** – der In-App-Updater liest die Versionsnummer aus dem Tag.
