@@ -385,7 +385,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 line,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (employer != null) Space.Violet else Space.TextDim,
-                                maxLines = 1,
+                                // Long roles and companies get a second line instead of being cut (PLAN 1.4).
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = if (employer != null) Modifier.clip(RoundedCornerShape(6.dp)).clickable { nav.open(Route.Detail(employer.id)) } else Modifier,
                             )

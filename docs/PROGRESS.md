@@ -47,9 +47,8 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
   5. Relative Zeiten einheitlich („1 T“ vs. „Gestern“, „1 J“ für 700 Tage, „in 5 Wochen“ für 40 Tage).
   6. Einheitliche Genderform „:in“ in Beziehungsarten (Defaults.kt) und Rollen; Org-Beziehung zeigt Kategorie statt Rolle („Ärzt:in / Praxis“ → mit R4-Zuordnungen „Hausarzt“).
   7. Nachgestellte Symbole einheitlich getönt; Entfernen (×) leiser oder per Langdruck/Wischen + Rückgängig.
-  8. Lange Namen: Untertitel zweizeilig/verkleinert statt abgeschnitten; AddRow nicht über drei Zeilen (einzeilig scrollbar oder „+ Mehr“).
-  9. Orbit-Leiste: Planet größer (6–8 dp) mit Halo, aktiver Tab deutlicher; Zuschnitt-Vorschau in Avatar-Form (Cookie9Sided) statt Kreis.
-  10. Test-Fixture: Verlauf von Kevin in den Screenshot-Daten absteigend sortieren.
+  8. AddRow nicht über drei Zeilen (einzeilig scrollbar oder „+ Mehr“) – Untertitel ist schon zweizeilig.
+  9. Aktiver Tab deutlicher (Planet ist jetzt größer); Zuschnitt-Vorschau in Avatar-Form (Cookie9Sided) statt Kreis.
 - **R1b offen:** obige Wow-Funde, Volltextsuche über FTS statt im Speicher (optional, Leistung reicht bisher), danach Wow-Gate R1b abhaken und Release-Kandidat für Jakob. (alle berührten Screens gegen W1–W9, Wow-Review-Subagent), danach Release-Kandidat R1b für Jakob.
 - **Nächster Schritt:** R1b weiter (Hülle, PLAN 3.1–3.4, 3.11, 3.13). R1b erst nach Wow-Gate und Jakobs Zusage nach `main`.
 - Letztes Release: **v1.0.54** (R1a). Davor v1.0.7. `dev` enthält unfertiges R1b – nicht nach `main`.
