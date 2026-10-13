@@ -194,7 +194,7 @@ fun CallScreen(
                     Spacer(Modifier.height(12.dp))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    SmallAction(Icons.Rounded.Sms, "SMS") { templates = !templates }
+                    SmallAction(Icons.Rounded.Sms, "SMS", on = templates) { templates = !templates }
                     SmallAction(Icons.Rounded.Schedule, "Später", actions::remindLater)
                 }
                 Spacer(Modifier.height(8.dp))
@@ -327,12 +327,17 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
 }
 
 @Composable
-private fun SmallAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun SmallAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean = false, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(48.dp).clip(CircleShape).background(Space.PanelHigh).border(1.dp, Space.Line, CircleShape).clickable(onClick = onClick),
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(if (on) Space.Teal.copy(alpha = 0.22f) else Space.PanelHigh)
+                .border(1.dp, if (on) Space.Teal.copy(alpha = 0.6f) else Space.Line, CircleShape)
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, label, tint = Space.TextDim) }
+        ) { Icon(icon, label, tint = if (on) Space.Teal else Space.TextDim) }
         Text(label, style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, modifier = Modifier.padding(top = 4.dp))
     }
 }
