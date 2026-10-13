@@ -306,7 +306,10 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         SettingsArea("capture", "Mitschreiben", Icons.Rounded.Timer, Space.Teal, "Anrufe ab ${s.minCallSeconds} s · ${mailAccounts.size} Mail-Konten"),
         SettingsArea("notify", "Benachrichtigungen", Icons.Rounded.Notifications, Space.Violet, "Anlässe um %d:%02d".format(s.digestHour, s.digestMinute)),
         SettingsArea("contacts", "Kontakte", Icons.Rounded.Groups, Space.Orange, "${data.groups.size} Gruppen · ${if (s.sortByLastName) "Nachname" else "Vorname"} zuerst"),
-        SettingsArea("security", "Sicherheit & Backup", Icons.Rounded.Lock, Space.Blue, (if (s.lockEnabled) "Sperre an" else "Sperre aus") + " · " + backupLine),
+        SettingsArea(
+            "security", "Sicherheit & Backup", Icons.Rounded.Lock, Space.Blue,
+            (if (!s.lockEnabled) "Sperre aus" else if (s.lockDelaySeconds > 0) "Sperre nach ${s.lockDelaySeconds / 60} Min" else "Sperre an") + " · " + backupLine,
+        ),
         SettingsArea("about", "Über Orbit", Icons.Rounded.Info, Space.TextDim, "Version ${BuildConfig.VERSION_NAME}" + if (update is UpdateState.Available) " · Update da" else ""),
     )
     val current = areas.firstOrNull { it.key == area }
@@ -481,7 +484,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             SettingsGroup("") {
                 SettingItem(
                     Icons.Rounded.Lock, "App-Sperre",
-                    if (lockAvailable) "Biometrie oder PIN, sperrt sofort beim Verlassen" else "erst eine Displaysperre einrichten",
+                    if (lockAvailable) "Biometrie oder PIN" else "erst eine Displaysperre einrichten",
                     iconTint = Space.Orange,
                     trailing = {
                         SpaceSwitch(s.lockEnabled && lockAvailable, enabled = lockAvailable) { v ->
@@ -489,6 +492,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         }
                     },
                 )
+                if (s.lockEnabled && lockAvailable) {
+                    // PLAN 3.13: sofort / 1 / 5 Min.
+                    FlowRow(
+                        Modifier.padding(start = 56.dp, end = 14.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        listOf(0 to "sofort", 60 to "nach 1 Min", 300 to "nach 5 Min").forEach { (sec, label) ->
+                            SpaceChip(label, s.lockDelaySeconds == sec, { OrbitRepository.editSettings { it.copy(lockDelaySeconds = sec) } }, accent = Space.Orange)
+                        }
+                    }
+                }
             }
         }
 

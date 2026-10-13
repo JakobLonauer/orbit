@@ -275,6 +275,8 @@ data class Settings(
     val minCallSeconds: Int = 60,
     val sortByLastName: Boolean = false,
     val lockEnabled: Boolean = true,
+    /** PLAN 3.13: lock right away (0) or after 60 / 300 seconds away from Orbit. */
+    val lockDelaySeconds: Int = 0,
     val autoBackup: Boolean = true,
     val backupTreeUri: String? = null,
     val lastBackupAt: Long? = null,

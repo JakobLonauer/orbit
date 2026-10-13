@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Locks Orbit as soon as it leaves the screen. Pickers that Orbit opens itself
- * (photo, contact, folder) don't count as leaving.
+ * Locks Orbit as soon as it leaves the screen, or after a chosen delay (PLAN 3.13). Pickers that
+ * Orbit opens itself (photo, contact, folder) don't count as leaving. A new process always starts locked.
  */
 object AppLock {
 
@@ -33,13 +33,26 @@ object AppLock {
         externalFlow = true
     }
 
+    /** Set when Orbit left the screen with a lock delay; the lock happens on return if it was long enough. */
+    @Volatile private var awaySince = 0L
+    @Volatile private var delayMs = 0L
+
     fun onStart() {
         externalFlow = false
+        val since = awaySince
+        if (since > 0L && android.os.SystemClock.elapsedRealtime() - since >= delayMs) _locked.value = true
+        awaySince = 0L
     }
 
-    fun onStop(changingConfigurations: Boolean, lockEnabled: Boolean) {
+    /** [delaySeconds] 0 locks at once, so the recent-apps preview already shows the lock. */
+    fun onStop(changingConfigurations: Boolean, lockEnabled: Boolean, delaySeconds: Int = 0) {
         if (!lockEnabled || changingConfigurations || externalFlow || prompting) return
-        _locked.value = true
+        if (delaySeconds <= 0) {
+            _locked.value = true
+            return
+        }
+        delayMs = delaySeconds * 1000L
+        awaySince = android.os.SystemClock.elapsedRealtime()
     }
 
     fun unlock() {

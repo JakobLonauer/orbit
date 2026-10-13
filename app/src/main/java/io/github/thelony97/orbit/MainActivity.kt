@@ -74,7 +74,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onStop() {
         super.onStop()
-        val lockEnabled = OrbitRepository.data.value?.settings?.lockEnabled ?: true
-        AppLock.onStop(isChangingConfigurations, lockEnabled)
+        val settings = OrbitRepository.data.value?.settings
+        AppLock.onStop(isChangingConfigurations, settings?.lockEnabled ?: true, settings?.lockDelaySeconds ?: 0)
     }
 }
