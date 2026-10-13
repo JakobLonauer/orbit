@@ -23,7 +23,6 @@ enum class Audience(val label: String) {
 enum class StatusFilter(val label: String) {
     ALL("Alle"),
     FAVORITES("Favoriten"),
-    ARCHIVE("Archiv"),
 }
 
 enum class SortMode(val key: String, val label: String, val reversedLabel: String) {
@@ -63,7 +62,6 @@ object ListQuery {
     ): List<Contact> = Logic.others(data).filter { c ->
         audience.accepts(c) &&
             when (status) {
-                StatusFilter.ARCHIVE -> c.archived
                 StatusFilter.ALL -> !c.archived
                 StatusFilter.FAVORITES -> !c.archived && c.favorite
             } &&

@@ -402,7 +402,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
             // Relations
             item(key = "relations") {
-                val rels = data.relations.filter { it.fromId == c.id || it.toId == c.id }
+                // Archived people never show up in someone else's relations (PLAN 3.11).
+                val rels = data.relations.filter { r ->
+                    val other = if (r.fromId == c.id) r.toId else if (r.toId == c.id) r.fromId else null
+                    other != null && (c.archived || idx.contacts[other]?.archived != true)
+                }
                 SectionCard(
                     title = "Beziehungen",
                     icon = Icons.Rounded.Link,

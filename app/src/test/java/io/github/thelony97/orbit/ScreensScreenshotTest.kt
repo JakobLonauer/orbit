@@ -27,6 +27,7 @@ import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.detail.ContactDetailScreen
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.orbit.OrbitScreen
+import io.github.thelony97.orbit.ui.settings.ArchiveScreen
 import io.github.thelony97.orbit.ui.theme.OrbitTheme
 import io.github.thelony97.orbit.ui.theme.Space
 import org.junit.Before
@@ -86,6 +87,10 @@ class ScreensScreenshotTest {
             Contact("neu", firstName = "Mara", lastName = "Novak", groupIds = listOf("uni")),
             Contact("arzt", kind = ContactKind.ORG, orgCategory = "health", company = "Arzt Müller",
                 phones = listOf(LabeledValue("Termine", "0732 111"))),
+            Contact("alt1", firstName = "Kevin", lastName = "Maier", archived = true, position = "Trainer", company = "SV Linz",
+                updatedAt = now - 400 * day, entries = listOf(e("k1", TypeIds.MEET, 700, "Training"), e("k2", TypeIds.CALL, 500))),
+            Contact("alt2", firstName = "Sabine", lastName = "Gruber", archived = true, updatedAt = now - 20 * day,
+                groupIds = listOf("fr"), notes = "Umgezogen nach Graz"),
         ),
         groups = groups,
         entryTypes = Defaults.entryTypes,
@@ -106,4 +111,6 @@ class ScreensScreenshotTest {
     @Test fun contactList() = shot("list") { ContactListScreen(data, idx, nav) }
 
     @Test fun contactDetail() = shot("detail") { ContactDetailScreen("anna", data, idx, nav) }
+
+    @Test fun archive() = shot("archive") { ArchiveScreen(data, idx, nav) }
 }

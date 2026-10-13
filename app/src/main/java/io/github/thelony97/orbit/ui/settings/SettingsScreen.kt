@@ -1,5 +1,6 @@
 package io.github.thelony97.orbit.ui.settings
 
+import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -226,6 +227,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     val lockAvailable = remember(permissionTick) { AppLock.isAvailable(ctx) }
     val missing = remember(permissionTick) { Permissions.core.filterNot { Permissions.granted(ctx, it.permission) } }
     val trashCount = data.contacts.count { it.deletedAt != null }
+    val archiveCount = data.contacts.count { it.deletedAt == null && it.archived && !it.isMe }
     val folder = s.backupTreeUri?.let { folderName(Uri.parse(it)) }
 
     LazyColumn(
@@ -407,6 +409,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
 
         item(key = "more") {
             SettingsGroup("Sonstiges") {
+                SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })
+                Hairline()
                 SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })
                 Hairline()
                 SettingItem(

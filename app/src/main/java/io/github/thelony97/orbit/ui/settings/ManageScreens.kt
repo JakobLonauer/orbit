@@ -78,7 +78,7 @@ import io.github.thelony97.orbit.ui.theme.Space
 import java.time.temporal.ChronoUnit
 
 @Composable
-private fun ManageScaffold(
+internal fun ManageScaffold(
     title: String,
     nav: Nav,
     fabLabel: String? = null,
@@ -107,7 +107,7 @@ private fun ManageScaffold(
 }
 
 @Composable
-private fun segmentedColors() = ListItemDefaults.colors(
+internal fun segmentedColors() = ListItemDefaults.colors(
     containerColor = Space.Panel,
     contentColor = Space.Text,
 )
