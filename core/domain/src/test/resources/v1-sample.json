@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "contacts": [
+    {"id": "me", "isMe": true, "firstName": "Ich", "createdAt": 1, "updatedAt": 1},
+    {"id": "papa", "firstName": "Peter", "lastName": "Lonauer",
+     "phones": [{"label": "Mobil", "value": "+43 660 1234567"}],
+     "address": "Hauptplatz 1, 4020 Linz",
+     "birthday": {"day": 29, "month": 2, "year": 1964},
+     "anniversaries": [
+       {"id": "a1", "label": "Hochzeitstag", "date": {"day": 12, "month": 6, "year": 1990}},
+       {"id": "a2", "label": "Erster Skiurlaub", "date": {"day": 3, "month": 1}}
+     ],
+     "rhythmDays": 14, "paused": false, "snoozedUntil": 1700000000000, "remindedDueDay": 19000,
+     "groupIds": ["g1"], "favorite": true,
+     "topics": [{"id": "t1", "text": "Auto fragen", "done": false, "createdAt": 5}],
+     "entries": [
+       {"id": "e1", "typeId": "call", "at": 1700000000000, "source": "CALL_LOG", "durationSec": 320, "incoming": true, "externalId": "call:991"},
+       {"id": "e2", "typeId": "message", "at": 1700000100000, "source": "SMS", "externalId": "sms:2023-11-14:+436601234567",
+        "messages": [{"id": 7, "at": 1700000100000, "incoming": false, "text": "Bin unterwegs"}]}
+     ],
+     "gallery": [{"id": "p1", "file": "g_p1.jpg", "addedAt": 9, "caption": "Urlaub"}],
+     "createdAt": 2, "updatedAt": 3},
+    {"id": "arzt", "kind": "ORG", "orgCategory": "health", "firstName": "Arzt Müller",
+     "website": "www.dr-mueller.at", "phones": [{"label": "Praxis", "value": "0732 111"}],
+     "createdAt": 4, "updatedAt": 4},
+    {"id": "old", "firstName": "Alt", "archived": true, "updatedAt": 77, "deletedAt": null}
+  ],
+  "groups": [{"id": "g1", "name": "Familie", "color": 4293227379, "rhythmDays": 14, "pinned": true}],
+  "entryTypes": [
+    {"id": "call", "name": "Anruf", "icon": "call", "resetsTimer": true, "builtin": true},
+    {"id": "x", "name": "Kaffee", "icon": "coffee", "resetsTimer": false}
+  ],
+  "relations": [
+    {"id": "r1", "fromId": "papa", "toId": "arzt", "kind": "patient"},
+    {"id": "r2", "fromId": "me", "toId": "papa", "kind": "parent"},
+    {"id": "r3", "fromId": "arzt", "toId": "me", "kind": "friend"},
+    {"id": "r4", "fromId": "papa", "toId": "gone", "kind": "friend"}
+  ],
+  "settings": {"onboardingDone": true, "listSort": "due", "minCallSeconds": 30}
+}

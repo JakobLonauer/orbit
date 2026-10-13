@@ -1,0 +1,73 @@
+package io.github.thelony97.orbit.core.model
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class EntrySource { MANUAL, CALL_LOG, SMS, APP_ACTION, MEETING, MAIL, SHARE }
+
+@Serializable
+data class SmsMessage(
+    val id: Long,
+    val at: Long,
+    val incoming: Boolean,
+    val text: String,
+)
+
+/** One Verlauf row (SQLite `entries`). [externalId] is unique across the table. */
+@Serializable
+data class HistoryEntry(
+    val id: String,
+    val contactId: String,
+    val typeId: String,
+    val at: Long,
+    val note: String = "",
+    val source: EntrySource = EntrySource.MANUAL,
+    val durationSec: Long? = null,
+    val incoming: Boolean? = null,
+    val externalId: String? = null,
+    val messages: List<SmsMessage> = emptyList(),
+    /** Conversation with a hidden employee of the organisation [contactId]. */
+    val memberId: String? = null,
+    val attachmentIds: List<String> = emptyList(),
+    /** Same id on the copies of one entry shared between several contacts. */
+    val sharedId: String? = null,
+    /** Mail reference "<accountId>/<folder>/<uid>" for mail entries. */
+    val mailRef: String? = null,
+    /** For "Gratuliert"/"Geschenk": occasion, its year and who gave together. */
+    val occasionId: String? = null,
+    val occasionYear: Int? = null,
+    val withIds: List<String> = emptyList(),
+)
+
+/** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */
+@Serializable
+data class Attachment(
+    val id: String,
+    val contactId: String,
+    val file: String,
+    val mime: String = "image/jpeg",
+    val addedAt: Long = 0,
+    val caption: String = "",
+)
+
+object BuiltinTypes {
+    const val MEET = "meet"
+    const val CALL = "call"
+    const val VIDEO = "video"
+    const val MESSAGE = "message"
+    const val EMAIL = "email"
+    const val EVENT = "event"
+    const val CONGRATS = "congrats"
+    const val GIFT = "gift"
+
+    val all = listOf(
+        EntryType(MEET, "Treffen", "meet", builtin = true),
+        EntryType(CALL, "Anruf", "call", builtin = true),
+        EntryType(VIDEO, "Videocall", "video", builtin = true),
+        EntryType(MESSAGE, "Nachricht", "message", builtin = true),
+        EntryType(EMAIL, "E-Mail", "email", builtin = true),
+        EntryType(EVENT, "Event", "event", builtin = true),
+        EntryType(CONGRATS, "Gratuliert", "cake", builtin = true),
+        EntryType(GIFT, "Geschenk", "gift", builtin = true),
+    )
+}

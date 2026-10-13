@@ -52,7 +52,10 @@ class ScreenshotTest {
                 val glass = rememberGlassState()
                 Box(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().glassSource(glass)) {
-                        listOf(Color(0xFF6750A4), Color(0xFFE8437A), Color(0xFF1FA67A), Color(0xFFF2A93B))
+                        listOf(
+                            Color(0xFF6750A4), Color(0xFFE8437A), Color(0xFF1FA67A),
+                            Color(0xFFF2A93B), Color(0xFF3B82F2), Color(0xFFE8437A),
+                        )
                             .forEach { c ->
                                 Box(
                                     Modifier
@@ -70,13 +73,15 @@ class ScreenshotTest {
                                 }
                             }
                     }
+                    // Bar sits over the colour bands so the blur has something to show.
                     Surface(
                         color = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .height(120.dp)
-                            .glass(glass, MaterialTheme.colorScheme.surface),
+                            .glass(glass, MaterialTheme.colorScheme.surface, tint = 0.45f),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text("Glas", style = MaterialTheme.typography.titleLarge)
