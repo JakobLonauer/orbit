@@ -147,3 +147,6 @@
 - Benachrichtigungs-IDs je Art in eigenem Bereich (Basis + Hash and 0x0FFF); IDs sind zugleich PendingIntent-Request-Codes – Extras zählen beim Abgleich nicht.
 - PhoneStateReceiver: `idleAt` (prozessweit) verhindert, dass eine asynchron gebaute Anruferkarte nach dem Auflegen erscheint.
 - Anrufbildschirm `ui/call/CallScreen.kt` ist reine Oberfläche (CallUi + CallActions), Screenshots call_*; Verdrahtung mit InCallService kommt erst, wenn am Gerät getestet werden kann.
+- Tastenfeld: Logik `core/domain/T9.kt` (rein, getestet), Oberfläche `ui/call/DialpadScreen.kt` (`Dialpad(data, idx, onCall, onClose)`), noch nicht in der Navigation. Beim Anbinden: Notrufnummern direkt über das System (TelecomManager.placeCall bzw. ACTION_DIAL), App-Sperre darf das Tastenfeld nie blockieren.
+- Einzeilige Chip-Reihen mit „Mehr“: eigenes `Layout` + reine Zählfunktion (`AddRowFit`) statt fester Anzahl – Chipbreiten hängen von Text und Schriftgröße ab.
+- Archiv-Regel im Anruf: CallerIndex enthält archivierte Kontakte (nach den aktiven sortiert), `card.archived` steuert Hinweis + „Zurückholen“ (ACTION_UNARCHIVE → `Mutations.unarchive`, Karte wird aus dem frischen Index neu gebaut, solange sie noch angezeigt wird).

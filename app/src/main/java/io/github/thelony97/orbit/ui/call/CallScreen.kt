@@ -54,7 +54,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
@@ -114,6 +116,8 @@ interface CallActions {
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
 private fun callerColor(card: CallerCard?): Color {
     if (card == null) return Space.Violet
+    // Archived: a distant, colourless star (PLAN 1.3) until it is brought back.
+    if (card.archived) return Space.TextDim
     if (card.org) return Space.Blue
     val palette = listOf(Color(0xFFA78BFF), Color(0xFF5EE6CF), Color(0xFFFFB45E), Color(0xFF6FB7FF), Color(0xFFFF8FB1), Color(0xFF9BE37A))
     return palette[(card.contactId.hashCode() and 0x7FFFFFFF) % palette.size]
@@ -182,6 +186,14 @@ private fun CallerPortrait(card: CallerCard?, color: Color) {
             .size(132.dp)
             .glow(color, 40.dp, CircleShape, 0.55f)
             .clip(CircleShape)
+            // Inside the clip, so the glow outside is not cut by the layer.
+            .then(
+                if (card?.archived == true) Modifier.graphicsLayer {
+                    renderEffect = android.graphics.RenderEffect.createColorFilterEffect(
+                        android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }),
+                    ).asComposeRenderEffect()
+                } else Modifier,
+            )
             .background(Brush.linearGradient(listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.22f))))
             .border(2.5.dp, color, CircleShape),
         contentAlignment = Alignment.Center,
