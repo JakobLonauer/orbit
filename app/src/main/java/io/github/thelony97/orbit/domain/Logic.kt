@@ -26,16 +26,6 @@ class Index(val data: OrbitData) {
     val contacts: Map<String, Contact> = data.contacts.associateBy { it.id }
 }
 
-enum class DueState { NONE, OK, DUE }
-
-data class DueInfo(
-    val rhythm: Int?,
-    val dueDate: LocalDate?,
-    val state: DueState,
-    /** Days since the last timer-resetting contact (or since the contact was created). */
-    val daysSinceReset: Long?,
-)
-
 object Logic {
 
     fun displayName(c: Contact, lastNameFirst: Boolean): String {
@@ -84,30 +74,7 @@ object Logic {
     fun fold(s: String): String =
         Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
 
-    /** Organisations only get reminders when a rhythm was set on them directly; "Ich" never. */
-    fun rhythm(c: Contact, idx: Index): Int? = when {
-        c.isMe -> null
-        c.isOrg -> c.rhythmDays
-        else -> c.rhythmDays ?: c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull()
-    }
-
     fun lastContactAt(c: Contact): Long? = c.entries.maxOfOrNull { it.at }
-
-    fun lastResetAt(c: Contact, idx: Index): Long? =
-        c.entries.filter { idx.types[it.typeId]?.resetsTimer ?: true }.maxOfOrNull { it.at }
-
-    fun due(c: Contact, idx: Index, today: LocalDate = today()): DueInfo {
-        val r = rhythm(c, idx)
-        val base = lastResetAt(c, idx) ?: c.createdAt.takeIf { it > 0 }
-        val since = base?.let { ChronoUnit.DAYS.between(it.toLocalDate(), today) }
-        if (r == null || c.paused || c.archived || c.deletedAt != null) {
-            return DueInfo(r, null, DueState.NONE, since)
-        }
-        var dueDate = (base?.toLocalDate() ?: today).plusDays(r.toLong())
-        c.snoozedUntil?.let { s -> val sd = s.toLocalDate(); if (sd.isAfter(dueDate)) dueDate = sd }
-        val state = if (!today.isBefore(dueDate)) DueState.DUE else DueState.OK
-        return DueInfo(r, dueDate, state, since)
-    }
 
     fun daysSinceLastContact(c: Contact, today: LocalDate = today()): Long? =
         lastContactAt(c)?.let { ChronoUnit.DAYS.between(it.toLocalDate(), today) }

@@ -1,12 +1,11 @@
 package io.github.thelony97.orbit.domain
 
+import io.github.thelony97.orbit.core.domain.AtFormat
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.Entry
 import io.github.thelony97.orbit.data.OrbitData
 import java.time.LocalDate
-import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
 /** Which kinds of contacts a list shows. People only is the default everywhere. */
 enum class Audience(val label: String) {
@@ -23,7 +22,6 @@ enum class Audience(val label: String) {
 
 enum class StatusFilter(val label: String) {
     ALL("Alle"),
-    DUE("Fällig"),
     FAVORITES("Favoriten"),
     ARCHIVE("Archiv"),
 }
@@ -31,7 +29,6 @@ enum class StatusFilter(val label: String) {
 enum class SortMode(val key: String, val label: String, val reversedLabel: String) {
     NAME("name", "Name A–Z", "Name Z–A"),
     RECENT("recent", "Zuletzt Kontakt", "Am längsten her"),
-    DUE("due", "Fälligkeit", "Fälligkeit (später zuerst)"),
     ADDED("added", "Neu hinzugefügt", "Älteste zuerst"),
     FREQUENT("frequent", "Häufigkeit", "Seltenste zuerst");
 
@@ -69,7 +66,6 @@ object ListQuery {
                 StatusFilter.ARCHIVE -> c.archived
                 StatusFilter.ALL -> !c.archived
                 StatusFilter.FAVORITES -> !c.archived && c.favorite
-                StatusFilter.DUE -> !c.archived && Logic.due(c, idx, today).state == DueState.DUE
             } &&
             (groups.isEmpty() || c.groupIds.any { it in groups }) &&
             Logic.matches(c, query, idx)
@@ -86,10 +82,6 @@ object ListQuery {
         val sorted: List<Contact> = when (mode) {
             SortMode.NAME -> contacts.sortedBy { Logic.sortKey(it, lastFirst) }
             SortMode.RECENT -> contacts.sortedWith(compareByDescending<Contact> { Logic.lastContactAt(it) ?: Long.MIN_VALUE }.thenBy { Logic.sortKey(it, lastFirst) })
-            SortMode.DUE -> contacts.sortedWith(
-                compareBy<Contact> { Logic.due(it, idx, today).dueDate?.toEpochDay() ?: Long.MAX_VALUE }
-                    .thenBy { Logic.sortKey(it, lastFirst) },
-            )
             SortMode.ADDED -> contacts.sortedByDescending { it.createdAt }
             SortMode.FREQUENT -> contacts.sortedWith(compareByDescending<Contact> { frequency(it, today) }.thenBy { Logic.sortKey(it, lastFirst) })
         }.let { if (reversed) it.asReversed() else it }
@@ -97,15 +89,6 @@ object ListQuery {
         val header: (Contact) -> String = when (mode) {
             SortMode.NAME -> { c -> Logic.sectionLetter(c, lastFirst) }
             SortMode.RECENT -> { c -> recentBucket(Logic.lastContactAt(c), today) }
-            SortMode.DUE -> { c ->
-                val info = Logic.due(c, idx, today)
-                when {
-                    info.dueDate == null -> "Ohne Rhythmus"
-                    info.state == DueState.DUE -> "Fällig"
-                    ChronoUnit.DAYS.between(today, info.dueDate) <= 7 -> "Diese Woche"
-                    else -> "Später"
-                }
-            }
             SortMode.ADDED -> { c -> monthLabel(c.createdAt.takeIf { it > 0 }?.toLocalDate(), today) }
             SortMode.FREQUENT -> { c ->
                 when (frequency(c, today)) {
@@ -150,7 +133,7 @@ object ListQuery {
 
     private fun monthLabel(date: LocalDate?, today: LocalDate): String {
         if (date == null) return "Unbekannt"
-        val month = date.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale.GERMAN)
+        val month = AtFormat.month(date.monthValue)
         return if (date.year == today.year) month else "$month ${date.year}"
     }
 }

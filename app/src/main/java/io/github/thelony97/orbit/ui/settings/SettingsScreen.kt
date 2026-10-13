@@ -328,7 +328,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
 
         item(key = "org") {
             SettingsGroup("Organisation") {
-                SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen mit Rhythmus", onClick = { nav.open(Route.Groups) })
+                SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
                 SettingItem(Icons.Rounded.Category, "Eintragsarten", "was den Timer zurücksetzt", onClick = { nav.open(Route.EntryTypes) })
                 Hairline()

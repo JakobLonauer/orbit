@@ -70,7 +70,6 @@ import io.github.thelony97.orbit.notify.DigestScheduler
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.sync.Sync
 import io.github.thelony97.orbit.ui.Permissions
-import io.github.thelony97.orbit.ui.detail.rhythmPresets
 import io.github.thelony97.orbit.util.Fmt
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -258,7 +257,7 @@ private fun PermissionStep() {
 
 @Composable
 private fun GroupStep(data: OrbitData) {
-    Title("Deine Gruppen", "Jede Gruppe hat einen Rhythmus, wie oft du dich melden möchtest. Du kannst alles später ändern.")
+    Title("Deine Gruppen", "Farbe und Filter für deine Kontakte.")
     data.groups.forEach { g ->
         Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(RoundedCornerShape(20.dp))) {
             Column(Modifier.padding(14.dp)) {
@@ -270,20 +269,6 @@ private fun GroupStep(data: OrbitData) {
                         tint = Space.TextFaint,
                         modifier = Modifier.size(30.dp).clip(CircleShape).clickable { OrbitRepository.edit { d -> Mutations.deleteGroup(d, g.id) } }.padding(6.dp),
                     )
-                }
-                FlowRow(
-                    Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    rhythmPresets.take(6).forEach { days ->
-                        SpaceChip(
-                            Fmt.rhythm(days),
-                            g.rhythmDays == days,
-                            { OrbitRepository.edit { d -> Mutations.upsertGroup(d, g.copy(rhythmDays = days)) } },
-                            accent = Color(g.color),
-                        )
-                    }
                 }
             }
         }
@@ -348,11 +333,4 @@ private fun LockStep(data: OrbitData) {
             colors = spaceSwitch(),
         )
     }
-    Spacer(Modifier.size(24.dp))
-    Text(
-        "Tipp: Leg dir das Orbit-Widget auf den Startbildschirm – es zeigt, wer heute fällig ist.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Start,
-    )
 }

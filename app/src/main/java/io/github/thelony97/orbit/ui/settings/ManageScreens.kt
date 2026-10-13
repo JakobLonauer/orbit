@@ -67,7 +67,6 @@ import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.EmptyHint
 import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.entryIcon
-import io.github.thelony97.orbit.ui.detail.rhythmPresets
 import io.github.thelony97.orbit.util.Fmt
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -121,14 +120,6 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
     var creating by remember { mutableStateOf(false) }
     ManageScaffold("Gruppen", nav, fabLabel = "Neue Gruppe", onFab = { creating = true }) { padding ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 120.dp)) {
-            item {
-                Text(
-                    "Der Rhythmus einer Gruppe gilt für alle Mitglieder. Ist jemand in mehreren Gruppen, zählt der kürzeste. Pro Kontakt kannst du ihn überschreiben. Mit der Nadel pinnst du eine Gruppe als Schnellfilter über die Kontaktliste.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
-            }
             itemsIndexed(data.groups, key = { _, g -> g.id }) { i, g ->
                 val members = data.contacts.count { it.deletedAt == null && g.id in it.groupIds }
                 ListItem(
@@ -136,7 +127,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.dp),
                     leadingContent = { Box(Modifier.size(24.dp).background(Color(g.color), CircleShape)) },
                     supportingContent = {
-                        Text((g.rhythmDays?.let { Fmt.rhythm(it).replaceFirstChar { c -> c.uppercase() } } ?: "Kein Rhythmus") + " · $members Personen" + if (g.pinned) " · angepinnt" else "")
+                        Text("$members Personen" + if (g.pinned) " · angepinnt" else "")
                     },
                     trailingContent = {
                         IconButton(onClick = { OrbitRepository.edit { d -> Mutations.upsertGroup(d, g.copy(pinned = !g.pinned)) } }) {
@@ -183,7 +174,6 @@ private fun GroupDialog(
 ) {
     val name = rememberTextFieldState(initial.name)
     var color by remember { mutableStateOf(initial.color) }
-    var rhythm by remember { mutableStateOf(initial.rhythmDays) }
     var confirmDelete by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -212,13 +202,6 @@ private fun GroupDialog(
                         )
                     }
                 }
-                Text("Melde-Rhythmus", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FilterChip(selected = rhythm == null, onClick = { rhythm = null }, label = { Text("Keiner") })
-                    rhythmPresets.forEach { days ->
-                        FilterChip(selected = rhythm == days, onClick = { rhythm = days }, label = { Text(Fmt.rhythm(days)) })
-                    }
-                }
                 if (onDelete != null) {
                     TextButton(onClick = { confirmDelete = true }) { Text("Gruppe löschen", color = MaterialTheme.colorScheme.error) }
                 }
@@ -228,7 +211,7 @@ private fun GroupDialog(
             TextButton(
                 enabled = name.text.isNotBlank(),
                 onClick = {
-                    onSave(initial.copy(name = name.text.toString().trim(), color = color, rhythmDays = rhythm))
+                    onSave(initial.copy(name = name.text.toString().trim(), color = color))
                     onDismiss()
                 },
             ) { Text("Speichern") }
@@ -254,26 +237,11 @@ fun EntryTypesScreen(data: OrbitData, nav: Nav) {
     var creating by remember { mutableStateOf(false) }
     ManageScaffold("Eintragsarten", nav, fabLabel = "Neue Art", onFab = { creating = true }) { padding ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 120.dp)) {
-            item {
-                Text(
-                    "Der Schalter bestimmt, ob so ein Eintrag den „Melde dich“-Timer zurücksetzt.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
-            }
             itemsIndexed(data.entryTypes, key = { _, t -> t.id }) { i, t ->
                 ListItem(
                     onClick = { if (!t.builtin) editing = t },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.dp),
                     leadingContent = { Icon(entryIcon(t.icon), null, tint = MaterialTheme.colorScheme.primary) },
-                    supportingContent = { Text(if (t.resetsTimer) "Setzt Timer zurück" else "Zählt nicht als Melden") },
-                    trailingContent = {
-                        Switch(
-                            checked = t.resetsTimer,
-                            onCheckedChange = { v -> OrbitRepository.edit { d -> Mutations.upsertType(d, t.copy(resetsTimer = v)) } },
-                        )
-                    },
                     shapes = ListItemDefaults.segmentedShapes(index = i, count = data.entryTypes.size),
                     colors = segmentedColors(),
                 ) { Text(t.name + if (t.builtin) "" else " · eigene") }
@@ -302,7 +270,6 @@ fun EntryTypesScreen(data: OrbitData, nav: Nav) {
 private fun TypeDialog(initial: EntryType, onDismiss: () -> Unit, onSave: (EntryType) -> Unit, onDelete: (() -> Unit)?) {
     val name = rememberTextFieldState(initial.name)
     var icon by remember { mutableStateOf(initial.icon) }
-    var resets by remember { mutableStateOf(initial.resetsTimer) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (onDelete == null) "Neue Eintragsart" else "Eintragsart bearbeiten") },
@@ -336,10 +303,6 @@ private fun TypeDialog(initial: EntryType, onDismiss: () -> Unit, onSave: (Entry
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Setzt Timer zurück", modifier = Modifier.weight(1f))
-                    Switch(checked = resets, onCheckedChange = { resets = it })
-                }
                 if (onDelete != null) {
                     TextButton(onClick = { onDelete(); onDismiss() }) { Text("Löschen", color = MaterialTheme.colorScheme.error) }
                 }
@@ -347,7 +310,7 @@ private fun TypeDialog(initial: EntryType, onDismiss: () -> Unit, onSave: (Entry
         },
         confirmButton = {
             TextButton(enabled = name.text.isNotBlank(), onClick = {
-                onSave(initial.copy(name = name.text.toString().trim(), icon = icon, resetsTimer = resets))
+                onSave(initial.copy(name = name.text.toString().trim(), icon = icon))
                 onDismiss()
             }) { Text("Speichern") }
         },

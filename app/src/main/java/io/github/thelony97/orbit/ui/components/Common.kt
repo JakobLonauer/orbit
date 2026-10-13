@@ -134,7 +134,7 @@ fun KindMark(c: Contact, modifier: Modifier = Modifier, size: Dp = 13.dp) {
 
 /**
  * Photo or initials. The ring takes the group colour; [glowColor] adds light around it
- * (used for "fällig").
+ * (birthdays today, highlights).
  */
 @Composable
 fun Avatar(

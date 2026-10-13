@@ -52,8 +52,6 @@ import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.TypeIds
 import io.github.thelony97.orbit.domain.Audience
-import io.github.thelony97.orbit.domain.DueInfo
-import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.today
@@ -63,7 +61,6 @@ import io.github.thelony97.orbit.ui.Session
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.EmptyHint
 import io.github.thelony97.orbit.ui.components.GlassCard
-import io.github.thelony97.orbit.ui.components.GlowBar
 import io.github.thelony97.orbit.ui.components.KindMark
 import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.SpaceChip
@@ -73,41 +70,44 @@ import io.github.thelony97.orbit.ui.home.BottomBarSpace
 import io.github.thelony97.orbit.ui.sheets.EntrySheet
 import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
-import java.time.temporal.ChronoUnit
 
-private data class Item(val contact: Contact, val info: DueInfo)
+private data class Item(val contact: Contact, val daysSince: Long?)
 
 private data class Model(
     val birthdays: List<Pair<Contact, Long>>,
-    val overdue: List<Item>,
+    val today: List<Item>,
     val week: List<Item>,
-    val later: List<Item>,
-    val none: List<Item>,
+    val month: List<Item>,
+    val older: List<Item>,
+    val never: List<Item>,
 )
 
-/** The orbit as a list: who is due, who comes next, who has no rhythm. */
+/**
+ * Who you were in touch with, newest first (PLAN 3.0: no due dates, only facts).
+ * R1b turns this tab into the full Verlauf timeline.
+ */
 @Composable
 fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
     val ctx = LocalContext.current
     val todayDate = today()
     val audience = Session.audience
     var quickEntry by remember { mutableStateOf<Contact?>(null) }
-    var showNone by rememberSaveable { mutableStateOf(false) }
+    var showNever by rememberSaveable { mutableStateOf(false) }
 
     val model = remember(data, audience) {
         val people = Logic.others(data).filter { !it.archived && audience.accepts(it) }
-        val items = people.map { Item(it, Logic.due(it, idx, todayDate)) }
-        fun until(i: Item) = i.info.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) } ?: Long.MAX_VALUE
+        val items = people.map { Item(it, Logic.daysSinceLastContact(it, todayDate)) }
+            .sortedWith(compareBy<Item> { it.daysSince ?: Long.MAX_VALUE }.thenBy { Logic.sortKey(it.contact, false) })
         Model(
             birthdays = people.filter { !it.isOrg }
                 .mapNotNull { c -> c.birthday?.let { c to Logic.daysUntil(it, todayDate) } }
                 .filter { it.second <= 14 }
                 .sortedBy { it.second },
-            overdue = items.filter { it.info.state == DueState.DUE }.sortedBy { until(it) },
-            week = items.filter { it.info.state == DueState.OK && until(it) <= 7 }.sortedBy { until(it) },
-            later = items.filter { it.info.state == DueState.OK && until(it) > 7 }.sortedBy { until(it) },
-            none = items.filter { it.info.state == DueState.NONE }
-                .sortedBy { Logic.daysSinceLastContact(it.contact, todayDate)?.let { d -> -d } ?: Long.MIN_VALUE },
+            today = items.filter { it.daysSince != null && it.daysSince <= 0 },
+            week = items.filter { it.daysSince != null && it.daysSince in 1L..6L },
+            month = items.filter { it.daysSince != null && it.daysSince in 7L..30L },
+            older = items.filter { it.daysSince != null && it.daysSince > 30 },
+            never = items.filter { it.daysSince == null },
         )
     }
 
@@ -124,7 +124,7 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("Orbit", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
-                    Text("Wer als Nächstes dran ist", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                    Text("Zuletzt in Kontakt", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
                 }
                 if (audience != Audience.PEOPLE) {
                     SpaceChip(audience.label, true, { Session.audience = Audience.PEOPLE }, leading = Icons.Rounded.Business, accent = Space.Blue, trailing = Icons.Rounded.Close)
@@ -134,21 +134,16 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
         item(key = "stats") {
             GlassCard(padding = 12.dp) {
                 Row(Modifier.fillMaxWidth()) {
-                    Stat("${model.overdue.size}", "fällig", color = if (model.overdue.isNotEmpty()) Space.Coral else Space.Text)
-                    Stat("${model.week.size}", "7 Tage", color = Space.Orange)
-                    Stat("${model.later.size}", "später", color = Space.Teal)
-                    Stat("${model.none.size}", "ohne", color = Space.TextDim)
+                    Stat("${model.today.size}", "heute", color = Space.Teal)
+                    Stat("${model.week.size}", "7 Tage", color = Space.Violet)
+                    Stat("${model.month.size}", "30 Tage", color = Space.Blue)
+                    Stat("${model.older.size}", "länger", color = Space.TextDim)
                 }
             }
         }
 
-        if (model.overdue.isEmpty() && model.week.isEmpty() && model.later.isEmpty() && model.birthdays.isEmpty()) {
-            item(key = "empty") {
-                EmptyHint(
-                    "Noch kein Rhythmus",
-                    "Gib Gruppen oder einzelnen Menschen einen Melde-Rhythmus – dann siehst du hier, wer als Nächstes dran ist.",
-                )
-            }
+        if (model.today.isEmpty() && model.week.isEmpty() && model.month.isEmpty() && model.older.isEmpty() && model.birthdays.isEmpty()) {
+            item(key = "empty") { EmptyHint("Noch kein Kontakt", "Anrufe, SMS und Einträge erscheinen hier.") }
         }
 
         if (model.birthdays.isNotEmpty()) {
@@ -161,7 +156,6 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
                     subtitle = (if (days == 0L) "heute 🎂" else Fmt.until(days)) + (age?.let { " · wird $it" } ?: ""),
                     subtitleColor = if (days == 0L) Space.Orange else Space.TextFaint,
                     leadingIcon = true,
-                    progress = null,
                     glow = if (days == 0L) Space.Orange else null,
                     onOpen = { nav.open(Route.Detail(c.id)) },
                     onCall = if (c.phones.isNotEmpty()) { { call(c) } } else null,
@@ -176,29 +170,16 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
             if (title.isNotEmpty()) item(key = "h-$key") { Header(title, list.size, color) }
             items(list, key = { "$key-${it.contact.id}" }) { item ->
                 val c = item.contact
-                val info = item.info
-                val until = info.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) }
-                val since = Logic.daysSinceLastContact(c, todayDate)
-                val subtitle = buildString {
-                    when {
-                        until == null -> append(if (c.paused) "pausiert" else "kein Rhythmus")
-                        until < 0 -> append("seit ${-until} ${if (until == -1L) "Tag" else "Tagen"} fällig")
-                        until == 0L -> append("heute fällig")
-                        else -> append("fällig ").append(Fmt.until(until))
-                    }
-                    append(" · ")
-                    append(since?.let { "zuletzt ${Fmt.ago(it)}" } ?: "noch kein Kontakt")
-                }
-                val progress = if (info.rhythm != null && until != null) (1f - until.toFloat() / info.rhythm).coerceIn(0f, 1f) else null
+                val last = c.entries.maxByOrNull { it.at }
+                val subtitle = if (last == null) "noch kein Kontakt"
+                else "${idx.types[last.typeId]?.name ?: "Kontakt"} ${Fmt.ago(item.daysSince ?: 0)}"
                 OrbitRow(
                     contact = c,
                     color = contactColor(c, idx),
                     subtitle = subtitle,
-                    subtitleColor = if (info.state == DueState.DUE) Space.Coral else Space.TextFaint,
+                    subtitleColor = if (color == Space.TextDim) Space.TextFaint else color.copy(alpha = 0.85f),
                     leadingIcon = false,
-                    progress = progress,
-                    progressColor = color,
-                    glow = if (info.state == DueState.DUE) Space.Coral else null,
+                    glow = null,
                     onOpen = { nav.open(Route.Detail(c.id)) },
                     onCall = if (c.phones.isNotEmpty()) { { call(c) } } else null,
                     onLog = { quickEntry = c },
@@ -206,28 +187,29 @@ fun OrbitScreen(data: OrbitData, idx: Index, nav: Nav) {
                 )
             }
         }
-        section("due", "Überfällig", model.overdue, Space.Coral)
-        section("week", "In den nächsten 7 Tagen", model.week, Space.Orange)
-        section("later", "Später", model.later, Space.Teal)
+        section("today", "Heute", model.today, Space.Teal)
+        section("week", "Diese Woche", model.week, Space.Violet)
+        section("month", "Diesen Monat", model.month, Space.Blue)
+        section("older", "Länger her", model.older, Space.TextDim)
 
-        if (model.none.isNotEmpty()) {
-            item(key = "h-none") {
+        if (model.never.isNotEmpty()) {
+            item(key = "h-never") {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clickable { showNone = !showNone }
+                        .clickable { showNever = !showNever }
                         .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Ohne Rhythmus", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.TextDim)
+                    Text("Noch nie", style = MaterialTheme.typography.labelLargeEmphasized, color = Space.TextDim)
                     Spacer(Modifier.width(8.dp))
-                    Text("${model.none.size}", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                    Text("${model.never.size}", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
                     Spacer(Modifier.width(10.dp))
                     Box(Modifier.weight(1f).height(1.dp).background(Space.Line))
-                    Icon(if (showNone) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = Space.TextDim, modifier = Modifier.padding(start = 6.dp).size(20.dp))
+                    Icon(if (showNever) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = Space.TextDim, modifier = Modifier.padding(start = 6.dp).size(20.dp))
                 }
             }
-            if (showNone) section("none", "", model.none, Space.TextDim)
+            if (showNever) section("never", "", model.never, Space.TextDim)
         }
     }
 
@@ -267,13 +249,11 @@ private fun OrbitRow(
     subtitle: String,
     subtitleColor: Color,
     leadingIcon: Boolean,
-    progress: Float?,
     glow: Color?,
     onOpen: () -> Unit,
     onCall: (() -> Unit)?,
     onLog: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    progressColor: Color = Space.Teal,
 ) {
     Row(
         modifier
@@ -307,9 +287,6 @@ private fun OrbitRow(
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(subtitle, style = MaterialTheme.typography.labelMedium, color = subtitleColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (progress != null) {
-                GlowBar(progress, progressColor, Modifier.padding(top = 5.dp, end = 24.dp))
             }
         }
         Spacer(Modifier.width(8.dp))

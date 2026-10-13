@@ -47,11 +47,8 @@ import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Sms
-import androidx.compose.material.icons.rounded.Snooze
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Unarchive
@@ -89,10 +86,8 @@ import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.TypeIds
 import io.github.thelony97.orbit.data.newId
 import io.github.thelony97.orbit.data.now
-import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
-import io.github.thelony97.orbit.domain.startMillis
 import io.github.thelony97.orbit.domain.toLocalDate
 import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.domain.zone
@@ -106,7 +101,6 @@ import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.GhostButton
 import io.github.thelony97.orbit.ui.components.GlassCard
-import io.github.thelony97.orbit.ui.components.GlowBar
 import io.github.thelony97.orbit.ui.components.GlowButton
 import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.Pill
@@ -154,13 +148,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     val lastFirst = data.settings.sortByLastName
     val color = contactColor(c, idx)
     val todayDate = today()
-    val due = Logic.due(c, idx, todayDate)
-    val isDue = due.state == DueState.DUE
 
     var menu by remember { mutableStateOf(false) }
     var entryTarget by remember { mutableStateOf<EntryTarget?>(null) }
     var chooser by remember { mutableStateOf<Chooser?>(null) }
-    var rhythmDialog by remember { mutableStateOf(false) }
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
     var anniversaryDialog by remember { mutableStateOf(false) }
@@ -205,16 +196,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             shape = RoundedCornerShape(16.dp),
                         ) {
                             DropdownMenuItem(
-                                text = { Text(if (c.paused) "Erinnerungen fortsetzen" else "Erinnerungen pausieren") },
-                                leadingIcon = { Icon(if (c.paused) Icons.Rounded.PlayCircle else Icons.Rounded.PauseCircle, null) },
-                                onClick = { menu = false; edit { it.copy(paused = !it.paused) } },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Um eine Woche verschieben") },
-                                leadingIcon = { Icon(Icons.Rounded.Snooze, null) },
-                                onClick = { menu = false; edit { it.copy(snoozedUntil = todayDate.plusDays(7).startMillis()) } },
-                            )
-                            DropdownMenuItem(
                                 text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
                                 leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
                                 onClick = { menu = false; edit { it.copy(archived = !it.archived) } },
@@ -236,7 +217,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(c, color, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = if (isDue) Space.Coral else color)
+                    Avatar(c, color, 72.dp, shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = color)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -251,7 +232,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             Text(job, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         val groups = c.groupIds.mapNotNull { idx.groups[it] }
-                        if (groups.isNotEmpty() || c.paused || c.archived || c.isOrg || c.isMe) {
+                        if (groups.isNotEmpty() || c.archived || c.isOrg || c.isMe) {
                             FlowRow(
                                 Modifier.padding(top = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -260,7 +241,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 if (c.isOrg) Pill("Organisation · ${Defaults.orgCategory(c.orgCategory).label}", Space.Blue)
                                 if (c.isMe) Pill("Das bist du", Space.Orange)
                                 groups.forEach { g -> Pill(g.name, Color(g.color)) }
-                                if (c.paused) Pill("pausiert", Space.TextDim)
                                 if (c.archived) Pill("archiviert", Space.TextDim)
                             }
                         }
@@ -297,27 +277,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 GlassCard(Modifier.padding(top = 8.dp), padding = 14.dp) {
                     val last = c.entries.maxByOrNull { it.at }
                     val lastDays = last?.let { ChronoUnit.DAYS.between(it.at.toLocalDate(), todayDate) }
-                    val until = due.dueDate?.let { ChronoUnit.DAYS.between(todayDate, it) }
+                    // Last contact per kind (PLAN 3.4): facts only, no due dates.
+                    val perType = lastPerType(c)
                     Row(Modifier.fillMaxWidth()) {
-                        Stat(lastDays?.let { Fmt.short(it) } ?: "–", "zuletzt")
-                        Stat(due.rhythm?.let { "${it} T" } ?: "–", "Rhythmus", onClick = { rhythmDialog = true })
-                        Stat(
-                            when {
-                                c.archived -> "Archiv"
-                                c.paused -> "Pause"
-                                until != null -> dueLine(until)
-                                else -> "–"
-                            },
-                            "fällig",
-                            color = if (isDue) Space.Coral else Space.Text,
-                        )
-                    }
-                    if (due.rhythm != null && until != null && !c.paused && !c.archived) {
-                        Spacer(Modifier.size(10.dp))
-                        GlowBar((1f - until.toFloat() / due.rhythm).coerceIn(0f, 1f), if (isDue) Space.Coral else Space.Teal)
+                        perType.forEach { (typeId, at) ->
+                            val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate) }
+                            Stat(days?.let { Fmt.short(it) } ?: "–", idx.types[typeId]?.name ?: "Kontakt")
+                        }
                     }
                     val subline = when {
-                        last != null -> "${idx.types[last.typeId]?.name ?: "Kontakt"} ${Fmt.ago(lastDays ?: 0)} · Rhythmus antippen zum Ändern"
+                        last != null -> "Zuletzt: ${idx.types[last.typeId]?.name ?: "Kontakt"} ${Fmt.ago(lastDays ?: 0)}"
                         else -> "Noch kein Kontakt eingetragen"
                     }
                     Text(subline, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, modifier = Modifier.padding(top = 8.dp))
@@ -610,15 +579,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
         )
     }
 
-    if (rhythmDialog) {
-        RhythmDialog(
-            current = c.rhythmDays,
-            groupRhythm = if (c.isOrg) null else c.groupIds.mapNotNull { idx.groups[it]?.rhythmDays }.minOrNull(),
-            onDismiss = { rhythmDialog = false },
-            onPick = { days -> edit { it.copy(rhythmDays = days) } },
-        )
-    }
-
     if (meetingDialog) {
         MeetingDialog(
             name = Logic.shortName(c),
@@ -727,4 +687,16 @@ private fun MeetingRow(m: Meeting) {
             )
         }
     }
+}
+
+/**
+ * Three slots of "zuletzt" per kind: the kinds used most recently with this contact,
+ * filled up with Treffen / Anruf / Nachricht so the row never jumps in width (W2).
+ */
+internal fun lastPerType(c: Contact): List<Pair<String, Long?>> {
+    val latest = c.entries.groupBy { it.typeId }.mapValues { (_, l) -> l.maxOf { it.at } }
+        .entries.sortedByDescending { it.value }.map { it.key to it.value as Long? }
+    val fill = listOf(TypeIds.MEET, TypeIds.CALL, TypeIds.MESSAGE).filter { t -> latest.none { it.first == t } }
+        .map { it to null as Long? }
+    return (latest + fill).take(3)
 }

@@ -209,7 +209,7 @@ fun BadgeOrb(icon: ImageVector, contentDescription: String, count: Int, onClick:
     }
 }
 
-/** Glowing status pill, e.g. "3 fällig". */
+/** Glowing status pill. */
 @Composable
 fun GlowPill(text: String, color: Color, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     Row(

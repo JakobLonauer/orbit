@@ -117,7 +117,6 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
                     SpaceChip(
                         f.label, Session.status == f, { Session.status = f },
                         accent = when (f) {
-                            StatusFilter.DUE -> Space.Coral
                             StatusFilter.FAVORITES -> Space.Orange
                             else -> Space.Violet
                         },

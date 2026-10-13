@@ -217,7 +217,7 @@ object SyncEngine {
             val byExt = reps.values.associateBy { it.externalId }
             val updated = c.entries.map { e -> e.externalId?.let { byExt[it] } ?: e }
             val newOnes = reps.values.filter { r -> c.entries.none { it.externalId == r.externalId } }
-            c.copy(entries = (updated + adds + newOnes).sortedByDescending { it.at }, snoozedUntil = null)
+            c.copy(entries = (updated + adds + newOnes).sortedByDescending { it.at })
         }
         val unknownList = unknown.values.sortedByDescending { it.lastAt }.take(MAX_UNKNOWN)
         return d.copy(contacts = contacts, unknownNumbers = unknownList)

@@ -38,7 +38,7 @@ object Notifications {
         nm.createNotificationChannels(
             listOf(
                 NotificationChannel(CH_DIGEST, "Tägliche Übersicht", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Wer fällig ist, Geburtstage und Jahrestage"
+                    description = "Geburtstage und Jahrestage"
                 },
                 NotificationChannel(CH_CALL, "Anruf-Helfer", NotificationManager.IMPORTANCE_HIGH).apply {
                     description = "Themen während des Anrufs und Notiz danach"
@@ -79,12 +79,17 @@ object Notifications {
         .setAutoCancel(true)
 
     data class DigestContent(
-        val due: List<Pair<Contact, Long?>>,
         val birthdays: List<Contact>,
+        /** Birthdays a week ahead – shown with open gift ideas. */
+        val soon: List<Contact>,
         val anniversaries: List<Pair<Contact, String>>,
         val lastNameFirst: Boolean,
     ) {
-        val isEmpty get() = due.isEmpty() && birthdays.isEmpty() && anniversaries.isEmpty()
+        val isEmpty get() = birthdays.isEmpty() && soon.isEmpty() && anniversaries.isEmpty()
+
+        /** The one person this digest is about, if it is about exactly one. */
+        val single: Contact?
+            get() = (birthdays + soon + anniversaries.map { it.first }).distinctBy { it.id }.singleOrNull()
     }
 
     fun digest(ctx: Context, content: DigestContent) {
@@ -93,7 +98,6 @@ object Notifications {
         val parts = buildList {
             if (content.birthdays.isNotEmpty()) add(if (content.birthdays.size == 1) "1 Geburtstag" else "${content.birthdays.size} Geburtstage")
             if (content.anniversaries.isNotEmpty()) add(if (content.anniversaries.size == 1) "1 Jahrestag" else "${content.anniversaries.size} Jahrestage")
-            if (content.due.isNotEmpty()) add("${content.due.size} fällig")
         }
         val lines = buildList {
             content.birthdays.forEach { c ->
@@ -101,23 +105,25 @@ object Notifications {
                 add(if (age != null) "🎂 ${name(c)} wird $age" else "🎂 ${name(c)} hat Geburtstag")
             }
             content.anniversaries.forEach { (c, label) -> add("✨ ${name(c)}: $label") }
-            content.due.forEach { (c, days) ->
-                add(if (days != null) "👋 ${name(c)} · zuletzt ${Fmt.ago(days)}" else "👋 ${name(c)}")
+            content.soon.forEach { c ->
+                val ideas = c.gifts.filterNot { it.done }.joinToString(", ") { it.text }
+                add("🎁 In 7 Tagen: ${name(c)}" + if (ideas.isNotEmpty()) " · $ideas" else "")
             }
         }
         val style = NotificationCompat.InboxStyle()
         lines.take(7).forEach { style.addLine(it) }
         if (lines.size > 7) style.setSummaryText("+${lines.size - 7} weitere")
 
-        val single = content.due.singleOrNull()?.first
-            ?: (if (content.due.isEmpty() && content.birthdays.size == 1) content.birthdays.first() else null)
+        val single = content.single
+        val title = if (parts.isNotEmpty()) "Heute: ${parts.joinToString(" · ")}"
+        else if (content.soon.size == 1) "In 7 Tagen: Geburtstag" else "In 7 Tagen: ${content.soon.size} Geburtstage"
         val builder = base(ctx, CH_DIGEST)
-            .setContentTitle("Heute: ${parts.joinToString(" · ")}")
+            .setContentTitle(title)
             .setContentText(lines.firstOrNull())
             .setStyle(style)
             .setContentIntent(openContact(ctx, single?.id, ID_DIGEST))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        val callable = content.due.singleOrNull()?.first?.takeIf { it.phones.isNotEmpty() }
+        val callable = single?.takeIf { it.phones.isNotEmpty() }
         if (callable != null) {
             builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, callable.id))
         }

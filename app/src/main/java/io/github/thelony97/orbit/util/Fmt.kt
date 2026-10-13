@@ -44,16 +44,6 @@ object Fmt {
         else -> (days / 30).let { if (it == 1L) "in 1 Monat" else "in $it Monaten" }
     }
 
-    fun rhythm(days: Int): String = when {
-        days == 1 -> "täglich"
-        days == 7 -> "jede Woche"
-        days % 7 == 0 && days < 60 -> "alle ${days / 7} Wochen"
-        days == 30 -> "jeden Monat"
-        days % 30 == 0 && days < 365 -> "alle ${days / 30} Monate"
-        days == 365 -> "jedes Jahr"
-        else -> "alle $days Tage"
-    }
-
     fun duration(seconds: Long): String = when {
         seconds < 60 -> "$seconds s"
         seconds < 3600 -> "${seconds / 60} Min"

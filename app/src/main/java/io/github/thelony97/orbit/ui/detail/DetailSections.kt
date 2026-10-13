@@ -296,8 +296,3 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit)
     }
 }
 
-fun dueLine(daysUntilDue: Long): String = when {
-    daysUntilDue < 0 -> "seit ${-daysUntilDue} T"
-    daysUntilDue == 0L -> "heute"
-    else -> "in $daysUntilDue T"
-}

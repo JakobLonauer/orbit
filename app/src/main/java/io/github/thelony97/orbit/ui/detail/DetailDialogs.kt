@@ -53,42 +53,6 @@ import io.github.thelony97.orbit.util.Fmt
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-val rhythmPresets = listOf(7, 14, 30, 60, 90, 180, 365)
-
-/** null = follow the group rhythm. */
-@Composable
-fun RhythmDialog(current: Int?, groupRhythm: Int?, onDismiss: () -> Unit, onPick: (Int?) -> Unit) {
-    var selected by remember { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Wie oft melden?") },
-        text = {
-            Column {
-                Row(
-                    Modifier.fillMaxWidth().clickable { selected = null }.padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(selected = selected == null, onClick = { selected = null })
-                    Text(
-                        if (groupRhythm != null) "Wie Gruppe (${Fmt.rhythm(groupRhythm)})" else "Wie Gruppe (keine Erinnerung)",
-                    )
-                }
-                rhythmPresets.forEach { days ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { selected = days }.padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == days, onClick = { selected = days })
-                        Text(Fmt.rhythm(days).replaceFirstChar { it.uppercase() })
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { onPick(selected); onDismiss() }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
-    )
-}
-
 data class MeetingDraft(val start: LocalDateTime, val durationMin: Int, val place: String)
 
 @Composable

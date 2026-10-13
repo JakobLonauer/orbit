@@ -91,7 +91,6 @@ import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.SpaceField
 import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.glow
-import io.github.thelony97.orbit.ui.detail.rhythmPresets
 import io.github.thelony97.orbit.ui.sheets.DayOfYearDialog
 import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
@@ -130,7 +129,6 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     var defaultPhone by remember { mutableStateOf(original.defaultPhone) }
     var birthday by remember { mutableStateOf(original.birthday) }
     var groups by remember { mutableStateOf(original.groupIds.toSet()) }
-    var rhythm by remember { mutableStateOf(original.rhythmDays) }
     var favorite by remember { mutableStateOf(original.favorite) }
     var photo by remember { mutableStateOf(original.photo) }
     var birthdayDialog by remember { mutableStateOf(false) }
@@ -164,7 +162,6 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             emails = emailValues,
             birthday = birthday,
             groupIds = data.groups.map { it.id }.filter { it in groups },
-            rhythmDays = rhythm,
             favorite = favorite,
             photo = photo,
         )
@@ -354,20 +351,12 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         data.groups.forEach { g ->
                             val selected = g.id in groups
                             SpaceChip(
-                                g.name + (g.rhythmDays?.let { " · $it T" } ?: ""),
+                                g.name,
                                 selected,
                                 { groups = if (selected) groups - g.id else groups + g.id },
                                 dot = Color(g.color),
                                 accent = Color(g.color),
                             )
-                        }
-                    }
-                    Spacer(Modifier.size(10.dp))
-                    SectionTitle("Melde-Rhythmus")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SpaceChip(if (isOrg) "keiner" else "wie Gruppe", rhythm == null, { rhythm = null })
-                        rhythmPresets.forEach { days ->
-                            SpaceChip(Fmt.rhythm(days), rhythm == days, { rhythm = days }, accent = Space.Teal)
                         }
                     }
                     }

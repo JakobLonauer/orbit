@@ -41,7 +41,7 @@ object Mutations {
     fun addEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->
             if (c.id != contactId) c
-            else c.copy(entries = (c.entries + entry).sortedByDescending { it.at }, snoozedUntil = null)
+            else c.copy(entries = (c.entries + entry).sortedByDescending { it.at })
         })
 
     fun updateEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =

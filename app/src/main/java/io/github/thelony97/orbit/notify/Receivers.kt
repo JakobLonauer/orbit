@@ -13,7 +13,6 @@ import io.github.thelony97.orbit.actions.ContactActions
 import io.github.thelony97.orbit.backup.Backups
 import io.github.thelony97.orbit.data.Mutations
 import io.github.thelony97.orbit.data.OrbitRepository
-import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.startMillis
@@ -45,6 +44,8 @@ internal fun BroadcastReceiver.runAsync(context: Context, block: suspend () -> U
 }
 
 object DigestScheduler {
+    private const val BIRTHDAY_LEAD_DAYS = 7L
+
 
     private fun pendingIntent(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
         ctx, 4711, Intent(ctx, DigestReceiver::class.java),
@@ -78,18 +79,11 @@ object DigestScheduler {
         if (before.settings.lastDigestDay >= todayDate.toEpochDay()) return
         runCatching { SyncEngine.syncAll(ctx) }
         val data = OrbitRepository.snapshot()
-        val idx = Index(data)
         val active = Logic.others(data).filterNot { it.archived }
 
-        val due = active.mapNotNull { c ->
-            val info = Logic.due(c, idx, todayDate)
-            if (info.state == DueState.DUE && info.dueDate != null && c.remindedDueDay != info.dueDate.toEpochDay()) {
-                Triple(c, Logic.daysSinceLastContact(c, todayDate), info.dueDate.toEpochDay())
-            } else {
-                null
-            }
-        }
-        val birthdays = active.filter { c -> c.birthday?.let { Logic.isToday(it, todayDate) } == true }
+        // Only occasions (PLAN 3.0/3.5): today, plus birthdays a week ahead with gift ideas.
+        val birthdays = active.filter { c -> !c.isOrg && c.birthday?.let { Logic.isToday(it, todayDate) } == true }
+        val soon = active.filter { c -> !c.isOrg && c.birthday?.let { Logic.daysUntil(it, todayDate) } == BIRTHDAY_LEAD_DAYS }
         val anniversaries = active.flatMap { c ->
             c.anniversaries.filter { Logic.isToday(it.date, todayDate) }.map { a ->
                 val years = a.date.year?.let { todayDate.year - it }
@@ -99,8 +93,8 @@ object DigestScheduler {
         Notifications.digest(
             ctx,
             Notifications.DigestContent(
-                due = due.map { it.first to it.second },
                 birthdays = birthdays,
+                soon = soon,
                 anniversaries = anniversaries,
                 lastNameFirst = data.settings.sortByLastName,
             ),
@@ -114,11 +108,9 @@ object DigestScheduler {
             }
         }
 
-        val remindedIds = due.associate { it.first.id to it.third }
         val askedIds = meetingsToAsk.map { it.id }.toSet()
         OrbitRepository.update { d ->
             d.copy(
-                contacts = d.contacts.map { c -> remindedIds[c.id]?.let { c.copy(remindedDueDay = it) } ?: c },
                 meetings = d.meetings.map { m -> if (m.id in askedIds) m.copy(asked = true) else m },
                 settings = d.settings.copy(lastDigestDay = todayDate.toEpochDay()),
             )

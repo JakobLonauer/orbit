@@ -60,10 +60,10 @@ object Defaults {
     )
 
     fun starterGroups() = listOf(
-        Group(newId(), "Familie", groupColors[0], 14),
-        Group(newId(), "Freunde", groupColors[5], 30),
-        Group(newId(), "Arbeit", groupColors[6], 60),
-        Group(newId(), "Uni", groupColors[3], 60),
+        Group(newId(), "Familie", groupColors[0]),
+        Group(newId(), "Freunde", groupColors[5]),
+        Group(newId(), "Arbeit", groupColors[6]),
+        Group(newId(), "Uni", groupColors[3]),
     )
 
     val relationKinds = listOf(

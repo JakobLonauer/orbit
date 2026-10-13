@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Orbit</string>
-    <string name="widget_label">Orbit – Heute fällig</string>
-    <string name="widget_description">Wer heute fällig ist und wer Geburtstag hat</string>
+    <string name="widget_label">Orbit – Geburtstage</string>
+    <string name="widget_description">Die nächsten Geburtstage</string>
 </resources>

@@ -42,7 +42,7 @@ import io.github.thelony97.orbit.MainActivity
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
-import io.github.thelony97.orbit.domain.DueState
+import io.github.thelony97.orbit.core.domain.AtFormat
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.today
@@ -59,6 +59,7 @@ private data class WidgetRow(
     val subtitle: String,
     val color: Color,
     val birthday: Boolean,
+    val days: Long,
 )
 
 class OrbitWidget : GlanceAppWidget() {
@@ -82,37 +83,31 @@ class OrbitWidget : GlanceAppWidget() {
         }
     }
 
-    private fun rows(data: OrbitData): Pair<List<WidgetRow>, Int> {
+    /**
+     * Anlässe widget (PLAN 3.0): upcoming birthdays, soonest first. Pinned occasions of every
+     * kind take over in R3; until then birthdays are the fallback the plan asks for.
+     */
+    private fun rows(data: OrbitData): List<WidgetRow> {
         val idx = Index(data)
         val todayDate = today()
         val lastFirst = data.settings.sortByLastName
-        val active = Logic.others(data).filterNot { it.archived }
         fun color(c: Contact) = c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { Color(it.color) } ?: Color(0xFF7986CB)
-
-        val birthdays = active.mapNotNull { c ->
+        return Logic.others(data).filter { !it.archived && !it.isOrg }.mapNotNull { c ->
             val b = c.birthday ?: return@mapNotNull null
             val days = Logic.daysUntil(b, todayDate)
-            if (days > 7) return@mapNotNull null
             val age = Logic.turningAge(b, todayDate)
-            val sub = (if (days == 0L) "Geburtstag heute" else "Geburtstag ${Fmt.until(days)}") + (age?.let { " · wird $it" } ?: "")
-            days to WidgetRow(c, Logic.displayName(c, lastFirst), sub, color(c), true)
-        }.sortedBy { it.first }.map { it.second }
-
-        val due = active.mapNotNull { c ->
-            val info = Logic.due(c, idx, todayDate)
-            if (info.state != DueState.DUE) return@mapNotNull null
-            val since = Logic.daysSinceLastContact(c, todayDate)
-            val sub = since?.let { "zuletzt ${Fmt.ago(it)}" } ?: "noch kein Kontakt"
-            (since ?: Long.MAX_VALUE) to WidgetRow(c, Logic.displayName(c, lastFirst), sub, color(c), false)
-        }.sortedByDescending { it.first }.map { it.second }
-
-        return (birthdays + due) to due.size
+            val date = Logic.nextOccurrence(b, todayDate)
+            val sub = (if (days == 0L) "heute" else "${Fmt.until(days)} · ${AtFormat.weekdayDate(date)}") +
+                (age?.let { " · wird $it" } ?: "")
+            WidgetRow(c, Logic.displayName(c, lastFirst), sub, color(c), birthday = true, days = days)
+        }.sortedWith(compareBy({ it.days }, { it.title }))
     }
 
     @Composable
     private fun WidgetContent(context: Context, data: OrbitData) {
         val size = LocalSize.current
-        val (rows, dueCount) = rows(data)
+        val rows = rows(data)
+        val next = rows.firstOrNull()
         val openApp = actionStartActivity(Intent(context, MainActivity::class.java))
         val onSurface = ColorProvider(Space.Text)
         val muted = ColorProvider(Space.TextDim)
@@ -127,19 +122,24 @@ class OrbitWidget : GlanceAppWidget() {
                 .clickable(openApp),
         ) {
             if (size.width < 170.dp || size.height < 120.dp) {
-                // Compact: just the number.
+                // Compact: the next birthday as one big number.
                 Text("● Orbit", style = TextStyle(color = ColorProvider(Space.Orange), fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 Spacer(GlanceModifier.height(4.dp))
+                if (next == null) {
+                    Text("–", style = TextStyle(color = muted, fontSize = 40.sp, fontWeight = FontWeight.Bold))
+                    return@Column
+                }
                 Text(
-                    "$dueCount",
-                    style = TextStyle(color = ColorProvider(Space.Violet), fontSize = 40.sp, fontWeight = FontWeight.Bold),
+                    if (next.days == 0L) "🎂" else "${next.days}",
+                    style = TextStyle(color = ColorProvider(Space.Orange), fontSize = 40.sp, fontWeight = FontWeight.Bold),
                 )
                 Text(
-                    if (dueCount == 1) "Person fällig" else "Personen fällig",
+                    if (next.days == 0L) Logic.shortName(next.contact) else "${if (next.days == 1L) "Tag" else "Tage"} · ${Logic.shortName(next.contact)}",
+                    maxLines = 1,
                     style = TextStyle(color = onSurface, fontSize = 13.sp),
                 )
-                val cakes = rows.count { it.birthday && it.subtitle.startsWith("Geburtstag heute") }
-                if (cakes > 0) {
+                val cakes = rows.count { it.days == 0L }
+                if (cakes > 1) {
                     Text("🎂 $cakes heute", style = TextStyle(color = muted, fontSize = 12.sp))
                 }
                 return@Column
@@ -153,22 +153,19 @@ class OrbitWidget : GlanceAppWidget() {
                 )
                 Box(
                     modifier = GlanceModifier
-                        .background(ColorProvider(Space.Violet))
+                        .background(ColorProvider(Space.Orange))
                         .cornerRadius(12.dp)
                         .padding(horizontal = 10.dp, vertical = 3.dp),
                 ) {
                     Text(
-                        "$dueCount fällig",
+                        "Geburtstage",
                         style = TextStyle(color = ColorProvider(Space.Void), fontSize = 12.sp, fontWeight = FontWeight.Medium),
                     )
                 }
             }
             Spacer(GlanceModifier.height(10.dp))
             if (rows.isEmpty()) {
-                Text(
-                    "Alles im grünen Bereich ✨",
-                    style = TextStyle(color = muted, fontSize = 14.sp),
-                )
+                Text("Keine Geburtstage eingetragen", style = TextStyle(color = muted, fontSize = 14.sp))
                 return@Column
             }
             val fit = ((size.height.value - 70) / 44).toInt().coerceAtLeast(1)
@@ -187,7 +184,7 @@ class OrbitWidget : GlanceAppWidget() {
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            if (row.birthday) "🎂" else Logic.initials(row.contact),
+                            if (row.days == 0L) "🎂" else Logic.initials(row.contact),
                             style = TextStyle(color = ColorProvider(Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold),
                         )
                     }

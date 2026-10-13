@@ -78,7 +78,6 @@ import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.TypeIds
 import io.github.thelony97.orbit.domain.Audience
-import io.github.thelony97.orbit.domain.DueState
 import io.github.thelony97.orbit.domain.Index
 import io.github.thelony97.orbit.domain.ListQuery
 import io.github.thelony97.orbit.domain.Logic
@@ -94,10 +93,8 @@ import io.github.thelony97.orbit.ui.Session
 import io.github.thelony97.orbit.ui.components.BadgeOrb
 import io.github.thelony97.orbit.ui.components.KindMark
 import io.github.thelony97.orbit.ui.components.entryIcon
-import io.github.thelony97.orbit.ui.detail.dueLine
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.EmptyHint
-import io.github.thelony97.orbit.ui.components.GlowPill
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.SpaceSearchField
 import io.github.thelony97.orbit.ui.components.UpdateBanner
@@ -126,9 +123,6 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
     val status = Session.status
     val groups = Session.groups.intersect(idx.groups.keys)
 
-    val dueIds = remember(data, audience) {
-        Logic.others(data).filter { audience.accepts(it) && !it.archived && Logic.due(it, idx, todayDate).state == DueState.DUE }.map { it.id }.toSet()
-    }
     val sections = remember(data, query, audience, status, groups) {
         val list = ListQuery.filter(data, idx, audience, status, groups, query, todayDate)
         ListQuery.sections(list, idx, sort, reversed, lastFirst, todayDate)
@@ -156,13 +150,6 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
             Spacer(Modifier.width(8.dp))
             Text("$total", style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
             Spacer(Modifier.weight(1f))
-            if (dueIds.isNotEmpty()) {
-                GlowPill(
-                    text = "${dueIds.size} fällig",
-                    color = Space.Coral,
-                    onClick = { Session.status = if (status == StatusFilter.DUE) StatusFilter.ALL else StatusFilter.DUE },
-                )
-            }
         }
 
         Row(
@@ -195,7 +182,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                 if (status != StatusFilter.ALL) {
                     SpaceChip(
                         status.label, true, { Session.status = StatusFilter.ALL },
-                        accent = if (status == StatusFilter.DUE) Space.Coral else if (status == StatusFilter.FAVORITES) Space.Orange else Space.Violet,
+                        accent = if (status == StatusFilter.FAVORITES) Space.Orange else Space.Violet,
                         trailing = Icons.Rounded.Close,
                     )
                 }
@@ -234,7 +221,6 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                 item(key = "empty") {
                     when {
                         query.isNotEmpty() -> EmptyHint("Nichts gefunden", "Für „$query“ gibt es keinen Treffer.")
-                        status == StatusFilter.DUE -> EmptyHint("Niemand fällig", "Du bist mit allen auf dem Laufenden.")
                         audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
                             EmptyHint("Keine Organisationen", "Lege Firma, Praxis oder Amt über + → „Neue Organisation“ an.")
                         !defaultView -> EmptyHint("Leer", "In diesem Filter ist niemand.")
@@ -267,7 +253,6 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                         contact = c,
                         idx = idx,
                         sort = sort,
-                        due = c.id in dueIds,
                         lastFirst = lastFirst,
                         onOpen = { nav.open(Route.Detail(c.id)) },
                         onCall = { ContactActions.call(ctx, c, null, data.settings) },
@@ -358,7 +343,6 @@ private fun ContactRow(
     contact: Contact,
     idx: Index,
     sort: SortMode,
-    due: Boolean,
     lastFirst: Boolean,
     onOpen: () -> Unit,
     onCall: () -> Unit,
@@ -408,7 +392,7 @@ private fun ContactRow(
                 .padding(horizontal = 18.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Avatar(contact, color, 36.dp, glowColor = if (due) Space.Coral else null)
+            Avatar(contact, color, 36.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -463,12 +447,11 @@ private fun ContactRow(
                     val d = ChronoUnit.DAYS.between(e.at.toLocalDate(), todayDate)
                     if (d == 0L) Fmt.time(e.at) else Fmt.short(d)
                 } ?: "–"
-                SortMode.DUE -> Logic.due(contact, idx, todayDate).dueDate?.let { dueLine(ChronoUnit.DAYS.between(todayDate, it)) } ?: "–"
                 SortMode.ADDED -> contact.createdAt.takeIf { it > 0 }?.let { Fmt.shortDate(it.toLocalDate()) } ?: "–"
                 SortMode.FREQUENT -> "${ListQuery.frequency(contact, todayDate)}×"
                 SortMode.NAME -> Logic.daysSinceLastContact(contact, todayDate)?.let { Fmt.short(it) } ?: "neu"
             }
-            Text(trailing, style = MaterialTheme.typography.labelLarge, color = if (due) Space.Coral else Space.TextFaint)
+            Text(trailing, style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
         }
     }
 }
