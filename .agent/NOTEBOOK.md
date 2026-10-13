@@ -122,3 +122,9 @@
 - Matcher.Match.hiddenFromLists: für Liste/Suche/Tastenfeld filtern; Anruferkennung nicht.
 - Baseline-Profile bräuchten einen Emulator -> erst wenn CI-Emulator klappt.
 - Feature-Module später möglich (ADR-0001).
+- 13.10. (fünfte Sitzung): Kontaktseite in PLAN-3.3-Reihenfolge. Leere Abschnitte verschwinden; `opened`-Set (topics/gifts) öffnet sie aus der AddRow (`ui/detail/DetailExtras.kt`: AddRow, CopyButton, LinkDialog, FieldDialog, NoteDialog, QrDialog). Foto-Import hängt jetzt an `rememberGalleryImport(contactId)` auf Screen-Ebene (Launcher darf NICHT in einem LazyColumn-Item leben).
+- !! Kotlin-Strings: `"\;"` ist ein Compile-Fehler (ILLEGAL_ESCAPE) – in Python-Heredocs doppelt escapen (`\\\;`).
+- Teilen: FileProvider `${applicationId}.share` nur für cacheDir/share (res/xml/share_paths.xml). Update-Mechanismus nicht berührt. vCard (`core/domain/VCard.kt`) nur Visitenkarten-Felder; QR mit zxing core (`ShareContact.qr`, FilterQuality.None beim Skalieren). Dialog-Screenshots: captureScreenRoboImage.
+- Zeitleiste zeichnet sich: EntryRow(drawIn) startet die Animation in `onPlaced`, nicht in LaunchedEffect (vorab komponierte Prefetch-Zeilen würden sonst unsichtbar fertig animieren).
+- Kopf-Farbe aus dem Foto: `PhotoAccent.hue` (core:domain, Sättigung² gewichtet gegen Hauttöne) + `PhotoAccents`-Cache in Common.kt, Color.hsv(h, 0.5, 1).
+- Brush-Verläufe nie nach Color.Transparent laufen lassen (wird schwärzlich) -> `farbe.copy(alpha = 0f)`.

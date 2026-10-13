@@ -116,6 +116,16 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 
 /** A titled glass group of settings rows. */
+/** One line of the attention card: what is wrong, an optional small hint, the fix as buttons. */
+@Composable
+private fun AttentionRow(text: String, hint: String?, actions: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+        if (hint != null) Text(hint, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
+    }
+}
+
 @Composable
 fun SettingsGroup(title: String, status: String? = null, content: @Composable ColumnScope.() -> Unit) {
     // PLAN 3.13: five areas, each with a status line; an empty title continues the area above.
@@ -267,6 +277,19 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
     val archiveCount = data.contacts.count { it.deletedAt == null && it.archived && !it.isMe }
     val folder = s.backupTreeUri?.let { folderName(Uri.parse(it)) }
 
+    fun backupNow() {
+        if (folder != null) {
+            scope.launch {
+                Backups.backupToFolder(ctx)
+                    .onSuccess { toast("Gesichert: $it") }
+                    .onFailure { toast("Fehlgeschlagen: ${it.message}") }
+            }
+        } else {
+            AppLock.allowExternal()
+            exporter.launch(Backups.fileName())
+        }
+    }
+
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(bottom = 32.dp),
@@ -284,31 +307,55 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
         }
         item(key = "update") { UpdateBanner(showWhenIdle = true) }
 
-        if (missing.isNotEmpty()) {
-            item(key = "perm") {
+        // PLAN 3.13: only when something needs Jakob – permissions, backup, mail accounts.
+        val backupDays = s.lastBackupAt?.let { ChronoUnit.DAYS.between(it.toLocalDate(), today()) }
+        val backupIssue = when {
+            backupDays == null -> "Noch nie gesichert"
+            s.autoBackup && folder != null && backupDays > 9 -> "Letzte Sicherung " + Fmt.ago(backupDays)
+            folder == null && backupDays > 30 -> "Letzte Sicherung " + Fmt.ago(backupDays)
+            else -> null
+        }
+        val brokenMail = mailAccounts.filter { it.lastError != null }
+        if (missing.isNotEmpty() || backupIssue != null || brokenMail.isNotEmpty()) {
+            item(key = "attention") {
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                         .glass(RoundedCornerShape(20.dp), tint = Space.Panel, border = Space.Coral.copy(alpha = 0.5f))
                         .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Warning, null, tint = Space.Coral, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Berechtigungen fehlen", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
+                        Text("Braucht deine Aufmerksamkeit", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
                     }
-                    missing.forEach { p ->
-                        Text("• ${p.title}: ${p.why}", style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
+                    if (missing.isNotEmpty()) {
+                        AttentionRow(
+                            "Berechtigung fehlt: " + missing.joinToString(", ") { it.title },
+                            Permissions.RESTRICTED_HELP,
+                        ) {
+                            GlowButton("Erlauben", { permissionLauncher.launch(missing.map { it.permission }.toTypedArray()) }, color = Space.Coral)
+                            GhostButton("App-Info", {
+                                AppLock.allowExternal()
+                                ctx.startActivity(Permissions.appInfoIntent(ctx))
+                            })
+                        }
                     }
-                    Text(Permissions.RESTRICTED_HELP, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-                        GlowButton("Erlauben", { permissionLauncher.launch(missing.map { it.permission }.toTypedArray()) }, color = Space.Coral)
-                        GhostButton("App-Info", {
-                            AppLock.allowExternal()
-                            ctx.startActivity(Permissions.appInfoIntent(ctx))
-                        })
+                    if (backupIssue != null) {
+                        AttentionRow(backupIssue, null) {
+                            GlowButton("Jetzt sichern", { backupNow() }, color = Space.Blue)
+                            if (folder == null) GhostButton("Ordner wählen", {
+                                AppLock.allowExternal()
+                                folderPicker.launch(null)
+                            })
+                        }
+                    }
+                    brokenMail.forEach { acc ->
+                        AttentionRow("${acc.email}: ${acc.lastError}", null) {
+                            GhostButton("Öffnen", { nav.open(Route.MailAccounts) })
+                        }
                     }
                 }
             }
@@ -426,18 +473,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                     trailing = { SpaceSwitch(s.autoBackup) { v -> OrbitRepository.editSettings { it.copy(autoBackup = v) } } },
                 )
                 Hairline()
-                SettingItem(Icons.Rounded.Upload, "Jetzt sichern", if (folder != null) "in den Backup-Ordner" else "als Datei speichern", iconTint = Space.Blue, onClick = {
-                    if (folder != null) {
-                        scope.launch {
-                            Backups.backupToFolder(ctx)
-                                .onSuccess { toast("Gesichert: $it") }
-                                .onFailure { toast("Fehlgeschlagen: ${it.message}") }
-                        }
-                    } else {
-                        AppLock.allowExternal()
-                        exporter.launch(Backups.fileName())
-                    }
-                })
+                SettingItem(Icons.Rounded.Upload, "Jetzt sichern", if (folder != null) "in den Backup-Ordner" else "als Datei speichern", iconTint = Space.Blue, onClick = { backupNow() })
                 Hairline()
                 SettingItem(Icons.Rounded.Lock, "Verschlüsselung", if (encrypted) "an · mit deinem Passwort" else "aus", iconTint = Space.Blue, onClick = {
                     encryptionDialog = true

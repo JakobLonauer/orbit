@@ -672,7 +672,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         val days = Logic.daysUntil(b, todayDate)
                         val age = Logic.turningAge(b, todayDate)
                         InfoRow(
-                            label = "Geburtstag · " + (if (days == 0L) "heute! 🎂" else Fmt.until(days)) + (age?.let { " · wird $it" } ?: ""),
+                            label = "Geburtstag · " + if (days == 0L) "heute${age?.let { " $it" } ?: ""} 🎂" else Fmt.until(days) + (age?.let { " · wird $it" } ?: ""),
                             value = Fmt.dayOfYear(b),
                             onClick = { birthdayDialog = true },
                         )
