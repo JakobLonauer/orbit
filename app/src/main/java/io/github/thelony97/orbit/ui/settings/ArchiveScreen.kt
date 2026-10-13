@@ -32,10 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -152,14 +149,12 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // A distant star: photo and ring without colour.
-        Box(
-            Modifier
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen; alpha = 0.7f }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(Color.Gray, blendMode = BlendMode.Saturation)
-                },
-        ) {
+        val grey = remember {
+            android.graphics.RenderEffect.createColorFilterEffect(
+                android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }),
+            ).asComposeRenderEffect()
+        }
+        Box(Modifier.graphicsLayer { renderEffect = grey; alpha = 0.7f }) {
             Avatar(c, Space.TextDim, 42.dp)
         }
         Spacer(Modifier.width(12.dp))
@@ -169,7 +164,7 @@ private fun ArchiveRow(c: Contact, lastFirst: Boolean, onOpen: () -> Unit, onRes
             if (role.isNotEmpty()) {
                 Text(role, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(archiveLine(c), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(archiveLine(c), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(1.dp))
         }
         IconButton(onClick = onRestore) { Icon(Icons.Rounded.Unarchive, "Zurückholen", tint = Space.Teal) }
