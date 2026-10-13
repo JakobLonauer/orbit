@@ -422,6 +422,27 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 )
             }
 
+            // PLAN 3.11: „Was du weißt“ – pinned note, latest notes, relations and occasions at a
+            // glance; a pure summary of what the page already holds.
+            if (c.archived) {
+                val notes = c.entries.filter { it.note.isNotBlank() && it.memberId == null }.take(2)
+                val people = data.relations.mapNotNull { r ->
+                    val otherId = if (r.fromId == c.id) r.toId else if (r.toId == c.id) r.fromId else null
+                    otherId?.let { idx.contacts[it] }?.takeIf { it.deletedAt == null }?.let { Logic.shortName(it) }
+                }
+                val next = c.dates.minByOrNull { Logic.daysUntil(it.date, todayDate) }
+                if (c.pinnedNote.isNotBlank() || notes.isNotEmpty() || people.isNotEmpty() || next != null) item(key = "known") {
+                    SectionCard(title = "Was du weißt", icon = Icons.AutoMirrored.Rounded.Notes) {
+                        if (c.pinnedNote.isNotBlank()) InfoRow(label = "Angepinnt", value = c.pinnedNote)
+                        notes.forEach { e ->
+                            InfoRow(label = (idx.types[e.typeId]?.name ?: "Eintrag") + " · " + Fmt.ago(ChronoUnit.DAYS.between(e.at.toLocalDate(), todayDate)), value = e.note)
+                        }
+                        if (people.isNotEmpty()) InfoRow(label = "Beziehungen", value = people.joinToString(" · "))
+                        next?.let { a -> InfoRow(label = a.title, value = Fmt.dayOfYear(a.date)) }
+                    }
+                }
+            }
+
             // Quick actions
             val number = ContactActions.defaultNumber(c)
             val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
