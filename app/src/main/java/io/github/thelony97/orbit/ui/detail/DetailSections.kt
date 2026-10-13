@@ -72,12 +72,13 @@ fun ActionOrb(
     onLongClick: (() -> Unit)? = null,
     accent: androidx.compose.ui.graphics.Color? = null,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         OrbButton(icon, label, onClick, enabled = enabled, size = 46.dp, accent = accent, onLongClick = onLongClick)
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
             color = if (enabled) Space.TextDim else Space.TextFaint,
+            maxLines = 1,
             modifier = Modifier.padding(top = 5.dp),
         )
     }

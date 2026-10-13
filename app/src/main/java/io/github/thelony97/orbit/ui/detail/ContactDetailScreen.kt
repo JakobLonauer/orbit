@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -425,9 +426,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    // Fixed rhythm instead of spreading: 3 actions must not drift apart (W9).
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    // 7 + (64 − 46) / 2 = 16: the first orb sits on the gutter.
+                    Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 4.dp),
+                    // Fixed slots instead of label-wide columns: the orbs keep one pitch (W9).
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (number != null) {
                         ActionOrb(
@@ -440,7 +442,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     // Only what applies (W5): no greyed-out orbs.
                     if (number != null) {
                         ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
-                        ActionOrb(Icons.Rounded.ChatBubble, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
+                        ActionOrb(Icons.Rounded.Forum, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
                     }
                     if (email != null) {
                         ActionOrb(

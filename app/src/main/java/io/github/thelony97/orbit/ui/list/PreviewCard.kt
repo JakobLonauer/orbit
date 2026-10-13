@@ -155,13 +155,15 @@ fun PreviewCard(state: PreviewState, idx: Index) {
                     Text("Noch kein Eintrag", style = MaterialTheme.typography.bodySmall, color = Space.TextFaint)
                 }
                 Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Row(Modifier.fillMaxWidth()) {
                     actions.forEach { a ->
                         val on = hovered == a
                         val grow = remember(a) { Animatable(1f) }
                         LaunchedEffect(on) { grow.animateTo(if (on) 1.18f else 1f, tween(Motion.FAST_MS, easing = Motion.Emphasized)) }
+                        // Equal slots: the orbs sit on one pitch whatever the label length (W9).
                         Column(
                             Modifier
+                                .weight(1f)
                                 .onGloballyPositioned {
                                     // Screen coordinates: the popup is its own window.
                                     val o = it.positionOnScreen()
