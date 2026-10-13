@@ -27,6 +27,11 @@ class MainActivity : FragmentActivity() {
 
         /** Contact to open, set by notifications and the widget. */
         val pendingContact = MutableStateFlow<String?>(null)
+
+        /** „Als Kontakt / Organisation anlegen“ after a call from an unknown number (PLAN 3.12). */
+        const val EXTRA_NEW_NUMBER = "new_number"
+        const val EXTRA_NEW_ORG = "new_org"
+        val pendingNew = MutableStateFlow<Pair<String, Boolean>?>(null)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,6 +65,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
+            pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)
+            intent.removeExtra(EXTRA_NEW_NUMBER)
+            return
+        }
         val id = intent?.getStringExtra(EXTRA_CONTACT) ?: return
         pendingContact.value = id
         intent.removeExtra(EXTRA_CONTACT)

@@ -225,6 +225,10 @@ object SyncEngine {
         return d.copy(contacts = contacts, unknownNumbers = unknownList)
     }
 
+    /** The newest call-log row since [since] (used after a call from an unknown number). */
+    fun lastCall(ctx: Context, since: Long): CallRec? =
+        if (canReadCalls(ctx)) readCalls(ctx, since).maxByOrNull { it.date } else null
+
     private fun readCalls(ctx: Context, since: Long): List<CallRec> {
         val out = ArrayList<CallRec>()
         val projection = arrayOf(

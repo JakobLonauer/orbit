@@ -126,6 +126,19 @@ private fun MainNavigation(data: OrbitData) {
         )
     }
 
+    val pendingNew by MainActivity.pendingNew.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingNew) {
+        val (number, org) = pendingNew ?: return@LaunchedEffect
+        val draft = io.github.thelony97.orbit.data.Contact(
+            id = io.github.thelony97.orbit.data.newId(),
+            kind = if (org) io.github.thelony97.orbit.data.ContactKind.ORG else io.github.thelony97.orbit.data.ContactKind.PERSON,
+            phones = listOf(io.github.thelony97.orbit.data.LabeledValue(if (org) "Zentrale" else "Mobil", number)),
+        )
+        while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+        backStack.add(Route.Edit(prefill = io.github.thelony97.orbit.data.OrbitRepository.json.encodeToString(io.github.thelony97.orbit.data.Contact.serializer(), draft)))
+        MainActivity.pendingNew.value = null
+    }
+
     val pending by MainActivity.pendingContact.collectAsStateWithLifecycle()
     LaunchedEffect(pending) {
         val id = pending ?: return@LaunchedEffect

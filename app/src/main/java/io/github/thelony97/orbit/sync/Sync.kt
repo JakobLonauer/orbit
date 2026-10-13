@@ -74,6 +74,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 val since = inputData.getLong(KEY_SINCE, 0L)
                 val fresh = SyncEngine.syncAll(applicationContext)
                 val data = OrbitRepository.snapshot()
+                var prompted = false
                 if (data.settings.noteAfterCall) {
                     // The call that just ended is the newest one; older catch-up entries get no prompt.
                     fresh.filter { (it.entry.at + (it.entry.durationSec ?: 0) * 1000) >= since }
@@ -81,8 +82,20 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                         ?.let { call ->
                             data.contacts.firstOrNull { it.id == call.contactId }?.let { contact ->
                                 Notifications.afterCall(applicationContext, contact, call.entry)
+                                prompted = true
                             }
                         }
+                }
+                // PLAN 3.12: talked to an unknown number → offer to create a contact or an organisation.
+                if (!prompted && data.settings.suggestUnknown) {
+                    SyncEngine.lastCall(applicationContext, since)?.let { call ->
+                        val number = call.number
+                        val iso = io.github.thelony97.orbit.domain.Phones.countryIso(applicationContext)
+                        val known = io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts.filter { it.deletedAt == null }, iso).match(number) != null
+                        if (!number.isNullOrBlank() && !known && call.duration > 0) {
+                            Notifications.unknownAfterCall(applicationContext, number, call.duration, call.cachedName)
+                        }
+                    }
                 }
             }
             else -> SyncEngine.syncAll(applicationContext)

@@ -228,6 +228,27 @@ object Notifications {
 
     fun callbackId(number: String) = ID_CALLBACK_BASE + (number.filter { it.isDigit() }.hashCode() and 0x7FFF)
 
+    /** After a call with an unknown number: create it as a person or an organisation in one tap. */
+    fun unknownAfterCall(ctx: Context, number: String, durationSec: Long, cachedName: String?) {
+        val id = callbackId(number) + 5_000
+        fun create(org: Boolean): PendingIntent {
+            val intent = Intent(ctx, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(MainActivity.EXTRA_NEW_NUMBER, number)
+                putExtra(MainActivity.EXTRA_NEW_ORG, org)
+            }
+            return PendingIntent.getActivity(ctx, id + if (org) 1 else 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        }
+        val builder = base(ctx, CH_CALL)
+            .setContentTitle(cachedName?.takeIf { it.isNotBlank() } ?: number)
+            .setContentText("Unbekannt · " + Fmt.duration(durationSec))
+            .setContentIntent(create(false))
+            .addAction(0, "Als Kontakt anlegen", create(false))
+            .addAction(0, "Als Organisation anlegen", create(true))
+            .setTimeoutAfter(12 * 60 * 60 * 1000L)
+        post(ctx, id, builder)
+    }
+
     /** The reminder itself: "Zurückrufen: Anna" with a call button. */
     fun callback(ctx: Context, name: String, number: String, contactId: String?) {
         val id = callbackId(number)
