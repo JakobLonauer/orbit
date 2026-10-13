@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.store.StoreUpgradeTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-13T09:11:16.761Z" hostname="runnervmmprz5" time="0.373">
+  <properties/>
+  <testcase name="smsOfTwoPeopleOnTheSameDayBothSurvive" classname="io.github.thelony97.orbit.store.StoreUpgradeTest" time="0.074"/>
+  <testcase name="missingFileIsNoOp" classname="io.github.thelony97.orbit.store.StoreUpgradeTest" time="0.037"/>
+  <testcase name="migratesOnceAndKeepsBackup" classname="io.github.thelony97.orbit.store.StoreUpgradeTest" time="0.113"/>
+  <testcase name="existingBackupIsNeverOverwritten" classname="io.github.thelony97.orbit.store.StoreUpgradeTest" time="0.066"/>
+  <testcase name="rerunAfterCrashDoesNotDuplicate" classname="io.github.thelony97.orbit.store.StoreUpgradeTest" time="0.07"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

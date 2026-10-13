@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.BackupCryptoTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-13T09:09:47.337Z" hostname="runnervmmprz5" time="0.212">
+  <properties/>
+  <testcase name="tamperingFails" classname="io.github.thelony97.orbit.core.domain.BackupCryptoTest" time="0.165"/>
+  <testcase name="freshIvEveryTime" classname="io.github.thelony97.orbit.core.domain.BackupCryptoTest" time="0.011"/>
+  <testcase name="wrongPasswordFails" classname="io.github.thelony97.orbit.core.domain.BackupCryptoTest" time="0.014"/>
+  <testcase name="roundTripWithKeyAndWithPassword" classname="io.github.thelony97.orbit.core.domain.BackupCryptoTest" time="0.013"/>
+  <testcase name="truncatedFails" classname="io.github.thelony97.orbit.core.domain.BackupCryptoTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
