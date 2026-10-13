@@ -197,12 +197,14 @@ private fun OrbitNavBar(glass: HazeState, selected: Int, onSelect: (Int) -> Unit
                     drawCircle(Space.Violet.copy(alpha = 0.32f * (1f - k / 7f)), radius = (3.2f - k * 0.35f).dp.toPx(), center = at(x, p))
                 }
             }
+            // A real little planet: wide halo, violet body, bright core (reads at a glance, PLAN 1.2).
             drawCircle(
-                Brush.radialGradient(listOf(Space.Violet.copy(alpha = 0.55f), Color.Transparent), center, 14.dp.toPx()),
-                radius = 14.dp.toPx(),
+                Brush.radialGradient(listOf(Space.Violet.copy(alpha = 0.6f), Space.Violet.copy(alpha = 0f)), center, 18.dp.toPx()),
+                radius = 18.dp.toPx(),
                 center = center,
             )
-            drawCircle(Space.Text, radius = 3.dp.toPx(), center = center)
+            drawCircle(Space.Violet, radius = 4.5.dp.toPx(), center = center)
+            drawCircle(Space.Text, radius = 2.4.dp.toPx(), center = center - Offset(0.8.dp.toPx(), 0.8.dp.toPx()))
         }
     }
 }

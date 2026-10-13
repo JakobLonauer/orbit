@@ -95,7 +95,7 @@ class ScreensScreenshotTest {
             Contact("arzt", kind = ContactKind.ORG, orgCategory = "health", company = "Arzt Müller",
                 phones = listOf(LabeledValue("Termine", "0732 111"))),
             Contact("alt1", firstName = "Kevin", lastName = "Maier", archived = true, position = "Trainer", company = "SV Linz",
-                updatedAt = now - 400 * day, entries = listOf(e("k1", TypeIds.MEET, 700, "Training"), e("k2", TypeIds.CALL, 500))),
+                updatedAt = now - 400 * day, entries = listOf(e("k2", TypeIds.CALL, 500), e("k1", TypeIds.MEET, 700, "Training"))),
             Contact("alt2", firstName = "Sabine", lastName = "Gruber", archived = true, updatedAt = now - 20 * day,
                 groupIds = listOf("fr"), notes = "Umgezogen nach Graz"),
         ),
