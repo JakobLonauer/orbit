@@ -214,3 +214,45 @@ Regel: höchstens ein großer Moment pro Screen, jede Animation unter 400 ms, Se
 
 - Microsoft-Anmeldung (Outlook, Microsoft 365/PHOÖ): braucht eine einmalige App-Registrierung durch dich.
 - WhatsApp-Erkennung: optional, standardmäßig aus.
+
+---
+
+# Gesamtplan v3 (Meta-Iteration nach Telefon, Mitarbeitern, Archiv, Geburtstagen)
+
+## Architektur
+
+- **Speicher aufteilen.** `orbit.json` bleibt für den Kern (Kontakte, Organisationen, Mitarbeiter, Zuordnungen, Beziehungen, Anlässe, Links, Einstellungen). Verlauf, Mail-Index und Ablage wandern in **SQLite** (`android.database.sqlite`, ohne Codegenerator): Tabelle `entries` mit eindeutiger `externalId` (Abgleich bleibt doppelt-sicher), Index auf (Kontakt, Zeit), Volltextsuche **FTS4** mit `snippet()` für Treffer-Sätze. Grund: Der Verlauf wächst über Jahre auf zehntausende Einträge; JSON wird bei jeder Änderung komplett neu geschrieben und beim Kaltstart komplett gelesen – zu langsam, sobald Orbit beim Klingeln starten muss.
+- **Anrufer-Kurzindex.** Bei jedem Speichern eine kleine Datei Nummer → Name, Bild, Rolle, Notiz-Anfang, Kundennummer, Archiv-/Mitarbeiter-Kennzeichen. Der Anrufbildschirm liest nur sie und steht sofort, auch wenn Orbit vorher beendet war.
+- **Zuordnungs-Maschine v2.** Reihenfolge: exakte Nummer → Mitarbeiter-Durchwahl → längster Nummernbereich → Mail exakt → Domain. Ergebnis trägt Kennzeichen „archiviert“ / „versteckter Mitarbeiter“; Listen und Suche filtern danach, die Anrufer-Erkennung nicht.
+- **Backup** exportiert SQLite-Tabellen als JSON in die (verschlüsselte) ZIP – Format bleibt lesbar und unabhängig von der Datenbank.
+
+## Reihenfolge v3
+
+| Update | Inhalt |
+|---|---|
+| R1a Fundament | Speicher v2 + Umstellung mit Sicherung und Tests, Index, Zuordnungs-Maschine v2, Fälligkeit raus, Archiv-Logik, verschlüsseltes Backup, Fehlerprotokoll, Test- und Screenshot-System |
+| R1b Hülle | Leiste mit Zahnrad, neue Kontaktseite mit Verlauf unten, Verlauf-Tab, Einstellungen, Archiv-Übersicht, Rückgängig, Tab-Zustand |
+| R2 Telefon | Orbit als Telefon-App (früh, weil am wichtigsten und am längsten im Alltag getestet werden muss) |
+| R3 Anlässe & Geburtstage | Anlässe, drei Reiter, Jahresrad, Abhaken, Planer |
+| R4 Organisationen | Zuordnungen, Kolleg:innen und versteckte Mitarbeiter, Regeln, Portale, Teilen-Eingang, eigene Felder, Öffnungszeiten |
+| R5 E-Mail v2 | |
+| R6 Galerie & Dateien | |
+| R7 Komfort & Feinschliff | Widgets, Kachel, QR-Karte, Import, Export, Erst-Start, Feinschliff über alles |
+
+Vorab ein **Test-Build auf einem Nebenzweig ohne Release**, der alle riskanten Bausteine einmal kompiliert: InCallService, Haze, geteilte Übergänge, Screenshot-Tests, FTS4.
+
+Zeit gesamt: **22–28 h**.
+
+## Neue verwandte Kleinigkeiten
+
+- Telefon: verpasste Anrufe als Punkt am Verlauf-Tab; Ablehnen mit SMS-Vorlage; „Später zurückrufen“ (Erinnerung in 15 Min / 1 Std); Nummern sperren; Dual-SIM pro Kontakt; Kunden-/Matrikelnummer im Anrufbildschirm mit Kopieren; Tastenfeld-Suche ohne Archiv und versteckte Mitarbeiter; nach Anruf von unbekannter Durchwahl einer Org: „Mitarbeiter zuordnen“.
+- Mitarbeiter: „zuletzt gesprochen“ je Mitarbeiter; Gespräch eintragen mit Mitarbeiter-Chip in einer Zeile.
+- Geburtstage: Gratulations-Vorlage pro Kontakt (Du/Sie, Sprache); Kennzeichen „Jahr unbekannt“.
+- Kontaktseite: leere Abschnitte verschwinden; unten eine Zeile „+ Anlass · + Link · + Foto · + Notiz“.
+- Grundregel: **Bedienelemente erscheinen nur, wo sie zutreffen** (Dual-SIM nur mit zwei SIMs, Bluetooth nur mit verbundenem Gerät, Mitarbeiter-Abschnitt nur mit Mitarbeitern).
+
+## Neue Wow-Momente
+
+- Anrufbildschirm: Bild des Anrufers groß in seiner Farbe, Sternenhimmel bewegt sich leicht mit der Neigung; **Annehmen, indem du den Planeten in die Sonne ziehst** (große Trefferfläche, Haptik an der Schwelle), Ablehnen durch Wegschnippen; Kundennummer und Notiz zum Mitarbeiter direkt sichtbar; nach dem Auflegen gleitet eine Notizzeile mit offener Tastatur hoch.
+- Archiv: archivierte Kontakte als ferne, entsättigte Sterne; „Zurückholen“ gibt dem Bild seine Farbe zurück und lässt es in die Liste fliegen.
+- Geburtstage: „Gratuliert“ löst einen winzigen Sternenfunken aus; die Geschenkzeile klappt federnd auf.
