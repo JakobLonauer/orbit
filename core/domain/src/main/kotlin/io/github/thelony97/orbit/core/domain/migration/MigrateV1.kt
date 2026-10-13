@@ -67,24 +67,12 @@ object MigrateV1 {
             c.toV2(newId)
         }
 
-        val relations = ArrayList<Relation>()
-        val orgLinks = ArrayList<OrgLink>()
-        for (r in old.relations) {
-            val from = byId[r.fromId]
-            val to = byId[r.toId]
-            if (from == null || to == null) continue
-            val fromOrg = from.kind == io.github.thelony97.orbit.core.model.v1.ContactKind.ORG
-            val toOrg = to.kind == io.github.thelony97.orbit.core.model.v1.ContactKind.ORG
-            when {
-                fromOrg != toOrg -> {
-                    val person = if (fromOrg) to else from
-                    val org = if (fromOrg) from else to
-                    val (role, label) = roleFor(r.kind)
-                    orgLinks += OrgLink(r.id, person.id, org.id, role, label)
-                }
-                else -> relations += Relation(r.id, r.fromId, r.toId, r.kind)
-            }
-        }
+        // Person ↔ organisation relations stay relations for now: the screens read them there.
+        // R4 moves them into orgLinks (see roleFor) together with the Zuordnungen UI.
+        val relations = old.relations
+            .filter { byId[it.fromId] != null && byId[it.toId] != null }
+            .map { Relation(it.id, it.fromId, it.toId, it.kind) }
+        val orgLinks = emptyList<OrgLink>()
 
         val types = old.entryTypes.map { EntryType(it.id, it.name, it.icon, it.builtin) }
         val missing = BuiltinTypes.all.filter { b -> types.none { it.id == b.id } }
@@ -142,7 +130,8 @@ object MigrateV1 {
             }
             anniversaries.forEach { a ->
                 val kind = kindFor(a.label)
-                add(Occasion(a.id, kind, label = if (kind == OccasionKind.CUSTOM) a.label else "",
+                // Keep Jakob's own wording ("Hochzeit Oma & Opa"); drop it only if it just repeats the kind.
+                add(Occasion(a.id, kind, label = if (a.label.trim().equals(kind.label, ignoreCase = true)) "" else a.label.trim(),
                     date = CalendarDay(a.date.day, a.date.month, a.date.year)))
             }
         }

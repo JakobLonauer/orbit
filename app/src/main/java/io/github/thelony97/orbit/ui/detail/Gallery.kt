@@ -146,7 +146,7 @@ fun GallerySection(contact: Contact) {
                 // Finish even if the user leaves the screen meanwhile, otherwise the copied files would be orphaned.
                 withContext(NonCancellable) {
                     val added = GalleryStore.import(ctx.applicationContext, uris)
-                    OrbitRepository.editContact(contact.id) { it.copy(gallery = added.asReversed() + it.gallery) }
+                    OrbitRepository.editContact(contact.id) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contact.id) } + it.gallery) }
                 }
                 importing = false
             }

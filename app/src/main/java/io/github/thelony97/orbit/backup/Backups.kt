@@ -113,8 +113,9 @@ object Backups {
             val r = MigrateV1.fromJson(core, ::newId)
             return Store.assemble(r.doc, r.history, r.attachments)
         }
+        require(history != null) { "Sicherung unvollständig (history.json fehlt)." }
         val doc = OrbitRepository.json.decodeFromString(OrbitData.serializer(), core)
-        val h = history?.let { OrbitRepository.json.decodeFromString(HISTORY, it) }.orEmpty()
+        val h = history.let { OrbitRepository.json.decodeFromString(HISTORY, it) }.orEmpty()
         val a = attachments?.let { OrbitRepository.json.decodeFromString(ATTACHMENTS, it) }.orEmpty()
         return Store.assemble(doc, h, a)
     }

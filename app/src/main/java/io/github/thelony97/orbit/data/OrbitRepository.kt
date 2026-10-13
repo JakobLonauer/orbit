@@ -44,6 +44,13 @@ object OrbitRepository {
 
     /** What the last save wrote; the next save stores only the difference. */
     private var lastSaved: OrbitData? = null
+
+    /**
+     * Set when stored data exists but could not be read. Saving is then blocked so the
+     * unreadable file (and the 1.0.7 copy) is never overwritten by an empty state.
+     */
+    @Volatile var loadError: Throwable? = null
+        private set
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val loadMutex = Mutex()
     private val writeMutex = Mutex()
@@ -106,6 +113,8 @@ object OrbitRepository {
     /** Replaces everything, e.g. after restoring a backup. */
     suspend fun replaceAll(newData: OrbitData) {
         ensureLoaded()
+        // Restoring a backup is an explicit decision and may replace an unreadable state.
+        loadError = null
         _data.value = newData
         persist()
     }
@@ -118,7 +127,10 @@ object OrbitRepository {
             loaded?.let(::migrate) ?: Defaults.fresh()
         } catch (e: Exception) {
             Log.e(TAG, "could not read $FILE, keeping a copy", e)
-            if (file.exists()) file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true)
+            if (file.exists()) {
+                loadError = e
+                file.copyTo(File(appContext.filesDir, "orbit-broken-${System.currentTimeMillis()}.json"), overwrite = true)
+            }
             Defaults.fresh()
         }
     }
@@ -152,6 +164,10 @@ object OrbitRepository {
         val written = writeMutex.withLock {
             val snapshot = _data.value ?: return@withLock false
             if (snapshot === lastSaved) return@withLock false
+            if (loadError != null) {
+                Log.e(TAG, "not saving: stored data could not be read")
+                return@withLock false
+            }
             withContext(Dispatchers.IO) { store.save(lastSaved, snapshot) }
             lastSaved = snapshot
             true

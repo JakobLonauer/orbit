@@ -31,8 +31,10 @@ class HistoryDb(context: Context, name: String? = NAME) :
         db.execSQL("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         db.execSQL(
             "CREATE TABLE entries(id TEXT PRIMARY KEY, contact_id TEXT NOT NULL, type_id TEXT NOT NULL, " +
-                "at INTEGER NOT NULL, external_id TEXT UNIQUE, member_id TEXT, json TEXT NOT NULL)",
+                "at INTEGER NOT NULL, external_id TEXT, member_id TEXT, json TEXT NOT NULL)",
         )
+        // "sms:<day>" is only unique per contact; calls/SMS of different people may share it.
+        db.execSQL("CREATE UNIQUE INDEX entries_contact_ext ON entries(contact_id, external_id)")
         db.execSQL("CREATE INDEX entries_contact_at ON entries(contact_id, at DESC)")
         db.execSQL("CREATE INDEX entries_at ON entries(at DESC)")
         val folded = try {
@@ -69,7 +71,7 @@ class HistoryDb(context: Context, name: String? = NAME) :
         return if (folded) Fold.fold(text) else text
     }
 
-    /** Inserts rows that are not there yet (same id or same externalId = skipped). Returns how many were new. */
+    /** Inserts rows that are not there yet (same id, or same contact + externalId = skipped). Returns how many were new. */
     fun insertAll(entries: List<HistoryEntry>): Int {
         if (entries.isEmpty()) return 0
         val db = writableDatabase
@@ -220,7 +222,7 @@ class HistoryDb(context: Context, name: String? = NAME) :
                 db.delete("entries", "id = ?", arrayOf(id))
             }
             for (e in ch.upserts) {
-                val updated = db.update("entries", values(e), "id = ?", arrayOf(e.id))
+                val updated = db.updateWithOnConflict("entries", values(e), "id = ?", arrayOf(e.id), SQLiteDatabase.CONFLICT_IGNORE)
                 if (updated > 0) {
                     db.execSQL(
                         "UPDATE entries_fts SET body = ? WHERE docid = (SELECT rowid FROM entries WHERE id = ?)",

@@ -87,6 +87,8 @@
 - Google Places API braucht Billing -> nicht nutzen; Google Maps nur per Deeplink/Teilen.
 
 ## 9. Fehler-Logbuch (neueste oben, Format: Datum · Symptom -> Ursache -> Fix)
+- 2026-10-13 · Smart cast impossible (deletedAt, photo, geo) -> Property aus anderem Modul (core.model) -> lokale val oder ?.let/elvis. Gilt für ALLE Contact-Felder seit v2-Aliasen!
+- 2026-10-13 · (Review) external_id UNIQUE global -> SMS „sms:<Tag>“ zweier Kontakte verdrängen sich -> UNIQUE(contact_id, external_id).
 - 2026-10-13 · Glas-Screenshot nur schwarzer Balken -> Leiste lag über leerem Bereich + Text schwarz -> Inhalt unter die Leiste, contentColor setzen.
 - 2026-10-13 · Eigener Testfehler: Erwartung „vor 1 Monat“ für ago(60..89) unerreichbar (60/30=2) -> Tests rechnen, nicht raten.
 - 2026-10-12 · CI DSL_SCOPE_VIOLATION NetworkScreen -> AnimatedVisibility griff ColumnScope -> Top-Level-Helper BottomPopup.

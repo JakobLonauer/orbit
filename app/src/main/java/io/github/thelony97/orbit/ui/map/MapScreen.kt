@@ -136,7 +136,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
             .mapNotNull { c -> Geo.point(c)?.let { Pin(c, it) } }
     }
     val notFound = remember(data, audience) {
-        Logic.others(data).count { audience.accepts(it) && it.address.isNotBlank() && it.geo?.query == it.address.trim() && it.geo.found == false }
+        Logic.others(data).count { audience.accepts(it) && it.address.isNotBlank() && it.geo?.let { g -> g.query == it.address.trim() && !g.found } == true }
     }
     val withoutAddress = remember(data, audience) { Logic.others(data).count { audience.accepts(it) && !it.archived && it.address.isBlank() } }
     val mePoint = Logic.me(data)?.let { Geo.point(it) }

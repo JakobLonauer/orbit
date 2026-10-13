@@ -146,7 +146,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
     }
     if (creating) {
         GroupDialog(
-            initial = Group(newId(), "", Defaults.groupColors[data.groups.size % Defaults.groupColors.size], 30),
+            initial = Group(newId(), "", Defaults.groupColors[data.groups.size % Defaults.groupColors.size]),
             isNew = true,
             onDismiss = { creating = false },
             onSave = { g -> OrbitRepository.edit { d -> Mutations.upsertGroup(d, g) } },

@@ -628,7 +628,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             onDismiss = { anniversaryDialog = false },
             onPick = { label, date ->
                 val kind = MigrateV1.kindFor(label)
-                val occasion = Anniversary(newId(), kind, label = if (kind == OccasionKind.CUSTOM) label else "", date = date)
+                val occasion = Anniversary(newId(), kind, label = if (label.trim().equals(kind.label, ignoreCase = true)) "" else label.trim(), date = date)
                 edit { it.copy(dates = it.dates + occasion) }
             },
         )

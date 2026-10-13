@@ -13,7 +13,7 @@ data class SmsMessage(
     val text: String,
 )
 
-/** One Verlauf row (SQLite `entries`). [externalId] is unique across the table. */
+/** One Verlauf row (SQLite `entries`). [externalId] is unique per contact ("call:<millis>", "sms:<day>"). */
 @Serializable
 data class HistoryEntry(
     val id: String,

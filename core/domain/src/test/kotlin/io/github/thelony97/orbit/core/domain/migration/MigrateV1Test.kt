@@ -72,16 +72,26 @@ class MigrateV1Test {
         assertEquals("Urlaub", a.caption)
     }
 
-    @Test fun orgRelationsBecomeAssignments() {
-        assertEquals(listOf("r2"), r.doc.relations.map { it.id })
-        val links = r.doc.orgLinks.associateBy { it.id }
-        assertEquals(2, links.size)
-        assertEquals("papa", links["r1"]!!.personId)
-        assertEquals("arzt", links["r1"]!!.orgId)
-        assertEquals("doctor", links["r1"]!!.role)
-        assertEquals("me", links["r3"]!!.personId)
-        assertEquals("custom", links["r3"]!!.role)
-        assertEquals("Freund/in", links["r3"]!!.label)
+    @Test fun relationsSurviveAndDanglingOnesAreDropped() {
+        assertEquals(listOf("r1", "r2", "r3"), r.doc.relations.map { it.id })
+        assertEquals("patient", r.doc.relations.first().kind)
+        assertTrue(r.doc.orgLinks.isEmpty())
+    }
+
+    @Test fun roleMappingForR4() {
+        assertEquals("doctor" to "", MigrateV1.roleFor("patient"))
+        assertEquals("custom" to "Freund/in", MigrateV1.roleFor("friend"))
+    }
+
+    @Test fun ownAnniversaryWordingIsKept() {
+        val text = """{"schema":1,"contacts":[{"id":"x","anniversaries":[
+            {"id":"h","label":"Hochzeit Oma & Opa","date":{"day":1,"month":5}},
+            {"id":"n","label":"Namenstag","date":{"day":2,"month":5}}]}]}"""
+        val d = MigrateV1.fromJson(text) { "g" }.doc.contacts.single().dates
+        assertEquals(OccasionKind.WEDDING, d[0].kind)
+        assertEquals("Hochzeit Oma & Opa", d[0].title)
+        assertEquals("", d[1].label)
+        assertEquals("Namenstag", d[1].title)
     }
 
     @Test fun dropsDueConceptAndAddsBuiltins() {

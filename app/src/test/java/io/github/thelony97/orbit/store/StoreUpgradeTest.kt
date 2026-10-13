@@ -72,6 +72,19 @@ class StoreUpgradeTest {
         assertEquals("älter", File(dir, StoreUpgrade.BACKUP).readText())
     }
 
+    @Test fun smsOfTwoPeopleOnTheSameDayBothSurvive() {
+        file.writeText("""
+            {"schema":1,"contacts":[
+              {"id":"a","entries":[{"id":"s1","typeId":"message","at":1,"source":"SMS","externalId":"sms:2026-01-01"}]},
+              {"id":"b","entries":[{"id":"s2","typeId":"message","at":2,"source":"SMS","externalId":"sms:2026-01-01"}]}
+            ]}
+        """.trimIndent())
+        StoreUpgrade.run(file, db, ids)
+        assertEquals(2, db.count())
+        assertEquals("s1", db.forContact("a").single().id)
+        assertEquals("s2", db.forContact("b").single().id)
+    }
+
     @Test fun missingFileIsNoOp() {
         assertFalse(StoreUpgrade.run(file, db, ids).migrated)
     }

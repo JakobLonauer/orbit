@@ -39,7 +39,7 @@ object Mutations {
     /** Returns photo file names that are no longer referenced after purging old trash. */
     fun purgeExpiredTrash(d: OrbitData): Pair<OrbitData, List<String>> {
         val limit = now() - TRASH_KEEP
-        val expired = d.contacts.filter { it.deletedAt != null && it.deletedAt < limit }
+        val expired = d.contacts.filter { (it.deletedAt ?: Long.MAX_VALUE) < limit }
         var result = d
         expired.forEach { result = purge(result, it.id) }
         return result to expired.flatMap { files(it) }

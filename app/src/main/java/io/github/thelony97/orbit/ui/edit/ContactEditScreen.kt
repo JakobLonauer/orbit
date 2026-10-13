@@ -173,9 +173,10 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
             return
         }
-        if (original.photo != null && original.photo != contact.photo && !isNew) {
-            Photos.delete(original.photo)
-            PhotoCache.evict(original.photo)
+        val oldPhoto = original.photo
+        if (oldPhoto != null && oldPhoto != contact.photo && !isNew) {
+            Photos.delete(oldPhoto)
+            PhotoCache.evict(oldPhoto)
         }
         val phonesChanged = contact.phones.map { it.value } != original.phones.map { it.value } || isNew
         OrbitRepository.edit { d -> Mutations.upsertContact(d, contact) }
