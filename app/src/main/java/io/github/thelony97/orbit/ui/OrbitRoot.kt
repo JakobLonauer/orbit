@@ -83,8 +83,25 @@ fun OrbitRoot(activity: FragmentActivity) {
                 .padding(bottom = 88.dp),
         )
         val showLock = current != null && current.settings.onboardingDone && current.settings.lockEnabled && locked
-        AnimatedVisibility(visible = showLock, enter = fadeIn(), exit = fadeOut()) {
-            LockScreen(activity)
+        // The lock is its own window above everything – also above open dialogs, sheets and the
+        // long-press popup, which are separate windows and would otherwise stay visible on top.
+        if (showLock) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { activity.moveTaskToBack(true) },
+                properties = androidx.compose.ui.window.DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+            ) {
+                val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+                androidx.compose.runtime.SideEffect { window?.setDimAmount(0f) }
+                val appear = androidx.compose.runtime.remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+                AnimatedVisibility(visibleState = appear, enter = fadeIn(), exit = fadeOut()) {
+                    Box(Modifier.fillMaxSize()) { LockScreen(activity) }
+                }
+            }
         }
     }
 }
