@@ -257,7 +257,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    // Fixed rhythm instead of spreading: 3 actions must not drift apart (W9).
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     ActionOrb(
                         Icons.Rounded.Call, "Anrufen", number != null,
