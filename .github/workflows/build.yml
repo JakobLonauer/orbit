@@ -2,14 +2,14 @@ name: Build Orbit APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: orbit-build
+  group: orbit-build-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -69,10 +69,12 @@ jobs:
           cd "$RUNNER_TEMP/cilog"
           grep -E "^e: |error:|FAILURE|What went wrong|Could not|Execution failed" -A6 build.log > errors.txt || true
           echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
-          git init -q -b ci-log
+          if [ "$GITHUB_REF_NAME" = "main" ]; then LOGBRANCH=ci-log; else LOGBRANCH="ci-log-$GITHUB_REF_NAME"; fi
+          echo "branch $GITHUB_REF_NAME" >> meta.txt
+          git init -q -b "$LOGBRANCH"
           git add .
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "build log run ${{ github.run_number }}"
-          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-log
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$LOGBRANCH"
 
       - name: Collect APK
         run: |
@@ -85,7 +87,7 @@ jobs:
           path: out/*.apk
 
       - name: Publish release
-        if: steps.signing.outputs.signed == 'true'
+        if: steps.signing.outputs.signed == 'true' && github.ref_name == 'main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
