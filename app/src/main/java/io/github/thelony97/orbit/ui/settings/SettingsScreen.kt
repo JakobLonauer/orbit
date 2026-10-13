@@ -1,5 +1,8 @@
 package io.github.thelony97.orbit.ui.settings
 
+import java.time.temporal.ChronoUnit
+import io.github.thelony97.orbit.domain.toLocalDate
+import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.ui.components.OrbButton
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.OutlinedSecureTextField
@@ -114,13 +117,28 @@ import java.time.LocalTime
 
 /** A titled glass group of settings rows. */
 @Composable
-fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Text(
-        title.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = Space.TextDim,
-        modifier = Modifier.padding(start = 26.dp, top = 16.dp, bottom = 6.dp),
-    )
+fun SettingsGroup(title: String, status: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    // PLAN 3.13: five areas, each with a status line; an empty title continues the area above.
+    if (title.isNotEmpty()) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 18.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = Space.TextDim)
+            if (status != null) {
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    status,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Space.TextFaint,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
+        }
+    } else {
+        Spacer(Modifier.height(8.dp))
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -296,28 +314,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
             }
         }
 
-        item(key = "reminders") {
-            SettingsGroup("Erinnerungen") {
-                SettingItem(
-                    Icons.Rounded.Schedule, "Tägliche Übersicht",
-                    "jeden Tag um %02d:%02d".format(s.digestHour, s.digestMinute),
-                    onClick = { timeDialog = true },
-                )
-                Hairline()
-                SettingItem(
-                    Icons.Rounded.Checklist, "Themen während Anrufen",
-                    trailing = { SpaceSwitch(s.topicsDuringCall) { v -> OrbitRepository.editSettings { it.copy(topicsDuringCall = v) } } },
-                )
-                Hairline()
-                SettingItem(
-                    Icons.Rounded.Notifications, "Nach dem Anruf nach Notiz fragen",
-                    trailing = { SpaceSwitch(s.noteAfterCall) { v -> OrbitRepository.editSettings { it.copy(noteAfterCall = v) } } },
-                )
-            }
-        }
-
         item(key = "calls") {
-            SettingsGroup("Anrufe & SMS") {
+            SettingsGroup("Mitschreiben", status = "Anrufe ab ${s.minCallSeconds} s · ${mailAccounts.size} Mail-Konten") {
                 SettingItem(Icons.Rounded.Timer, "Anruf zählt ab", "kürzere Anrufe landen nicht im Verlauf", iconTint = Space.Teal)
                 FlowRow(
                     Modifier.padding(start = 56.dp, end = 14.dp, bottom = 10.dp),
@@ -346,7 +344,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
         }
 
         item(key = "mail") {
-            SettingsGroup("E-Mail") {
+            SettingsGroup("") {
                 SettingItem(
                     Icons.Rounded.Email, "E-Mail-Konten",
                     when (mailAccounts.size) {
@@ -360,8 +358,28 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
             }
         }
 
+        item(key = "reminders") {
+            SettingsGroup("Benachrichtigungen", status = "Anlässe um %d:%02d".format(s.digestHour, s.digestMinute)) {
+                SettingItem(
+                    Icons.Rounded.Schedule, "Tägliche Übersicht",
+                    "jeden Tag um %02d:%02d".format(s.digestHour, s.digestMinute),
+                    onClick = { timeDialog = true },
+                )
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.Checklist, "Themen während Anrufen",
+                    trailing = { SpaceSwitch(s.topicsDuringCall) { v -> OrbitRepository.editSettings { it.copy(topicsDuringCall = v) } } },
+                )
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.Notifications, "Nach dem Anruf nach Notiz fragen",
+                    trailing = { SpaceSwitch(s.noteAfterCall) { v -> OrbitRepository.editSettings { it.copy(noteAfterCall = v) } } },
+                )
+            }
+        }
+
         item(key = "org") {
-            SettingsGroup("Organisation") {
+            SettingsGroup("Kontakte", status = "${data.groups.size} Gruppen · ${if (s.sortByLastName) "Nachname" else "Vorname"} zuerst") {
                 SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
                 SettingItem(Icons.Rounded.Category, "Eintragsarten", "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
@@ -372,11 +390,15 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
                         SpaceChip("Nachname", s.sortByLastName, { OrbitRepository.editSettings { it.copy(sortByLastName = true) } })
                     }
                 })
+                Hairline()
+                SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })
+                Hairline()
+                SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })
             }
         }
 
         item(key = "security") {
-            SettingsGroup("Sicherheit") {
+            SettingsGroup("Sicherheit & Backup", status = (if (s.lockEnabled) "Sperre an" else "Sperre aus") + " · " + (s.lastBackupAt?.let { "Backup " + Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), today())) } ?: "noch kein Backup")) {
                 SettingItem(
                     Icons.Rounded.Lock, "App-Sperre",
                     if (lockAvailable) "Biometrie oder PIN, sperrt sofort beim Verlassen" else "erst eine Displaysperre einrichten",
@@ -391,7 +413,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
         }
 
         item(key = "backup") {
-            SettingsGroup("Backup") {
+            SettingsGroup("") {
                 SettingItem(Icons.Rounded.Folder, "Backup-Ordner", folder ?: "noch nicht gewählt", iconTint = Space.Blue, onClick = {
                     AppLock.allowExternal()
                     folderPicker.launch(null)
@@ -434,11 +456,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav) {
         }
 
         item(key = "more") {
-            SettingsGroup("Sonstiges") {
-                SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })
-                Hairline()
-                SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })
-                Hairline()
+            SettingsGroup("Über Orbit", status = "Version ${BuildConfig.VERSION_NAME}") {
                 SettingItem(
                     Icons.Rounded.SystemUpdate, "Nach Updates suchen",
                     when (update) {

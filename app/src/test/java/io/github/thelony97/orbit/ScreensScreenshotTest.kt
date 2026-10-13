@@ -29,6 +29,7 @@ import io.github.thelony97.orbit.ui.home.HomeScreen
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.verlauf.VerlaufScreen
 import io.github.thelony97.orbit.ui.settings.ArchiveScreen
+import io.github.thelony97.orbit.ui.settings.SettingsScreen
 import io.github.thelony97.orbit.ui.theme.OrbitTheme
 import io.github.thelony97.orbit.ui.theme.Space
 import org.junit.Before
@@ -88,6 +89,9 @@ class ScreensScreenshotTest {
             Contact("lisa", firstName = "Lisa", lastName = "Wagner", groupIds = listOf("fr"),
                 entries = listOf(e("l1", TypeIds.MESSAGE, 95))),
             Contact("neu", firstName = "Mara", lastName = "Novak", groupIds = listOf("uni")),
+            Contact("zoe", firstName = "Zoe", lastName = "Fischer", groupIds = listOf("fr")),
+            Contact("emil", firstName = "Emil", lastName = "Brandl", groupIds = listOf("uni")),
+            Contact("bea", firstName = "Bea", lastName = "Kern"),
             Contact("arzt", kind = ContactKind.ORG, orgCategory = "health", company = "Arzt Müller",
                 phones = listOf(LabeledValue("Termine", "0732 111"))),
             Contact("alt1", firstName = "Kevin", lastName = "Maier", archived = true, position = "Trainer", company = "SV Linz",
@@ -121,4 +125,6 @@ class ScreensScreenshotTest {
     @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
 
     @Test fun homeVerlauf() = shot("home_verlauf") { HomeScreen(data, idx, nav, tab = 1, onTab = {}) }
+
+    @Test fun settings() = shot("settings") { SettingsScreen(data, nav) }
 }
