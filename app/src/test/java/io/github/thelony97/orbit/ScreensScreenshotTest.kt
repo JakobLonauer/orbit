@@ -269,6 +269,15 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard.copy(archived = true), phoneUnlocked = true), noActions, now)
     }
 
+    @Test fun dialpad() = shot("dialpad") {
+        // „73“: Peter by name (Pe…), Arzt Müller by number (0732 …).
+        io.github.thelony97.orbit.ui.call.Dialpad(data, idx, onCall = {}, onClose = {}, initial = "73")
+    }
+
+    @Test fun dialpadEmpty() = shot("dialpad_empty") {
+        io.github.thelony97.orbit.ui.call.Dialpad(data, idx, onCall = {}, onClose = {})
+    }
+
     @Test fun callUnknown() = shot("call_unknown") {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null), noActions, now)
     }
