@@ -16,7 +16,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
-import java.time.Duration
 
 /** The update download must survive its banner leaving the screen (bug in 1.0.54). */
 @RunWith(RobolectricTestRunner::class)
@@ -44,7 +43,7 @@ class AppWorkTest {
         ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS)
         compose.mainClock.advanceTimeBy(300)
         compose.waitForIdle()
-        ShadowLooper.idleMainLooper(Duration.ofMillis(300))
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS)
         assertTrue("app-wide work finished", appDone)
         assertFalse("screen-scoped work was cancelled", screenDone)
     }
