@@ -93,6 +93,7 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -188,6 +189,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val activeCount = activeFilterCount(data)
 
     val visible = remember(sections) { sections.flatMap { it.contacts } }
+    // Search or filter changed while selecting: only what is still visible stays selected,
+    // so the count and every bulk action mean the same contacts.
+    LaunchedEffect(visible) {
+        val sel = selection ?: return@LaunchedEffect
+        val ids = visible.mapTo(HashSet()) { it.id }
+        if (!ids.containsAll(sel)) selection = sel.filterTo(HashSet()) { it in ids }
+    }
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         AnimatedContent(
             targetState = selection != null,
@@ -332,13 +340,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         icon = Icons.Rounded.PersonAdd,
                         color = Space.Teal,
                         text = if (suggestions == 1) "1 unbekannte Nummer taucht öfter auf" else "$suggestions unbekannte Nummern tauchen öfter auf",
-                        onClick = { nav.open(Route.Suggestions) },
+                        onClick = { if (selection == null) nav.open(Route.Suggestions) },
                     )
                 }
             }
             if (me != null && defaultView && audience != Audience.ORGS) {
                 item(key = "me") {
-                    MeCard(me, idx, onOpen = { nav.open(Route.Detail(me.id)) })
+                    MeCard(me, idx, onOpen = { if (selection == null) nav.open(Route.Detail(me.id)) })
                 }
             }
 
@@ -511,13 +519,24 @@ private fun SelectionBar(
 
 /**
  * Groups for the selected contacts: a check when all have it, a dash when some do. Tapping adds
- * the group to everyone (or removes it when all already have it); one undo per tap.
+ * the group to everyone (or removes it when all already have it); one undo when it closes.
  */
 @Composable
 private fun GroupAssignDialog(data: OrbitData, ids: Set<String>, onDismiss: () -> Unit) {
     val chosen = data.contacts.filter { it.id in ids }
+    // One undo for everything changed while the dialog was open (the bar sits behind it).
+    val before = remember { chosen.associate { it.id to it.groupIds } }
+    fun close() {
+        val changed = chosen.any { c -> before[c.id] != c.groupIds }
+        if (changed) {
+            Undo.offer("Gruppen geändert") {
+                OrbitRepository.edit { d -> d.copy(contacts = d.contacts.map { c -> before[c.id]?.let { c.copy(groupIds = it) } ?: c }) }
+            }
+        }
+        onDismiss()
+    }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { close() },
         containerColor = Space.PanelHigh,
         title = { Text(if (chosen.size == 1) "Gruppe für 1 Kontakt" else "Gruppe für ${chosen.size} Kontakte") },
         text = {
@@ -533,7 +552,6 @@ private fun GroupAssignDialog(data: OrbitData, ids: Set<String>, onDismiss: () -
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
-                                val before = chosen.associate { it.id to it.groupIds }
                                 OrbitRepository.edit { d ->
                                     d.copy(contacts = d.contacts.map { c ->
                                         if (c.id !in ids) c
@@ -541,9 +559,6 @@ private fun GroupAssignDialog(data: OrbitData, ids: Set<String>, onDismiss: () -
                                         else if (g.id in c.groupIds) c
                                         else c.copy(groupIds = c.groupIds + g.id, updatedAt = now())
                                     })
-                                }
-                                Undo.offer(if (all) "Aus „${g.name}“ entfernt" else "Zu „${g.name}“ hinzugefügt") {
-                                    OrbitRepository.edit { d -> d.copy(contacts = d.contacts.map { c -> before[c.id]?.let { c.copy(groupIds = it) } ?: c }) }
                                 }
                             }
                             .padding(vertical = 10.dp, horizontal = 4.dp),
@@ -561,7 +576,7 @@ private fun GroupAssignDialog(data: OrbitData, ids: Set<String>, onDismiss: () -
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },
+        confirmButton = { TextButton(onClick = { close() }) { Text("Fertig") } },
     )
 }
 

@@ -63,7 +63,7 @@ fun CropDialog(bitmap: Bitmap, onDismiss: () -> Unit, onCrop: (CropMath.Square) 
     val density = LocalDensity.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(Space.Void).navigationBarsPadding()) {
-            Box(
+            androidx.compose.foundation.layout.BoxWithConstraints(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -80,9 +80,10 @@ fun CropDialog(bitmap: Bitmap, onDismiss: () -> Unit, onCrop: (CropMath.Square) 
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                // The frame: as wide as the screen minus a margin, always square.
+                // The frame: the shorter side minus a margin, always square (also in landscape).
+                val side = (minOf(maxWidth, maxHeight) - 56.dp).coerceAtLeast(120.dp)
                 Box(
-                    Modifier.fillMaxWidth().padding(28.dp).aspectRatio(1f).onSizeChanged { frame = it.width },
+                    Modifier.requiredSize(side).onSizeChanged { frame = it.width },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (frame > 0) {
