@@ -154,7 +154,7 @@ fun GlassCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .glass(RoundedCornerShape(20.dp), border = border)
             .padding(padding),
         content = content,

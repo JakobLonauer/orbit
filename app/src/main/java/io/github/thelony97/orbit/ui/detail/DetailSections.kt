@@ -236,7 +236,7 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit,
                 }
             }
             .clickable(onClick = onClick)
-            .padding(start = 18.dp, end = 16.dp),
+            .padding(start = 16.dp, end = 16.dp),
     ) {
         // Timeline rail
         Column(Modifier.width(30.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {

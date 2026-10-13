@@ -281,7 +281,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // Top bar
             item(key = "bar") {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -349,7 +349,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // Hero
             item(key = "hero") {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Avatar(c, head, 72.dp, modifier = Modifier.sharedContact("avatar-${c.id}"), shape = MaterialShapes.Cookie9Sided.toShape(), glowColor = head)
@@ -425,7 +425,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     // Fixed rhythm instead of spreading: 3 actions must not drift apart (W9).
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
@@ -718,7 +718,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 SectionTitle(
                     "Verlauf · ${c.entries.size}",
                     Icons.Rounded.History,
-                    modifier = Modifier.padding(start = 20.dp, end = 14.dp, top = 16.dp, bottom = 6.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
                     action = { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } },
                 )
             }

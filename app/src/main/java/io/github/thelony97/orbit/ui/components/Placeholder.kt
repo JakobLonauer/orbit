@@ -67,16 +67,16 @@ fun MailRowPlaceholder(breath: State<Float>, subjectWidth: Float) {
 fun ListPlaceholder() {
     val breath = rememberBreath()
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(11.dp).placeholder(breath, CircleShape))
             Spacer(Modifier.width(10.dp))
             Box(Modifier.width(72.dp).height(22.dp).placeholder(breath, RoundedCornerShape(11.dp)))
         }
-        Box(Modifier.padding(horizontal = 14.dp, vertical = 16.dp).fillMaxWidth().height(42.dp).placeholder(breath, RoundedCornerShape(50)))
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).fillMaxWidth().height(42.dp).placeholder(breath, RoundedCornerShape(50)))
         val widths = listOf(0.42f, 0.55f, 0.36f, 0.6f, 0.47f, 0.4f, 0.52f, 0.33f)
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             widths.forEach { w ->
-                Row(Modifier.padding(horizontal = 18.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(36.dp).placeholder(breath, CircleShape))
                     Spacer(Modifier.width(12.dp))
                     PlaceholderLine(breath, w, 14.dp)

@@ -129,7 +129,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
     ) {
         item(key = "header") {
-            Column(Modifier.padding(start = 18.dp, end = 14.dp, top = 10.dp)) {
+            Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp)) {
                 Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
                 Spacer(Modifier.height(10.dp))
                 SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
@@ -138,7 +138,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
         if (kinds.size > 1) {
             item(key = "kinds") {
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp),
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     SpaceChip("Alle", typeFilter == null, { typeFilter = null })
@@ -168,7 +168,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                         dayHeader(day, todayDate),
                         style = MaterialTheme.typography.labelLargeEmphasized,
                         color = if (day == todayDate) Space.Teal else Space.TextDim,
-                        modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
                     )
                 }
             }
@@ -190,11 +190,12 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
     Row(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 1.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .padding(horizontal = 8.dp, vertical = 1.dp)
+            .clip(RoundedCornerShape(12.dp))
             .drawBehind { if (glow.value > 0f) drawRect(color.copy(alpha = 0.18f * glow.value)) }
             .clickable(onClick = onOpen)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            // 8 + 8 = the 16-dp gutter for the avatar; the highlight keeps 8 dp to the edge.
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Avatar(c, color, 36.dp)

@@ -134,7 +134,7 @@ fun SettingsGroup(title: String, status: String? = null, content: @Composable Co
     // PLAN 3.13: five areas, each with a status line; an empty title continues the area above.
     if (title.isNotEmpty()) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 18.dp, bottom = 6.dp),
+            Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, top = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = Space.TextDim)
@@ -155,7 +155,7 @@ fun SettingsGroup(title: String, status: String? = null, content: @Composable Co
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 16.dp)
             .glass(RoundedCornerShape(20.dp)),
         content = content,
     )
@@ -321,7 +321,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         item(key = "title") {
             // A page behind the gear in the contact list (PLAN 3.1), no longer a tab.
             Row(
-                Modifier.padding(start = 12.dp, top = 6.dp, bottom = 4.dp),
+                Modifier.padding(start = 16.dp, top = 6.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", nav.back, size = 38.dp)
@@ -348,7 +348,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .glass(RoundedCornerShape(20.dp), tint = Space.Panel, border = Space.Coral.copy(alpha = 0.5f))
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -372,7 +372,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     }
                     if (backupIssue != null) {
                         AttentionRow(backupIssue, null) {
-                            GlowButton("Jetzt sichern", { backupNow() }, color = Space.Blue)
+                            // W4: one glowing action per card – the first problem gets it.
+                            if (missing.isEmpty()) GlowButton("Jetzt sichern", { backupNow() }, color = Space.Blue)
+                            else GhostButton("Jetzt sichern", { backupNow() }, icon = Icons.Rounded.Upload)
                             if (folder == null) GhostButton("Ordner wählen", {
                                 AppLock.allowExternal()
                                 folderPicker.launch(null)

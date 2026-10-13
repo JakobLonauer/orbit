@@ -41,7 +41,7 @@ fun UpdateBanner(modifier: Modifier = Modifier, showWhenIdle: Boolean = false) {
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .glow(Space.Violet, 16.dp, RoundedCornerShape(18.dp), 0.35f)
             .glass(RoundedCornerShape(18.dp), tint = Space.PanelHigh, border = Space.Violet.copy(alpha = 0.5f))
             .padding(horizontal = 14.dp, vertical = 10.dp),

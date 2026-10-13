@@ -229,7 +229,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         } else {
         // Header
         Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(11.dp).glow(Space.Orange, 10.dp, alpha = 0.8f).background(Space.Orange, CircleShape))
@@ -257,7 +257,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -274,7 +274,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         val showBar = pinned.isNotEmpty() || activeCount > 0
         AnimatedVisibility(showBar) {
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp).padding(top = 10.dp),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (sort != SortMode.NAME || reversed) {
@@ -387,7 +387,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                                     drawRect(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.92f * backdrop), Space.Void.copy(alpha = 0.7f * backdrop))))
                                 }
                             }
-                            .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(section.title, style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Violet)
@@ -497,7 +497,7 @@ private fun SelectionBar(
     onShare: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -595,8 +595,8 @@ private fun MeCard(me: Contact, idx: Index, onOpen: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp)
-            .glass(RoundedCornerShape(18.dp), tint = Space.Panel, border = Space.Orange.copy(alpha = 0.30f))
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .glass(RoundedCornerShape(20.dp), tint = Space.Panel, border = Space.Orange.copy(alpha = 0.30f))
             .clickable(onClick = onOpen)
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -715,7 +715,7 @@ private fun ContactRow(
                         onOpen()
                     }
                 }
-                .padding(horizontal = 18.dp, vertical = 7.dp),
+                .padding(horizontal = 16.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Selected: the avatar turns over to a check (front fades as the back grows in).
