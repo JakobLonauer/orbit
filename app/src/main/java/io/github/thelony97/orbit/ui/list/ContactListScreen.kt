@@ -67,6 +67,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -275,7 +276,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav) {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .background(Space.Void.copy(alpha = 0.94f))
+                            .background(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.82f), Space.Void.copy(alpha = 0.55f))))
                             .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -425,7 +426,9 @@ private fun ContactRow(
                 Modifier
                     .fillMaxSize()
                     .padding(horizontal = 10.dp, vertical = 2.dp)
-                    .background(tint.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                    // Color.Transparent.copy(alpha) is translucent BLACK: it drew a dark band behind
+                    // every row since 1.0.7. Only paint while actually swiping.
+                    .then(if (icon != null) Modifier.background(tint.copy(alpha = 0.18f), RoundedCornerShape(16.dp)) else Modifier)
                     .padding(horizontal = 18.dp),
                 contentAlignment = alignment,
             ) {
