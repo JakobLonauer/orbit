@@ -388,12 +388,21 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         Spacer(Modifier.width(8.dp))
                         Text("Braucht deine Aufmerksamkeit", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
                     }
-                    if (missing.isNotEmpty()) {
-                        AttentionRow(
-                            "Berechtigung fehlt: " + missing.joinToString(", ") { it.title },
-                            Permissions.RESTRICTED_HELP.takeIf { permissionDenied },
-                        ) {
-                            GlowButton("Erlauben", { permissionLauncher.launch(missing.map { it.permission }.toTypedArray()) }, color = Space.Coral)
+                    // PLAN 1.2: each permission on its own with one sentence why – never all at once.
+                    missing.forEachIndexed { i, p ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(p.title, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                                Text(p.why, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            if (i == 0) GlowButton("Erlauben", { permissionLauncher.launch(arrayOf(p.permission)) }, color = Space.Coral)
+                            else GhostButton("Erlauben", { permissionLauncher.launch(arrayOf(p.permission)) })
+                        }
+                    }
+                    if (missing.isNotEmpty() && permissionDenied) {
+                        // Only after Android refused: how to unlock restricted settings for sideloaded apps.
+                        AttentionRow(Permissions.RESTRICTED_HELP, null) {
                             GhostButton("App-Info", {
                                 AppLock.allowExternal()
                                 ctx.startActivity(Permissions.appInfoIntent(ctx))
