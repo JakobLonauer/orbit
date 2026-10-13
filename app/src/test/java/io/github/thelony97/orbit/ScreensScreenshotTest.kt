@@ -170,6 +170,20 @@ class ScreensScreenshotTest {
     /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */
     @Test fun home() = shot("home") { HomeScreen(data, idx, nav, tab = 0, onTab = {}) }
 
+    /** Start-Moment half-way: ring drawn, planet on its way (frozen clock). */
+    @Test fun startMoment() {
+        io.github.thelony97.orbit.ui.Session.startPlayed = false
+        io.github.thelony97.orbit.security.AppLock.unlock()
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { HomeScreen(data, idx, nav, tab = 0, onTab = {}) } }
+        }
+        compose.mainClock.advanceTimeBy(380)
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_start_moment.png")
+        compose.mainClock.autoAdvance = true
+        io.github.thelony97.orbit.ui.Session.startPlayed = true
+    }
+
     @Test fun homeVerlauf() = shot("home_verlauf") { HomeScreen(data, idx, nav, tab = 1, onTab = {}) }
 
     @Test fun settings() = shot("settings") { SettingsScreen(data, nav) }
