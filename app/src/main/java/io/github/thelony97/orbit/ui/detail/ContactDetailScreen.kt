@@ -110,6 +110,7 @@ import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.ConfirmDialog
 import io.github.thelony97.orbit.ui.components.GhostButton
 import io.github.thelony97.orbit.ui.components.CountStat
+import io.github.thelony97.orbit.ui.components.Undo
 import io.github.thelony97.orbit.ui.components.GlassCard
 import io.github.thelony97.orbit.ui.components.GlowButton
 import io.github.thelony97.orbit.ui.components.OrbButton
@@ -166,7 +167,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var relationDialog by remember { mutableStateOf(false) }
     var anniversaryDialog by remember { mutableStateOf(false) }
     var birthdayDialog by remember { mutableStateOf(false) }
-    var confirmTrash by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
     var historyType by remember { mutableStateOf<String?>(null) }
     val historySearch = rememberTextFieldState()
@@ -210,13 +210,27 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             DropdownMenuItem(
                                 text = { Text(if (c.archived) "Aus dem Archiv holen" else "Archivieren") },
                                 leadingIcon = { Icon(if (c.archived) Icons.Rounded.Unarchive else Icons.Rounded.Archive, null) },
-                                onClick = { menu = false; edit { it.copy(archived = !it.archived, archivedAt = if (it.archived) null else now()) } },
+                                onClick = {
+                                    menu = false
+                                    val wasArchived = c.archived
+                                    edit { it.copy(archived = !wasArchived, archivedAt = if (wasArchived) null else now()) }
+                                    if (!wasArchived) {
+                                        Undo.offer("${Logic.shortName(c)} archiviert") { edit { it.copy(archived = false, archivedAt = null) } }
+                                        nav.back()
+                                    }
+                                },
                             )
                             HorizontalDivider(color = Space.Line)
                             DropdownMenuItem(
                                 text = { Text("In den Papierkorb", color = Space.Coral) },
                                 leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = Space.Coral) },
-                                onClick = { menu = false; confirmTrash = true },
+                                onClick = {
+                                    // Rückgängig statt Nachfragen (PLAN 1.2); the trash keeps it 30 days anyway.
+                                    menu = false
+                                    OrbitRepository.edit { d -> Mutations.trash(d, c.id) }
+                                    Undo.offer("${Logic.shortName(c)} im Papierkorb") { OrbitRepository.edit { d -> Mutations.restore(d, c.id) } }
+                                    nav.back()
+                                },
                             )
                         }
                     }
@@ -694,18 +708,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
         )
     }
 
-    if (confirmTrash) {
-        ConfirmDialog(
-            title = "In den Papierkorb?",
-            text = "${Logic.displayName(c, lastFirst)} bleibt 30 Tage im Papierkorb und kann dort wiederhergestellt werden.",
-            confirm = "Löschen",
-            onConfirm = {
-                OrbitRepository.edit { d -> Mutations.trash(d, c.id) }
-                nav.back()
-            },
-            onDismiss = { confirmTrash = false },
-        )
-    }
 }
 
 @Composable

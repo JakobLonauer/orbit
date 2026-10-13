@@ -1,5 +1,7 @@
 package io.github.thelony97.orbit.ui
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,6 +38,7 @@ import io.github.thelony97.orbit.ui.lock.LockScreen
 import io.github.thelony97.orbit.ui.mail.MailAccountsScreen
 import io.github.thelony97.orbit.ui.onboarding.OnboardingScreen
 import io.github.thelony97.orbit.ui.components.SpaceBackground
+import io.github.thelony97.orbit.ui.components.UndoBar
 import io.github.thelony97.orbit.ui.settings.ArchiveScreen
 import io.github.thelony97.orbit.ui.settings.SettingsScreen
 import io.github.thelony97.orbit.ui.settings.EntryTypesScreen
@@ -70,6 +73,13 @@ fun OrbitRoot(activity: FragmentActivity) {
             !current.settings.onboardingDone -> OnboardingScreen(current)
             else -> MainNavigation(current)
         }
+        // Undo bar above everything except the lock, just over the Orbit-Leiste.
+        UndoBar(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 88.dp),
+        )
         val showLock = current != null && current.settings.onboardingDone && current.settings.lockEnabled && locked
         AnimatedVisibility(visible = showLock, enter = fadeIn(), exit = fadeOut()) {
             LockScreen(activity)
