@@ -32,6 +32,9 @@ class CongratsTest {
         val a2 = d2.contacts.first { it.id == "anna" }
         assertEquals("Gutschein", BirthdayTab.gift(a2, "bd", 2026)!!.note)
         assertEquals(1, a2.entries.count { it.typeId == BuiltinTypes.GIFT })
+        // The date chip moved it: same entry, new date.
+        assertEquals(g.id, BirthdayTab.gift(a2, "bd", 2026)!!.id)
+        assertEquals(8L, BirthdayTab.gift(a2, "bd", 2026)!!.at)
         val d3 = Mutations.setGift(d2, "anna", "bd", 2026, "  ", emptyList(), at = 9L)
         assertEquals(listOf(call, lastYear), d3.contacts.first { it.id == "anna" }.entries)
     }

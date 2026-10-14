@@ -25,7 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CardGiftcard
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.PushPin
@@ -258,10 +261,10 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                         gift = if (giftHere) BirthdayTab.gift(c, r.occasion.id, r.date.year) else null,
                         giftEnabled = giftHere,
                         coGivers = coGivers.filter { it.id != c.id },
-                        onGift = { what, with ->
+                        onGift = { what, with, day ->
                             haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
-                            // The gift is dated on the birthday itself (the date chip's default).
-                            val at = r.date.atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            // Dated by the date chip (the birthday itself unless changed).
+                            val at = day.atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                             io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
                                 io.github.thelony97.orbit.data.Mutations.setGift(d, c.id, r.occasion.id, r.date.year, what, with, at)
                             }
@@ -326,7 +329,7 @@ private fun BirthdayRow(
     gift: io.github.thelony97.orbit.core.model.HistoryEntry? = null,
     giftEnabled: Boolean = false,
     coGivers: List<Contact> = emptyList(),
-    onGift: (String, List<String>) -> Unit = { _, _ -> },
+    onGift: (String, List<String>, LocalDate) -> Unit = { _, _, _ -> },
     onCongratulate: (() -> Unit)? = null,
     onOpen: () -> Unit,
 ) {
@@ -334,6 +337,37 @@ private fun BirthdayRow(
     Column(modifier.fillMaxWidth()) {
     val today = r.daysUntil == 0L
     val past = r.daysUntil < 0
+    // Wisch nach rechts = Gratuliert (PLAN 3.5): resists, ticks, springs back; again = untick.
+    val swipe = androidx.compose.material3.rememberSwipeToDismissBoxState()
+    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
+    val currentTick by androidx.compose.runtime.rememberUpdatedState(tick)
+    androidx.compose.material3.SwipeToDismissBox(
+        state = swipe,
+        enableDismissFromStartToEnd = tick != null,
+        enableDismissFromEndToStart = false,
+        gesturesEnabled = tick != null,
+        onDismiss = { value ->
+            if (value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd) currentTick?.second?.invoke()
+            swipeScope.launch { swipe.reset() }
+        },
+        backgroundContent = {
+            if (swipe.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 10.dp, vertical = 2.dp)
+                        .background(Space.Orange.copy(alpha = 0.18f), Corners.Row)
+                        .padding(horizontal = 18.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    androidx.compose.material3.Icon(
+                        if (tick?.first == true) androidx.compose.material.icons.Icons.Rounded.Close else androidx.compose.material.icons.Icons.Rounded.Check,
+                        null, tint = Space.Orange, modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        },
+    ) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -393,14 +427,15 @@ private fun BirthdayRow(
             }
         }
     }
+    }
     // „Was?“ opens in the row, Enter saves and closes (PLAN 3.5: no dialog).
     androidx.compose.animation.AnimatedVisibility(editing) {
-        GiftLine(gift, coGivers, lastFirst, ideas = c.gifts.filterNot { it.done }, onIdea = { idea, with ->
-            onGift(idea.text, with)
+        GiftLine(gift, coGivers, lastFirst, r.date, ideas = c.gifts.filterNot { it.done }, onIdea = { idea, with, day ->
+            onGift(idea.text, with, day)
             io.github.thelony97.orbit.data.OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.giveIdea(d, c.id, idea.id) }
             editing = false
-        }) { what, with ->
-            onGift(what, with)
+        }) { what, with, day ->
+            onGift(what, with, day)
             editing = false
         }
     }
@@ -436,12 +471,21 @@ private fun GiftLine(
     gift: io.github.thelony97.orbit.core.model.HistoryEntry?,
     coGivers: List<Contact>,
     lastFirst: Boolean,
+    /** The date chip's default: the birthday itself. */
+    birthday: LocalDate,
     ideas: List<io.github.thelony97.orbit.core.model.CheckItem> = emptyList(),
-    onIdea: (io.github.thelony97.orbit.core.model.CheckItem, List<String>) -> Unit = { _, _ -> },
-    onSave: (String, List<String>) -> Unit,
+    onIdea: (io.github.thelony97.orbit.core.model.CheckItem, List<String>, LocalDate) -> Unit = { _, _, _ -> },
+    onSave: (String, List<String>, LocalDate) -> Unit,
 ) {
     val what = androidx.compose.foundation.text.input.rememberTextFieldState(gift?.note.orEmpty())
     var with by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(gift?.withIds.orEmpty()) }
+    var day by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableLongStateOf(
+            (gift?.at?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate() } ?: birthday).toEpochDay(),
+        )
+    }
+    var picking by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val date = LocalDate.ofEpochDay(day)
     Column(Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         androidx.compose.material3.OutlinedTextField(
             state = what,
@@ -451,7 +495,7 @@ private fun GiftLine(
                 capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
                 imeAction = androidx.compose.ui.text.input.ImeAction.Done,
             ),
-            onKeyboardAction = { onSave(what.text.toString(), with) },
+            onKeyboardAction = { onSave(what.text.toString(), with, date) },
             shape = Corners.Row,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -459,19 +503,23 @@ private fun GiftLine(
         if (ideas.isNotEmpty() && gift == null) {
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ideas.take(6).forEach { idea ->
-                    io.github.thelony97.orbit.ui.components.SpaceChip(idea.text, false, { onIdea(idea, with) }, leading = androidx.compose.material.icons.Icons.Rounded.CardGiftcard, accent = Space.Orange)
+                    io.github.thelony97.orbit.ui.components.SpaceChip(idea.text, false, { onIdea(idea, with, date) }, leading = androidx.compose.material.icons.Icons.Rounded.CardGiftcard, accent = Space.Orange)
                 }
             }
         }
-        if (coGivers.isNotEmpty()) {
-            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                coGivers.forEach { p ->
-                    val on = p.id in with
-                    io.github.thelony97.orbit.ui.components.SpaceChip(Logic.displayName(p, lastFirst), on, { with = if (on) with - p.id else with + p.id })
-                }
+        // Mitschenkende and the date chip (PLAN 3.5), one row.
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            io.github.thelony97.orbit.ui.components.SpaceChip(
+                io.github.thelony97.orbit.util.Fmt.shortDate(date), date != birthday, { picking = true },
+                leading = androidx.compose.material.icons.Icons.Rounded.CalendarMonth,
+            )
+            coGivers.forEach { p ->
+                val on = p.id in with
+                io.github.thelony97.orbit.ui.components.SpaceChip(Logic.displayName(p, lastFirst), on, { with = if (on) with - p.id else with + p.id })
             }
         }
     }
+    if (picking) io.github.thelony97.orbit.ui.sheets.DateDialog(date, onDismiss = { picking = false }, onPick = { day = it.toEpochDay() })
 }
 
 @Composable

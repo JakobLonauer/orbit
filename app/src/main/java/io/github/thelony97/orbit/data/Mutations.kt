@@ -72,7 +72,8 @@ object Mutations {
                 when {
                     text.isEmpty() && old != null -> c.copy(entries = c.entries - old)
                     text.isEmpty() -> c
-                    old != null -> c.copy(entries = c.entries.map { if (it.id == old.id) it.copy(note = text, withIds = withIds) else it })
+                    // The date chip may move it; the entry keeps its id.
+                    old != null -> c.copy(entries = c.entries.map { if (it.id == old.id) it.copy(note = text, withIds = withIds, at = at) else it }.sortedByDescending { it.at })
                     else -> c.copy(entries = (c.entries + Entry(
                         id = newId(), contactId = c.id, typeId = gift, at = at, note = text,
                         occasionId = occasionId, occasionYear = year, withIds = withIds,
