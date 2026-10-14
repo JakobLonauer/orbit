@@ -309,6 +309,20 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         }
                     }
                 }
+                // Logo der Webseite als Bild (PLAN 3.6), offered only – it is taken on a tap.
+                val logoLink = original.links.firstOrNull { it.logo != null }
+                if (isOrg && photo == null && logoLink != null) {
+                    Text(
+                        "Logo von ${io.github.thelony97.orbit.ui.detail.linkHost(logoLink.url)} als Bild",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Space.Blue,
+                        modifier = Modifier
+                            .padding(start = 26.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { scope.launch { io.github.thelony97.orbit.links.Logos.asPhoto(logoLink.logo!!)?.let { photo = it } } }
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                    )
+                }
                 if (photo != null) {
                     Text(
                         "Foto entfernen",

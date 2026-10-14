@@ -41,6 +41,24 @@ object Logos {
         null
     }
 
+    /**
+     * „Logo der Webseite als Bild“ (PLAN 3.6): a copy of the logo as the organisation's picture,
+     * centred on white (no black behind transparent logos); its own file, so the tile can go.
+     */
+    suspend fun asPhoto(logoFile: String): String? = withContext(Dispatchers.IO) {
+        val logo = runCatching { android.graphics.BitmapFactory.decodeFile(OrbitRepository.photoFile(logoFile).path) }.getOrNull() ?: return@withContext null
+        val size = 512
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        canvas.drawColor(android.graphics.Color.WHITE)
+        val inner = (size * 0.7f).toInt()
+        val off = ((size - inner) / 2).toFloat()
+        canvas.drawBitmap(Bitmap.createScaledBitmap(logo, inner, inner, true), off, off, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+        val name = "org-" + io.github.thelony97.orbit.data.newId() + ".jpg"
+        OrbitRepository.photoFile(name).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        name
+    }
+
     private fun download(address: String): ByteArray? {
         val conn = (URL(address).openConnection() as HttpURLConnection).apply {
             connectTimeout = 5000
