@@ -86,8 +86,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         if (shown == 0) emptyList()
         else io.github.thelony97.orbit.core.domain.OccasionList.build(
             data.contacts, todayDate, { Visibility.inLists(it, data.settings.showOrgs) },
-            io.github.thelony97.orbit.core.domain.OccasionList.Filter(withinDays = within, onlyRound = round, pinnedOnly = shown == 1),
-            sort, reversed, name = { id -> byId[id]?.let { Logic.displayName(it, lastFirst) }.orEmpty() },
+            // „Angepinnt“ has no controls of its own: the „Alle“ filters never narrow it unseen.
+            if (shown == 1) io.github.thelony97.orbit.core.domain.OccasionList.Filter(pinnedOnly = true)
+            else io.github.thelony97.orbit.core.domain.OccasionList.Filter(withinDays = within, onlyRound = round),
+            if (shown == 1) io.github.thelony97.orbit.core.domain.OccasionList.Sort.NEXT else sort,
+            if (shown == 1) false else reversed,
+            name = { id -> byId[id]?.let { Logic.displayName(it, lastFirst) }.orEmpty() },
         )
     }
     val dots = remember(upcoming, idx) { upcoming.mapNotNull { u -> byId[u.ownerId]?.let { RingDot(u.date, contactColor(it, idx)) } } }
@@ -109,9 +113,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             for (g in result.groups) {
                 val head = i
                 i++
+                var first = true
                 for (r in g.rows) {
                     if (byId[r.contactId] == null) continue
-                    if (r.daysUntil >= 0) map.putIfAbsent(r.date.monthValue, head)
+                    // The header for a group's first row, the row itself further down (Monat genau).
+                    if (r.daysUntil >= 0) map.putIfAbsent(r.date.monthValue, if (first) head else i)
+                    first = false
                     i++
                 }
             }
@@ -120,9 +127,11 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             for (g in occGroups) {
                 val head = i
                 if (g.title.isNotEmpty()) i++
+                var first = true
                 for (u in g.rows) {
                     if (byId[u.ownerId] == null) continue
-                    map.putIfAbsent(u.date.monthValue, if (g.title.isNotEmpty()) head else i)
+                    map.putIfAbsent(u.date.monthValue, if (first && g.title.isNotEmpty()) head else i)
+                    first = false
                     i++
                 }
             }
@@ -225,9 +234,10 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                         onCongratulate = if (r.daysUntil == 0L && io.github.thelony97.orbit.actions.ContactActions.defaultNumber(c) != null) {
                             {
                                 val opened = io.github.thelony97.orbit.actions.ContactActions.congratulate(ctx, c, io.github.thelony97.orbit.actions.ContactActions.greeting(c))
-                                if (opened && tracking && !BirthdayTab.congratulated(c, r.occasion.id, r.date.year)) {
+                                if (opened && tracking) {
+                                    // Marks, never toggles: a double tap cannot take the tick away again.
                                     io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
-                                        io.github.thelony97.orbit.data.Mutations.toggleCongrats(d, c.id, r.occasion.id, r.date.year)
+                                        io.github.thelony97.orbit.data.Mutations.markCongrats(d, c.id, r.occasion.id, r.date.year)
                                     }
                                 }
                             }

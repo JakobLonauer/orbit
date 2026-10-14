@@ -696,7 +696,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // Anlässe (birthday and the others), soonest first; hidden while there are none.
             // Shared ones are stored at the other contact and show here too (PLAN 3.5).
             val sharedIn = data.contacts
-                .filter { it.id != c.id && it.deletedAt == null }
+                .filter { it.id != c.id && it.deletedAt == null && !it.archived }
                 .flatMap { o -> o.dates.filter { it.sharedWith == c.id }.map { o to it } }
             if (c.dates.isNotEmpty() || sharedIn.isNotEmpty()) item(key = "dates") {
                 SectionCard(
@@ -715,7 +715,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         )
                     }
                     // Geschenk-Historie (PLAN 3.5), only once something was given.
-                    val gifts = io.github.thelony97.orbit.core.domain.BirthdayTab.giftHistory(c) { id -> idx.contacts[id]?.let { Logic.shortName(it) } }
+                    val gifts = io.github.thelony97.orbit.core.domain.BirthdayTab.giftHistory(c) { id ->
+                        idx.contacts[id]?.takeIf { it.deletedAt == null && !it.archived }?.let { Logic.shortName(it) }
+                    }
                     if (gifts.isNotEmpty()) {
                         Text(
                             "Geschenke · $gifts",
@@ -727,7 +729,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
                         val years = a.date.year?.let { Logic.nextOccurrence(a.date, todayDate).year - it }
-                        val partner = a.sharedWith?.let { idx.contacts[it] }
+                        val partner = a.sharedWith?.let { idx.contacts[it] }?.takeIf { it.deletedAt == null && !it.archived }
                         InfoRow(
                             label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days) + weekdayHint(days, a.date, todayDate)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: "") +
                                 (partner?.let { " · mit " + Logic.shortName(it) } ?: "") + (if (a.pinned) " · 📌" else ""),

@@ -57,6 +57,15 @@ class CongratsTest {
         assertEquals("", BirthdayTab.giftHistory(anna) { names[it] })
     }
 
+    @Test fun markNeverTakesTheTickAway() {
+        val once = Mutations.markCongrats(doc, "anna", "bd", 2026)
+        val twice = Mutations.markCongrats(once, "anna", "bd", 2026)
+        assertTrue(BirthdayTab.congratulated(twice.contacts.first { it.id == "anna" }, "bd", 2026))
+        assertEquals(3, twice.contacts.first { it.id == "anna" }.entries.size)
+        // Newest first, like every Verlauf.
+        assertEquals(BuiltinTypes.CONGRATS, twice.contacts.first { it.id == "anna" }.entries.first().typeId)
+    }
+
     @Test fun secondTapTakesOnlyThisYearsTickAway() {
         val once = Mutations.toggleCongrats(doc, "anna", "bd", 2026)
         val twice = Mutations.toggleCongrats(once, "anna", "bd", 2026)

@@ -65,6 +65,8 @@ fun YearRingView(
     // Measured once, not per frame.
     val letters = remember(measurer, letterStyle) { LETTERS.map { measurer.measure(it, letterStyle) } }
     val todayAngle = remember(today) { YearRing.angleOf(today) }
+    // The tap handler lives across recompositions: always call the latest jump target.
+    val jump = androidx.compose.runtime.rememberUpdatedState(onMonth)
     Box(modifier.fillMaxWidth().height(232.dp), contentAlignment = Alignment.Center) {
         Canvas(
             Modifier
@@ -75,7 +77,7 @@ fun YearRingView(
                         val r = min(size.width, size.height) / 2f - 28.dp.toPx()
                         YearRing.monthAt(pos.x - c.x, pos.y - c.y, r - 36.dp.toPx(), r + 28.dp.toPx(), today.year)?.let {
                             haptics.perform(Haptic.Tick)
-                            onMonth(it)
+                            jump.value(it)
                         }
                     }
                 },

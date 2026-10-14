@@ -97,12 +97,11 @@ fun OccasionDialog(
                     )
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SpaceChip(date?.let { Fmt.dayOfYear(it) } ?: "Datum", date != null, { pickDate = true }, leading = Icons.Rounded.CalendarMonth)
+                    // Einmalig without a year: the date chip turns coral – it needs the year (no hint text, W7).
+                    val needsYear = repeat == Repeat.ONCE && date != null && date?.year == null
+                    SpaceChip(date?.let { Fmt.dayOfYear(it) } ?: "Datum", date != null, { pickDate = true }, leading = Icons.Rounded.CalendarMonth, accent = if (needsYear) Space.Coral else Space.Violet)
                     SpaceChip("Jährlich", repeat == Repeat.YEARLY, { repeat = Repeat.YEARLY })
                     SpaceChip("Einmalig", repeat == Repeat.ONCE, { repeat = Repeat.ONCE })
-                }
-                if (repeat == Repeat.ONCE && date != null && date?.year == null) {
-                    Text("Einmalig braucht ein Jahr", style = MaterialTheme.typography.labelMedium, color = Space.Coral)
                 }
                 Text("Erinnern", style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

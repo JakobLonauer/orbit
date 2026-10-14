@@ -47,12 +47,13 @@ object BirthdayTab {
             listOf(t.substring(0, 2), t.substring(2, 4)) + listOfNotNull(t.substring(4).takeIf { it.isNotEmpty() })
         } else return null
         if (parts.size !in 2..3 || parts.any { p -> p.any { !it.isDigit() } }) return null
-        val day = parts[0].toInt()
-        val month = parts[1].toInt()
+        if (parts[0].length > 2 || parts[1].length > 2) return null
+        val day = parts[0].toIntOrNull() ?: return null
+        val month = parts[1].toIntOrNull() ?: return null
         val year = parts.getOrNull(2)?.let { y ->
             when (y.length) {
                 2 -> (2000 + y.toInt()).let { if (it > today.year) it - 100 else it }
-                4 -> y.toInt()
+                4 -> y.toIntOrNull() ?: return null
                 else -> return null
             }
         }

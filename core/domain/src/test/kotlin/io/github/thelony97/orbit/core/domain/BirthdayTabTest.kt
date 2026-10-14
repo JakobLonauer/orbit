@@ -86,6 +86,9 @@ class BirthdayTabTest {
         assertEquals(null, BirthdayTab.parseDay("1.1.2030", today))
         assertEquals(null, BirthdayTab.parseDay("abc", today))
         assertEquals(null, BirthdayTab.parseDay("", today))
+        // Never a crash on long digit runs.
+        assertEquals(null, BirthdayTab.parseDay("123456789012.1.", today))
+        assertEquals(null, BirthdayTab.parseDay("1.1.99999999999", today))
     }
 
     @Test fun peopleWithoutBirthdayByName() {

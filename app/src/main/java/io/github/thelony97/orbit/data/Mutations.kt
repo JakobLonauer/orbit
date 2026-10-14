@@ -39,12 +39,18 @@ object Mutations {
             else {
                 val mine = c.entries.filter { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS && it.occasionId == occasionId && it.occasionYear == year }
                 if (mine.isNotEmpty()) c.copy(entries = c.entries - mine.toSet())
-                else c.copy(entries = c.entries + Entry(
+                else c.copy(entries = (c.entries + Entry(
                     id = newId(), contactId = c.id, typeId = io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS, at = at,
                     occasionId = occasionId, occasionYear = year,
-                ))
+                )).sortedByDescending { it.at })
             }
         })
+
+    /** „Gratuliert“ from the Gratulieren button: only ever adds, decided inside the transform. */
+    fun markCongrats(d: OrbitData, contactId: String, occasionId: String, year: Int, at: Long = now()): OrbitData {
+        val c = d.contacts.firstOrNull { it.id == contactId } ?: return d
+        return if (io.github.thelony97.orbit.core.domain.BirthdayTab.congratulated(c, occasionId, year)) d else toggleCongrats(d, contactId, occasionId, year, at)
+    }
 
     /**
      * „Geschenk“ (PLAN 3.5): one gift entry per occasion and year with what and who gave together;
@@ -61,10 +67,10 @@ object Mutations {
                     text.isEmpty() && old != null -> c.copy(entries = c.entries - old)
                     text.isEmpty() -> c
                     old != null -> c.copy(entries = c.entries.map { if (it.id == old.id) it.copy(note = text, withIds = withIds) else it })
-                    else -> c.copy(entries = c.entries + Entry(
+                    else -> c.copy(entries = (c.entries + Entry(
                         id = newId(), contactId = c.id, typeId = gift, at = at, note = text,
                         occasionId = occasionId, occasionYear = year, withIds = withIds,
-                    ))
+                    )).sortedByDescending { it.at })
                 }
             }
         })

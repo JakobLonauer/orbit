@@ -80,7 +80,10 @@ object DigestScheduler {
         val data = OrbitRepository.snapshot()
         // Only occasions (PLAN 3.5/3.13a), each with its own reminders (am Tag / 1 / 3 / 7 / 14 Tage
         // vorher); never archived or deleted contacts. Your own („Ich & Anna“) remind like any other.
+        val me = data.contacts.firstOrNull { it.isMe }?.id
         val due = io.github.thelony97.orbit.core.domain.ReminderPlan.dueOn(data.contacts, todayDate) { it.deletedAt == null && !it.archived }
+            // Your own birthday is no reminder for you; shared ones with „Ich“ stay.
+            .filterNot { it.upcoming.ownerId == me && it.upcoming.occasion.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
         Notifications.occasions(ctx, due, data)
 
         val startOfToday = todayDate.startMillis()
@@ -232,10 +235,8 @@ class CongratulateActivity : ComponentActivity() {
             val data = OrbitRepository.ensureLoaded()
             data.contacts.firstOrNull { it.id == contactId }?.let { c ->
                 val opened = ContactActions.congratulate(this@CongratulateActivity, c, ContactActions.greeting(c))
-                if (opened && occasionId != null && data.settings.giftTracking &&
-                    !io.github.thelony97.orbit.core.domain.BirthdayTab.congratulated(c, occasionId, year)
-                ) {
-                    OrbitRepository.update { d -> Mutations.toggleCongrats(d, c.id, occasionId, year) }
+                if (opened && occasionId != null && data.settings.giftTracking) {
+                    OrbitRepository.update { d -> Mutations.markCongrats(d, c.id, occasionId, year) }
                     OrbitRepository.flush()
                 }
             }
