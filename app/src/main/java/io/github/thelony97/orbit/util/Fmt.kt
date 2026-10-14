@@ -49,4 +49,6 @@ object Fmt {
     fun dayOfYear(d: DayOfYear): String = AtFormat.day(CalendarDay(d.day, d.month, d.year))
 
     fun monthName(month: Int): String = AtFormat.month(month)
+    /** „Mo“ … „So“. */
+    fun weekdayShort(d: java.time.DayOfWeek): String = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")[d.value - 1]
 }

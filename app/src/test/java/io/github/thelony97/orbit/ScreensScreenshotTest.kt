@@ -169,7 +169,7 @@ class ScreensScreenshotTest {
             entries = listOf(e("ka1", TypeIds.CALL, 1, sec = 300, incoming = true), e("ka2", TypeIds.MEET, 12, "Mittagessen Mensa")),
         ).withBirthday(inDays(40)) { "bd-kathi" }
         val full = data.copy(
-            contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468"))),
+            contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468")), openingHours = "Mo-Fr 07:00-19:00; Sa 08:00-12:00"),
             relations = listOf(
                 io.github.thelony97.orbit.data.Relation("r2", "kathi", "anna", "friend"),
             ),

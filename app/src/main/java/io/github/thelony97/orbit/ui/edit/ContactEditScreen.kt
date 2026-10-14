@@ -131,6 +131,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val howWeMet = remember { TextFieldState(original.howWeMet) }
     val notes = remember { TextFieldState(original.notes) }
     val pinnedNote = remember { TextFieldState(original.pinnedNote) }
+    val hours = remember { TextFieldState(original.openingHours) }
     val links = remember { mutableStateListOf<PairRow>().apply { original.links.forEach { add(PairRow(it.id, it.title, it.url)) } } }
     val fields = remember { mutableStateListOf<PairRow>().apply { original.fields.forEach { add(PairRow(it.id, it.label, it.value)) } } }
     var kind by remember { mutableStateOf(original.kind) }
@@ -175,6 +176,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             howWeMet = howWeMet.text.toString().trim(),
             notes = notes.text.toString().trim(),
             pinnedNote = pinnedNote.text.toString().trim(),
+            openingHours = if (kind == ContactKind.ORG) hours.text.toString().trim() else original.openingHours,
             // Rows keep their id, so note, logo and "open with" of a link survive editing.
             links = links.mapNotNull { row ->
                 val url = row.second.text.toString().trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
@@ -389,6 +391,22 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         suggestions = if (isOrg) listOf("Kundennummer", "Vertragsnummer", "Mitgliedsnummer")
                         else listOf("Kundennummer", "Versicherungsnummer", "Matrikelnummer"),
                     )
+                }
+
+                // Öffnungszeiten (PLAN 3.6), shown live on the page; the line below is what it will say now.
+                if (isOrg) GlassCard {
+                    SectionTitle("Öffnungszeiten")
+                    SpaceField(hours, "", placeholder = "Mo-Fr 08:00-12:00,13:00-17:00; Sa 09:00-12:00")
+                    val week = io.github.thelony97.orbit.core.domain.OpeningHours.parse(hours.text.toString())
+                    if (week != null) {
+                        val st = io.github.thelony97.orbit.core.domain.OpeningHours.status(week, java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone()))
+                        Text(
+                            io.github.thelony97.orbit.core.domain.OpeningHours.line(st) { d -> Fmt.weekdayShort(d) },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (st is io.github.thelony97.orbit.core.domain.OpeningHours.Status.Open) Space.Teal else Space.TextDim,
+                            modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                        )
+                    }
                 }
 
                 GlassCard {

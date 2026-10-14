@@ -135,6 +135,8 @@ import io.github.thelony97.orbit.ui.components.GlassCard
 import io.github.thelony97.orbit.ui.components.GlowButton
 import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.Pill
+import io.github.thelony97.orbit.ui.components.glow
+import androidx.compose.animation.animateContentSize
 import io.github.thelony97.orbit.ui.components.SectionCard
 import io.github.thelony97.orbit.ui.components.SectionTitle
 import io.github.thelony97.orbit.ui.components.SpaceBackground
@@ -417,6 +419,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 if (c.isMe) Pill("Das bist du", Space.Orange)
                                 groups.forEach { g -> Pill(g.name, Color(g.color)) }
                             }
+                        }
+                        // Live-Öffnungszeiten (PLAN 3.6): understood → live line, otherwise the text as typed.
+                        if (c.isOrg && c.openingHours.isNotBlank()) {
+                            val week = remember(c.openingHours) { io.github.thelony97.orbit.core.domain.OpeningHours.parse(c.openingHours) }
+                            if (week != null) OpenNow(week, c.openingHours, Modifier.padding(top = 6.dp))
+                            else Text(c.openingHours, style = MaterialTheme.typography.labelMedium, color = Space.TextDim, modifier = Modifier.padding(top = 6.dp))
                         }
                     }
                 }
@@ -1139,4 +1147,42 @@ internal fun lastPerType(c: Contact): List<Pair<String, Long?>> {
     val used = order.filter { it in latest } + latest.keys.filter { it !in order }.sorted()
     val slots = (used + order).distinct().take(3)
     return order.filter { it in slots }.plus(slots.filter { it !in order }).map { it to latest[it] }
+}
+
+/** „● Geöffnet · bis 17:00“, refreshed on the minute; a tap shows the whole week. */
+@Composable
+private fun OpenNow(week: io.github.thelony97.orbit.core.domain.OpeningHours.Week, text: String, modifier: Modifier = Modifier) {
+    var now by remember { mutableStateOf(java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone())) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000L - (System.currentTimeMillis() % 60_000L))
+            now = java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone())
+        }
+    }
+    var open by remember { mutableStateOf(false) }
+    val st = io.github.thelony97.orbit.core.domain.OpeningHours.status(week, now)
+    val color = when {
+        st is io.github.thelony97.orbit.core.domain.OpeningHours.Status.Open && st.closingSoon -> Space.Orange
+        st is io.github.thelony97.orbit.core.domain.OpeningHours.Status.Open -> Space.Teal
+        else -> Space.Coral
+    }
+    Column(modifier.clip(RoundedCornerShape(6.dp)).clickable { open = !open }.animateContentSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).glow(color, 6.dp).clip(CircleShape).background(color))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                io.github.thelony97.orbit.core.domain.OpeningHours.line(st) { d -> Fmt.weekdayShort(d) },
+                style = MaterialTheme.typography.labelLarge,
+                color = color,
+            )
+        }
+        if (open) {
+            Text(
+                text.split(';').map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n"),
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                color = Space.TextDim,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+            )
+        }
+    }
 }
