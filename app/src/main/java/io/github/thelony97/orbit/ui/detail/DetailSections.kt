@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
@@ -183,7 +184,7 @@ private fun CheckRow(
             // Langdruck = Datum (PLAN 3.3 „Themen optional mit Datum“): no icon on every row (W5).
             .then(
                 if (onDate != null && !item.done) Modifier.pointerInput(item.id) {
-                    androidx.compose.foundation.gestures.detectTapGestures(onLongPress = {
+                    detectTapGestures(onLongPress = {
                         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
                         picking = true
                     })
