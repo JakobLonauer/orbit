@@ -169,10 +169,8 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
 
         if (network == null || network.nodes.size <= 1) {
             Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                EmptyHint(
-                    "Noch keine Beziehungen",
-                    "Verknüpfe Menschen im Kontakt unter „Beziehungen“ – z. B. Partner, Eltern, Kolleg:innen oder dich selbst. Dann entsteht hier dein Netz.",
-                )
+                // W7: no explanation – the one way on is the contact itself (W6).
+                EmptyHint("Noch keine Beziehungen", "")
                 if (root != null) GlowButton("${Logic.shortName(root)} öffnen", { nav.open(Route.Detail(root.id)) }, icon = Icons.AutoMirrored.Rounded.OpenInNew)
             }
             return@Column
@@ -202,8 +200,49 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                     center.x + (gap * n.level * cos(n.angle)).toFloat(),
                     center.y + (gap * n.level * sin(n.angle)).toFloat(),
                 )
-            val positions = network.nodes.associate { it.contact.id to position(it) }
+            val target = network.nodes.associate { it.contact.id to position(it) }
             val byId = network.nodes.associateBy { it.contact.id }
+            // Netz-Federn (PLAN 1.3): a new centre or depth lets every node spring from where it
+            // was (new ones from the centre) to its place; read in layout/draw only.
+            val from = remember { mutableStateOf<Map<String, Offset>>(emptyMap()) }
+            val settle = remember { androidx.compose.animation.core.Animatable(1f) }
+            val shown = remember { mutableStateOf(target) }
+            val netCtx = androidx.compose.ui.platform.LocalContext.current
+            // Energiesparmodus: straight to the new places.
+            val calm = remember { netCtx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+            LaunchedEffect(target) {
+                if (shown.value != target && !calm) {
+                    // Start from what is on screen now (also mid-flight).
+                    val p = settle.value
+                    from.value = shown.value.mapValues { (id, end) -> from.value[id]?.let { lerpOffset(it, end, p) } ?: end }
+                    shown.value = target
+                    settle.snapTo(0f)
+                    settle.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 140f))
+                } else {
+                    shown.value = target
+                }
+            }
+            fun at(id: String): Offset? {
+                val end = target[id] ?: return null
+                val start = from.value[id] ?: center
+                return lerpOffset(start, end, settle.value)
+            }
+            val positions = target
+            // Leuchtweg (PLAN 1.3): the path from the centre to the selected node lights up.
+            val chain = remember(selected, network) {
+                val ids = ArrayList<String>()
+                var cur = selected?.let { byId[it] }
+                while (cur != null) {
+                    ids += cur.contact.id
+                    cur = cur.parentId?.let { byId[it] }
+                }
+                ids.asReversed().toList()
+            }
+            val glow = remember { androidx.compose.animation.core.Animatable(0f) }
+            LaunchedEffect(chain) {
+                glow.snapTo(0f)
+                if (chain.size > 1) glow.animateTo(1f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MAX_MS * 2, easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized))
+            }
 
             fun toWorld(screen: Offset): Offset = (screen - pan - center) / scale + center
 
@@ -253,8 +292,8 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                         }
                         // Cross links first (faint, dashed), then the tree.
                         network.edges.filter { !it.tree }.forEach { e ->
-                            val a = positions[e.a] ?: return@forEach
-                            val b = positions[e.b] ?: return@forEach
+                            val a = at(e.a) ?: return@forEach
+                            val b = at(e.b) ?: return@forEach
                             val hot = selected != null && (e.a == selected || e.b == selected)
                             drawLine(
                                 if (hot) Space.Text.copy(alpha = 0.7f) else Space.TextFaint.copy(alpha = 0.45f),
@@ -264,8 +303,8 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                             )
                         }
                         network.edges.filter { it.tree }.forEach { e ->
-                            val a = positions[e.a] ?: return@forEach
-                            val b = positions[e.b] ?: return@forEach
+                            val a = at(e.a) ?: return@forEach
+                            val b = at(e.b) ?: return@forEach
                             val level = max(byId[e.a]?.level ?: 0, byId[e.b]?.level ?: 0)
                             val hot = selected != null && (e.a == selected || e.b == selected)
                             drawLine(
@@ -274,13 +313,27 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                                 strokeWidth = (if (hot) 2.4.dp else 1.4.dp).toPx(),
                             )
                         }
+                        // Leuchtweg: segment by segment from the centre, a soft halo under a bright core.
+                        if (chain.size > 1) {
+                            val segs = chain.zipWithNext()
+                            val reach = glow.value * segs.size
+                            segs.forEachIndexed { i, (pa, pb) ->
+                                val part = (reach - i).coerceIn(0f, 1f)
+                                if (part <= 0f) return@forEachIndexed
+                                val a = at(pa) ?: return@forEachIndexed
+                                val b0 = at(pb) ?: return@forEachIndexed
+                                val b = lerpOffset(a, b0, part)
+                                drawLine(Space.Orange.copy(alpha = 0.22f), a, b, strokeWidth = 9.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(Space.Orange.copy(alpha = 0.9f), a, b, strokeWidth = 2.2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                            }
+                        }
                         // Role labels on the lines of the selected node.
                         val sel = selected
                         if (sel != null) {
                             network.edges.filter { it.a == sel || it.b == sel }.forEach { e ->
                                 val other = if (e.a == sel) e.b else e.a
-                                val a = positions[sel] ?: return@forEach
-                                val b = positions[other] ?: return@forEach
+                                val a = at(sel) ?: return@forEach
+                                val b = at(other) ?: return@forEach
                                 val label = NetworkLayout.roleOf(other, e.relation)
                                 val layout = measurer.measure(label, TextStyle(color = Space.Text, fontSize = (11f / scale).coerceIn(8f, 18f).sp))
                                 val mid = Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f)
@@ -299,14 +352,14 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
                     network.nodes.forEach { n ->
                         val size = nodeSize(n.level)
                         val labelWidth = size + 34.dp
-                        val p = positions.getValue(n.contact.id)
                         val sizePx = with(density) { size.toPx() }
                         val labelWidthPx = with(density) { labelWidth.toPx() }
                         val isSel = selected == n.contact.id
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .offset { IntOffset((p.x - labelWidthPx / 2).toInt(), (p.y - sizePx / 2).toInt()) }
+                                // Read in placement: the spring moves nodes without recomposing them.
+                                .offset { val p = at(n.contact.id) ?: center; IntOffset((p.x - labelWidthPx / 2).toInt(), (p.y - sizePx / 2).toInt()) }
                                 .width(labelWidth),
                         ) {
                             Avatar(
@@ -454,3 +507,5 @@ private fun RootPicker(data: OrbitData, idx: Index, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
     )
 }
+
+private fun lerpOffset(a: Offset, b: Offset, t: Float): Offset = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
