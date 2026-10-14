@@ -172,6 +172,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
     }
 
     val bottomInset = with(density) { (BottomBarSpace + 8.dp).roundToPx() }
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     LaunchedEffect(mapView) {
         mapView.getMapAsync { m ->
             m.uiSettings.apply {
@@ -198,7 +199,14 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 }
                 val clusters = m.queryRenderedFeatures(pt, L_CLUSTER)
                 if (clusters.isNotEmpty()) {
-                    m.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, m.cameraPosition.zoom + 2.0), 450)
+                    // „Ein Cluster platzt beim Antippen in seine Mitglieder auf“ (PLAN 1.3): straight
+                    // to the zoom where it splits, centred on the cluster.
+                    val cluster = clusters.first()
+                    val source = m.style?.getSource(SRC) as? GeoJsonSource
+                    val split = runCatching { source?.getClusterExpansionZoom(cluster) }.getOrNull()?.toDouble()
+                    val centre = (cluster.geometry() as? org.maplibre.geojson.Point)?.let { LatLng(it.latitude(), it.longitude()) } ?: latLng
+                    m.animateCamera(CameraUpdateFactory.newLatLngZoom(centre, (split ?: (m.cameraPosition.zoom + 2.0)) + 0.3), 350)
+                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
                     return@addOnMapClickListener true
                 }
                 selected = null
@@ -240,6 +248,21 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
         if (!fitted && pins.isNotEmpty()) {
             fitted = true
             fitRequest++
+            // „Marker ploppen federnd“ (PLAN 1.3): once, when the map first fills.
+            val layer = st.getLayer(L_CONTACTS) as? SymbolLayer
+            val dots = st.getLayer(L_CLUSTER) as? CircleLayer
+            try {
+                androidx.compose.animation.core.Animatable(0.3f).animateTo(
+                    1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 520f),
+                ) {
+                    layer?.setProperties(PropertyFactory.iconSize(value))
+                    dots?.setProperties(PropertyFactory.circleRadius(19f * value))
+                }
+            } finally {
+                // Interrupted by new data: never leave the markers half-grown.
+                layer?.setProperties(PropertyFactory.iconSize(1f))
+                dots?.setProperties(PropertyFactory.circleRadius(19f))
+            }
         }
     }
 
@@ -253,7 +276,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
         when {
             focus != null -> {
                 selected = focus.contact.id
-                m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(focus.point.lat, focus.point.lng), 13.0), 600)
+                flyTo(m, focus.point.lat, focus.point.lng, 13.0, mapView.width)
             }
             pins.size == 1 -> m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(pins[0].point.lat, pins[0].point.lng), 12.0), 600)
             pins.size > 1 -> {
@@ -331,7 +354,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 onSelect = { id ->
                     selected = id
                     pins.firstOrNull { it.contact.id == id }?.let { q ->
-                        map?.animateCamera(CameraUpdateFactory.newLatLng(LatLng(q.point.lat, q.point.lng)), 400)
+                        map?.let { m -> flyTo(m, q.point.lat, q.point.lng, maxOf(m.cameraPosition.zoom, 12.0), mapView.width) }
                     }
                 },
                 onGoogle = { open(ctx, Geo.googleMapsSearch(p.contact.address)) },
@@ -339,6 +362,28 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
             )
         }
     }
+}
+
+/**
+ * Kamerafahrt im Bogen (PLAN 1.3): far jumps go out until both places are on screen, across and
+ * back in; near ones are one move. A sequence without touch answer, so longer than 400 ms (W9).
+ */
+private fun flyTo(m: MapLibreMap, lat: Double, lng: Double, zoom: Double, widthPx: Int) {
+    val cam = m.cameraPosition
+    val from = cam.target
+    val hop = from?.let { io.github.thelony97.orbit.core.domain.FlyPath.top(it.latitude, it.longitude, cam.zoom, lat, lng, zoom, widthPx.toDouble()) }
+    val land = CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), zoom)
+    if (hop == null) {
+        m.animateCamera(land, 600)
+        return
+    }
+    m.animateCamera(
+        CameraUpdateFactory.newLatLngZoom(LatLng(hop.lat, hop.lng), hop.zoom), 550,
+        object : MapLibreMap.CancelableCallback {
+            override fun onFinish() = m.animateCamera(land, 650)
+            override fun onCancel() {}
+        },
+    )
 }
 
 /** Image id changes with the photo and the kind, so updated avatars are picked up. */

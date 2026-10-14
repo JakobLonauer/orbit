@@ -1,19 +1,26 @@
 package io.github.thelony97.orbit.ui.onboarding
 
-import android.content.Intent
-import android.net.Uri
-import android.provider.DocumentsContract
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,79 +30,78 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.rounded.AddAPhoto
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearWavyProgressIndicator
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import io.github.thelony97.orbit.data.Mutations
+import io.github.thelony97.orbit.core.designsystem.Motion
+import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.domain.Index
+import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.notify.DigestScheduler
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.sync.Sync
-import io.github.thelony97.orbit.ui.Permissions
-import io.github.thelony97.orbit.util.Fmt
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import io.github.thelony97.orbit.ui.PhoneImport
+import io.github.thelony97.orbit.ui.Photos
+import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.GhostButton
 import io.github.thelony97.orbit.ui.components.GlowBar
 import io.github.thelony97.orbit.ui.components.GlowButton
 import io.github.thelony97.orbit.ui.components.SpaceBackground
-import io.github.thelony97.orbit.ui.components.SpaceChip
-import io.github.thelony97.orbit.ui.components.glass
+import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.glow
-import io.github.thelony97.orbit.ui.edit.spaceSwitch
+import io.github.thelony97.orbit.ui.list.PhoneBookList
+import io.github.thelony97.orbit.ui.list.takeOverAll
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private const val STEPS = 5
-
+/**
+ * Erster Start (PLAN 1.3): zwei Schritte – ICH (Name, Foto) → Handy-Kontakte auswählen – dann
+ * „Dein Orbit füllt sich“. Permissions, backup folder and lock are asked where they are needed
+ * (Verlauf, Einstellungen), never all at once (PLAN 1.2).
+ */
 @Composable
-fun OnboardingScreen(data: OrbitData) {
-    var step by rememberSaveable { mutableIntStateOf(0) }
+fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, initialStep: Int = 0) {
+    var step by rememberSaveable { mutableIntStateOf(initialStep) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    var arrived by remember { mutableStateOf<List<Contact>?>(null) }
+    var busy by remember { mutableStateOf(false) }
 
     fun finish() {
         AppLock.unlock()
@@ -107,232 +113,249 @@ fun OnboardingScreen(data: OrbitData) {
         }
     }
 
+    val me = Logic.me(data)
+    val first = rememberTextFieldState(me?.firstName?.takeIf { it != io.github.thelony97.orbit.data.Defaults.ME_DEFAULT_NAME }.orEmpty())
+    val last = rememberTextFieldState(me?.lastName.orEmpty())
+    var photo by rememberSaveable { mutableStateOf(me?.photo) }
+    var items by remember { mutableStateOf(preview) }
+    var selected by remember { mutableStateOf(setOf<Long>()) }
+
+    fun saveMe() {
+        val id = me?.id ?: return
+        val f = first.text.toString().trim()
+        val l = last.text.toString().trim()
+        OrbitRepository.editContact(id) { it.copy(firstName = f.ifEmpty { if (l.isEmpty()) io.github.thelony97.orbit.data.Defaults.ME_DEFAULT_NAME else "" }, lastName = l, photo = photo) }
+    }
+
+    fun takeOver() {
+        val picked = items.orEmpty().filter { it.id in selected }
+        if (busy) return
+        if (picked.isEmpty()) return finish()
+        busy = true
+        scope.launch {
+            arrived = takeOverAll(ctx, picked)
+            busy = false
+            if (arrived.isNullOrEmpty()) finish()
+        }
+    }
+
+    val landed = arrived
+    if (landed != null && landed.isNotEmpty()) {
+        OrbitFills(me, landed, remember(data) { Index(data) }, onDone = ::finish)
+        return
+    }
+
     SpaceBackground {
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 22.dp, vertical = 16.dp)) {
-        GlowBar((step + 1f) / STEPS, Space.Orange)
-        Spacer(Modifier.size(16.dp))
-        AnimatedContent(
-            targetState = step,
-            transitionSpec = {
-                val forward = targetState > initialState
-                slideInHorizontally { if (forward) it else -it } togetherWith slideOutHorizontally { if (forward) -it else it }
-            },
-            label = "onboarding",
-            modifier = Modifier.weight(1f),
-        ) { current ->
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                when (current) {
-                    0 -> Welcome()
-                    1 -> PermissionStep()
-                    2 -> GroupStep(data)
-                    3 -> BackupStep(data)
-                    else -> LockStep(data)
+        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(vertical = 16.dp)) {
+            GlowBar((step + 1f) / 2f, Space.Orange, Modifier.padding(horizontal = 22.dp))
+            Spacer(Modifier.size(16.dp))
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    val forward = targetState > initialState
+                    slideInHorizontally { if (forward) it else -it } togetherWith slideOutHorizontally { if (forward) -it else it }
+                },
+                label = "onboarding",
+                modifier = Modifier.weight(1f),
+            ) { current ->
+                if (current == 0) {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
+                        MeStep(me, first, last, photo, onPhoto = { photo = it })
+                    }
+                } else {
+                    PeopleStep(data, items, { items = it }, selected, { selected = it })
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (step > 0) GhostButton("Zurück", { step-- })
+                Spacer(Modifier.weight(1f))
+                if (step == 0) {
+                    GlowButton("Weiter", { saveMe(); step = 1 })
+                } else {
+                    GlowButton(if (selected.isEmpty()) "Ohne Kontakte starten" else "Übernehmen (${selected.size})", ::takeOver, enabled = !busy)
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (step > 0) GhostButton("Zurück", { step-- })
-            Spacer(Modifier.weight(1f))
-            GlowButton(
-                when (step) {
-                    0 -> "Los geht's"
-                    STEPS - 1 -> "Fertig"
-                    else -> "Weiter"
-                },
-                { if (step < STEPS - 1) step++ else finish() },
-            )
-        }
-    }
     }
 }
 
 @Composable
-private fun Title(text: String, sub: String) {
-    Text(text, style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text)
-    if (sub.isNotEmpty()) {
-        Spacer(Modifier.size(8.dp))
-        Text(sub, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+private fun MeStep(
+    me: Contact?,
+    first: androidx.compose.foundation.text.input.TextFieldState,
+    last: androidx.compose.foundation.text.input.TextFieldState,
+    photo: String?,
+    onPhoto: (String) -> Unit,
+) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch { Photos.saveFromUri(ctx, uri)?.let(onPhoto) }
     }
-    Spacer(Modifier.size(20.dp))
-}
-
-@Composable
-private fun Welcome() {
     var seconds by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
-        val start = withFrameNanos { it }
-        while (true) withFrameNanos { seconds = (it - start) / 1e9f }
+        // Infinite-animation frames: tests and battery saver may pause them.
+        val start = androidx.compose.animation.core.withInfiniteAnimationFrameNanos { it }
+        while (true) androidx.compose.animation.core.withInfiniteAnimationFrameNanos { seconds = (it - start) / 1e9f }
     }
-    Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-        listOf(70f, 106f, 142f).forEach { r ->
-            Box(
-                Modifier
-                    .size((r * 2).dp)
-                    .border(1.dp, Space.Line, CircleShape),
-            )
-        }
-        Box(
-            Modifier
-                .size(64.dp)
-                .graphicsLayer {
-                    val pulse = 1f + 0.05f * sin(seconds * 1.6f)
-                    scaleX = pulse
-                    scaleY = pulse
-                }
-                .glow(Space.Orange, 34.dp, CircleShape, 0.8f)
-                .background(Brush.radialGradient(listOf(Color(0xFFFFE2B8), Space.Orange, Color(0xFFE07A2E))), CircleShape),
-        )
-        val colors = listOf(Space.Violet, Space.Teal, Space.Coral, Space.Blue, Space.Orange)
-        colors.forEachIndexed { i, c ->
-            val radius = listOf(70f, 106f, 142f, 106f, 142f)[i]
+    // You in the middle, the first orbits already turning (Start-Moment).
+    Box(Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) {
+        listOf(70f, 106f, 136f).forEach { r -> Box(Modifier.size((r * 2).dp).border(1.dp, Space.Line, CircleShape)) }
+        listOf(Space.Violet, Space.Teal, Space.Coral, Space.Blue).forEachIndexed { i, c ->
+            val radius = listOf(70f, 106f, 136f, 106f)[i]
             Box(
                 Modifier
                     .offset {
-                        val a = seconds * (0.8f - (i % 3) * 0.2f) + i * 2.1f
-                        IntOffset(
-                            (cos(a) * radius * density).roundToInt(),
-                            (sin(a) * radius * density).roundToInt(),
-                        )
+                        val a = seconds * (0.7f - (i % 3) * 0.18f) + i * 2.1f
+                        IntOffset((cos(a) * radius * density).roundToInt(), (sin(a) * radius * density).roundToInt())
                     }
-                    .size((16 - i * 2).dp)
+                    .size((14 - i * 2).dp)
                     .glow(c, 10.dp, CircleShape, 0.8f)
                     .background(c, CircleShape),
             )
         }
-    }
-    Title(
-        "Willkommen bei Orbit",
-        "Dein persönliches Beziehungs-CRM: Wer ist dir wichtig, wann hast du zuletzt gesprochen, und was wolltest du beim nächsten Mal ansprechen? " +
-            "Alles bleibt auf deinem Handy.",
-    )
-}
-
-@Composable
-private fun PermissionStep() {
-    val ctx = LocalContext.current
-    var tick by remember { mutableIntStateOf(0) }
-    var askedOnce by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
-    LifecycleResumeEffect(Unit) {
-        tick++
-        onPauseOrDispose { }
-    }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        tick++
-        askedOnce = true
-    }
-    val states = remember(tick) { Permissions.core.map { it to Permissions.granted(ctx, it.permission) } }
-
-    Title("Berechtigungen", "Damit Orbit Anrufe und SMS automatisch in den Verlauf schreiben und dich erinnern kann.")
-    states.forEach { (p, granted) ->
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                if (granted) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                null,
-                tint = if (granted) Space.Teal else Space.TextFaint,
-                modifier = Modifier.size(20.dp),
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                Text(p.title, style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
-                Text(p.why, style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
-            }
-        }
-    }
-    Spacer(Modifier.size(12.dp))
-    val missing = states.filterNot { it.second }
-    if (missing.isNotEmpty()) {
-        GlowButton("Alle erlauben", { launcher.launch(missing.map { it.first.permission }.toTypedArray()) })
-    }
-    if (askedOnce && missing.isNotEmpty()) {
-        Spacer(Modifier.size(16.dp))
-        Column(
-            Modifier.fillMaxWidth().glass(RoundedCornerShape(20.dp), border = Space.Orange.copy(alpha = 0.5f)).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        val shown = me?.let { m -> m.copy(photo = photo, firstName = first.text.toString().ifBlank { m.firstName }, lastName = last.text.toString()) }
+        Box(
+            Modifier
+                .size(96.dp)
+                .graphicsLayer { val p = 1f + 0.03f * sin(seconds * 1.6f); scaleX = p; scaleY = p }
+                .clip(CircleShape)
+                .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            contentAlignment = Alignment.Center,
         ) {
-            Text(Permissions.RESTRICTED_HELP, style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
-            GhostButton("App-Info öffnen", {
-                AppLock.allowExternal()
-                ctx.startActivity(Permissions.appInfoIntent(ctx))
-            })
-        }
-    }
-}
-
-@Composable
-private fun GroupStep(data: OrbitData) {
-    Title("Deine Gruppen", "")
-    data.groups.forEach { g ->
-        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(RoundedCornerShape(20.dp))) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).glow(Color(g.color), 6.dp).background(Color(g.color), CircleShape))
-                    Text(g.name, style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text, modifier = Modifier.padding(start = 10.dp).weight(1f))
-                    Icon(
-                        Icons.Rounded.Close, "Entfernen",
-                        tint = Space.TextFaint,
-                        modifier = Modifier.size(30.dp).clip(CircleShape).clickable { OrbitRepository.edit { d -> Mutations.deleteGroup(d, g.id) } }.padding(6.dp),
-                    )
+            if (shown != null && photo != null) {
+                Avatar(shown, Space.Orange, 96.dp, glowColor = Space.Orange)
+            } else {
+                Box(
+                    Modifier.fillMaxSize().glow(Space.Orange, 30.dp, CircleShape, 0.7f)
+                        .background(Brush.radialGradient(listOf(Color(0xFFFFE2B8), Space.Orange, Color(0xFFE07A2E))), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.AddAPhoto, "Foto", tint = Space.Void, modifier = Modifier.size(28.dp))
                 }
             }
         }
     }
+    Text("Das bist du", style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text)
+    Spacer(Modifier.size(20.dp))
+    OutlinedTextField(state = first, label = { Text("Vorname") }, lineLimits = TextFieldLineLimits.SingleLine, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.size(10.dp))
+    OutlinedTextField(state = last, label = { Text("Nachname") }, lineLimits = TextFieldLineLimits.SingleLine, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
-private fun BackupStep(data: OrbitData) {
+private fun PeopleStep(
+    data: OrbitData,
+    items: List<PhoneImport.Item>?,
+    onItems: (List<PhoneImport.Item>) -> Unit,
+    selected: Set<Long>,
+    onSelected: (Set<Long>) -> Unit,
+) {
     val ctx = LocalContext.current
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            ctx.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
-            OrbitRepository.editSettings { it.copy(backupTreeUri = uri.toString()) }
-        }
-    }
-    Title(
-        "Backup",
-        "Orbit speichert einmal pro Woche eine Sicherung in einen Ordner deiner Wahl – am besten einen Google-Drive-Ordner, " +
-            "dann überlebt sie auch einen Handywechsel.",
-    )
-    val folder = data.settings.backupTreeUri?.let {
-        runCatching { DocumentsContract.getTreeDocumentId(Uri.parse(it)).substringAfter(':') }.getOrNull()
-    }
-    if (folder != null) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.CheckCircle, null, tint = Space.Teal, modifier = Modifier.size(20.dp))
-            Text("Ordner: ${folder.ifBlank { "Hauptordner" }}", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.padding(start = 10.dp))
-        }
+    var granted by remember { mutableStateOf(ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    LaunchedEffect(granted) { if (granted && items == null) onItems(PhoneImport.list(ctx)) }
+    Column(Modifier.fillMaxSize()) {
+        Text("Wer gehört in deinen Orbit?", style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text, modifier = Modifier.padding(horizontal = 22.dp))
         Spacer(Modifier.size(12.dp))
+        if (!granted && items == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                GlowButton("Handy-Kontakte zeigen", { permission.launch(Manifest.permission.READ_CONTACTS) }, color = Space.Teal)
+            }
+        } else {
+            PhoneBookList(items, data, selected, onSelected, contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp))
+        }
     }
-    GlowButton(if (folder == null) "Ordner wählen" else "Anderen Ordner wählen", {
-        AppLock.allowExternal()
-        picker.launch(null)
-    }, color = Space.Blue)
-    Spacer(Modifier.size(8.dp))
-    Text(
-        "Kannst du auch später in den Einstellungen machen.",
-        style = MaterialTheme.typography.bodySmall,
-        color = Space.TextFaint,
-    )
 }
 
+/**
+ * „Dein Orbit füllt sich“ (PLAN 1.3): the new contacts fly in from the edges onto orbits around
+ * you, circle once and settle into the list. A sequence without touch answer (W9 exception);
+ * a tap skips it.
+ */
 @Composable
-private fun LockStep(data: OrbitData) {
-    val ctx = LocalContext.current
-    val available = remember { AppLock.isAvailable(ctx) }
-    Title("App-Sperre", "Orbit sperrt sich sofort, wenn du die App verlässt, und öffnet sich mit Fingerabdruck, Gesicht oder PIN.")
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            if (available) "Sperre aktiv" else "Keine Displaysperre eingerichtet – Sperre nicht möglich",
-            style = MaterialTheme.typography.titleSmallEmphasized,
-            color = Space.Text,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = data.settings.lockEnabled && available,
-            onCheckedChange = { v -> OrbitRepository.editSettings { it.copy(lockEnabled = v) } },
-            enabled = available,
-            colors = spaceSwitch(),
-        )
+internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDone: () -> Unit, frozenAt: Float? = null) {
+    val t = remember { Animatable(frozenAt ?: 0f) }
+    LaunchedEffect(Unit) {
+        if (frozenAt != null) return@LaunchedEffect
+        t.animateTo(3f, tween(2_900, easing = LinearEasing))
+        onDone()
+    }
+    val density = LocalDensity.current
+    val shown = contacts.sortedBy { Logic.sortKey(it, false) }.take(18)
+    SpaceBackground {
+        BoxWithConstraints(
+            Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDone() },
+        ) {
+            val w = with(density) { maxWidth.toPx() }
+            val h = with(density) { maxHeight.toPx() }
+            val cx = w / 2f
+            val cy = h * 0.42f
+            val dp = density.density
+            val avatar = 44f * dp
+            val time = t.value
+            val arrange = Motion.Emphasized.transform(((time - 2.1f) / 0.9f).coerceIn(0f, 1f))
+
+            // You in the middle; makes room once the list forms.
+            if (me != null) {
+                Avatar(
+                    me, Space.Orange, 88.dp,
+                    glowColor = Space.Orange,
+                    modifier = Modifier
+                        .offset { IntOffset((cx - 44f * dp).roundToInt(), (cy - 44f * dp).roundToInt()) }
+                        .graphicsLayer { alpha = 1f - arrange; scaleX = 1f - 0.4f * arrange; scaleY = 1f - 0.4f * arrange },
+                )
+            }
+            listOf(78f, 118f, 158f).forEach { r ->
+                Box(
+                    Modifier
+                        .offset { IntOffset((cx - r * dp).roundToInt(), (cy - r * dp).roundToInt()) }
+                        .size((r * 2).dp)
+                        .graphicsLayer { alpha = (time / 0.4f).coerceIn(0f, 1f) * (1f - arrange) }
+                        .border(1.dp, Space.Line, CircleShape),
+                )
+            }
+            val top = 120f * dp
+            shown.forEachIndexed { i, c ->
+                val ring = i % 3
+                val radius = listOf(78f, 118f, 158f)[ring] * dp
+                val base = i * 2.399963f
+                val local = Motion.Emphasized.transform(((time - i * 0.045f) / 0.9f).coerceIn(0f, 1f))
+                // Spiral in from beyond the screen edge, then keep turning.
+                val far = maxOf(w, h) * 0.9f
+                val r = far + (radius - far) * local
+                val a = base - 1.4f * (1f - local) + (time * (0.55f - ring * 0.12f))
+                val ox = cx + cos(a) * r
+                val oy = cy + sin(a) * r
+                val lx = 16f * dp + avatar / 2f
+                val ly = top + i * 64f * dp
+                val x = ox + (lx - ox) * arrange
+                val y = oy + (ly - oy) * arrange
+                Row(
+                    Modifier.offset { IntOffset((x - avatar / 2f).roundToInt(), (y - avatar / 2f).roundToInt()) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(c, contactColor(c, idx), 44.dp)
+                    Spacer(Modifier.width(14.dp))
+                    Text(
+                        Logic.displayName(c, false),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Space.Text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.graphicsLayer { alpha = arrange },
+                    )
+                }
+            }
+            Column(
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp).graphicsLayer { alpha = (1f - arrange) * (time / 0.6f).coerceIn(0f, 1f) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("Dein Orbit füllt sich", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                Text("${contacts.size} Kontakte", style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+            }
+        }
     }
 }
+

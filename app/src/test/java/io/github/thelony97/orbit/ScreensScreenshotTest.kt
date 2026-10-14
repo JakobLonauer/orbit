@@ -181,6 +181,32 @@ class ScreensScreenshotTest {
         )
     }
 
+    /** Erster Start (PLAN 1.3): step one, ICH. */
+    @Test fun firstStartMe() = shot("first_start_me") {
+        io.github.thelony97.orbit.ui.onboarding.OnboardingScreen(data.copy(settings = Settings()))
+    }
+
+    /** Erster Start, step two: the phone book to pick from. */
+    @Test fun firstStartPeople() = shot("first_start_people") {
+        io.github.thelony97.orbit.ui.onboarding.OnboardingScreen(
+            data.copy(settings = Settings()),
+            preview = listOf(
+                io.github.thelony97.orbit.ui.PhoneImport.Item(1, "Anna Berger", listOf("0660 1234567")),
+                io.github.thelony97.orbit.ui.PhoneImport.Item(2, "Clemens Wagner", listOf("+43 699 1112223")),
+            ),
+            initialStep = 1,
+        )
+    }
+
+    /** „Dein Orbit füllt sich“: in flight around you, and settling into the list. */
+    @Test fun orbitFillsInFlight() = shot("orbit_fills_flight") {
+        io.github.thelony97.orbit.ui.onboarding.OrbitFills(data.contacts.first { it.isMe }, data.contacts.filter { !it.isMe }, idx, onDone = {}, frozenAt = 1.4f)
+    }
+
+    @Test fun orbitFillsSettling() = shot("orbit_fills_list") {
+        io.github.thelony97.orbit.ui.onboarding.OrbitFills(data.contacts.first { it.isMe }, data.contacts.filter { !it.isMe }, idx, onDone = {}, frozenAt = 2.75f)
+    }
+
     /** Teilen-Eingang (PLAN 3.8): a place from Google Maps. */
     @Test fun shareSheet() {
         compose.setContent {

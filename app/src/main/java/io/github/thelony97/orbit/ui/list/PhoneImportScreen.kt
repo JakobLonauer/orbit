@@ -73,8 +73,6 @@ fun PhoneImportScreen(data: OrbitData, nav: Nav, preview: List<PhoneImport.Item>
     val haptics = rememberHaptics()
     var items by remember { mutableStateOf(preview) }
     LaunchedEffect(Unit) { if (preview == null) items = PhoneImport.list(ctx) }
-    val iso = remember { Phones.countryIso(ctx) }
-    val lookup = remember(data.contacts) { Duplicates.Lookup(data.contacts) { Phones.normalize(it, iso) } }
     var selected by remember { mutableStateOf(initialSelection) }
     var busy by remember { mutableStateOf(false) }
 
@@ -90,10 +88,8 @@ fun PhoneImportScreen(data: OrbitData, nav: Nav, preview: List<PhoneImport.Item>
                 if (c != null) nav.replace(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), c)))
                 return@launch
             }
-            val contacts = picked.mapNotNull { PhoneImport.read(ctx, it.uri) }
+            val contacts = takeOverAll(ctx, picked)
             val ids = contacts.map { it.id }.toSet()
-            OrbitRepository.edit { d -> contacts.fold(d) { acc, c -> Mutations.upsertContact(acc, c) } }
-            Sync.backfill(ctx, contacts.filter { it.phones.isNotEmpty() }.map { it.id })
             haptics.perform(Haptic.Confirm)
             Undo.offer(if (contacts.size == 1) "1 Kontakt übernommen" else "${contacts.size} Kontakte übernommen") {
                 OrbitRepository.edit { d -> ids.fold(d) { acc, id -> Mutations.purge(acc, id) } }
@@ -104,56 +100,88 @@ fun PhoneImportScreen(data: OrbitData, nav: Nav, preview: List<PhoneImport.Item>
         }
     }
 
-    val search = rememberTextFieldState()
-    val q = search.text.toString().trim()
-    val list = items
     ManageScaffold(
         "Aus Handy übernehmen", nav,
         fabLabel = if (selected.isEmpty()) null else "Übernehmen (${selected.size})",
         onFab = ::takeOver,
     ) { padding ->
-        when {
-            list == null -> Box(Modifier.padding(top = padding.calculateTopPadding())) { ListPlaceholder() }
-            list.isEmpty() -> Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) { EmptyHint("Keine Kontakte im Handy", "") }
-            else -> {
-                val hits = remember(list, lookup) { list.associate { it.id to lookup.hit(it.numbers) } }
-                val shown = remember(list, q) {
-                    if (q.isEmpty()) list
-                    else list.filter { it.name.contains(q, ignoreCase = true) || it.numbers.any { n -> n.filter(Char::isDigit).contains(q.filter(Char::isDigit).ifEmpty { "\u0000" }) } }
-                }
-                val fresh = shown.filter { hits[it.id] == null }.map { it.id }.toSet()
-                LazyColumn(
-                    Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 120.dp),
-                ) {
-                    item(key = "search") {
-                        Column(Modifier.padding(horizontal = 16.dp)) {
-                            SpaceSearchField(search, "Im Handy suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
-                            if (fresh.isNotEmpty()) {
-                                val all = selected.containsAll(fresh)
-                                Row(Modifier.padding(top = 10.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    SpaceChip("Alle neuen · ${fresh.size}", all, { selected = if (all) selected - fresh else selected + fresh })
-                                }
+        PhoneBookList(
+            items = items,
+            data = data,
+            selected = selected,
+            onSelected = { selected = it },
+            contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 120.dp),
+        )
+    }
+}
+
+/**
+ * Reads the picked phone-book contacts in full (with photo), stores them and fetches their Verlauf
+ * in one pass. Shared by the import page and the first start.
+ */
+internal suspend fun takeOverAll(ctx: android.content.Context, picked: List<PhoneImport.Item>): List<Contact> {
+    val contacts = picked.mapNotNull { PhoneImport.read(ctx, it.uri) }
+    if (contacts.isEmpty()) return contacts
+    OrbitRepository.edit { d -> contacts.fold(d) { acc, c -> Mutations.upsertContact(acc, c) } }
+    Sync.backfill(ctx, contacts.filter { it.phones.isNotEmpty() }.map { it.id })
+    return contacts
+}
+
+/** The phone book with search, „Alle neuen“ and the „gibt es schon“ hint; [items] null = loading. */
+@Composable
+internal fun PhoneBookList(
+    items: List<PhoneImport.Item>?,
+    data: OrbitData,
+    selected: Set<Long>,
+    onSelected: (Set<Long>) -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    val ctx = LocalContext.current
+    val haptics = rememberHaptics()
+    val iso = remember { Phones.countryIso(ctx) }
+    val lookup = remember(data.contacts) { Duplicates.Lookup(data.contacts) { Phones.normalize(it, iso) } }
+    val search = rememberTextFieldState()
+    val q = search.text.toString().trim()
+    val list = items
+    when {
+        list == null -> Box(modifier.padding(top = contentPadding.calculateTopPadding())) { ListPlaceholder() }
+        list.isEmpty() -> Box(modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) { EmptyHint("Keine Kontakte im Handy", "") }
+        else -> {
+            val hits = remember(list, lookup) { list.associate { it.id to lookup.hit(it.numbers) } }
+            val shown = remember(list, q) {
+                if (q.isEmpty()) list
+                else list.filter { it.name.contains(q, ignoreCase = true) || it.numbers.any { n -> n.filter(Char::isDigit).contains(q.filter(Char::isDigit).ifEmpty { "\u0000" }) } }
+            }
+            val fresh = shown.filter { hits[it.id] == null }.map { it.id }.toSet()
+            LazyColumn(modifier.fillMaxSize(), contentPadding = contentPadding) {
+                item(key = "search") {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        SpaceSearchField(search, "Im Handy suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
+                        if (fresh.isNotEmpty()) {
+                            val all = selected.containsAll(fresh)
+                            Row(Modifier.padding(top = 10.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SpaceChip("Alle neuen · ${fresh.size}", all, { onSelected(if (all) selected - fresh else selected + fresh) })
                             }
                         }
                     }
-                    if (shown.isEmpty()) {
-                        item(key = "none") { EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() }) }
-                    }
-                    items(shown, key = { it.id }) { item ->
-                        val hit = hits[item.id]
-                        val owner = hit?.let { h -> data.contacts.firstOrNull { it.id == h.contactId } }
-                        ImportRow(
-                            item = item,
-                            selected = item.id in selected,
-                            already = owner?.let { Logic.displayName(it, data.settings.sortByLastName) + if (it.archived) " (Archiv)" else "" },
-                            onToggle = {
-                                haptics.perform(Haptic.Tick)
-                                selected = if (item.id in selected) selected - item.id else selected + item.id
-                            },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
+                }
+                if (shown.isEmpty()) {
+                    item(key = "none") { EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() }) }
+                }
+                items(shown, key = { it.id }) { item ->
+                    val hit = hits[item.id]
+                    val owner = hit?.let { h -> data.contacts.firstOrNull { it.id == h.contactId } }
+                    ImportRow(
+                        item = item,
+                        selected = item.id in selected,
+                        already = owner?.let { Logic.displayName(it, data.settings.sortByLastName) + if (it.archived) " (Archiv)" else "" },
+                        onToggle = {
+                            haptics.perform(Haptic.Tick)
+                            onSelected(if (item.id in selected) selected - item.id else selected + item.id)
+                        },
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
         }

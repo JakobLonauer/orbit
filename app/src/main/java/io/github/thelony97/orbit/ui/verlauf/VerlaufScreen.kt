@@ -115,6 +115,16 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     val showOrgs = Session.audience != Audience.PEOPLE
     val todayDate = today()
     val rows = remember(data, showOrgs, typeFilter, query) { verlaufRows(data, showOrgs, typeFilter, query) }
+    // Erster Start asks nothing up front (PLAN 1.3): the empty Verlauf asks for what fills it.
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var permissionTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var asked by rememberSaveable { mutableStateOf(false) }
+    val missing = remember(permissionTick) { io.github.thelony97.orbit.ui.Permissions.core.filterNot { io.github.thelony97.orbit.ui.Permissions.granted(ctx, it.permission) } }
+    val permissions = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+        permissionTick++
+        asked = true
+        io.github.thelony97.orbit.sync.Sync.requestNow(ctx)
+    }
     // Kinds that actually occur, most used first (W5: only what applies).
     val kinds = remember(data) {
         data.contacts.asSequence().filter { !it.archived && it.deletedAt == null }
@@ -157,6 +167,10 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                 when {
                     query.isNotEmpty() -> EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() })
                     typeFilter != null -> EmptyHint("Keine Einträge dieser Art", "", action = "Alle zeigen" to { typeFilter = null })
+                    missing.isNotEmpty() && !asked -> EmptyHint("Noch kein Verlauf", "", action = "Anrufe und SMS mitschreiben" to {
+                        permissions.launch(missing.map { it.permission }.toTypedArray())
+                    })
+                    missing.isNotEmpty() -> EmptyHint("Noch kein Verlauf", "", action = "Berechtigungen ansehen" to { nav.open(io.github.thelony97.orbit.ui.Route.Settings) })
                     else -> EmptyHint("Noch kein Verlauf", "", action = "Zu den Kontakten" to { nav.home(io.github.thelony97.orbit.ui.home.HomeTab.CONTACTS) })
                 }
             }
