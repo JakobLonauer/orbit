@@ -65,6 +65,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PersonAdd
@@ -724,6 +725,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     onClick = { io.github.thelony97.orbit.ui.components.AppWork.launch { Updates.check() } },
                 )
                 Hairline()
+                // PLAN 2.4 / 3.13: what is new is one line here – never a popup.
+                SettingItem(Icons.Rounded.NewReleases, "Neu in dieser Version", WHATS_NEW, iconTint = Space.Violet)
+                Hairline()
                 SettingItem(
                     Icons.Rounded.Update, "Beim Start auf Updates prüfen",
                     trailing = { SpaceSwitch(s.autoUpdateCheck) { v -> OrbitRepository.editSettings { it.copy(autoUpdateCheck = v) } } },
@@ -945,3 +949,6 @@ private fun BackupPasswordDialog(
     )
 }
 
+/** The one „Was ist neu“ line (PLAN 3.13), kept with the release that brings it. */
+internal const val WHATS_NEW =
+    "Anlässe mit Jahresrad · Orbit als Telefon-App · Organisationen mit Portalen · E-Mails im Verlauf · Fotos-Seite · Ich-Karte"

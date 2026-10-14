@@ -60,6 +60,7 @@ fun PhotosScreen(contactId: String?, data: OrbitData, idx: Index, nav: Nav) {
     }
     val flat = remember(months) { months.flatMap { it.items } }
     var viewer by remember { mutableStateOf<Int?>(null) }
+    val gallery = rememberGalleryImport(contactId.orEmpty())
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     // LazyColumn index of each month header: header item 0, then per month 1 + rows.
@@ -85,7 +86,10 @@ fun PhotosScreen(contactId: String?, data: OrbitData, idx: Index, nav: Nav) {
                         )
                     }
                 }
-                if (flat.isEmpty()) item(key = "empty") { EmptyHint("Noch keine Fotos", "") }
+                // W6: a contact's empty folder offers the one way in; the global page has nothing to add to.
+                if (flat.isEmpty()) item(key = "empty") {
+                    EmptyHint("Noch keine Fotos", "", action = if (contactId != null) ("Fotos hinzufügen" to { gallery.launch() }) else null)
+                }
                 var offset = 0
                 months.forEach { m ->
                     item(key = "m-${m.key}") {
