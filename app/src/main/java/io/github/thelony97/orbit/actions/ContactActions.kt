@@ -64,7 +64,7 @@ object ContactActions {
     }
 
     /** The greeting „Gratulieren“ fills in (a per-contact template – Du/Sie, language – comes later). */
-    fun greeting(c: Contact): String = "Alles Gute zum Geburtstag, ${c.firstName.ifBlank { Logic.displayName(c, false) }}!"
+    fun greeting(c: Contact): String = "Alles Gute zum Geburtstag, ${c.firstName.ifBlank { io.github.thelony97.orbit.domain.Logic.displayName(c, false) }}!"
 
     /**
      * „Gratulieren“ (PLAN 3.5): WhatsApp with the greeting filled in if it is installed, otherwise
