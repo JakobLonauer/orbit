@@ -46,6 +46,7 @@ import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
 import io.github.thelony97.orbit.ui.theme.Space
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 /**
  * Reiter „Geburtstage“ des Anlässe-Tabs (PLAN 3.5), erste Fassung: alle Menschen mit Geburtstag
@@ -65,14 +66,54 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     val coGivers = remember(data) { BirthdayTab.coGivers(data.contacts).mapNotNull { byId[it] } }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var filling by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // Jahresrad (PLAN 1.3): every visible occasion of the coming year as a dot in its contact's colour.
+    val upcoming = remember(data, todayDate) {
+        io.github.thelony97.orbit.core.domain.UpcomingIndex.build(data.contacts, todayDate) { Visibility.inLists(it, data.settings.showOrgs) }
+    }
+    val dots = remember(upcoming, idx) { upcoming.mapNotNull { u -> byId[u.ownerId]?.let { RingDot(u.date, contactColor(it, idx)) } } }
+    val ringTitle = "${todayDate.dayOfMonth}. ${BirthdayTab.MONTHS[todayDate.monthValue - 1]}"
+    val ringSub = remember(upcoming, todayDate) {
+        val todays = upcoming.filter { it.daysUntil == 0L }
+        when {
+            todays.size == 1 -> byId[todays.single().ownerId]?.let { "Heute: " + Logic.shortName(it) }.orEmpty()
+            todays.size > 1 -> "Heute: ${todays.size} Anlässe"
+            else -> upcoming.firstOrNull()?.let { u -> byId[u.ownerId]?.let { Logic.shortName(it) + " · " + relativeDay(u.daysUntil) } }.orEmpty()
+        }
+    }
+    // Index of the first list item of each month, for „Monat antippen springt in die Liste“.
+    // Mirrors the order the LazyColumn below emits its items in (header, ring, then the groups).
+    val monthIndex = remember(result, byId) {
+        val map = HashMap<Int, Int>()
+        var i = 2
+        for (g in result.groups) {
+            val head = i
+            i++
+            for (r in g.rows) {
+                if (byId[r.contactId] == null) continue
+                if (r.daysUntil >= 0) map.putIfAbsent(r.date.monthValue, head)
+                i++
+            }
+        }
+        map
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
     ) {
         item(key = "header") {
             Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).height(38.dp), contentAlignment = Alignment.CenterStart) {
-                Text("Geburtstage", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                Text("Anlässe", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
             }
+        }
+        item(key = "ring") {
+            YearRingView(dots, todayDate, ringTitle, ringSub, onMonth = { m ->
+                // No birthday that month: the next month that has one.
+                val target = (0 until 12).map { ((m - 1 + it) % 12) + 1 }.firstNotNullOfOrNull { monthIndex[it] }
+                if (target != null) scope.launch { listState.animateScrollToItem(target) }
+            })
         }
         result.groups.forEach { g ->
             item(key = "s-${g.section}-${g.title}") {
