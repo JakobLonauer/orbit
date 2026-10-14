@@ -352,6 +352,24 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav, initialReiter = 2)
     }
 
+    /** Filter & Sortierung der Anlässe (PLAN 3.5): Art, Zeitraum, nur runde, Gruppe, Organisationen. */
+    @Test fun occasionFilter() {
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.occasions.OccasionFilterSheet(
+                        io.github.thelony97.orbit.ui.occasions.OccasionView(
+                            kinds = setOf(io.github.thelony97.orbit.core.model.OccasionKind.WEDDING), withinDays = 30, onlyRound = true,
+                            sort = io.github.thelony97.orbit.core.domain.OccasionList.Sort.CALENDAR,
+                        ),
+                        data.groups, onChange = {}, onDismiss = {},
+                    )
+                }
+            }
+        }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_anlaesse_filter.png")
+    }
+
     @Test fun homeOccasionsTab() = shot("home_anlaesse") {
         HomeScreen(data, idx, nav, tab = io.github.thelony97.orbit.ui.home.HomeTab.ANLAESSE, onTab = {})
     }

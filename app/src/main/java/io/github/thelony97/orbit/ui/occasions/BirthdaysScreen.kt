@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +31,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,10 +77,9 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     // Reiter (PLAN 3.5): Geburtstage (Standard) · Angepinnt (only when something is pinned, W5) · Alle Anlässe.
     var reiter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(initialReiter) }
-    var sort by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(io.github.thelony97.orbit.core.domain.OccasionList.Sort.NEXT) }
-    var reversed by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
-    var within by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<Int?>(null) }
-    var round by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    // Filter & Sortierung for „Angepinnt“ and „Alle“, behind one button like the contact list (PLAN 3.5).
+    var view by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(OccasionView()) }
+    var filterSheet by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // Jahresrad (PLAN 1.3): every visible occasion of the coming year as a dot in its contact's colour.
     val upcoming = remember(data, todayDate) {
@@ -88,15 +87,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     }
     val hasPinned = upcoming.any { it.occasion.pinned }
     val shown = if (reiter == 1 && !hasPinned) 0 else reiter
-    val occGroups = remember(data, todayDate, shown, sort, reversed, within, round) {
+    val occGroups = remember(data, todayDate, shown, view) {
         if (shown == 0) emptyList()
         else io.github.thelony97.orbit.core.domain.OccasionList.build(
-            data.contacts, todayDate, { Visibility.inLists(it, data.settings.showOrgs) },
-            // „Angepinnt“ has no controls of its own: the „Alle“ filters never narrow it unseen.
-            if (shown == 1) io.github.thelony97.orbit.core.domain.OccasionList.Filter(pinnedOnly = true)
-            else io.github.thelony97.orbit.core.domain.OccasionList.Filter(withinDays = within, onlyRound = round),
-            if (shown == 1) io.github.thelony97.orbit.core.domain.OccasionList.Sort.NEXT else sort,
-            if (shown == 1) false else reversed,
+            data.contacts, todayDate, { Visibility.inLists(it, view.orgs || data.settings.showOrgs) },
+            // Both Reiter share the filter; its badge shows on the button above them.
+            view.filter(pinnedOnly = shown == 1), view.sort, view.reversed,
             name = { id -> byId[id]?.let { Logic.displayName(it, lastFirst) }.orEmpty() },
         )
     }
@@ -129,7 +125,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 }
             }
         } else {
-            var i = 3 + if (shown == 2) 1 else 0
+            var i = 3
             for (g in occGroups) {
                 val head = i
                 if (g.title.isNotEmpty()) i++
@@ -151,8 +147,14 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
     ) {
         item(key = "header") {
-            Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).height(38.dp), contentAlignment = Alignment.CenterStart) {
-                Text("Anlässe", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp).height(38.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Anlässe", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
+                // Only where it filters something (W5): the Geburtstage Reiter has no filter.
+                if (shown != 0) {
+                    io.github.thelony97.orbit.ui.components.BadgeOrb(
+                        androidx.compose.material.icons.Icons.Rounded.Tune, "Filter & Sortierung", view.activeCount(), { filterSheet = true }, size = 38.dp,
+                    )
+                }
             }
         }
         item(key = "ring") {
@@ -173,26 +175,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             }
         }
         if (shown != 0) {
-            if (shown == 2) item(key = "controls") {
-                // Sortierung (tap: next one, arrow: reverse) and quick filters (PLAN 3.5).
-                // One line that scrolls sideways, like the kind chips in the Verlauf.
-                androidx.compose.foundation.layout.Row(
-                    Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val sorts = io.github.thelony97.orbit.core.domain.OccasionList.Sort.entries
-                    io.github.thelony97.orbit.ui.components.SpaceChip(sort.label, true, { sort = sorts[(sort.ordinal + 1) % sorts.size] })
-                    io.github.thelony97.orbit.ui.components.SpaceChip(if (reversed) "↑" else "↓", reversed, { reversed = !reversed })
-                    listOf(7, 30, 90).forEach { d -> io.github.thelony97.orbit.ui.components.SpaceChip("$d Tage", within == d, { within = if (within == d) null else d }) }
-                    io.github.thelony97.orbit.ui.components.SpaceChip("Nur runde", round, { round = !round })
-                }
-            }
             if (occGroups.isEmpty()) item(key = "occ-empty") {
                 // W6: one way on – drop the quick filters if they emptied the list.
-                val filtered = shown == 2 && (within != null || round)
+                val filtered = view.filter(false) != io.github.thelony97.orbit.core.domain.OccasionList.Filter()
                 io.github.thelony97.orbit.ui.components.EmptyHint(
                     "Keine Anlässe", "",
-                    action = if (filtered) "Alle zeigen" to { within = null; round = false } else null,
+                    action = if (filtered) "Alle zeigen" to { view = view.copy(kinds = emptySet(), groupId = null, withinDays = null, onlyRound = false) } else null,
                 )
             }
             occGroups.forEach { g ->
@@ -297,6 +285,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             }
         }
     }
+    if (filterSheet) OccasionFilterSheet(view, data.groups, onChange = { view = it }, onDismiss = { filterSheet = false })
     // Sternenregen: a birthday today, once per day.
     val birthdayToday = result.groups.any { it.section == BirthdayTab.Section.TODAY }
     StarRain(play = birthdayToday && io.github.thelony97.orbit.ui.Session.starRainDay != todayDate.toEpochDay()) {
