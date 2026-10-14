@@ -118,9 +118,16 @@ private fun MainNavigation(data: OrbitData) {
     val backStack = rememberNavBackStack(Route.Home)
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val idx = remember(data) { Index(data) }
+    // Tablet/Foldable (PLAN 1.4): from 840 dp on, list and contact side by side.
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
+    val wideNow = androidx.compose.runtime.rememberUpdatedState(wide)
+    var pane by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     val nav = remember(backStack) {
         Nav(
-            open = { route -> backStack.add(route) },
+            open = { route ->
+                if (wideNow.value && backStack.size == 1 && route is Route.Detail && route.entryId == null) pane = route.id
+                else backStack.add(route)
+            },
             back = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) },
             replace = { route ->
                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
@@ -130,6 +137,23 @@ private fun MainNavigation(data: OrbitData) {
                 while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                 tab = target
             },
+        )
+    }
+
+    // Folded shut or turned: the open contact becomes a normal page.
+    LaunchedEffect(wide) {
+        val id = pane
+        if (!wide && id != null) {
+            pane = null
+            backStack.add(Route.Detail(id))
+        }
+    }
+    val paneNav = remember(nav) {
+        Nav(
+            open = nav.open,
+            back = { pane = null },
+            replace = { route -> if (route is Route.Detail) pane = route.id else { pane = null; nav.open(route) } },
+            home = { target -> pane = null; nav.home(target) },
         )
     }
 
@@ -194,7 +218,29 @@ private fun MainNavigation(data: OrbitData) {
         onBack = { nav.back() },
         entryProvider = entryProvider {
             entry<Route.Home> {
-                HomeScreen(data = data, idx = idx, nav = nav, tab = tab, onTab = { tab = it })
+                if (wide) {
+                    androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(0.42f)) {
+                            HomeScreen(data = data, idx = idx, nav = nav, tab = tab, onTab = { tab = it })
+                        }
+                        Box(Modifier.fillMaxSize().weight(0.58f)) {
+                            val id = pane
+                            // The contact appears beside the list: no flying avatar between them.
+                            androidx.compose.runtime.CompositionLocalProvider(io.github.thelony97.orbit.ui.components.LocalSharedScope provides null) {
+                                androidx.compose.animation.Crossfade(id, label = "pane") { shown ->
+                                    if (shown != null) {
+                                        ContactDetailScreen(id = shown, data = data, idx = idx, nav = paneNav)
+                                    } else {
+                                        SpaceBackground { Box(Modifier.fillMaxSize()) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    androidx.activity.compose.BackHandler(enabled = pane != null) { pane = null }
+                } else {
+                    HomeScreen(data = data, idx = idx, nav = nav, tab = tab, onTab = { tab = it })
+                }
             }
             entry<Route.Detail> { key ->
                 ContactDetailScreen(id = key.id, data = data, idx = idx, nav = nav, openEntry = key.entryId)

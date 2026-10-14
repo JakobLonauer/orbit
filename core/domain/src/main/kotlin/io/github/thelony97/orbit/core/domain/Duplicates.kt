@@ -4,33 +4,41 @@ import io.github.thelony97.orbit.core.model.Contact
 
 /**
  * „Diese Nummer gibt es schon“ (PLAN 3.14): fixed rule – the same normalised number at another
- * contact (archived ones too, never the trash). [normalize] is the phone's E.164 helper.
+ * contact (archived ones too, never the trash). [normalize] is the phone's E.164 helper; when it
+ * cannot agree (roaming, a number without area code) the last nine digits decide, like caller ID.
  */
 object Duplicates {
 
     data class Hit(val contactId: String, val number: String)
 
-    fun sameNumber(candidate: Contact, contacts: List<Contact>, normalize: (String) -> String?): Hit? {
-        val mine = candidate.phones.mapNotNull { p -> normalize(p.value)?.let { it to p.value } }
-        if (mine.isEmpty()) return null
-        for (other in contacts) {
-            if (other.id == candidate.id || other.deletedAt != null || other.isMe) continue
-            val theirs = other.phones.mapNotNull { normalize(it.value) }.toSet()
-            mine.firstOrNull { (n, _) -> n in theirs }?.let { return Hit(other.id, it.second) }
-        }
-        return null
-    }
+    private const val TAIL = 9
+
+    private fun tail(normalized: String): String? =
+        normalized.filter { it.isDigit() }.takeIf { it.length >= TAIL }?.takeLast(TAIL)
+
+    fun sameNumber(candidate: Contact, contacts: List<Contact>, normalize: (String) -> String?): Hit? =
+        Lookup(contacts.filter { it.id != candidate.id }, normalize).hit(candidate.phones.map { it.value })
 
     /** Many candidates against the same contacts (Mehrfach-Import): normalised number → contact. */
     class Lookup(contacts: List<Contact>, private val normalize: (String) -> String?) {
-        private val byNumber: Map<String, String> = buildMap {
+        private val exact = HashMap<String, String>()
+        private val byTail = HashMap<String, String>()
+
+        init {
             for (c in contacts) {
                 if (c.deletedAt != null || c.isMe) continue
-                for (p in c.phones) normalize(p.value)?.let { putIfAbsent(it, c.id) }
+                for (p in c.phones) {
+                    val n = normalize(p.value) ?: continue
+                    exact.putIfAbsent(n, c.id)
+                    tail(n)?.let { byTail.putIfAbsent(it, c.id) }
+                }
             }
         }
 
-        fun hit(numbers: List<String>): Hit? =
-            numbers.firstNotNullOfOrNull { n -> normalize(n)?.let { byNumber[it] }?.let { Hit(it, n) } }
+        fun hit(numbers: List<String>): Hit? {
+            val normalized = numbers.mapNotNull { raw -> normalize(raw)?.let { it to raw } }
+            normalized.firstNotNullOfOrNull { (n, raw) -> exact[n]?.let { Hit(it, raw) } }?.let { return it }
+            return normalized.firstNotNullOfOrNull { (n, raw) -> tail(n)?.let { byTail[it] }?.let { Hit(it, raw) } }
+        }
     }
 }

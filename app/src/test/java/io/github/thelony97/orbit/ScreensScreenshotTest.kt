@@ -207,6 +207,16 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.onboarding.OrbitFills(data.contacts.first { it.isMe }, data.contacts.filter { !it.isMe }, idx, onDone = {}, frozenAt = 2.75f)
     }
 
+    /** Ich-Karte (PLAN 1.3): business card with QR and holo sheen (flat phone in the test). */
+    @Test fun meCard() {
+        val me = Contact("me", isMe = true, firstName = "Jakob", lastName = "Lonauer", position = "Entwickler", company = "Orbit",
+            phones = listOf(LabeledValue("Mobil", "+43 660 1112223")), emails = listOf(LabeledValue("Privat", "jakob@example.org")))
+        compose.setContent {
+            OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { io.github.thelony97.orbit.ui.detail.QrDialog(me, onDismiss = {}) } }
+        }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_ich_karte.png")
+    }
+
     /** Teilen-Eingang (PLAN 3.8): a place from Google Maps. */
     @Test fun shareSheet() {
         compose.setContent {

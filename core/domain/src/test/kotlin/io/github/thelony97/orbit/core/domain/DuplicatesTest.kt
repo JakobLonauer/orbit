@@ -29,4 +29,13 @@ class DuplicatesTest {
         assertNull(lookup.hit(listOf("0699 1111111")))
         assertNull(lookup.hit(emptyList()))
     }
+
+    @Test fun lastNineDigitsDecideWhenTheFormsDisagree() {
+        // Roaming: the phone reads "0660 …" with another country, so the E.164 forms differ.
+        val plain = { s: String -> s.filter { it.isDigit() }.takeIf { it.length >= 6 } }
+        val all = listOf(c("anna", "+43 660 1234567"))
+        assertEquals("anna", Duplicates.sameNumber(c("neu", "0660 1234567"), all, plain)?.contactId)
+        // Too short for the tail rule: no guess.
+        assertNull(Duplicates.sameNumber(c("neu", "1234567"), listOf(c("kurz", "01234567")), plain))
+    }
 }

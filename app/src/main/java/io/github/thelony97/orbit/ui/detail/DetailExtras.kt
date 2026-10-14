@@ -40,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.animateFloat
+import io.github.thelony97.orbit.core.designsystem.holo
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -300,15 +302,34 @@ fun QrDialog(c: Contact, onDismiss: () -> Unit) {
             window?.let { w -> w.attributes = w.attributes.apply { screenBrightness = 1f } }
             onDispose { }
         }
+        // Ich-Karte (PLAN 1.3): a business card with a holo sheen that moves as the phone tilts –
+        // on the card only, never over the code, so it still scans.
+        val tilt = if (c.isMe) io.github.thelony97.orbit.ui.components.rememberTilt() else null
+        val drift = if (c.isMe) {
+            androidx.compose.animation.core.rememberInfiniteTransition(label = "holo").animateFloat(
+                0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(9_000, easing = androidx.compose.animation.core.LinearEasing)), label = "drift",
+            )
+        } else null
         Column(
             Modifier
                 .clip(RoundedCornerShape(28.dp))
                 .background(Space.PanelHigh)
-                .border(1.dp, Space.LineStrong, RoundedCornerShape(28.dp))
+                .then(
+                    if (tilt != null && drift != null) {
+                        Modifier.holo(phase = { drift.value }, tiltX = { tilt.value.x }, tiltY = { tilt.value.y }, behind = true)
+                    } else Modifier,
+                )
+                .border(1.dp, if (c.isMe) Space.Violet.copy(alpha = 0.6f) else Space.LineStrong, RoundedCornerShape(28.dp))
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(Logic.displayName(c, false), style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text)
+            if (c.isMe) {
+                val line = listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
+                if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+                val reach = listOfNotNull(c.phones.firstOrNull()?.value, c.emails.firstOrNull()?.value).filter { it.isNotBlank() }
+                if (reach.isNotEmpty()) Text(reach.joinToString("  ·  "), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+            }
             Spacer(Modifier.height(14.dp))
             if (qr != null) {
                 // One bitmap pixel per module: scaled without smoothing, so the edges stay sharp.

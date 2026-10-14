@@ -26,15 +26,17 @@ half4 main(float2 p) {
 }
 """
 
-fun Modifier.holo(phase: () -> Float, tiltX: () -> Float = { 0f }, tiltY: () -> Float = { 0f }): Modifier =
+/** [behind] = the sheen goes under the content (Ich-Karte: never over the QR code). */
+fun Modifier.holo(phase: () -> Float, tiltX: () -> Float = { 0f }, tiltY: () -> Float = { 0f }, behind: Boolean = false): Modifier =
     drawWithCache {
         val shader = RuntimeShader(HOLO_AGSL)
         val brush = ShaderBrush(shader)
         onDrawWithContent {
-            drawContent()
+            if (!behind) drawContent()
             shader.setFloatUniform("size", size.width, size.height)
             shader.setFloatUniform("phase", phase())
             shader.setFloatUniform("tilt", tiltX(), tiltY())
             drawRect(brush)
+            if (behind) drawContent()
         }
     }
