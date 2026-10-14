@@ -217,6 +217,7 @@ private fun CallRoute(onDone: () -> Unit) {
             },
             unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, stamp) else null,
             canBlock = canBlock && number.isNotBlank(),
+            smsTemplates = doc?.settings?.smsTemplates ?: io.github.thelony97.orbit.core.model.Settings.DEFAULT_SMS_TEMPLATES,
             otherCall = CallSession.other()?.let { o ->
                 val n = CallSession.numberOf(o)
                 val who = cards[n]?.name?.takeIf { it.isNotBlank() } ?: n.ifBlank { "Anruf" }

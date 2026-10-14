@@ -34,6 +34,8 @@ object ContactActions {
         if (settings.topicsDuringCall && !io.github.thelony97.orbit.call.PhoneRole.held(ctx)) Notifications.topics(ctx, c)
         val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
         val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", target, null))
+        // Dual-SIM pro Kontakt (PLAN 3.12): Telecom honours the account on ACTION_CALL.
+        io.github.thelony97.orbit.call.Sims.handle(ctx, c.simId)?.let { intent.putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
         if (start(ctx, intent) && !SyncEngine.canReadCalls(ctx)) {
             log(c.id, TypeIds.CALL, "Anruf aus Orbit")
         }

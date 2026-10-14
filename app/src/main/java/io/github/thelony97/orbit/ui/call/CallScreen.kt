@@ -131,6 +131,8 @@ data class CallUi(
     val moreRoutes: Boolean = false,
     /** Orbit may block numbers (only as the phone app). */
     val canBlock: Boolean = false,
+    /** Replies for „Ablehnen mit SMS“ (Einstellungen › Mitschreiben); none = no SMS button. */
+    val smsTemplates: List<String> = io.github.thelony97.orbit.core.model.Settings.DEFAULT_SMS_TEMPLATES,
     /** Anklopfen: the other call, „Tom Huber · gehalten“; [canMerge] when both can become one. */
     val otherCall: String? = null,
     val canMerge: Boolean = false,
@@ -306,11 +308,11 @@ fun CallScreen(
                 ActiveControls(ui, actions, keys) { keys = !keys; actions.dialpad() }
             } else {
                 if (templates) {
-                    SmsTemplates { text -> templates = false; actions.declineWithSms(text) }
+                    SmsTemplates(ui.smsTemplates) { text -> templates = false; actions.declineWithSms(text) }
                     Spacer(Modifier.height(12.dp))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    SmallAction(Icons.Rounded.Sms, "SMS", on = templates) { templates = !templates }
+                    if (ui.smsTemplates.isNotEmpty()) SmallAction(Icons.Rounded.Sms, "SMS", on = templates) { templates = !templates }
                     SmallAction(Icons.Rounded.Schedule, "Später", onClick = actions::remindLater)
                     // Unknown numbers only: block and decline, with a second tap to be sure.
                     if (ui.card == null && ui.canBlock) {
@@ -341,18 +343,11 @@ private fun CallTimer(clock: () -> Long, onHold: Boolean) {
     )
 }
 
-/** Fixed for now; editable templates come with the settings for the phone role. */
-private val SMS_TEMPLATES = listOf(
-    "Kann gerade nicht – ich rufe zurück.",
-    "Bin im Termin, melde mich später.",
-    "Schreib mir bitte kurz.",
-)
-
 @Composable
-private fun SmsTemplates(onPick: (String) -> Unit) {
+private fun SmsTemplates(templates: List<String>, onPick: (String) -> Unit) {
     val haptics = rememberHaptics()
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SMS_TEMPLATES.forEach { t ->
+        templates.forEach { t ->
             Text(
                 t,
                 style = MaterialTheme.typography.bodyLarge,
@@ -673,8 +668,11 @@ private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKe
     val haptics = rememberHaptics()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         // SIM still to pick: no call yet, so nothing to mute or hold (W5).
-        if (ui.accounts.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute, Modifier.weight(1f))
+        // Four equal slots; while dialing two of them stay centred in the same slot width.
+        if (ui.accounts.isEmpty()) BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val slot = Modifier.width(maxWidth / 4)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute, slot)
             // With a headset or Bluetooth the button names where the sound goes and moves it on.
             val (icon, label) = when {
                 !ui.moreRoutes -> Icons.AutoMirrored.Rounded.VolumeUp to "Lautsprecher"
@@ -683,12 +681,13 @@ private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKe
                 ui.route == AudioRoute.WIRED -> Icons.Rounded.Headphones to "Kopfhörer"
                 else -> Icons.Rounded.PhoneInTalk to "Hörer"
             }
-            ToggleOrb(icon, label, ui.speaker || ui.route == AudioRoute.BLUETOOTH, actions::toggleSpeaker, Modifier.weight(1f))
+            ToggleOrb(icon, label, ui.speaker || ui.route == AudioRoute.BLUETOOTH, actions::toggleSpeaker, slot)
             // Holding and keys only once the other side answered.
             if (!ui.dialing) {
-                ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold, Modifier.weight(1f))
-                ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys, Modifier.weight(1f))
+                ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold, slot)
+                ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys, slot)
             }
+        }
         }
         Box(
             Modifier.size(72.dp).glow(Space.Coral, 22.dp, CircleShape, 0.6f).clip(CircleShape).background(Space.Coral)

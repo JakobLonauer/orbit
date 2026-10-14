@@ -28,11 +28,14 @@ import io.github.thelony97.orbit.ui.theme.OrbitTheme
 class DialerActivity : ComponentActivity() {
 
     private var pending: Uri? = null
+    private var pendingSim: android.telecom.PhoneAccountHandle? = null
 
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val uri = pending
+        val sim = pendingSim
         pending = null
-        if (granted && uri != null) place(uri) else if (uri != null) Toast.makeText(this, "Anrufen nicht erlaubt", Toast.LENGTH_SHORT).show()
+        pendingSim = null
+        if (granted && uri != null) place(uri, sim) else if (uri != null) Toast.makeText(this, "Anrufen nicht erlaubt", Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,6 +54,7 @@ class DialerActivity : ComponentActivity() {
                     onClose = { finish() },
                     initial = initial,
                     onVoicemail = { place(Uri.fromParts("voicemail", "", null)) },
+                    onCallContact = { c, number -> place(Uri.fromParts("tel", number, null), Sims.handle(this, c.simId)) },
                 )
             }
         }
@@ -60,15 +64,17 @@ class DialerActivity : ComponentActivity() {
         getSystemService(android.telephony.TelephonyManager::class.java)?.isEmergencyNumber(uri.schemeSpecificPart) == true
     }.getOrDefault(false)
 
-    private fun place(uri: Uri) {
+    private fun place(uri: Uri, sim: android.telecom.PhoneAccountHandle? = null) {
         // Emergency numbers never wait for a permission dialog: straight to Telecom.
         if (!emergency(uri) && checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             pending = uri
+            pendingSim = sim
             permission.launch(Manifest.permission.CALL_PHONE)
             return
         }
         try {
-            getSystemService(TelecomManager::class.java).placeCall(uri, Bundle())
+            val extras = Bundle().apply { sim?.let { putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) } }
+            getSystemService(TelecomManager::class.java).placeCall(uri, extras)
             finish()
         } catch (e: Exception) {
             // Last resort: the preinstalled phone app with the number filled in – a number typed

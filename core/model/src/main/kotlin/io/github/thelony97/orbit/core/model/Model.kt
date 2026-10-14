@@ -138,6 +138,8 @@ data class Contact(
     val lastName: String = "",
     val phones: List<LabeledValue> = emptyList(),
     val defaultPhone: Int = 0,
+    /** PLAN 3.12 „Dual-SIM pro Kontakt“: the SIM (phone account id) Orbit calls this contact with; null = the phone decides. */
+    val simId: String? = null,
     val emails: List<LabeledValue> = emptyList(),
     val addresses: List<LabeledValue> = emptyList(),
     val company: String = "",
@@ -296,4 +298,14 @@ data class Settings(
     val showOrgs: Boolean = false,
     /** "Gratuliert"/"Geschenk" ticking in the birthday tab (PLAN 3.5). */
     val giftTracking: Boolean = true,
-)
+    /** PLAN 3.12 „Ablehnen mit SMS-Vorlage“: the replies offered while it rings. */
+    val smsTemplates: List<String> = DEFAULT_SMS_TEMPLATES,
+) {
+    companion object {
+        val DEFAULT_SMS_TEMPLATES = listOf(
+            "Kann gerade nicht – ich rufe zurück.",
+            "Bin im Termin, melde mich später.",
+            "Schreib mir bitte kurz.",
+        )
+    }
+}

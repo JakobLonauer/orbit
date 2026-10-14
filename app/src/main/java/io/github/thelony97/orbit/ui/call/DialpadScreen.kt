@@ -77,6 +77,8 @@ fun Dialpad(
     initial: String = "",
     /** Long press on 1 (PLAN 3.12 „Mailbox“). */
     onVoicemail: () -> Unit = {},
+    /** A suggestion was tapped: the contact is known, so its SIM can be used (Dual-SIM pro Kontakt). */
+    onCallContact: ((Contact, String) -> Unit)? = null,
 ) {
     var digits by rememberSaveable { mutableStateOf(initial) }
     val lastNameFirst = data.settings.sortByLastName
@@ -101,6 +103,7 @@ fun Dialpad(
         onCall = onCall,
         onClose = onClose,
         onVoicemail = onVoicemail,
+        onCallContact = onCallContact,
     )
 }
 
@@ -114,6 +117,7 @@ fun DialpadContent(
     onCall: (String) -> Unit,
     onClose: () -> Unit,
     onVoicemail: () -> Unit = {},
+    onCallContact: ((Contact, String) -> Unit)? = null,
 ) {
     val haptics = rememberHaptics()
     SpaceBackground {
@@ -126,7 +130,12 @@ fun DialpadContent(
             }
             Spacer(Modifier.height(8.dp))
             Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.Bottom) {
-                rows.forEach { r -> Suggestion(r) { onCall(r.contact.phones[r.hit.phoneIndex].value) } }
+                rows.forEach { r ->
+                    Suggestion(r) {
+                        val n = r.contact.phones[r.hit.phoneIndex].value
+                        onCallContact?.invoke(r.contact, n) ?: onCall(n)
+                    }
+                }
             }
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -140,6 +140,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val phones = remember { mutableStateListOf<ValueRow>().apply { original.phones.forEach { add(ValueRow(it.label, it.value)) } } }
     val emails = remember { mutableStateListOf<ValueRow>().apply { original.emails.forEach { add(ValueRow(it.label, it.value)) } } }
     var defaultPhone by remember { mutableStateOf(original.defaultPhone) }
+    var simId by remember { mutableStateOf(original.simId) }
+    val sims = remember { io.github.thelony97.orbit.call.Sims.list(ctx) }
     var birthday by remember { mutableStateOf(original.birthday) }
     var groups by remember { mutableStateOf(original.groupIds.toSet()) }
     var favorite by remember { mutableStateOf(original.favorite) }
@@ -186,6 +188,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             },
             phones = phoneValues,
             defaultPhone = defaultPhone.coerceIn(0, (phoneValues.size - 1).coerceAtLeast(0)),
+            simId = simId,
             emails = emailValues,
             groupIds = data.groups.map { it.id }.filter { it in groups },
             favorite = favorite,
@@ -352,6 +355,14 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                 GlassCard {
                     SectionTitle("Telefon")
                     ValueList(phones, Defaults.phoneLabels, "Nummer", KeyboardType.Phone, defaultPhone, { defaultPhone = it }, "Nummer hinzufügen")
+                    // Dual-SIM pro Kontakt (PLAN 3.12) – only on a phone with two SIMs (W5).
+                    if (sims.size >= 2) {
+                        Spacer(Modifier.size(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SpaceChip("Automatisch", simId == null || sims.none { it.id == simId }, { simId = null })
+                            sims.forEach { sim -> SpaceChip(sim.label, simId == sim.id, { simId = sim.id }) }
+                        }
+                    }
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("E-Mail")
                     ValueList(emails, Defaults.emailLabels, "E-Mail", KeyboardType.Email, null, null, "E-Mail hinzufügen")

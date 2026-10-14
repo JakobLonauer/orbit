@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.SortByAlpha
+import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
@@ -244,6 +245,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     var permissionDenied by remember { mutableStateOf(false) }
     var permissionsOpen by remember { mutableStateOf(false) }
     var phoneDialog by remember { mutableStateOf(false) }
+    var smsDialog by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
 
@@ -469,6 +471,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     },
                 )
                 if (held) {
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Sms, "SMS-Vorlagen",
+                        subtitle = s.smsTemplates.size.let { if (it == 1) "1 Vorlage" else "$it Vorlagen" },
+                        iconTint = Space.Teal, onClick = { smsDialog = true },
+                    )
                     Hairline()
                     // The block list belongs to the system (shared with SMS and the stock phone app).
                     SettingItem(Icons.Rounded.Block, "Gesperrte Nummern", iconTint = Space.Teal, onClick = {
@@ -696,6 +704,37 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             confirmTwice = false,
             onDismiss = { passwordFor = null },
             onConfirm = { pw -> readBackup(uri, pw) },
+        )
+    }
+
+    if (smsDialog) {
+        // Three slots for „Ablehnen mit SMS“; empty ones are dropped.
+        val slots = List(3) { i -> androidx.compose.foundation.text.input.rememberTextFieldState(s.smsTemplates.getOrNull(i).orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { smsDialog = false },
+            containerColor = Space.PanelHigh,
+            title = { Text("SMS-Vorlagen") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    slots.forEach { st ->
+                        androidx.compose.material3.OutlinedTextField(
+                            state = st,
+                            lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
+                            shape = io.github.thelony97.orbit.core.designsystem.Corners.Row,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val list = slots.map { it.text.toString().trim() }.filter { it.isNotEmpty() }
+                    OrbitRepository.editSettings { it.copy(smsTemplates = list) }
+                    smsDialog = false
+                }) { Text("Speichern") }
+            },
+            dismissButton = { TextButton(onClick = { smsDialog = false }) { Text("Abbrechen") } },
         )
     }
 
