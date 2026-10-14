@@ -220,6 +220,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         return
     }
     val ctx = LocalContext.current
+    // Collected here, outside the LazyColumn builder (not a composable context).
+    val mailSyncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
     val phoneIso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
     val landline: (String) -> Boolean = remember(phoneIso) {
         { raw -> io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(raw, phoneIso)) }
@@ -897,7 +899,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             // History
             // W5: no empty „Verlauf · 0“ – „Eintragen“ above is the way in. While mails are fetched
             // for this contact the head stays, so the wave has its place.
-            val mailSyncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
             val fetchingMail = mailSyncing && (c.emails.isNotEmpty() || c.emailDomains.isNotEmpty())
             if (!c.isMe && (c.entries.isNotEmpty() || fetchingMail)) item(key = "history-header") {
                 val syncing = mailSyncing

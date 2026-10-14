@@ -74,6 +74,13 @@ class OrbitWidget : GlanceAppWidget() {
         }
     }
 
+    /** Widget picker preview with your own data (PLAN 1.3): one composition, no flows. */
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        OrbitRepository.init(context)
+        val d = OrbitRepository.ensureLoaded()
+        provideContent { GlanceTheme { WidgetContent(context, d) } }
+    }
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         OrbitRepository.init(context)
         val initial = OrbitRepository.ensureLoaded()

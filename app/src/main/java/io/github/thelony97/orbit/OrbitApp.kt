@@ -52,6 +52,7 @@ class OrbitApp : Application() {
             if (io.github.thelony97.orbit.mail.MailAccounts.accounts.value.isNotEmpty()) io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(this@OrbitApp)
             else io.github.thelony97.orbit.mail.MailSync.cancelPeriodic(this@OrbitApp)
             Backups.schedule(this@OrbitApp)
+            io.github.thelony97.orbit.widget.WidgetPreviews.refreshDaily(this@OrbitApp)
         }
     }
 }
