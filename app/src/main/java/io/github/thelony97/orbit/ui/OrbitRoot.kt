@@ -72,8 +72,12 @@ fun OrbitRoot(activity: FragmentActivity) {
             current == null -> Box(Modifier.fillMaxSize().statusBarsPadding()) {
                 io.github.thelony97.orbit.ui.components.ListPlaceholder()
             }
-            !current.settings.onboardingDone -> OnboardingScreen(current)
-            else -> MainNavigation(current)
+            // First start → list: a soft cross-fade, no hard cut (W2).
+            else -> androidx.compose.animation.Crossfade(
+                current.settings.onboardingDone,
+                animationSpec = androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS),
+                label = "firstStart",
+            ) { done -> if (done) MainNavigation(current) else OnboardingScreen(current) }
         }
         // Undo bar above everything except the lock, just over the Orbit-Leiste.
         UndoBar(

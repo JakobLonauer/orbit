@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -105,6 +107,8 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
 
     fun finish() {
         AppLock.unlock()
+        // „Dein Orbit füllt sich“ was the start moment – the ring would only cover the new list.
+        if (!arrived.isNullOrEmpty()) io.github.thelony97.orbit.ui.Session.startPlayed = true
         // The screen leaves the composition right after the update – the rest must not be cancelled.
         scope.launch(kotlinx.coroutines.NonCancellable) {
             DigestScheduler.schedule(ctx)
@@ -271,8 +275,10 @@ private fun PeopleStep(
 
 /**
  * „Dein Orbit füllt sich“ (PLAN 1.3): the new contacts fly in from the edges onto orbits around
- * you, circle once and settle into the list. A sequence without touch answer (W9 exception);
- * a tap skips it.
+ * you, circle once and settle into the list – onto the exact rows of the contact list (Ich-Karte,
+ * letter heads, 36 dp avatars), so the hand-over to the real list does not jump (W2/W3).
+ * A sequence without touch answer (W9 exception); a tap skips it. The clock is read only in
+ * layout/draw lambdas: one composition, no per-frame recomposition (W8).
  */
 @Composable
 internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDone: () -> Unit, frozenAt: Float? = null) {
@@ -283,7 +289,12 @@ internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDon
         onDone()
     }
     val density = LocalDensity.current
-    val shown = contacts.sortedBy { Logic.sortKey(it, false) }.take(18)
+    // What the list will show: people only (organisations and the archive stay hidden there).
+    val shown = remember(contacts) {
+        contacts.filter { !it.isOrg && !it.archived && it.deletedAt == null }.sortedBy { Logic.sortKey(it, false) }.take(18)
+    }
+    val statusTop = WindowInsets.statusBars.getTop(density).toFloat()
+    fun arrangeOf(time: Float) = Motion.Emphasized.transform(((time - 2.1f) / 0.9f).coerceIn(0f, 1f))
     SpaceBackground {
         BoxWithConstraints(
             Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDone() },
@@ -293,18 +304,56 @@ internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDon
             val cx = w / 2f
             val cy = h * 0.42f
             val dp = density.density
-            val avatar = 44f * dp
-            val time = t.value
-            val arrange = Motion.Emphasized.transform(((time - 2.1f) / 0.9f).coerceIn(0f, 1f))
+            // Contact list geometry (ContactListScreen): Ich-Karte under the search, then per letter
+            // a head (28 dp) and rows of 50 dp with the 36 dp avatar on the 16 dp gutter.
+            val cardTop = statusTop + 100f * dp
+            val meX = 47f * dp
+            val meY = cardTop + 32f * dp
+            val heads = mutableListOf<Pair<Char, Float>>()
+            val rowY = run {
+                var y = cardTop + 60f * dp
+                var last: Char? = null
+                shown.map { c ->
+                    val letter = Logic.sortKey(c, false).firstOrNull()?.uppercaseChar() ?: '#'
+                    if (letter != last) {
+                        heads += letter to (y + 14f * dp)
+                        y += 28f * dp
+                        last = letter
+                    }
+                    (y + 25f * dp).also { y += 50f * dp }
+                }
+            }
 
-            // You in the middle; makes room once the list forms.
+            // The Ich-Karte forms around you as you move into it.
+            Box(
+                Modifier
+                    .offset { IntOffset((16f * dp).roundToInt(), (cardTop + 4f * dp).roundToInt()) }
+                    .size(maxWidth - 32.dp, 56.dp)
+                    .graphicsLayer { alpha = arrangeOf(t.value) }
+                    .border(1.dp, Space.Orange.copy(alpha = 0.35f), RoundedCornerShape(20.dp)),
+            ) {
+                Column(Modifier.padding(start = 62.dp).align(Alignment.CenterStart)) {
+                    Text(me?.let { Logic.displayName(it, false) }.orEmpty(), style = MaterialTheme.typography.titleMedium, color = Space.Text, maxLines = 1)
+                    Text("Das bist du", style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                }
+            }
+            // You in the middle; you become the Ich-Karte's picture once the list forms.
             if (me != null) {
                 Avatar(
                     me, Space.Orange, 88.dp,
                     glowColor = Space.Orange,
                     modifier = Modifier
-                        .offset { IntOffset((cx - 44f * dp).roundToInt(), (cy - 44f * dp).roundToInt()) }
-                        .graphicsLayer { alpha = 1f - arrange; scaleX = 1f - 0.4f * arrange; scaleY = 1f - 0.4f * arrange },
+                        .offset {
+                            val a = arrangeOf(t.value)
+                            val x = cx + (meX - cx) * a
+                            val y = cy + (meY - cy) * a
+                            IntOffset((x - 44f * dp).roundToInt(), (y - 44f * dp).roundToInt())
+                        }
+                        .graphicsLayer {
+                            val k = 1f - (50f / 88f) * arrangeOf(t.value)
+                            scaleX = k
+                            scaleY = k
+                        },
                 )
             }
             listOf(78f, 118f, 158f).forEach { r ->
@@ -312,44 +361,68 @@ internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDon
                     Modifier
                         .offset { IntOffset((cx - r * dp).roundToInt(), (cy - r * dp).roundToInt()) }
                         .size((r * 2).dp)
-                        .graphicsLayer { alpha = (time / 0.4f).coerceIn(0f, 1f) * (1f - arrange) }
+                        .graphicsLayer { alpha = (t.value / 0.4f).coerceIn(0f, 1f) * (1f - arrangeOf(t.value)) }
                         .border(1.dp, Space.Line, CircleShape),
                 )
             }
-            val top = 120f * dp
+            // Letter heads fade in where the list will have them.
+            heads.forEach { (letter, y) ->
+                Row(
+                    Modifier
+                        .offset { IntOffset((16f * dp).roundToInt(), (y - 10f * dp).roundToInt()) }
+                        .width(maxWidth - 32.dp)
+                        .graphicsLayer { alpha = arrangeOf(t.value) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(letter.toString(), style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Violet)
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.weight(1f).height(1.dp).background(Space.Line))
+                }
+            }
+            val avatar = 36f * dp
             shown.forEachIndexed { i, c ->
                 val ring = i % 3
                 val radius = listOf(78f, 118f, 158f)[ring] * dp
                 val base = i * 2.399963f
-                val local = Motion.Emphasized.transform(((time - i * 0.045f) / 0.9f).coerceIn(0f, 1f))
-                // Spiral in from beyond the screen edge, then keep turning.
-                val far = maxOf(w, h) * 0.9f
-                val r = far + (radius - far) * local
-                val a = base - 1.4f * (1f - local) + (time * (0.55f - ring * 0.12f))
-                val ox = cx + cos(a) * r
-                val oy = cy + sin(a) * r
                 val lx = 16f * dp + avatar / 2f
-                val ly = top + i * 64f * dp
-                val x = ox + (lx - ox) * arrange
-                val y = oy + (ly - oy) * arrange
+                val ly = rowY[i]
+                // Rows below the screen edge melt away instead of sliding out of sight.
+                val offscreen = ly > h + avatar
                 Row(
-                    Modifier.offset { IntOffset((x - avatar / 2f).roundToInt(), (y - avatar / 2f).roundToInt()) },
+                    Modifier
+                        .offset {
+                            val time = t.value
+                            val arrange = arrangeOf(time)
+                            val local = Motion.Emphasized.transform(((time - i * 0.045f) / 0.9f).coerceIn(0f, 1f))
+                            // Spiral in from beyond the screen edge, then keep turning.
+                            val far = maxOf(w, h) * 0.9f
+                            val r = far + (radius - far) * local
+                            val a = base - 1.4f * (1f - local) + (time * (0.55f - ring * 0.12f))
+                            val ox = cx + cos(a) * r
+                            val oy = cy + sin(a) * r
+                            val x = ox + (lx - ox) * arrange
+                            val y = oy + (ly - oy) * arrange
+                            IntOffset((x - avatar / 2f).roundToInt(), (y - avatar / 2f).roundToInt())
+                        }
+                        .graphicsLayer { if (offscreen) alpha = 1f - arrangeOf(t.value) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(c, contactColor(c, idx), 44.dp)
-                    Spacer(Modifier.width(14.dp))
+                    Avatar(c, contactColor(c, idx), 36.dp)
+                    Spacer(Modifier.width(12.dp))
                     Text(
                         Logic.displayName(c, false),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
                         color = Space.Text,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.graphicsLayer { alpha = arrange },
+                        modifier = Modifier.graphicsLayer { alpha = arrangeOf(t.value) },
                     )
                 }
             }
             Column(
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp).graphicsLayer { alpha = (1f - arrange) * (time / 0.6f).coerceIn(0f, 1f) },
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp).graphicsLayer {
+                    alpha = (1f - arrangeOf(t.value)) * (t.value / 0.6f).coerceIn(0f, 1f)
+                },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
