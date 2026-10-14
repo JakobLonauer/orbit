@@ -39,7 +39,7 @@ class MailBundleTest {
             h(4, at(14, 12), "jakob@gmail.com", listOf("anna@example.at")))
             .flatMap { MailBundle.owners(it, own, match) }.map { (o, r) -> o.memberId to r }
         val entries = MailBundle.merge(anna, refs, zone, ids)
-        assertEquals(listOf("mail:2026-10-14:in", "mail:2026-10-14:out", "mail:2026-10-15:in"), entries.map { it.externalId }.sorted())
+        assertEquals(listOf("mail:2026-10-14:in", "mail:2026-10-14:out", "mail:2026-10-15:in"), entries.mapNotNull { it.externalId }.sorted())
         val in14 = entries.first { it.externalId == "mail:2026-10-14:in" }
         assertEquals(listOf(2L, 1L), in14.mails.map { it.uid })
         assertEquals(at(14, 15), in14.at)
