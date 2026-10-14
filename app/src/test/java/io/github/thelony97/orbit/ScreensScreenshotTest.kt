@@ -308,6 +308,10 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav)
     }
 
+    @Test fun homeOccasionsTab() = shot("home_anlaesse") {
+        HomeScreen(data, idx, nav, tab = io.github.thelony97.orbit.ui.home.HomeTab.ANLAESSE, onTab = {})
+    }
+
     @Test fun callWaiting() = shot("call_two") {
         io.github.thelony97.orbit.ui.call.CallScreen(
             io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, elapsed = 312, phoneUnlocked = true, otherCall = "Tom Huber · gehalten", canMerge = true),

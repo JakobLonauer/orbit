@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,10 +75,20 @@ import io.github.thelony97.orbit.core.designsystem.glass as hazeGlass
 
 private data class Tab(val label: String, val icon: ImageVector, val nebula: Color)
 
-/** PLAN 3.1: Kontakte · Verlauf · (Anlässe ab R3) · Netz · Karte. Einstellungen hinter dem Zahnrad. */
+/** Tab positions, so jumps from other screens never point at the wrong tab. */
+object HomeTab {
+    const val CONTACTS = 0
+    const val VERLAUF = 1
+    const val ANLAESSE = 2
+    const val NETZ = 3
+    const val KARTE = 4
+}
+
+/** PLAN 3.1: Kontakte · Verlauf · Anlässe (ab R3) · Netz · Karte. Einstellungen hinter dem Zahnrad. */
 private val tabs = listOf(
     Tab("Kontakte", Icons.Rounded.Contacts, Space.VioletDeep),
     Tab("Verlauf", Icons.Rounded.History, Space.Teal),
+    Tab("Anlässe", Icons.Rounded.Cake, Space.Coral),
     Tab("Netz", Icons.Rounded.Hub, Space.Blue),
     Tab("Karte", Icons.Rounded.Map, Space.Orange),
 )
@@ -135,9 +146,10 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             ) { shown ->
                 saved.SaveableStateProvider(shown) {
                     when (shown) {
-                        1 -> VerlaufScreen(data, idx, nav)
-                        2 -> NetworkScreen(data, idx, nav)
-                        3 -> MapScreen(data, idx, nav)
+                        HomeTab.VERLAUF -> VerlaufScreen(data, idx, nav)
+                        HomeTab.ANLAESSE -> io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav)
+                        HomeTab.NETZ -> NetworkScreen(data, idx, nav)
+                        HomeTab.KARTE -> MapScreen(data, idx, nav)
                         else -> ContactListScreen(data, idx, nav)
                     }
                 }
@@ -153,7 +165,7 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // On an empty Orbit the list's own „Kontakt anlegen“ is the one action (W6).
-            if (current == 0 && data.contacts.any { !it.isMe && it.deletedAt == null }) {
+            if (current == HomeTab.CONTACTS && data.contacts.any { !it.isMe && it.deletedAt == null }) {
                 Box(Modifier.fillMaxWidth().padding(bottom = 10.dp), contentAlignment = Alignment.BottomEnd) {
                     ContactFabMenu(nav)
                 }
@@ -225,7 +237,8 @@ private fun OrbitNavBar(
 ) {
     val haptics = rememberHaptics()
     val pill = RoundedCornerShape(50)
-    val slot = 64.dp
+    // Five tabs fit a 360-dp phone with the 16-dp gutter.
+    val slot = 60.dp
     val planet = remember { Animatable(selected.toFloat()) }
     var from by remember { mutableFloatStateOf(selected.toFloat()) }
     LaunchedEffect(selected) {

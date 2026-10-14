@@ -540,7 +540,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 trailing = {
                                     SmallIconAction(Icons.Rounded.Map, "Auf der Orbit-Karte zeigen") {
                                         Session.mapFocus = c.id
-                                        nav.home(3)
+                                        nav.home(io.github.thelony97.orbit.ui.home.HomeTab.KARTE)
                                     }
                                 },
                             )
@@ -671,7 +671,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         Row {
                             SmallIconAction(Icons.Rounded.Hub, "Im Netz zeigen") {
                                 Session.networkRoot = if (c.isMe) null else c.id
-                                nav.home(2)
+                                nav.home(io.github.thelony97.orbit.ui.home.HomeTab.NETZ)
                             }
                             SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true }
                         }

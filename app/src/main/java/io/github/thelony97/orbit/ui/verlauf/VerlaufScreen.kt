@@ -157,7 +157,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                 when {
                     query.isNotEmpty() -> EmptyHint("Nichts gefunden", "", action = "Suche leeren" to { search.clearText() })
                     typeFilter != null -> EmptyHint("Keine Einträge dieser Art", "", action = "Alle zeigen" to { typeFilter = null })
-                    else -> EmptyHint("Noch kein Verlauf", "", action = "Zu den Kontakten" to { nav.home(0) })
+                    else -> EmptyHint("Noch kein Verlauf", "", action = "Zu den Kontakten" to { nav.home(io.github.thelony97.orbit.ui.home.HomeTab.CONTACTS) })
                 }
             }
         }
