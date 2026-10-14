@@ -75,16 +75,19 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 val fresh = SyncEngine.syncAll(applicationContext)
                 val data = OrbitRepository.snapshot()
                 var prompted = false
-                if (data.settings.noteAfterCall) {
+                // An unknown Durchwahl asks „Mitarbeiter zuordnen?“ even without the note prompt.
+                val newest = fresh.filter { (it.entry.at + (it.entry.durationSec ?: 0) * 1000) >= since }.maxByOrNull { it.entry.at }
+                if (data.settings.noteAfterCall || newest?.extension != null) {
                     // The call that just ended is the newest one; older catch-up entries get no prompt.
-                    fresh.filter { (it.entry.at + (it.entry.durationSec ?: 0) * 1000) >= since }
-                        .maxByOrNull { it.entry.at }
+                    newest
                         ?.let { call ->
                             data.contacts.firstOrNull { it.id == call.contactId }?.let { contact ->
                                 // Archived (PLAN 3.11): the call lands silently in the Verlauf, no prompt.
                                 // Orbit as phone app: the call screen has the note line for this contact.
                                 val onScreen = io.github.thelony97.orbit.call.CallSession.noteOnScreen(applicationContext, contact.id)
-                                if (!contact.archived && !onScreen) Notifications.afterCall(applicationContext, contact, call.entry)
+                                if (!contact.archived && (!onScreen || call.extension != null)) {
+                                    Notifications.afterCall(applicationContext, contact, call.entry, note = data.settings.noteAfterCall && !onScreen, extension = call.extension)
+                                }
                                 prompted = true
                             }
                         }

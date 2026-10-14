@@ -48,7 +48,8 @@ object SyncEngine {
         val incoming: Boolean,
     )
 
-    data class NewCall(val contactId: String, val entry: Entry)
+    /** [extension] = the number when it only fell into an organisation's number range (PLAN 3.6). */
+    data class NewCall(val contactId: String, val entry: Entry, val extension: String? = null)
 
     fun canReadCalls(ctx: Context) =
         ctx.checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
@@ -182,7 +183,7 @@ object SyncEngine {
                 memberId = hit?.memberId,
             )
             added.getOrPut(contactId) { mutableListOf() } += entry
-            newCalls += NewCall(contactId, entry)
+            newCalls += NewCall(contactId, entry, extension = call.number.takeIf { hit?.via == io.github.thelony97.orbit.core.domain.Matcher.Via.PREFIX })
         }
 
         // SMS are grouped into one history entry per contact and day.

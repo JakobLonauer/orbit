@@ -45,6 +45,7 @@ object Notifications {
     private const val ID_MASK = 0x0FFF
 
     const val KEY_NOTE = "note"
+    const val KEY_MEMBER = "member"
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -341,7 +342,11 @@ object Notifications {
 
     fun afterCallId(entry: Entry) = ID_AFTER_CALL_BASE + (entry.id.hashCode() and ID_MASK)
 
-    fun afterCall(ctx: Context, contact: Contact, entry: Entry) {
+    /**
+     * After a call: „Notiz“ as a reply line; from an unknown Durchwahl in an organisation's number
+     * range also „Mitarbeiter“ (PLAN 3.6 „Mitarbeiter zuordnen?“) – „Name, Rolle“ creates them.
+     */
+    fun afterCall(ctx: Context, contact: Contact, entry: Entry, note: Boolean = true, extension: String? = null) {
         val notifId = afterCallId(entry)
         val replyIntent = Intent(ctx, NotificationActionReceiver::class.java).apply {
             action = NotificationActionReceiver.ACTION_NOTE
@@ -361,8 +366,28 @@ object Notifications {
         val minutes = Fmt.duration(entry.durationSec ?: 0)
         val builder = base(ctx, CH_CALL)
             .setContentTitle("Gespräch mit ${Logic.displayName(contact, false)} ($minutes)")
-            .setContentText("Willst du eine Notiz festhalten?")
-            .addAction(action)
+            .setContentText(if (extension != null) "$extension · Mitarbeiter zuordnen?" else "Willst du eine Notiz festhalten?")
+        if (note) builder.addAction(action)
+        if (extension != null && contact.isOrg) {
+            val memberIntent = Intent(ctx, NotificationActionReceiver::class.java).apply {
+                this.action = NotificationActionReceiver.ACTION_MEMBER
+                putExtra(NotificationActionReceiver.EXTRA_CONTACT, contact.id)
+                putExtra(NotificationActionReceiver.EXTRA_ENTRY, entry.id)
+                putExtra(NotificationActionReceiver.EXTRA_NUMBER, extension)
+                putExtra(NotificationActionReceiver.EXTRA_NOTIF, notifId)
+            }
+            val memberPending = PendingIntent.getBroadcast(
+                ctx, notifId + 1, memberIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            )
+            builder.addAction(
+                NotificationCompat.Action.Builder(0, "Mitarbeiter", memberPending)
+                    .addRemoteInput(RemoteInput.Builder(KEY_MEMBER).setLabel("Name, Rolle").build())
+                    .setAllowGeneratedReplies(false)
+                    .build(),
+            )
+        }
+        builder
             .setContentIntent(openContact(ctx, contact.id, notifId))
             .setTimeoutAfter(12 * 60 * 60 * 1000L)
         post(ctx, notifId, builder)

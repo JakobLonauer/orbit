@@ -175,6 +175,26 @@ object Mutations {
         })
 
     /**
+     * „Mitarbeiter zuordnen?“ (PLAN 3.6) after a call from an unknown Durchwahl in the
+     * organisation's number range: the typed „Name, Rolle“ becomes a member with that number, and
+     * the call is theirs. A member who already has the number just gets the call.
+     */
+    fun memberFromCall(d: OrbitData, orgId: String, entryId: String, text: String, number: String, newMemberId: String = newId()): OrbitData {
+        val org = d.contacts.firstOrNull { it.id == orgId && it.isOrg } ?: return d
+        if (org.entries.none { it.id == entryId }) return d
+        val digits = number.filter { it.isDigit() }
+        val existing = org.members.firstOrNull { m -> digits.length >= 3 && m.phones.any { p -> p.value.filter { it.isDigit() } == digits } }
+        val withMember = if (existing != null) d else {
+            val (name, role) = io.github.thelony97.orbit.core.domain.Members.parse(text) ?: return d
+            upsertMember(d, orgId, io.github.thelony97.orbit.core.model.Member(newMemberId, name, role = role, phones = listOf(LabeledValue("Durchwahl", number.trim()))))
+        }
+        val memberId = existing?.id ?: newMemberId
+        return withMember.copy(contacts = withMember.contacts.map { c ->
+            if (c.id != orgId) c else c.copy(entries = c.entries.map { if (it.id == entryId) it.copy(memberId = memberId) else it })
+        })
+    }
+
+    /**
      * Removes a member; their conversations stay with the organisation (without the name), so
      * nothing written is lost.
      */

@@ -137,6 +137,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val ACTION_MEETING = "io.github.thelony97.orbit.MEETING"
         const val ACTION_CALLBACK = "io.github.thelony97.orbit.CALLBACK"
         const val ACTION_UNARCHIVE = "io.github.thelony97.orbit.UNARCHIVE"
+        const val ACTION_MEMBER = "io.github.thelony97.orbit.MEMBER"
         const val EXTRA_NAME = "name"
         const val EXTRA_NUMBER = "number"
         const val EXTRA_MINUTES = "minutes"
@@ -166,6 +167,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
                             })
                         }
                     }
+                    if (notifId >= 0) Notifications.cancel(context, notifId)
+                }
+            }
+            ACTION_MEMBER -> {
+                // „Mitarbeiter zuordnen?“ (PLAN 3.6): „Name, Rolle“ typed into the notification.
+                val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifications.KEY_MEMBER)?.toString()?.trim()
+                val orgId = intent.getStringExtra(EXTRA_CONTACT) ?: return
+                val entryId = intent.getStringExtra(EXTRA_ENTRY) ?: return
+                val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+                runAsync(context) {
+                    if (!text.isNullOrEmpty()) OrbitRepository.update { d -> Mutations.memberFromCall(d, orgId, entryId, text, number) }
                     if (notifId >= 0) Notifications.cancel(context, notifId)
                 }
             }
