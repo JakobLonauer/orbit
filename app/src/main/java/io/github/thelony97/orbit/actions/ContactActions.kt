@@ -109,6 +109,36 @@ object ContactActions {
         start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse(full)))
     }
 
+    /**
+     * Opens a portal (PLAN 3.7): in Orbit's browser window (Custom Tabs: Chrome's sign-ins stay,
+     * Zurück führt zu Orbit), in Chrome, or – chosen per link – an installed app.
+     */
+    fun openLink(ctx: Context, link: io.github.thelony97.orbit.core.model.Link) {
+        val raw = link.url.trim()
+        if (raw.isEmpty()) return
+        val uri = Uri.parse(if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "https://$raw")
+        io.github.thelony97.orbit.security.AppLock.allowExternal()
+        // Quiet tries: a missing Chrome or app falls back without a toast.
+        fun quiet(intent: Intent): Boolean = runCatching { ctx.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)
+        val opened = when (link.openWith) {
+            io.github.thelony97.orbit.core.model.OpenWith.APP -> link.appPackage
+                ?.let { runCatching { ctx.packageManager.getLaunchIntentForPackage(it) }.getOrNull() }
+                ?.let { quiet(it) } == true
+            io.github.thelony97.orbit.core.model.OpenWith.CHROME ->
+                quiet(Intent(Intent.ACTION_VIEW, uri).setPackage("com.android.chrome"))
+            io.github.thelony97.orbit.core.model.OpenWith.ORBIT_TAB -> runCatching {
+                androidx.browser.customtabs.CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .setColorScheme(androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_DARK)
+                    .build()
+                    .launchUrl(ctx, uri)
+                true
+            }.getOrDefault(false)
+        }
+        // No Chrome, no app: the phone's browser.
+        if (!opened) start(ctx, Intent(Intent.ACTION_VIEW, uri))
+    }
+
     fun dialNumber(ctx: Context, number: String) {
         start(ctx, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
     }

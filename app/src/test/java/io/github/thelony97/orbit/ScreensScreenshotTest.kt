@@ -181,6 +181,12 @@ class ScreensScreenshotTest {
                     io.github.thelony97.orbit.core.model.Member("m2", "Frau Huber", role = "Prüfungsamt"),
                 ),
                 entries = listOf(io.github.thelony97.orbit.data.Entry("j1", "jku", TypeIds.CALL, at = now - 3 * 86_400_000L, note = "Anrechnung geklärt", memberId = "m1")),
+                links = listOf(
+                    io.github.thelony97.orbit.core.model.Link("p1", "KUSSS", "https://kusss.jku.at", note = "k12345678", pinned = true),
+                    io.github.thelony97.orbit.core.model.Link("p2", "Moodle", "https://moodle.jku.at"),
+                    io.github.thelony97.orbit.core.model.Link("p3", "Mensa", "https://www.mensen.at"),
+                    io.github.thelony97.orbit.core.model.Link("p4", "Bibliothek", "https://www.jku.at/bibliothek"),
+                ),
             ),
             relations = listOf(
                 io.github.thelony97.orbit.data.Relation("r2", "kathi", "anna", "friend"),

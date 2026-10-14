@@ -121,6 +121,8 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
+    // Custom Tabs for portals (PLAN 3.7: Chrome sign-ins stay, Zurück führt zu Orbit).
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.navigation3.runtime)

@@ -235,6 +235,25 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
     fun edit(transform: (Contact) -> Contact) = OrbitRepository.editContact(c.id, transform)
 
+    var linkEdit by remember { mutableStateOf<LinkTile?>(null) }
+
+    /** The tile grid with its long-press actions; removing offers Undo. */
+    @Composable
+    fun links(c: Contact) {
+        LinkGrid(
+            c.links,
+            onEdit = { linkEdit = it },
+            onChange = { list -> edit { it.copy(links = list) } },
+            onRemove = { l ->
+                val at = c.links.indexOfFirst { it.id == l.id }
+                edit { it.copy(links = it.links.filterNot { x -> x.id == l.id }) }
+                Undo.offer("${l.title.ifBlank { linkHost(l.url) }} entfernt") {
+                    edit { if (it.links.any { x -> x.id == l.id }) it else it.copy(links = it.links.toMutableList().apply { add(at.coerceIn(0, size), l) }) }
+                }
+            },
+        )
+    }
+
     /** Removes a Zuordnung with an undo that brings back exactly that one. */
     fun removeAssignment(linkId: String, other: Contact) {
         val original = data.orgLinks.firstOrNull { it.id == linkId } ?: return
@@ -536,8 +555,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 }
             }
 
-            // Contact details, links and own fields (PLAN 3.3)
-            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.links.isNotEmpty() || c.fields.isNotEmpty()) {
+            // Portale (PLAN 3.7): for an organisation the tiles sit right under its head.
+            if (c.isOrg && c.links.isNotEmpty()) item(key = "links") { links(c) }
+
+            // Contact details and own fields (PLAN 3.3)
+            if (c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.fields.isNotEmpty()) {
                 item(key = "contact") {
                     SectionCard(title = "Kontakt", icon = if (c.isOrg) Icons.Rounded.Business else Icons.Rounded.Person) {
                         c.phones.forEachIndexed { i, p ->
@@ -567,13 +589,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 },
                             )
                         }
-                        c.links.forEach { l ->
-                            InfoRow(
-                                label = l.title.ifBlank { "Link" } + if (l.note.isNotBlank()) " · ${l.note}" else "",
-                                value = l.url.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/'),
-                                onClick = { ContactActions.web(ctx, l.url) },
-                            )
-                        }
                         c.fields.forEach { f ->
                             val label = f.label.ifBlank { "Feld" }
                             InfoRow(
@@ -585,6 +600,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     }
                 }
             }
+
+            // A person's links (LinkedIn, Instagram) after the contact details.
+            if (!c.isOrg && c.links.isNotEmpty()) item(key = "links") { links(c) }
 
             // Mails from this contact
             if (c.emails.any { it.value.contains('@') } && !c.isMe) {
@@ -1064,6 +1082,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     }
 
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
+
+    linkEdit?.let { l ->
+        LinkEditDialog(l, onDismiss = { linkEdit = null }) { changed ->
+            edit { it.copy(links = it.links.map { x -> if (x.id == changed.id) changed else x }) }
+        }
+    }
 
     if (linkDialog) {
         LinkDialog(

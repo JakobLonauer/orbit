@@ -23,6 +23,11 @@
     <queries>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
+        <package android:name="com.android.chrome" />
+        <!-- Portale (PLAN 3.7) open in a Custom Tab of the phone's browser. -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
     </queries>
 
     <application
