@@ -86,6 +86,7 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -868,11 +869,18 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
 
             // History
             if (!c.isMe) item(key = "history-header") {
+                val syncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
                 SectionTitle(
                     "Verlauf · ${c.entries.size}",
                     Icons.Rounded.History,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
-                    action = if (c.archived) null else { { SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) } } },
+                    action = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Wellen-Indikator (PLAN 1.3): mails are being fetched behind the page.
+                            if (syncing && (c.emails.isNotEmpty() || c.emailDomains.isNotEmpty())) MailWave(Modifier.padding(end = 8.dp))
+                            if (!c.archived) SmallIconAction(Icons.Rounded.Add, "Eintrag hinzufügen") { entryTarget = EntryTarget.New(TypeIds.MEET) }
+                        }
+                    },
                 )
             }
             if (c.entries.isEmpty() && !c.isMe) {
@@ -1351,4 +1359,28 @@ private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
             },
         )
     }
+}
+
+/** Three dots rising like a wave while mails are fetched; draw phase only. */
+@Composable
+private fun MailWave(modifier: Modifier = Modifier) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "wave").animateFloat(
+        0f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MAX_MS * 3)),
+        label = "wave",
+    )
+    Box(
+        modifier.size(width = 22.dp, height = 12.dp).drawBehind {
+            val r = 2.dp.toPx()
+            for (i in 0 until 3) {
+                val phase = (t.value - i * 0.18f).let { it - kotlin.math.floor(it) }
+                val lift = kotlin.math.sin(phase * 2 * Math.PI).toFloat().coerceAtLeast(0f)
+                drawCircle(
+                    Space.Teal.copy(alpha = 0.45f + 0.55f * lift),
+                    radius = r,
+                    center = androidx.compose.ui.geometry.Offset(r + i * (size.width - 2 * r) / 2f, size.height / 2f - lift * 3.dp.toPx()),
+                )
+            }
+        },
+    )
 }

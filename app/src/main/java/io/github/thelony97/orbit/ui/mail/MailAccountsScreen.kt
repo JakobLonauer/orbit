@@ -95,17 +95,38 @@ fun MailAccountsScreen(nav: Nav) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // One line on what Orbit stores (W7), then the sync state (PLAN 3.9).
                 GlassCard {
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(Icons.Rounded.Lock, null, tint = Space.Teal, modifier = Modifier.size(18.dp).padding(top = 2.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text(
-                            "Orbit liest deine Postfächer nur: Absender, Betreff und Datum der Mails von deinen Kontakten. " +
-                                "Den Text lädt Orbit erst, wenn du eine Mail antippst. Passwörter liegen verschlüsselt im Schlüsselspeicher " +
-                                "dieses Handys und kommen nie in ein Backup.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Space.TextDim,
-                        )
+                        Column {
+                            Text("Betreff, Datum, Richtung – nie der Text; Passwörter nie im Backup.", style = MaterialTheme.typography.bodySmall, color = Space.TextDim)
+                            if (accounts.isNotEmpty()) {
+                                val ctx = androidx.compose.ui.platform.LocalContext.current
+                                val running by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
+                                val live by io.github.thelony97.orbit.mail.MailSync.lastRun.collectAsState()
+                                val last = remember(live) { io.github.thelony97.orbit.mail.MailSync.lastRunAt(ctx) }
+                                Text(
+                                    when {
+                                        running -> "Wird abgeglichen …"
+                                        last <= 0L -> "Noch nicht abgeglichen"
+                                        else -> "Zuletzt abgeglichen " + io.github.thelony97.orbit.core.domain.AtFormat.ago(((System.currentTimeMillis() - last) / 86_400_000L)).let { d ->
+                                            val mins = (System.currentTimeMillis() - last) / 60_000L
+                                            when {
+                                                mins < 1 -> "gerade eben"
+                                                mins < 60 -> "vor $mins Min."
+                                                mins < 24 * 60 -> "vor ${mins / 60} Std."
+                                                else -> d
+                                            }
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (running) Space.Teal else Space.TextFaint,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                        }
                     }
                 }
                 if (accounts.isEmpty()) {

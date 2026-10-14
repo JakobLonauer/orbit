@@ -77,6 +77,12 @@ object MailSync {
     private val _lastRun = MutableStateFlow(0L)
     /** For „zuletzt abgeglichen vor 2 Std.“. */
     val lastRun: StateFlow<Long> = _lastRun
+    private val _running = MutableStateFlow(false)
+    /** While a run fetches (the Wellen-Indikator on the Verlauf header). */
+    val running: StateFlow<Boolean> = _running
+
+    /** The last finished run, also from an earlier process. */
+    fun lastRunAt(ctx: Context): Long = maxOf(_lastRun.value, load(ctx).lastRunAt)
 
     private fun file(ctx: Context) = File(ctx.filesDir, STATE)
 
@@ -109,6 +115,11 @@ object MailSync {
 
     /** Returns false if an account failed (the worker then retries later with a growing pause). */
     suspend fun run(ctx: Context): Boolean = gate.withLock {
+        _running.value = true
+        try { runLocked(ctx) } finally { _running.value = false }
+    }
+
+    private suspend fun runLocked(ctx: Context): Boolean =
         withContext(Dispatchers.IO) {
             val accounts = MailAccounts.accounts.value
             if (accounts.isEmpty()) return@withContext true
@@ -156,7 +167,6 @@ object MailSync {
             _lastRun.value = now
             ok
         }
-    }
 
     private fun syncAccount(a: MailAccount, state0: State, keys: Set<String>): Pair<List<MailBundle.Header>, State> {
         var state = state0
