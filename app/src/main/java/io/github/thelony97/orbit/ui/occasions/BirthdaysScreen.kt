@@ -46,8 +46,8 @@ import java.time.LocalDate
 
 /**
  * Reiter „Geburtstage“ des Anlässe-Tabs (PLAN 3.5), erste Fassung: alle Menschen mit Geburtstag
- * ab heute in Abschnitten, Datumskachel mit Wochentag, „wird 31“, Bezug zu heute. Jahresrad,
- * Gratuliert/Geschenk und die Eingabe für „ohne Geburtstag“ folgen; noch nicht in der Leiste.
+ * ab heute in Abschnitten, Datumskachel mit Wochentag, „wird 31“, Bezug zu heute, „Gratuliert“
+ * per Tipp. Jahresrad, Geschenk und die Eingabe für „ohne Geburtstag“ folgen.
  */
 @Composable
 fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate = today()) {
@@ -56,6 +56,9 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         BirthdayTab.build(data.contacts, todayDate, visible = { Visibility.inLists(it, showOrgs = false) }, name = { Logic.displayName(it, lastFirst) })
     }
     val byId = remember(data) { data.contacts.associateBy { it.id } }
+    // „Gratuliert“ abhaken (PLAN 3.5), unless switched off in the settings.
+    val tracking = data.settings.giftTracking
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
@@ -77,7 +80,16 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             g.rows.forEach { r ->
                 val c = byId[r.contactId] ?: return@forEach
                 item(key = "b-${r.contactId}") {
-                    BirthdayRow(r, c, idx, lastFirst, Modifier.animateItem()) { nav.open(Route.Detail(c.id)) }
+                    // Only where it is the day or just was – not for birthdays months away.
+                    val tick = if (tracking && r.daysUntil in -7L..0L) {
+                        BirthdayTab.congratulated(c, r.occasion.id, r.date.year) to {
+                            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                            io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                io.github.thelony97.orbit.data.Mutations.toggleCongrats(d, c.id, r.occasion.id, r.date.year)
+                            }
+                        }
+                    } else null
+                    BirthdayRow(r, c, idx, lastFirst, Modifier.animateItem(), tick) { nav.open(Route.Detail(c.id)) }
                 }
             }
         }
@@ -107,7 +119,16 @@ fun relativeDay(days: Long): String = when {
 }
 
 @Composable
-private fun BirthdayRow(r: BirthdayTab.Row, c: Contact, idx: Index, lastFirst: Boolean, modifier: Modifier = Modifier, onOpen: () -> Unit) {
+private fun BirthdayRow(
+    r: BirthdayTab.Row,
+    c: Contact,
+    idx: Index,
+    lastFirst: Boolean,
+    modifier: Modifier = Modifier,
+    /** Congratulated already, and the tap that ticks it; null = no tick for this row. */
+    tick: Pair<Boolean, () -> Unit>? = null,
+    onOpen: () -> Unit,
+) {
     val today = r.daysUntil == 0L
     val past = r.daysUntil < 0
     Row(
@@ -146,6 +167,10 @@ private fun BirthdayRow(r: BirthdayTab.Row, c: Contact, idx: Index, lastFirst: B
             style = MaterialTheme.typography.labelMedium,
             color = if (today) Space.Orange else Space.TextDim,
         )
+        if (tick != null) {
+            Spacer(Modifier.width(12.dp))
+            io.github.thelony97.orbit.ui.components.CheckDot(tick.first, tick.second)
+        }
     }
 }
 

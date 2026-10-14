@@ -29,6 +29,23 @@ object Mutations {
     fun restore(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id) it.copy(deletedAt = null) else it })
 
+    /**
+     * „Gratuliert“ abhaken (PLAN 3.5): adds the Verlauf entry for this occasion and year, or takes
+     * it away again on a second tap. Other entries are never touched.
+     */
+    fun toggleCongrats(d: OrbitData, contactId: String, occasionId: String, year: Int, at: Long = now()): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != contactId) c
+            else {
+                val mine = c.entries.filter { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS && it.occasionId == occasionId && it.occasionYear == year }
+                if (mine.isNotEmpty()) c.copy(entries = c.entries - mine.toSet())
+                else c.copy(entries = c.entries + Entry(
+                    id = newId(), contactId = c.id, typeId = io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS, at = at,
+                    occasionId = occasionId, occasionYear = year,
+                ))
+            }
+        })
+
     /** „Zurückholen“ from the archive (also from the caller card while it rings). */
     fun unarchive(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })

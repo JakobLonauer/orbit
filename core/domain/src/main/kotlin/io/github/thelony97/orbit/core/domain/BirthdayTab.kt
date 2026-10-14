@@ -35,6 +35,10 @@ object BirthdayTab {
 
     private const val JUST_PASSED_DAYS = 7L
 
+    /** „Gratuliert“ for this occurrence: a Verlauf entry with the occasion and its year (status per year). */
+    fun congratulated(c: Contact, occasionId: String, year: Int): Boolean =
+        c.entries.any { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS && it.occasionId == occasionId && it.occasionYear == year }
+
     /**
      * [visible] decides who may appear (callers pass the list rules: no archive, no trash).
      * Organisations never appear; „ohne Geburtstag“ counts people only, not yourself.
