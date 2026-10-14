@@ -52,8 +52,8 @@ object MeetingBrief {
                     meeting = m,
                     contactId = c.id,
                     topics = c.topics.filterNot { it.done }.map { it.text },
-                    // A gift's „Buch“ is no note about the person.
-                    lastNote = c.entries.asSequence().filter { it.typeId !in NOT_NOTES }.sortedByDescending { it.at }
+                    // A gift's „Buch“ or „WhatsApp“ from a tapped button is no note about the person.
+                    lastNote = c.entries.asSequence().filter { it.typeId !in NOT_NOTES && it.source != io.github.thelony97.orbit.core.model.EntrySource.APP_ACTION }.sortedByDescending { it.at }
                         .map { it.note.trim() }.firstOrNull { it.isNotEmpty() },
                     partners = partners,
                     children = children,

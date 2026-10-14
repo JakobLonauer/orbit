@@ -38,8 +38,16 @@ fun DateDialog(
     onPick: (LocalDate) -> Unit,
     /** Shown as „Entfernen“ when the value can be taken away again. */
     onClear: (() -> Unit)? = null,
+    /** Earliest day that can be picked; null = any. */
+    minDate: LocalDate? = null,
 ) {
-    val state = rememberDatePickerState(initialSelectedDateMillis = initial.utcMillis())
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.utcMillis(),
+        selectableDates = if (minDate == null) androidx.compose.material3.DatePickerDefaults.AllDates else object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = !utcTimeMillis.utcDate().isBefore(minDate)
+            override fun isSelectableYear(year: Int) = year >= minDate.year
+        },
+    )
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {

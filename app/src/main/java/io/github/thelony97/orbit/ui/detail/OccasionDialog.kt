@@ -139,11 +139,23 @@ fun OccasionDialog(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SpaceChip("Du", !greeting.formal, { greeting = greeting.copy(formal = false) })
                         SpaceChip("Sie", greeting.formal, { greeting = greeting.copy(formal = true) })
-                        SpaceChip(
-                            io.github.thelony97.orbit.core.domain.Greetings.languageName(greeting.language), true,
-                            { greeting = greeting.copy(language = io.github.thelony97.orbit.core.domain.Greetings.nextLanguage(greeting.language)) },
-                            leading = Icons.Rounded.Translate,
-                        )
+                        // Sprache: one tap opens the list (no cycling through seven).
+                        androidx.compose.foundation.layout.Box {
+                            var languages by remember { mutableStateOf(false) }
+                            SpaceChip(
+                                io.github.thelony97.orbit.core.domain.Greetings.languageName(greeting.language), false,
+                                { languages = true },
+                                leading = Icons.Rounded.Translate,
+                            )
+                            androidx.compose.material3.DropdownMenu(languages, { languages = false }, containerColor = Space.PanelHigh) {
+                                io.github.thelony97.orbit.core.domain.Greetings.LANGUAGES.forEach { (code, name) ->
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text(name, color = if (code == greeting.language) Space.Violet else Space.Text) },
+                                        onClick = { greeting = greeting.copy(language = code); languages = false },
+                                    )
+                                }
+                            }
+                        }
                     }
                     Text(
                         io.github.thelony97.orbit.core.domain.Greetings.text(greetingFor, greeting),
@@ -184,8 +196,9 @@ fun OccasionDialog(
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SpaceChip("Anpinnen", pinned, { pinned = !pinned }, leading = Icons.Rounded.PushPin)
-                    if (onCalendar != null && valid) {
-                        SpaceChip("In den Kalender", false, { date?.let { onCalendar(current(it)) } }, leading = Icons.Rounded.EditCalendar)
+                    // Only for a saved occasion, so the chip never jumps in while typing (W2).
+                    if (onCalendar != null && initial != null) {
+                        SpaceChip("In den Kalender", false, { if (valid) date?.let { onCalendar(current(it)) } }, leading = Icons.Rounded.EditCalendar)
                     }
                 }
             }

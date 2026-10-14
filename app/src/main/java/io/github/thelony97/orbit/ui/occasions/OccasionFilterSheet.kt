@@ -18,7 +18,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.core.domain.OccasionList
 import io.github.thelony97.orbit.core.model.OccasionKind
 import io.github.thelony97.orbit.data.Group
+import io.github.thelony97.orbit.ui.components.GhostButton
+import io.github.thelony97.orbit.ui.components.SectionTitle
 import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.theme.Space
 
@@ -63,6 +68,10 @@ data class OccasionView(
 fun OccasionFilterSheet(
     view: OccasionView,
     groups: List<Group>,
+    /** The kinds that occur at all (W5: no chip for a kind nobody has). */
+    kinds: List<OccasionKind>,
+    /** Whether any organisation has an occasion; otherwise no toggle for them. */
+    hasOrgs: Boolean,
     onChange: (OccasionView) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -83,8 +92,9 @@ fun OccasionFilterSheet(
                 .padding(bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Same build as the contact list's sheet (PLAN 3.5 „wie in der Kontaktliste“).
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Tune, null, tint = Space.Coral, modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.Tune, null, tint = Space.Violet, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Text("Filter & Sortierung", style = MaterialTheme.typography.titleLargeEmphasized, modifier = Modifier.weight(1f))
                 if (view.activeCount() > 0) {
@@ -99,26 +109,29 @@ fun OccasionFilterSheet(
                     )
                 }
             }
-            Title("Sortierung")
-            Chips {
-                OccasionList.Sort.entries.forEach { s -> SpaceChip(s.label, view.sort == s, { onChange(view.copy(sort = s)) }, accent = Space.Coral) }
-                SpaceChip(if (view.reversed) "↑" else "↓", view.reversed, { onChange(view.copy(reversed = !view.reversed)) }, accent = Space.Coral)
-            }
-            Title("Art")
-            Chips {
-                OccasionKind.entries.forEach { k ->
-                    val on = k in view.kinds
-                    SpaceChip(k.label, on, { onChange(view.copy(kinds = if (on) view.kinds - k else view.kinds + k)) })
+            val shownKinds = OccasionKind.entries.filter { it in kinds || it in view.kinds }
+            if (shownKinds.size > 1) {
+                SectionTitle("Art", modifier = Modifier.padding(top = 8.dp))
+                Chips {
+                    shownKinds.forEach { k ->
+                        val on = k in view.kinds
+                        SpaceChip(k.label, on, { onChange(view.copy(kinds = if (on) view.kinds - k else view.kinds + k)) })
+                    }
                 }
             }
-            Title("Zeitraum")
+            SectionTitle("Zeitraum", modifier = Modifier.padding(top = 10.dp))
             Chips {
                 listOf(7, 30, 90).forEach { d -> SpaceChip("$d Tage", view.withinDays == d, { onChange(view.copy(withinDays = d)) }) }
                 SpaceChip("Ganzes Jahr", view.withinDays == null, { onChange(view.copy(withinDays = null)) })
-                SpaceChip("Nur runde", view.onlyRound, { onChange(view.copy(onlyRound = !view.onlyRound)) }, accent = Space.Orange)
+            }
+            Chips {
+                SpaceChip("Nur runde", view.onlyRound, { onChange(view.copy(onlyRound = !view.onlyRound)) })
+                if (hasOrgs || view.orgs) {
+                    SpaceChip("Organisationen", view.orgs, { onChange(view.copy(orgs = !view.orgs)) }, leading = Icons.Rounded.Business, accent = Space.Blue)
+                }
             }
             if (groups.isNotEmpty()) {
-                Title("Gruppe")
+                SectionTitle("Gruppe", Icons.Rounded.Groups, modifier = Modifier.padding(top = 10.dp))
                 Chips {
                     groups.forEach { g ->
                         val on = view.groupId == g.id
@@ -126,16 +139,20 @@ fun OccasionFilterSheet(
                     }
                 }
             }
+            SectionTitle("Sortieren", Icons.AutoMirrored.Rounded.Sort, modifier = Modifier.padding(top = 10.dp))
             Chips {
-                SpaceChip("Organisationen", view.orgs, { onChange(view.copy(orgs = !view.orgs)) }, leading = Icons.Rounded.Business, accent = Space.Blue)
+                OccasionList.Sort.entries.forEach { s -> SpaceChip(s.label, view.sort == s, { onChange(view.copy(sort = s, reversed = false)) }, accent = Space.Teal) }
+            }
+            Row(Modifier.padding(top = 6.dp)) {
+                GhostButton(
+                    if (view.reversed) "Umgekehrt" else "Reihenfolge umkehren",
+                    { onChange(view.copy(reversed = !view.reversed)) },
+                    icon = Icons.Rounded.SwapVert,
+                    color = if (view.reversed) Space.Teal else Space.Text,
+                )
             }
         }
     }
-}
-
-@Composable
-private fun Title(text: String) {
-    Text(text, style = MaterialTheme.typography.labelLarge, color = Space.TextDim, modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable

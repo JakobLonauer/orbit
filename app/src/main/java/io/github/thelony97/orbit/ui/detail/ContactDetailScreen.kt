@@ -595,7 +595,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         doneLabel = "erledigt",
                         onAdd = { text -> edit { it.copy(topics = it.topics + CheckItem(newId(), text, createdAt = now())) } },
                         onToggle = { item -> edit { it.copy(topics = it.topics.map { t -> if (t.id == item.id) t.copy(done = !t.done) else t }) } },
-                        onDelete = { item -> edit { it.copy(topics = it.topics.filterNot { t -> t.id == item.id }) } },
+                        onDelete = { item ->
+                            edit { it.copy(topics = it.topics.filterNot { t -> t.id == item.id }) }
+                            Undo.offer("Thema entfernt") { edit { if (it.topics.any { t -> t.id == item.id }) it else it.copy(topics = it.topics + item) } }
+                        },
                         onClearDone = { edit { it.copy(topics = it.topics.filterNot { t -> t.done }) } },
                         autoFocus = c.topics.isEmpty() && "topics" in opened,
                         onDate = { item, day -> edit { it.copy(topics = it.topics.map { t -> if (t.id == item.id) t.copy(remindOn = day?.toString()) else t }) } },
@@ -965,9 +968,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             greetingFor = owner?.takeIf { !it.isOrg && !it.isMe },
             onGreeting = { g -> OrbitRepository.editContact(ownerId) { it.copy(greeting = g) } },
             onCalendar = { o ->
-                val e = io.github.thelony97.orbit.core.domain.OccasionCalendar.event(o, ownerId, io.github.thelony97.orbit.domain.today()) { id ->
-                    idx.contacts[id]?.let { Logic.shortName(it) }.orEmpty()
-                }
+                val alive = { id: String -> idx.contacts[id]?.takeIf { it.deletedAt == null && !it.archived } }
+                val e = io.github.thelony97.orbit.core.domain.OccasionCalendar.event(
+                    o.copy(sharedWith = o.sharedWith?.takeIf { alive(it) != null }), ownerId, io.github.thelony97.orbit.domain.today(),
+                ) { id -> alive(id)?.let { Logic.shortName(it) }.orEmpty() }
                 if (e != null) {
                     // All-day events are placed in UTC midnight to midnight.
                     val begin = e.day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()

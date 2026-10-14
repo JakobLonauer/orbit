@@ -79,14 +79,20 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     // Reiter (PLAN 3.5): Geburtstage (Standard) · Angepinnt (only when something is pinned, W5) · Alle Anlässe.
     var reiter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(initialReiter) }
     // Filter & Sortierung for „Angepinnt“ and „Alle“, behind one button like the contact list (PLAN 3.5).
-    var view by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(OccasionView()) }
+    var viewState by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(OccasionView()) }
     var filterSheet by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // Jahresrad (PLAN 1.3): every visible occasion of the coming year as a dot in its contact's colour.
     val upcoming = remember(data, todayDate) {
         io.github.thelony97.orbit.core.domain.UpcomingIndex.build(data.contacts, todayDate) { Visibility.inLists(it, data.settings.showOrgs) }
     }
-    val hasPinned = upcoming.any { it.occasion.pinned }
+    // Everything an Anlass filter could show (organisations included), for the sheet's chips and „Angepinnt“.
+    val everything = remember(data, todayDate) {
+        io.github.thelony97.orbit.core.domain.UpcomingIndex.build(data.contacts, todayDate) { Visibility.inLists(it, true) }
+    }
+    // A group deleted meanwhile filters nothing any more.
+    val view = viewState.let { v -> if (v.groupId != null && data.groups.none { it.id == v.groupId }) v.copy(groupId = null) else v }
+    val hasPinned = everything.any { it.occasion.pinned && (view.orgs || data.settings.showOrgs || byId[it.ownerId]?.isOrg != true) }
     val shown = if (reiter == 1 && !hasPinned) 0 else reiter
     val occGroups = remember(data, todayDate, shown, view) {
         if (shown == 0) emptyList()
@@ -148,12 +154,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
     ) {
         item(key = "header") {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp).height(38.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(42.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Anlässe", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
                 // Only where it filters something (W5): the Geburtstage Reiter has no filter.
                 if (shown != 0) {
                     io.github.thelony97.orbit.ui.components.BadgeOrb(
-                        androidx.compose.material.icons.Icons.Rounded.Tune, "Filter & Sortierung", view.activeCount(), { filterSheet = true }, size = 38.dp,
+                        androidx.compose.material.icons.Icons.Rounded.Tune, "Filter & Sortierung", view.activeCount(), { filterSheet = true },
                     )
                 }
             }
@@ -181,7 +187,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 val filtered = view.filter(false) != io.github.thelony97.orbit.core.domain.OccasionList.Filter()
                 io.github.thelony97.orbit.ui.components.EmptyHint(
                     "Keine Anlässe", "",
-                    action = if (filtered) "Alle zeigen" to { view = view.copy(kinds = emptySet(), groupId = null, withinDays = null, onlyRound = false) } else null,
+                    action = if (filtered) "Alle zeigen" to { viewState = view.copy(kinds = emptySet(), groupId = null, withinDays = null, onlyRound = false) } else null,
                 )
             }
             occGroups.forEach { g ->
@@ -235,6 +241,22 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                     val giftHere = tracking && r.daysUntil in -7L..0L
                     BirthdayRow(
                         r, c, idx, lastFirst, Modifier.animateItem(), tick,
+                        onSwipeTick = if (tick != null && !tick.first) {
+                            {
+                                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                                io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                    io.github.thelony97.orbit.data.Mutations.markCongrats(d, c.id, r.occasion.id, r.date.year)
+                                }
+                                io.github.thelony97.orbit.ui.components.Undo.offer("Gratuliert · " + Logic.shortName(c)) {
+                                    io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                        val now = d.contacts.firstOrNull { it.id == c.id }
+                                        if (now != null && BirthdayTab.congratulated(now, r.occasion.id, r.date.year)) {
+                                            io.github.thelony97.orbit.data.Mutations.toggleCongrats(d, c.id, r.occasion.id, r.date.year)
+                                        } else d
+                                    }
+                                }
+                            }
+                        } else null,
                         // Gratulieren on the day itself; it ticks „Gratuliert“ on its way (PLAN 3.5).
                         onCongratulate = if (r.daysUntil == 0L && io.github.thelony97.orbit.actions.ContactActions.defaultNumber(c) != null) {
                             {
@@ -286,7 +308,14 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             }
         }
     }
-    if (filterSheet) OccasionFilterSheet(view, data.groups, onChange = { view = it }, onDismiss = { filterSheet = false })
+    if (filterSheet) {
+        OccasionFilterSheet(
+            view, data.groups,
+            kinds = everything.map { it.occasion.kind }.distinct(),
+            hasOrgs = everything.any { byId[it.ownerId]?.isOrg == true },
+            onChange = { viewState = it }, onDismiss = { filterSheet = false },
+        )
+    }
     // Sternenregen: a birthday today, once per day.
     val birthdayToday = result.groups.any { it.section == BirthdayTab.Section.TODAY }
     StarRain(play = birthdayToday && io.github.thelony97.orbit.ui.Session.starRainDay != todayDate.toEpochDay()) {
@@ -316,6 +345,8 @@ private fun BirthdayRow(
     modifier: Modifier = Modifier,
     /** Congratulated already, and the tap that ticks it; null = no tick for this row. */
     tick: Pair<Boolean, () -> Unit>? = null,
+    /** The swipe that ticks „Gratuliert“; null while it is ticked already or there is no tick. */
+    onSwipeTick: (() -> Unit)? = null,
     gift: io.github.thelony97.orbit.core.model.HistoryEntry? = null,
     giftEnabled: Boolean = false,
     coGivers: List<Contact> = emptyList(),
@@ -327,17 +358,18 @@ private fun BirthdayRow(
     Column(modifier.fillMaxWidth()) {
     val today = r.daysUntil == 0L
     val past = r.daysUntil < 0
-    // Wisch nach rechts = Gratuliert (PLAN 3.5): resists, ticks, springs back; again = untick.
+    // Wisch nach rechts = Gratuliert (PLAN 3.5): resists, ticks, springs back. Only ever ticks
+    // (with Undo); taking it back stays on the tick itself.
     val swipe = androidx.compose.material3.rememberSwipeToDismissBoxState()
     val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
-    val currentTick by androidx.compose.runtime.rememberUpdatedState(tick)
+    val currentSwipe by androidx.compose.runtime.rememberUpdatedState(onSwipeTick)
     androidx.compose.material3.SwipeToDismissBox(
         state = swipe,
-        enableDismissFromStartToEnd = tick != null,
+        enableDismissFromStartToEnd = onSwipeTick != null,
         enableDismissFromEndToStart = false,
-        gesturesEnabled = tick != null,
+        gesturesEnabled = onSwipeTick != null,
         onDismiss = { value ->
-            if (value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd) currentTick?.second?.invoke()
+            if (value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd) currentSwipe?.invoke()
             swipeScope.launch { swipe.reset() }
         },
         backgroundContent = {
@@ -350,10 +382,7 @@ private fun BirthdayRow(
                         .padding(horizontal = 18.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    androidx.compose.material3.Icon(
-                        if (tick?.first == true) androidx.compose.material.icons.Icons.Rounded.Close else androidx.compose.material.icons.Icons.Rounded.Check,
-                        null, tint = Space.Orange, modifier = Modifier.size(20.dp),
-                    )
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Check, null, tint = Space.Orange, modifier = Modifier.size(20.dp))
                 }
             }
         },

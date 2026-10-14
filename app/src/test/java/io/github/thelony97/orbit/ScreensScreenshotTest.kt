@@ -154,7 +154,7 @@ class ScreensScreenshotTest {
             fields = listOf(io.github.thelony97.orbit.core.model.CustomField("f1", "Kundennummer", "KD-48213")),
             pinnedNote = "Lieber per SMS als anrufen",
             notes = "Lernt Japanisch, will 2027 nach Kyoto.",
-            topics = listOf(CheckItem("kt1", "Wie war die Präsentation?")),
+            topics = listOf(CheckItem("kt1", "Wie war die Präsentation?", remindOn = "2026-10-20")),
             entries = listOf(e("ka1", TypeIds.CALL, 1, sec = 300, incoming = true), e("ka2", TypeIds.MEET, 12, "Mittagessen Mensa")),
         ).withBirthday(inDays(40)) { "bd-kathi" }
         val full = data.copy(
@@ -362,7 +362,7 @@ class ScreensScreenshotTest {
                             kinds = setOf(io.github.thelony97.orbit.core.model.OccasionKind.WEDDING), withinDays = 30, onlyRound = true,
                             sort = io.github.thelony97.orbit.core.domain.OccasionList.Sort.CALENDAR,
                         ),
-                        data.groups, onChange = {}, onDismiss = {},
+                        data.groups, kinds = io.github.thelony97.orbit.core.model.OccasionKind.entries.take(3), hasOrgs = true, onChange = {}, onDismiss = {},
                     )
                 }
             }

@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
@@ -174,9 +175,21 @@ private fun CheckRow(
 ) {
     var picking by remember { mutableStateOf(false) }
     val day = io.github.thelony97.orbit.core.domain.TopicPlan.dayOf(item)
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Langdruck = Datum (PLAN 3.3 „Themen optional mit Datum“): no icon on every row (W5).
+            .then(
+                if (onDate != null && !item.done) Modifier.pointerInput(item.id) {
+                    androidx.compose.foundation.gestures.detectTapGestures(onLongPress = {
+                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                        picking = true
+                    })
+                } else Modifier,
+            )
+            .padding(vertical = 4.dp),
     ) {
         CheckDot(item.done, { onToggle(item) })
         Spacer(Modifier.width(10.dp))
@@ -187,23 +200,15 @@ private fun CheckRow(
             textDecoration = if (item.done) TextDecoration.LineThrough else null,
             color = if (item.done) Space.TextFaint else Space.Text,
         )
-        if (onDate != null && !item.done) {
-            if (day != null) {
-                // The day it reminds on; past days stay visible in coral until done.
-                val past = day.isBefore(io.github.thelony97.orbit.domain.today())
-                Text(
-                    io.github.thelony97.orbit.util.Fmt.shortDate(day),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (past) Space.Coral else Space.Violet,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable { picking = true }.padding(horizontal = 6.dp, vertical = 4.dp),
-                )
-            } else {
-                Icon(
-                    Icons.Rounded.CalendarMonth, "Datum",
-                    tint = Space.TextFaint,
-                    modifier = Modifier.size(26.dp).clip(CircleShape).clickable { picking = true }.padding(5.dp),
-                )
-            }
+        if (onDate != null && !item.done && day != null) {
+            // The day it reminds on; past days stay visible in coral until done.
+            val past = day.isBefore(io.github.thelony97.orbit.domain.today())
+            Text(
+                io.github.thelony97.orbit.util.Fmt.shortDate(day),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (past) Space.Coral else Space.Violet,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable { picking = true }.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
         Icon(
             Icons.Rounded.Close, "Löschen",
@@ -217,6 +222,8 @@ private fun CheckRow(
             onDismiss = { picking = false },
             onPick = { onDate(item, it) },
             onClear = if (day != null) ({ onDate(item, null) }) else null,
+            // The morning notification names it; today's has gone out already.
+            minDate = io.github.thelony97.orbit.domain.today().plusDays(1),
         )
     }
 }

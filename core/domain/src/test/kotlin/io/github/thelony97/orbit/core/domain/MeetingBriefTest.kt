@@ -23,6 +23,7 @@ class MeetingBriefTest {
             HistoryEntry(id = "e2", contactId = "anna", typeId = "call", at = 20, note = " "),
             HistoryEntry(id = "e3", contactId = "anna", typeId = "meet", at = 5, note = "alt"),
             HistoryEntry(id = "e4", contactId = "anna", typeId = io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT, at = 30, note = "Buch"),
+            HistoryEntry(id = "e5", contactId = "anna", typeId = "message", at = 40, note = "WhatsApp", source = io.github.thelony97.orbit.core.model.EntrySource.APP_ACTION),
         ),
     )
     private val contacts = listOf(

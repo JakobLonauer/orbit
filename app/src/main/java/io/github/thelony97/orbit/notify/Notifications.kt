@@ -51,7 +51,7 @@ object Notifications {
         nm.createNotificationChannels(
             listOf(
                 NotificationChannel(CH_DIGEST, "Tägliche Übersicht", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Geburtstage und Jahrestage"
+                    description = "Anlässe und Themen des Tages"
                 },
                 NotificationChannel(CH_CALL, "Anruf-Helfer", NotificationManager.IMPORTANCE_HIGH).apply {
                     description = "Themen während des Anrufs und Notiz danach"
@@ -61,7 +61,7 @@ object Notifications {
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
                 },
                 NotificationChannel(CH_MEETING, "Treffen", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Nachfrage, ob ein geplantes Treffen stattgefunden hat"
+                    description = "Treffen am Morgen und Nachfrage danach"
                 },
                 NotificationChannel(CH_SYSTEM, "Backup & Updates", NotificationManager.IMPORTANCE_LOW),
             ),
@@ -167,6 +167,8 @@ object Notifications {
         if (due.isEmpty()) return
         val byId = data.contacts.associateBy { it.id }
         val single = due.map { it.contactId }.distinct().singleOrNull()?.let { byId[it] }
+        // Caught-up days (phone was off) are no longer „heute“.
+        val heading = if (due.all { it.day == io.github.thelony97.orbit.domain.today() }) "Heute ansprechen" else "Ansprechen"
         val builder = base(ctx, CH_DIGEST)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(openContact(ctx, single?.id, ID_TOPICS_DAY))
@@ -174,14 +176,14 @@ object Notifications {
             .setPublicVersion(base(ctx, CH_DIGEST).setContentTitle("Heute ansprechen").build())
         if (single != null) {
             val texts = due.map { it.topic.text }
-            builder.setContentTitle("Heute ansprechen: " + Logic.shortName(single))
+            builder.setContentTitle(heading + ": " + Logic.shortName(single))
                 .setContentText(texts.joinToString(" · "))
                 .setStyle(NotificationCompat.InboxStyle().also { st -> texts.take(7).forEach { st.addLine("• $it") } })
             photoOf(ctx, single.photo)?.let { builder.setLargeIcon(it) }
             if (single.phones.any { it.value.isNotBlank() }) builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, single.id))
         } else {
             val lines = due.map { d -> (byId[d.contactId]?.let { Logic.shortName(it) } ?: "") + ": " + d.topic.text }
-            builder.setContentTitle("Heute ansprechen")
+            builder.setContentTitle(heading)
                 .setContentText(lines.joinToString(" · "))
                 .setStyle(NotificationCompat.InboxStyle().also { st ->
                     lines.take(7).forEach { st.addLine(it) }
@@ -385,6 +387,8 @@ object Notifications {
             )
             if (family.isNotEmpty()) add(family.joinToString(" · "))
         }
+        // Nothing to have in mind: the calendar reminds of the meeting itself (W5).
+        if (lines.isEmpty()) return
         val title = "Heute " + Fmt.time(b.meeting.start) + " · " + Logic.shortName(c) + if (b.meeting.place.isNotBlank()) " · ${b.meeting.place}" else ""
         val id = ID_BRIEF_BASE + (b.meeting.id.hashCode() and ID_MASK)
         val builder = base(ctx, CH_MEETING)
