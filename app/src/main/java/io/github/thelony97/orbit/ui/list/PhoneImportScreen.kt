@@ -123,7 +123,9 @@ internal suspend fun takeOverAll(ctx: android.content.Context, picked: List<Phon
     val contacts = picked.mapNotNull { PhoneImport.read(ctx, it.uri) }
     if (contacts.isEmpty()) return contacts
     OrbitRepository.edit { d -> contacts.fold(d) { acc, c -> Mutations.upsertContact(acc, c) } }
-    Sync.backfill(ctx, contacts.filter { it.phones.isNotEmpty() }.map { it.id })
+    // The contacts are saved already; a failing backfill request must never take the import down.
+    runCatching { Sync.backfill(ctx, contacts.filter { it.phones.isNotEmpty() }.map { it.id }) }
+        .onFailure { android.util.Log.w("Orbit", "backfill request failed", it) }
     return contacts
 }
 

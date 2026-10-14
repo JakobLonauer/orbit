@@ -35,4 +35,15 @@ object StorageUsage {
             .map { (part, fs) -> Slice(part, fs.sumOf { it.bytes.coerceAtLeast(0) }, fs.size) }
             .filter { it.bytes > 0 }
             .sortedWith(compareByDescending<Slice> { it.bytes }.thenBy { it.part.ordinal })
+
+    /** de-AT sizes like the system shows them (1000-based): „900 kB“, „9,8 MB“, „182 MB“, „1,2 GB“. */
+    fun format(bytes: Long): String {
+        val units = listOf("B", "kB", "MB", "GB", "TB")
+        var v = bytes.coerceAtLeast(0).toDouble()
+        var u = 0
+        while (v >= 1000 && u < units.lastIndex) { v /= 1000; u++ }
+        val text = if (u == 0 || v >= 100) Math.round(v).toString()
+        else java.lang.String.format(java.util.Locale.forLanguageTag("de-AT"), "%.1f", v).removeSuffix(",0")
+        return "$text ${units[u]}"
+    }
 }

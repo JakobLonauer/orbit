@@ -51,10 +51,13 @@ object Sync {
     fun backfill(ctx: Context, contactIds: Collection<String>) {
         if (contactIds.isEmpty()) return
         if (contactIds.size == 1) return backfill(ctx, contactIds.first())
-        val request = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setInputData(workDataOf(SyncWorker.KEY_MODE to SyncWorker.MODE_BACKFILL, SyncWorker.KEY_CONTACTS to contactIds.joinToString(",")))
-            .build()
-        WorkManager.getInstance(ctx).enqueueUniqueWork("orbit-backfill-many-" + contactIds.hashCode(), ExistingWorkPolicy.REPLACE, request)
+        // WorkManager input is capped at 10 KB: a few hundred ids would throw. One worker per block.
+        contactIds.chunked(100).forEach { block ->
+            val request = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setInputData(workDataOf(SyncWorker.KEY_MODE to SyncWorker.MODE_BACKFILL, SyncWorker.KEY_CONTACTS to block.joinToString(",")))
+                .build()
+            WorkManager.getInstance(ctx).enqueueUniqueWork("orbit-backfill-many-" + block.hashCode(), ExistingWorkPolicy.REPLACE, request)
+        }
     }
 
     fun backfill(ctx: Context, contactId: String) {

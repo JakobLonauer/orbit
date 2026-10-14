@@ -48,4 +48,14 @@ class StorageUsageTest {
         val s = StorageUsage.slices(listOf(FileInfo("orbit.json", 5), FileInfo("a.jpg", 5, true)))
         assertEquals(listOf(Part.PHOTOS, Part.CONTACTS), s.map { it.part })
     }
+
+    @Test fun austrianSizes() {
+        assertEquals("0 B", StorageUsage.format(0))
+        assertEquals("999 B", StorageUsage.format(999))
+        assertEquals("900 kB", StorageUsage.format(900_000))
+        assertEquals("9,8 MB", StorageUsage.format(9_800_000))
+        assertEquals("1 MB", StorageUsage.format(1_000_000))
+        assertEquals("182 MB", StorageUsage.format(182_000_000))
+        assertEquals("1,2 GB", StorageUsage.format(1_200_000_000))
+    }
 }

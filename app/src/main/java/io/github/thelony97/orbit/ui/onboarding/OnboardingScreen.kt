@@ -105,11 +105,12 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
 
     fun finish() {
         AppLock.unlock()
-        scope.launch {
-            OrbitRepository.update { d -> d.copy(settings = d.settings.copy(onboardingDone = true)) }
-            OrbitRepository.flush()
+        // The screen leaves the composition right after the update – the rest must not be cancelled.
+        scope.launch(kotlinx.coroutines.NonCancellable) {
             DigestScheduler.schedule(ctx)
             Sync.requestNow(ctx)
+            OrbitRepository.update { d -> d.copy(settings = d.settings.copy(onboardingDone = true)) }
+            OrbitRepository.flush()
         }
     }
 

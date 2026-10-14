@@ -163,7 +163,7 @@ fun EntrySheet(
             // Fotos am Eintrag (PLAN 3.10): tap selects, „+“ brings new ones from the phone.
             if (onAddPhotos != null || photos.isNotEmpty()) {
                 val choices = (extra + photos.filter { it.mime.startsWith("image/") }).distinctBy { it.id }
-                    .sortedByDescending { it.id in attached }.take(12)
+                    .sortedByDescending { it.id in attached }.take(60)
                 Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (onAddPhotos != null) {
                         Box(

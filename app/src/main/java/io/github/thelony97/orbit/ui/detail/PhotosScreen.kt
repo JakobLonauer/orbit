@@ -50,11 +50,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun PhotosScreen(contactId: String?, data: OrbitData, idx: Index, nav: Nav) {
     val owner = contactId?.let { idx.contacts[it] }
-    val months = remember(data, contactId) {
+    val orgsShown = io.github.thelony97.orbit.ui.Session.audience != io.github.thelony97.orbit.domain.Audience.PEOPLE
+    val months = remember(data, contactId, orgsShown) {
         PhotoMonths.build(data.contacts, zone()) { c ->
             if (contactId != null) c.id == contactId
-            // Everyone visible; organisations' pictures too (they are no list).
-            else c.deletedAt == null && !c.archived
+            // Same visibility as the list: organisations only when they are shown there (PLAN 2.3).
+            else io.github.thelony97.orbit.core.domain.Visibility.inLists(c, orgsShown)
         }
     }
     val flat = remember(months) { months.flatMap { it.items } }

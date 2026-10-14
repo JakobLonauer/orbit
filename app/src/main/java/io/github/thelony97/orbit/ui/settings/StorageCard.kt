@@ -72,7 +72,7 @@ fun StorageCard(preset: List<StorageUsage.Slice>? = null) {
         if (preset == null) value = withContext(Dispatchers.IO) { StorageUsage.slices(storageFiles(ctx)) }
     }
     val total = slices?.sumOf { it.bytes } ?: 0L
-    SettingsGroup("Speicher", status = slices?.let { android.text.format.Formatter.formatShortFileSize(ctx, total) }) {
+    SettingsGroup("Speicher", status = slices?.let { StorageUsage.format(total) }) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             val grow = remember { Animatable(0f) }
             LaunchedEffect(slices != null) {
@@ -124,7 +124,7 @@ fun StorageCard(preset: List<StorageUsage.Slice>? = null) {
                             Spacer(Modifier.width(10.dp))
                         }
                         Text(
-                            android.text.format.Formatter.formatShortFileSize(ctx, s.bytes),
+                            StorageUsage.format(s.bytes),
                             style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                             color = Space.TextDim,
                         )

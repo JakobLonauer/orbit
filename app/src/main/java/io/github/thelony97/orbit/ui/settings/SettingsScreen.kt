@@ -595,7 +595,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 }
                 SettingItem(
                     Icons.Rounded.PhotoLibrary, "Fotos",
-                    "$photoCount Bilder · " + android.text.format.Formatter.formatShortFileSize(LocalContext.current, photoBytes),
+                    "$photoCount Bilder · " + io.github.thelony97.orbit.core.domain.StorageUsage.format(photoBytes),
                     onClick = { nav.open(Route.Photos()) },
                 )
                 Hairline()

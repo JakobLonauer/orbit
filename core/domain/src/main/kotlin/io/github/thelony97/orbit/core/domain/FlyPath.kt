@@ -32,7 +32,7 @@ object FlyPath {
      */
     fun top(fromLat: Double, fromLng: Double, fromZoom: Double, toLat: Double, toLng: Double, toZoom: Double, viewportPx: Double): Hop? {
         val span = max(abs(mercX(fromLng) - mercX(toLng)), abs(mercY(fromLat) - mercY(toLat)))
-        if (span <= 0.0) return null
+        if (span <= 0.0 || viewportPx <= 0.0) return null
         // Both places within 60 % of the view.
         val fit = log2(viewportPx * 0.6 / (WORLD * span))
         val out = min(min(fromZoom, toZoom), fit)

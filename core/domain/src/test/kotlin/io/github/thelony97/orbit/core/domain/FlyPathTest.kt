@@ -29,4 +29,8 @@ class FlyPathTest {
         assertTrue(FlyPath.top(48.2, 16.3, 12.0, -33.9, 151.2, 12.0, 1080.0)!!.zoom in 1.0..2.5)
         assertEquals(1.0, FlyPath.top(0.0, -170.0, 10.0, 0.0, 170.0, 10.0, 1080.0)!!.zoom, 1e-9)
     }
+
+    @Test fun noHopWithoutAMeasuredView() {
+        assertEquals(null, FlyPath.top(48.30, 14.29, 13.0, 48.21, 16.37, 13.0, 0.0))
+    }
 }

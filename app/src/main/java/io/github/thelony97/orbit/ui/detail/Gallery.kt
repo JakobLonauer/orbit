@@ -164,7 +164,8 @@ object GalleryStore {
             val target = OrbitRepository.photoFile(file)
             runCatching {
                 val name = ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
-                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }.orEmpty().ifBlank { "Dokument.pdf" }
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    .let { io.github.thelony97.orbit.core.domain.FileNames.safe(it, "Dokument.pdf") }
                 ctx.contentResolver.openInputStream(uri)?.use { input ->
                     target.outputStream().use { out ->
                         val buf = ByteArray(64 * 1024)
@@ -530,6 +531,8 @@ fun ContactPickDialog(title: String, exclude: Set<String>, onDismiss: () -> Unit
     val lastFirst = data?.settings?.sortByLastName ?: false
     val people = data?.contacts.orEmpty()
         .filter { it.deletedAt == null && !it.archived && it.id !in exclude && (q.isEmpty() || io.github.thelony97.orbit.domain.Logic.displayName(it, lastFirst).lowercase().contains(q)) }
+        // Organisations stay hidden like in the list – unless shown there or searched for by name.
+        .filter { !it.isOrg || q.isNotEmpty() || io.github.thelony97.orbit.ui.Session.audience != io.github.thelony97.orbit.domain.Audience.PEOPLE }
         .sortedBy { io.github.thelony97.orbit.domain.Logic.sortKey(it, lastFirst) }
         .take(40)
     androidx.compose.material3.AlertDialog(
