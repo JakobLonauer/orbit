@@ -9,6 +9,8 @@ import io.github.thelony97.orbit.actions.AppShortcuts
 import io.github.thelony97.orbit.core.domain.Shortcuts
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.now
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -19,14 +21,31 @@ import java.util.Locale
  */
 class LastCallTile : TileService() {
 
+    private val scope = kotlinx.coroutines.MainScope()
+
     override fun onStartListening() {
         super.onStartListening()
+        show()
+        // Orbit not running yet: load once, then show the time.
+        if (OrbitRepository.data.value == null) scope.launch {
+            OrbitRepository.init(applicationContext)
+            runCatching { OrbitRepository.ensureLoaded() }
+            show()
+        }
+    }
+
+    private fun show() {
         val tile = qsTile ?: return
         val data = OrbitRepository.data.value
         val last = data?.let { Shortcuts.lastCall(it.contacts, now()) }
         tile.state = if (data == null || last != null) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.subtitle = last?.let { time(it.at) }
         tile.updateTile()
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
     override fun onClick() {

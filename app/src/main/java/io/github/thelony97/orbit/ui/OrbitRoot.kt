@@ -149,7 +149,8 @@ private fun MainNavigation(data: OrbitData) {
         val id = pane
         if (!wide && id != null) {
             pane = null
-            backStack.add(Route.Detail(id))
+            // Right above the list – an edit page on top keeps its unsaved input in front.
+            backStack.add(1, Route.Detail(id))
         }
     }
     val paneNav = remember(nav) {
@@ -231,7 +232,7 @@ private fun MainNavigation(data: OrbitData) {
                             val id = pane
                             // The contact appears beside the list: no flying avatar between them.
                             androidx.compose.runtime.CompositionLocalProvider(io.github.thelony97.orbit.ui.components.LocalSharedScope provides null) {
-                                androidx.compose.animation.Crossfade(id, label = "pane") { shown ->
+                                androidx.compose.animation.Crossfade(id, animationSpec = io.github.thelony97.orbit.core.designsystem.Motion.medium(), label = "pane") { shown ->
                                     if (shown != null) {
                                         ContactDetailScreen(id = shown, data = data, idx = idx, nav = paneNav)
                                     } else {

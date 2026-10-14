@@ -33,8 +33,14 @@ object AppShortcuts {
 
     private const val FAVORITES = 2
     @Volatile private var shown: List<String>? = null
+    @Volatile private var goneShown: Set<String>? = null
 
     fun update(ctx: Context, data: OrbitData) {
+        val gone = data.contacts.filter { it.deletedAt != null || it.archived }.map { it.id }.toSet()
+        if (gone != goneShown) {
+            goneShown = gone
+            tidyPinned(ctx, data)
+        }
         val favs = Shortcuts.topFavorites(data.contacts, now(), { Visibility.inLists(it, data.settings.showOrgs) }, { Logic.displayName(it, false) })
             .take(FAVORITES)
         val key = favs.map { it.id + "|" + Logic.displayName(it, false) + "|" + it.photo + "|" + it.groupIds.firstOrNull() }
@@ -75,6 +81,31 @@ object AppShortcuts {
         }
         if (runCatching { ShortcutManagerCompat.setDynamicShortcuts(ctx, list) }.getOrDefault(false)) shown = key
     }
+
+    /** A favourite pinned to the home screen goes grey once the contact is archived or deleted. */
+    private fun tidyPinned(ctx: Context, data: OrbitData) {
+        val pinned = runCatching { ShortcutManagerCompat.getShortcuts(ctx, ShortcutManagerCompat.FLAG_MATCH_PINNED) }.getOrNull().orEmpty()
+            .map { it.id }.filter { it.startsWith("fav-") }
+        if (pinned.isEmpty()) return
+        val byId = data.contacts.associateBy { it.id }
+        val (alive, gone) = pinned.partition { id -> byId[id.removePrefix("fav-")]?.let { it.deletedAt == null && !it.archived } == true }
+        runCatching {
+            if (gone.isNotEmpty()) ShortcutManagerCompat.disableShortcuts(ctx, gone, "Nicht mehr in Orbit")
+            if (alive.isNotEmpty()) ShortcutManagerCompat.enableShortcuts(ctx, alive.mapNotNull { id -> byId[id.removePrefix("fav-")]?.let { pinnedInfo(ctx, it, data) } })
+        }
+    }
+
+    private fun pinnedInfo(ctx: Context, c: Contact, data: OrbitData): ShortcutInfoCompat =
+        ShortcutInfoCompat.Builder(ctx, "fav-" + c.id)
+            .setShortLabel(Logic.shortName(c).take(24))
+            .setLongLabel(Logic.displayName(c, false).take(40))
+            .setIcon(IconCompat.createWithAdaptiveBitmap(icon(c, data)))
+            .setIntent(
+                Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
+                    .setData(Uri.parse("orbit://contact/${c.id}"))
+                    .putExtra(MainActivity.EXTRA_CONTACT, c.id),
+            )
+            .build()
 
     /** Adaptive 108 dp bitmap: the photo full-bleed, else the initials on the group colour. */
     private fun icon(c: Contact, data: OrbitData): Bitmap {

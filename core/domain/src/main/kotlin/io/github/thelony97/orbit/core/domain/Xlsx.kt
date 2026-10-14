@@ -23,16 +23,22 @@ object Xlsx {
     fun write(out: OutputStream, sheets: List<Sheet>) {
         require(sheets.isNotEmpty())
         val names = uniqueNames(sheets.map { it.name })
-        ZipOutputStream(out).apply {
-            put("[Content_Types].xml", contentTypes(sheets.size))
-            put("_rels/.rels", ROOT_RELS)
-            put("xl/workbook.xml", workbook(names))
-            put("xl/_rels/workbook.xml.rels", workbookRels(sheets.size))
-            put("xl/styles.xml", STYLES)
-            sheets.forEachIndexed { i, s -> put("xl/worksheets/sheet${i + 1}.xml", sheet(s)) }
-            finish()
+        // Closing ends the deflater; the caller's stream is closed with it (callers use `use`).
+        ZipOutputStream(out).use { zip ->
+            zip.put("[Content_Types].xml", contentTypes(sheets.size))
+            zip.put("_rels/.rels", ROOT_RELS)
+            zip.put("xl/workbook.xml", workbook(names))
+            zip.put("xl/_rels/workbook.xml.rels", workbookRels(sheets.size))
+            zip.put("xl/styles.xml", STYLES)
+            sheets.forEachIndexed { i, s ->
+                // Row by row into the ZIP: a long Verlauf never sits in memory as one string.
+                zip.putNextEntry(ZipEntry("xl/worksheets/sheet${i + 1}.xml"))
+                val w = zip.writer(Charsets.UTF_8).buffered()
+                sheet(s, w)
+                w.flush()
+                zip.closeEntry()
+            }
         }
-        out.flush()
     }
 
     /** "A", "B", …, "Z", "AA" for the 0-based [index]. */
@@ -129,7 +135,7 @@ object Xlsx {
         append("</Relationships>")
     }
 
-    private fun sheet(s: Sheet) = buildString {
+    private fun sheet(s: Sheet, out: Appendable) = with(out) {
         append(HEAD)
         append("""<worksheet xmlns="$MAIN">""")
         append("""<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>""")
@@ -146,9 +152,10 @@ object Xlsx {
         row(1, s.header, style = 1)
         s.rows.forEachIndexed { i, r -> row(i + 2, r, style = 2) }
         append("</sheetData></worksheet>")
+        Unit
     }
 
-    private fun StringBuilder.row(r: Int, cells: List<Any?>, style: Int) {
+    private fun Appendable.row(r: Int, cells: List<Any?>, style: Int) {
         append("""<row r="$r">""")
         cells.forEachIndexed { i, v ->
             val ref = column(i) + r

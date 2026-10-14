@@ -83,6 +83,7 @@ import io.github.thelony97.orbit.ui.components.glass
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
@@ -173,6 +174,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
 
     val bottomInset = with(density) { (BottomBarSpace + 8.dp).roundToPx() }
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    val popScope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(mapView) {
         mapView.getMapAsync { m ->
             m.uiSettings.apply {
@@ -251,17 +253,20 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
             // „Marker ploppen federnd“ (PLAN 1.3): once, when the map first fills.
             val layer = st.getLayer(L_CONTACTS) as? SymbolLayer
             val dots = st.getLayer(L_CLUSTER) as? CircleLayer
-            try {
-                androidx.compose.animation.core.Animatable(0.3f).animateTo(
-                    1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 520f),
-                ) {
-                    layer?.setProperties(PropertyFactory.iconSize(value))
-                    dots?.setProperties(PropertyFactory.circleRadius(19f * value))
+            fun size(v: Float) = runCatching {
+                layer?.setProperties(PropertyFactory.iconSize(v))
+                dots?.setProperties(PropertyFactory.circleRadius(19f * v))
+            }
+            // Its own scope: more pins arriving while it pops must not cut it short.
+            popScope.launch {
+                try {
+                    androidx.compose.animation.core.Animatable(0.3f).animateTo(
+                        1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 520f),
+                    ) { size(value) }
+                } finally {
+                    // Never leave the markers half-grown.
+                    size(1f)
                 }
-            } finally {
-                // Interrupted by new data: never leave the markers half-grown.
-                layer?.setProperties(PropertyFactory.iconSize(1f))
-                dots?.setProperties(PropertyFactory.circleRadius(19f))
             }
         }
     }
@@ -276,7 +281,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
         when {
             focus != null -> {
                 selected = focus.contact.id
-                flyTo(m, focus.point.lat, focus.point.lng, 13.0, mapView.width)
+                flyTo(m, focus.point.lat, focus.point.lng, 13.0, mapView.width / density.density.toDouble(), nearMs = 600)
             }
             pins.size == 1 -> m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(pins[0].point.lat, pins[0].point.lng), 12.0), 600)
             pins.size > 1 -> {
@@ -354,7 +359,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 onSelect = { id ->
                     selected = id
                     pins.firstOrNull { it.contact.id == id }?.let { q ->
-                        map?.let { m -> flyTo(m, q.point.lat, q.point.lng, maxOf(m.cameraPosition.zoom, 12.0), mapView.width) }
+                        map?.let { m -> flyTo(m, q.point.lat, q.point.lng, maxOf(m.cameraPosition.zoom, 12.0), mapView.width / density.density.toDouble(), nearMs = 400) }
                     }
                 },
                 onGoogle = { open(ctx, Geo.googleMapsSearch(p.contact.address)) },
@@ -368,13 +373,14 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
  * Kamerafahrt im Bogen (PLAN 1.3): far jumps go out until both places are on screen, across and
  * back in; near ones are one move. A sequence without touch answer, so longer than 400 ms (W9).
  */
-private fun flyTo(m: MapLibreMap, lat: Double, lng: Double, zoom: Double, widthPx: Int) {
+private fun flyTo(m: MapLibreMap, lat: Double, lng: Double, zoom: Double, widthDp: Double, nearMs: Int) {
     val cam = m.cameraPosition
     val from = cam.target
-    val hop = from?.let { io.github.thelony97.orbit.core.domain.FlyPath.top(it.latitude, it.longitude, cam.zoom, lat, lng, zoom, widthPx.toDouble()) }
+    // MapLibre zoom levels are in dp (512 dp world at zoom 0).
+    val hop = if (widthDp <= 0.0) null else from?.let { io.github.thelony97.orbit.core.domain.FlyPath.top(it.latitude, it.longitude, cam.zoom, lat, lng, zoom, widthDp) }
     val land = CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), zoom)
     if (hop == null) {
-        m.animateCamera(land, 600)
+        m.animateCamera(land, nearMs)
         return
     }
     m.animateCamera(

@@ -20,8 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun rememberTilt(): State<Offset> {
     val ctx = LocalContext.current
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     val tilt = remember { mutableStateOf(Offset.Zero) }
-    DisposableEffect(ctx) {
+    DisposableEffect(ctx, lifecycle) {
         val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         val sensor = sm?.getDefaultSensor(Sensor.TYPE_GRAVITY) ?: sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         val listener = object : SensorEventListener {
@@ -36,8 +37,19 @@ fun rememberTilt(): State<Offset> {
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-        if (sensor != null) sm?.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
-        onDispose { sm?.unregisterListener(listener) }
+        // Only while Orbit is in front: no sensor in the background with the card left open.
+        var on = false
+        fun set(want: Boolean) {
+            if (sensor == null || want == on) return
+            on = want
+            if (want) sm?.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI) else sm?.unregisterListener(listener)
+        }
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ -> set(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            set(false)
+        }
     }
     return tilt
 }

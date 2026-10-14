@@ -118,6 +118,11 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     // Erster Start asks nothing up front (PLAN 1.3): the empty Verlauf asks for what fills it.
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var permissionTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    // Back from the system settings: look again.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        permissionTick++
+        onPauseOrDispose { }
+    }
     var asked by rememberSaveable { mutableStateOf(false) }
     val missing = remember(permissionTick) { io.github.thelony97.orbit.ui.Permissions.core.filterNot { io.github.thelony97.orbit.ui.Permissions.granted(ctx, it.permission) } }
     val permissions = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {

@@ -150,6 +150,7 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
         return
     }
 
+    androidx.activity.compose.BackHandler(enabled = step > 0) { step-- }
     SpaceBackground {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(vertical = 16.dp)) {
             GlowBar((step + 1f) / 2f, Space.Orange, Modifier.padding(horizontal = 16.dp))

@@ -16,7 +16,7 @@ object FlyPath {
 
     data class Hop(val lat: Double, val lng: Double, val zoom: Double)
 
-    /** World width at zoom 0 in MapLibre (512 px tiles). */
+    /** World width at zoom 0 in MapLibre (512 dp). */
     private const val WORLD = 512.0
 
     /** Web-Mercator x/y in 0..1 at zoom 0. */
@@ -27,14 +27,14 @@ object FlyPath {
     }
 
     /**
-     * The top of the arc from (from, fromZoom) to (to, toZoom) on a [viewportPx] wide view, or
+     * The top of the arc from (from, fromZoom) to (to, toZoom) on a [viewportDp] wide view (dp, MapLibre zoom units), or
      * null when one plain move is enough (close by, or already zoomed out far enough).
      */
-    fun top(fromLat: Double, fromLng: Double, fromZoom: Double, toLat: Double, toLng: Double, toZoom: Double, viewportPx: Double): Hop? {
+    fun top(fromLat: Double, fromLng: Double, fromZoom: Double, toLat: Double, toLng: Double, toZoom: Double, viewportDp: Double): Hop? {
         val span = max(abs(mercX(fromLng) - mercX(toLng)), abs(mercY(fromLat) - mercY(toLat)))
-        if (span <= 0.0 || viewportPx <= 0.0) return null
+        if (span <= 0.0 || viewportDp <= 0.0) return null
         // Both places within 60 % of the view.
-        val fit = log2(viewportPx * 0.6 / (WORLD * span))
+        val fit = log2(viewportDp * 0.6 / (WORLD * span))
         val out = min(min(fromZoom, toZoom), fit)
         if (out >= min(fromZoom, toZoom) - 0.75) return null
         return Hop((fromLat + toLat) / 2.0, (fromLng + toLng) / 2.0, max(out, 1.0))

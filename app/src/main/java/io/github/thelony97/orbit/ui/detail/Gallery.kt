@@ -467,7 +467,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (owner != null && !owner.isOrg) {
                         OrbButton(Icons.Rounded.AccountCircle, "Als Profilbild", {
-                            val p = current.photo
+                            val p = current?.photo ?: return@OrbButton
                             scope.launch {
                                 val name = runCatching { OrbitRepository.photoFile(p.file).inputStream().use { Photos.saveFromStream(it) } }.getOrNull() ?: return@launch
                                 val old = owner.photo
@@ -504,7 +504,8 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                             val d = OrbitRepository.snapshot()
                             if (io.github.thelony97.orbit.data.Mutations.unreferenced(d, listOf(p.file)).isNotEmpty()) GalleryStore.delete(p.file)
                         }
-                        if (items.size <= 1) onDismiss()
+                        // The undo bar lives in the window below this dialog: close so it is seen.
+                        onDismiss()
                     }, size = 40.dp, tint = Space.Coral)
                 }
             }

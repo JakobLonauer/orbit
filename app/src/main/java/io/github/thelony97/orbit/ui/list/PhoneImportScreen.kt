@@ -122,9 +122,12 @@ fun PhoneImportScreen(data: OrbitData, nav: Nav, preview: List<PhoneImport.Item>
  * in one pass. Shared by the import page and the first start.
  */
 internal suspend fun takeOverAll(ctx: android.content.Context, picked: List<PhoneImport.Item>): List<Contact> {
-    val contacts = picked.mapNotNull { PhoneImport.read(ctx, it.uri) }
+    // One unreadable entry (or the permission taken away meanwhile) never stops the rest.
+    val contacts = picked.mapNotNull { runCatching { PhoneImport.read(ctx, it.uri) }.getOrNull() }
     if (contacts.isEmpty()) return contacts
     OrbitRepository.edit { d -> contacts.fold(d) { acc, c -> Mutations.upsertContact(acc, c) } }
+    // Saved first, for sure; the Verlauf is only a bonus on top.
+    OrbitRepository.flush()
     // The contacts are saved already; a failing backfill request must never take the import down.
     runCatching { Sync.backfill(ctx, contacts.filter { it.phones.isNotEmpty() }.map { it.id }) }
         .onFailure { android.util.Log.w("Orbit", "backfill request failed", it) }

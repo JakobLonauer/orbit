@@ -19,7 +19,10 @@ object PhotoActions {
         val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
         val cutoff = System.currentTimeMillis() - 10 * 60_000L
         dir.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.delete() }
-        return File(dir, io.github.thelony97.orbit.core.domain.FileNames.safe(as_, "Orbit-$file")).also { OrbitRepository.photoFile(file).copyTo(it, overwrite = true) }
+        val target = File(dir, io.github.thelony97.orbit.core.domain.FileNames.safe(as_, "Orbit-$file"))
+        // Never outside the share folder, whatever the name says.
+        check(target.canonicalFile.parentFile == dir.canonicalFile) { "Dateiname" }
+        return target.also { OrbitRepository.photoFile(file).copyTo(it, overwrite = true) }
     }
 
     suspend fun share(ctx: Context, file: String, mime: String = "image/jpeg", name: String = "") {

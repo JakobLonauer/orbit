@@ -46,7 +46,7 @@ object ExcelExport {
                     c.groupIds.mapNotNull { groups[it] }.joinToString(", "),
                     lines(c.phones), lines(c.emails), lines(c.addresses),
                     c.birthday?.let { b -> "%02d.%02d.".format(b.day, b.month) + (b.year?.toString() ?: "") },
-                    c.anniversaries.joinToString("\n") { o -> "${o.title}: %02d.%02d.".format(o.date.day, o.date.month) + (o.date.year?.toString() ?: "") },
+                    c.anniversaries.joinToString("\n") { o -> "%s: %02d.%02d.".format(o.title, o.date.day, o.date.month) + (o.date.year?.toString() ?: "") },
                     c.howWeMet, c.pinnedNote, c.notes,
                     c.links.joinToString("\n") { l -> if (l.title.isBlank()) l.url else "${l.title}: ${l.url}" },
                     if (c.favorite) "ja" else null,
