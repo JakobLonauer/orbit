@@ -957,6 +957,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             allowBirthday = owner != null && !owner.isOrg && owner.birthday == null,
             lastFirst = data.settings.sortByLastName,
             onDismiss = { occasionEdit = null },
+            greetingFor = owner?.takeIf { !it.isOrg && !it.isMe },
+            onGreeting = { g -> OrbitRepository.editContact(ownerId) { it.copy(greeting = g) } },
             onSave = { o -> OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.upsertOccasion(d, ownerId, o) } },
         )
     }

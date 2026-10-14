@@ -240,6 +240,26 @@ class ScreensScreenshotTest {
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_occasion_dialog.png")
     }
 
+    /** Geburtstag bearbeiten mit Gratulations-Vorlage (Sie, English) und dem Text, den sie schickt. */
+    @Test fun birthdayDialog() {
+        val person = data.contacts.first { !it.isMe && !it.isOrg }.copy(greeting = io.github.thelony97.orbit.core.model.Greeting(formal = true, language = "en"))
+        val birthday = io.github.thelony97.orbit.data.Anniversary(
+            "b", io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY, date = DayOfYear(14, 10, 1996),
+            reminders = io.github.thelony97.orbit.data.Anniversary.BIRTHDAY_REMINDERS,
+        )
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.detail.OccasionDialog(
+                        initial = birthday, people = emptyList(), allowBirthday = true,
+                        lastFirst = false, onDismiss = {}, greetingFor = person, onSave = {},
+                    )
+                }
+            }
+        }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_birthday_dialog.png")
+    }
+
     /** Profilbild zuschneiden (PLAN 3.3): circle frame over a landscape picture. */
     @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
     @Test fun cropPhoto() {

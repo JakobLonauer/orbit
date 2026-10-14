@@ -115,6 +115,13 @@ data class CustomField(
     val value: String,
 )
 
+/** How „Gratulieren“ greets one person: [formal] = Sie, [language] an ISO 639-1 code. */
+@Serializable
+data class Greeting(
+    val formal: Boolean = false,
+    val language: String = "de",
+)
+
 /** Hidden employee of an organisation (PLAN 3.6). Never listed or searched outside its org. */
 @Serializable
 data class Member(
@@ -140,6 +147,8 @@ data class Contact(
     val defaultPhone: Int = 0,
     /** PLAN 3.12 „Dual-SIM pro Kontakt“: the SIM (phone account id) Orbit calls this contact with; null = the phone decides. */
     val simId: String? = null,
+    /** PLAN 3.5 Gratulations-Vorlage: Du/Sie and language of the „Gratulieren“ text; null = Du, Deutsch. */
+    val greeting: Greeting? = null,
     val emails: List<LabeledValue> = emptyList(),
     val addresses: List<LabeledValue> = emptyList(),
     val company: String = "",
