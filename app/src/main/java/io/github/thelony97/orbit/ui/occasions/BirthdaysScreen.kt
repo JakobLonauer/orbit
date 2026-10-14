@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -286,16 +287,15 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         }
         if (shown == 0 && result.withoutBirthday > 0) {
             item(key = "without") {
-                Text(
-                    if (result.withoutBirthday == 1) "1 Kontakt ohne Geburtstag" else "${result.withoutBirthday} Kontakte ohne Geburtstag",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (filling) Space.TextDim else Space.TextFaint,
-                    modifier = Modifier
-                        .padding(start = 8.dp, end = 8.dp, top = 16.dp)
-                        .clip(Corners.Row)
-                        .clickable { filling = !filling }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                )
+                // Looks like what it is: a way in (chip with „+“ as on the contact page), not a footnote.
+                androidx.compose.foundation.layout.Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
+                    io.github.thelony97.orbit.ui.components.SpaceChip(
+                        if (result.withoutBirthday == 1) "1 Kontakt ohne Geburtstag" else "${result.withoutBirthday} Kontakte ohne Geburtstag",
+                        filling,
+                        { filling = !filling },
+                        leading = androidx.compose.material.icons.Icons.Rounded.Add,
+                    )
+                }
             }
             // Eingabe in der Zeile (PLAN 3.5): type the day, Enter – the person moves up into the list.
             if (filling) {
@@ -379,7 +379,7 @@ private fun BirthdayRow(
                         .fillMaxSize()
                         .padding(horizontal = 10.dp, vertical = 2.dp)
                         .background(Space.Orange.copy(alpha = 0.18f), Corners.Row)
-                        .padding(horizontal = 18.dp),
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Check, null, tint = Space.Orange, modifier = Modifier.size(20.dp))

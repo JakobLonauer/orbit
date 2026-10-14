@@ -149,8 +149,11 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                 Box(Modifier.height(38.dp), contentAlignment = Alignment.CenterStart) {
                     Text("Verlauf", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
                 }
-                Spacer(Modifier.height(10.dp))
-                SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
+                // W5: nothing to search yet – the empty state below is the one thing on screen.
+                if (rows.isNotEmpty() || query.isNotEmpty() || typeFilter != null) {
+                    Spacer(Modifier.height(10.dp))
+                    SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
+                }
             }
         }
         if (kinds.size > 1) {

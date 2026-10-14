@@ -447,19 +447,21 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                             })
                         }
                     }
+                    // Every problem the same shape: what, then its one action on the right (the
+                    // folder is chosen in Sicherheit & Backup, not here).
                     if (backupIssue != null) {
-                        AttentionRow(backupIssue, null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(backupIssue, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(8.dp))
                             // W4: one glowing action per card – the first problem gets it.
-                            if (missing.isEmpty()) GlowButton("Jetzt sichern", { backupNow() }, color = Space.Blue)
-                            else GhostButton("Jetzt sichern", { backupNow() }, icon = Icons.Rounded.Upload)
-                            if (folder == null) GhostButton("Ordner wählen", {
-                                AppLock.allowExternal()
-                                folderPicker.launch(null)
-                            })
+                            if (missing.isEmpty()) GlowButton("Sichern", { backupNow() }, color = Space.Blue)
+                            else GhostButton("Sichern", { backupNow() })
                         }
                     }
                     brokenMail.forEach { acc ->
-                        AttentionRow("${acc.email}: ${acc.lastError}", null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${acc.email}: ${acc.lastError}", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Spacer(Modifier.width(8.dp))
                             GhostButton("Öffnen", { nav.open(Route.MailAccounts) })
                         }
                     }

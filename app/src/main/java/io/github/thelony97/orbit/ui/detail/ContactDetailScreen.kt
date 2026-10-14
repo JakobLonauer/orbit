@@ -570,13 +570,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             }
 
             // Status strip
-            if (!c.isMe) item(key = "status") {
+            // Last contact per kind (PLAN 3.4): facts only, no due dates, and only kinds
+            // that happened – no dashes for nothing (W5). The card exists only with something in it.
+            val perType = lastPerType(c).filter { it.second != null }
+            if (!c.isMe && (perType.isNotEmpty() || !c.archived)) item(key = "status") {
                 GlassCard(Modifier.padding(top = 8.dp), padding = 16.dp) {
-                    // Last contact per kind (PLAN 3.4): facts only, no due dates, and only kinds
-                    // that happened – no dashes for nothing (W5).
-                    val perType = lastPerType(c).filter { it.second != null }
                     if (perType.isNotEmpty()) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = if (c.archived) 0.dp else 12.dp)) {
                             perType.forEach { (typeId, at) ->
                                 val days = at?.let { ChronoUnit.DAYS.between(it.toLocalDate(), todayDate).toInt() }
                                 CountStat(days, idx.types[typeId]?.name ?: "Kontakt") { d -> Fmt.short(d.toLong()) }
@@ -584,9 +584,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                             repeat(3 - perType.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Archived: Zurückholen is the one thing to do – no logging, no planning (PLAN 3.11).
-                        if (!c.archived) {
+                    // Archived: Zurückholen is the one thing to do – no logging, no planning (PLAN 3.11).
+                    if (!c.archived) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             GlowButton("Eintragen", { entryTarget = EntryTarget.New(TypeIds.MEET) }, icon = Icons.Rounded.EditNote)
                             GhostButton("Treffen planen", { meetingDialog = true }, icon = Icons.Rounded.Event)
                         }
@@ -825,7 +825,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         val age = Logic.turningAge(b, todayDate)
                         InfoRow(
                             // On the day the news is the big line; the date moves into the label.
-                            label = if (days == 0L) "Geburtstag · " + Fmt.dayOfYear(b)
+                            label = if (days == 0L) Fmt.dayOfYear(b)
                             else "Geburtstag · " + Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
                             value = if (days == 0L) (age?.let { "Heute · $it. Geburtstag" } ?: "Heute Geburtstag") else Fmt.dayOfYear(b),
                             valueModifier = c.dates.firstOrNull { it.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
@@ -895,10 +895,14 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             }
 
             // History
-            if (!c.isMe) item(key = "history-header") {
-                val syncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
+            // W5: no empty „Verlauf · 0“ – „Eintragen“ above is the way in. While mails are fetched
+            // for this contact the head stays, so the wave has its place.
+            val mailSyncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
+            val fetchingMail = mailSyncing && (c.emails.isNotEmpty() || c.emailDomains.isNotEmpty())
+            if (!c.isMe && (c.entries.isNotEmpty() || fetchingMail)) item(key = "history-header") {
+                val syncing = mailSyncing
                 SectionTitle(
-                    "Verlauf · ${c.entries.size}",
+                    if (c.entries.isEmpty()) "Verlauf" else "Verlauf · ${c.entries.size}",
                     Icons.Rounded.History,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
                     action = {
@@ -909,16 +913,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         }
                     },
                 )
-            }
-            if (c.entries.isEmpty() && !c.isMe) {
-                item(key = "history-empty") {
-                    Text(
-                        "Noch kein Eintrag",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Space.TextFaint,
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    )
-                }
             }
             // PLAN 3.3: chips per kind with its last date, plus a search only in this Verlauf.
             val kinds = c.entries.groupBy { it.typeId }.mapValues { (_, l) -> l.maxOf { it.at } }
@@ -1364,7 +1358,7 @@ private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
                         val last = io.github.thelony97.orbit.core.domain.Members.lastTalk(org, m.id)
                         Column(
                             Modifier
-                                .width(76.dp)
+                                .width(88.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { nav.open(Route.MemberPage(org.id, m.id)) }
                                 .padding(vertical = 6.dp),
@@ -1378,9 +1372,24 @@ private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
                                 Text(memberInitials(m.name), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
                             }
                             Spacer(Modifier.height(6.dp))
-                            Text(m.name, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            androidx.compose.foundation.text.BasicText(
+                                m.name,
+                                style = MaterialTheme.typography.labelLarge.copy(color = Space.Text, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = MaterialTheme.typography.labelLarge.fontSize),
+                            )
                             val sub = m.role.ifBlank { last?.let { Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), todayDate)) }.orEmpty() }
-                            if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            // PLAN 1.4: long roles shrink instead of being cut.
+                            if (sub.isNotEmpty()) {
+                                androidx.compose.foundation.text.BasicText(
+                                    sub,
+                                    style = MaterialTheme.typography.labelSmall.copy(color = Space.TextFaint, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize),
+                                )
+                            }
                         }
                     }
                 }

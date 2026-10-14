@@ -195,6 +195,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val suggestions = remember(data) { data.unknownNumbers.count { !it.dismissed && it.calls + it.sms >= 2 } }
     val me = remember(data) { Logic.me(data) }
     val total = remember(data, audience) { Logic.others(data).count { !it.archived && audience.accepts(it) } }
+    // Nobody in the Orbit yet (whatever the filter): no counter, no search, no filter (W5/W6).
+    val nobody = remember(data) { Logic.others(data).none { !it.archived } }
     val defaultView = status == StatusFilter.ALL && groups.isEmpty() && query.isEmpty()
     val pinned = data.groups.filter { it.pinned }
     val activeCount = activeFilterCount(data)
@@ -245,8 +247,10 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             Box(Modifier.size(11.dp).glow(Space.Orange, 10.dp, alpha = 0.8f).background(Space.Orange, CircleShape))
             Spacer(Modifier.width(10.dp))
             Text("Orbit", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
-            Spacer(Modifier.width(8.dp))
-            Text("$total", style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
+            if (!nobody) {
+                Spacer(Modifier.width(8.dp))
+                Text("$total", style = MaterialTheme.typography.labelLarge, color = Space.TextFaint)
+            }
             Spacer(Modifier.weight(1f))
             // Settings live behind the gear (PLAN 3.1); a dot marks an available update.
             val update by Updates.state.collectAsState()
@@ -299,7 +303,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             }
         }
 
-        Row(
+        if (!nobody) Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),

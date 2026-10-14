@@ -114,7 +114,7 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
 
     ModalBottomSheet(onDismissRequest = onDone, sheetState = state, containerColor = Space.PanelHigh) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp).navigationBarsPadding().padding(bottom = 18.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val (title, sub) = when {

@@ -18,7 +18,7 @@ class CallerNoticeTest {
             now, zone,
         )
         assertEquals("Peter Lonauer", n.title)
-        assertEquals("Patient:in · Arzt Müller · zuletzt Anruf vor 3 Tagen", n.line)
+        assertEquals("Patient:in · Arzt Müller · zuletzt: Anruf vor 3 Tagen", n.line)
         assertEquals(listOf("Fragt nach dem Auto", "Ansprechen: Urlaub · Garten", "Kundennummer P-77"), n.details)
     }
 
@@ -56,6 +56,6 @@ class CallerNoticeTest {
         assertEquals("", n.line)
         assertEquals(emptyList<String>(), n.details)
         val today = CallerNotice.of(CallerCard("a", "Anna", lastAt = now - 3_600_000, lastKind = "Treffen"), now, zone)
-        assertEquals("zuletzt Treffen heute", today.line)
+        assertEquals("zuletzt: Treffen heute", today.line)
     }
 }

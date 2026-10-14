@@ -25,7 +25,7 @@ data class CallerNotice(
             val title = card.name.ifBlank { "Unbekannt" } + if (card.archived) " · archiviert" else ""
             val last = card.lastAt?.let { at ->
                 val days = ChronoUnit.DAYS.between(Instant.ofEpochMilli(at).atZone(zone).toLocalDate(), Instant.ofEpochMilli(now).atZone(zone).toLocalDate())
-                "zuletzt " + listOf(card.lastKind, AtFormat.ago(days)).filter { it.isNotBlank() }.joinToString(" ")
+                "zuletzt: " + listOf(card.lastKind, AtFormat.ago(days)).filter { it.isNotBlank() }.joinToString(" ")
             }
             val line = listOfNotNull(card.role.takeIf { it.isNotBlank() }, last).joinToString(" · ")
             val occasion = card.birthday?.let { occasion(it, Instant.ofEpochMilli(now).atZone(zone).toLocalDate()) }

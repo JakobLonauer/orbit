@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DateRange
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Groups
@@ -88,8 +90,8 @@ fun OccasionFilterSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 18.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Same build as the contact list's sheet (PLAN 3.5 „wie in der Kontaktliste“).
@@ -111,7 +113,7 @@ fun OccasionFilterSheet(
             }
             val shownKinds = OccasionKind.entries.filter { it in kinds || it in view.kinds }
             if (shownKinds.size > 1) {
-                SectionTitle("Art", modifier = Modifier.padding(top = 8.dp))
+                SectionTitle("Art", Icons.Rounded.Category, modifier = Modifier.padding(top = 8.dp))
                 Chips {
                     shownKinds.forEach { k ->
                         val on = k in view.kinds
@@ -119,7 +121,7 @@ fun OccasionFilterSheet(
                     }
                 }
             }
-            SectionTitle("Zeitraum", modifier = Modifier.padding(top = 10.dp))
+            SectionTitle("Zeitraum", Icons.Rounded.DateRange, modifier = Modifier.padding(top = 12.dp))
             Chips {
                 listOf(7, 30, 90).forEach { d -> SpaceChip("$d Tage", view.withinDays == d, { onChange(view.copy(withinDays = d)) }) }
                 SpaceChip("Ganzes Jahr", view.withinDays == null, { onChange(view.copy(withinDays = null)) })
@@ -131,7 +133,7 @@ fun OccasionFilterSheet(
                 }
             }
             if (groups.isNotEmpty()) {
-                SectionTitle("Gruppe", Icons.Rounded.Groups, modifier = Modifier.padding(top = 10.dp))
+                SectionTitle("Gruppe", Icons.Rounded.Groups, modifier = Modifier.padding(top = 12.dp))
                 Chips {
                     groups.forEach { g ->
                         val on = view.groupId == g.id
@@ -139,7 +141,7 @@ fun OccasionFilterSheet(
                     }
                 }
             }
-            SectionTitle("Sortieren", Icons.AutoMirrored.Rounded.Sort, modifier = Modifier.padding(top = 10.dp))
+            SectionTitle("Sortieren", Icons.AutoMirrored.Rounded.Sort, modifier = Modifier.padding(top = 12.dp))
             Chips {
                 OccasionList.Sort.entries.forEach { s -> SpaceChip(s.label, view.sort == s, { onChange(view.copy(sort = s, reversed = false)) }, accent = Space.Teal) }
             }
