@@ -147,6 +147,30 @@ private fun MainNavigation(data: OrbitData) {
         MainActivity.pendingNew.value = null
     }
 
+    // App-Shortcuts and the QS tile (PLAN 3.14).
+    val shortcut by MainActivity.pendingShortcut.collectAsStateWithLifecycle()
+    LaunchedEffect(shortcut) {
+        val action = shortcut ?: return@LaunchedEffect
+        MainActivity.pendingShortcut.value = null
+        // An open edit page with unsaved input stays underneath (it has its own discard prompt).
+        val editing = backStack.any { it is Route.Edit }
+        fun clear() { if (!editing) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }
+        val last = if (action == io.github.thelony97.orbit.actions.AppShortcuts.ACTION_LAST_CALL) {
+            io.github.thelony97.orbit.core.domain.Shortcuts.lastCall(data.contacts, io.github.thelony97.orbit.data.now())
+        } else null
+        val target: Route? = when {
+            action == io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW -> Route.Edit()
+            last != null -> Route.Detail(last.contactId, last.id)
+            else -> null
+        }
+        if (target != null) {
+            clear()
+            backStack.add(target)
+        } else if (!editing) {
+            nav.home(io.github.thelony97.orbit.ui.home.HomeTab.VERLAUF)
+        }
+    }
+
     val share by MainActivity.pendingShare.collectAsStateWithLifecycle()
     share?.let { s ->
         io.github.thelony97.orbit.ui.sheets.ShareSheet(s, data, idx, nav, onDone = { MainActivity.pendingShare.value = null })
@@ -173,7 +197,7 @@ private fun MainNavigation(data: OrbitData) {
                 HomeScreen(data = data, idx = idx, nav = nav, tab = tab, onTab = { tab = it })
             }
             entry<Route.Detail> { key ->
-                ContactDetailScreen(id = key.id, data = data, idx = idx, nav = nav)
+                ContactDetailScreen(id = key.id, data = data, idx = idx, nav = nav, openEntry = key.entryId)
             }
             entry<Route.Photos> { key ->
                 io.github.thelony97.orbit.ui.detail.PhotosScreen(contactId = key.contactId, data = data, idx = idx, nav = nav)

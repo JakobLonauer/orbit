@@ -273,6 +273,15 @@ class CallActionActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_CONTACT = "contact"
+        private const val EXTRA_WHATSAPP = "whatsapp"
+
+        /** Favoriten-Widget (PLAN 3.14): anrufen or WhatsApp with one tap; unique data per row. */
+        fun intent(ctx: Context, contactId: String, whatsapp: Boolean): Intent =
+            Intent(ctx, CallActionActivity::class.java)
+                .setData(android.net.Uri.parse("orbit://" + (if (whatsapp) "whatsapp/" else "call/") + contactId))
+                .putExtra(EXTRA_CONTACT, contactId)
+                .putExtra(EXTRA_WHATSAPP, whatsapp)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         fun pendingIntent(ctx: Context, contactId: String): PendingIntent {
             val intent = Intent(ctx, CallActionActivity::class.java)
@@ -292,8 +301,9 @@ class CallActionActivity : ComponentActivity() {
         lifecycleScope.launch {
             OrbitRepository.init(applicationContext)
             val data = OrbitRepository.ensureLoaded()
-            data.contacts.firstOrNull { it.id == contactId }?.let { c ->
-                ContactActions.call(this@CallActionActivity, c, null, data.settings)
+            data.contacts.firstOrNull { it.id == contactId && it.deletedAt == null }?.let { c ->
+                if (intent.getBooleanExtra(EXTRA_WHATSAPP, false)) ContactActions.whatsapp(this@CallActionActivity, c, null)
+                else ContactActions.call(this@CallActionActivity, c, null, data.settings)
             }
             finish()
         }

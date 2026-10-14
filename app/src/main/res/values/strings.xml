@@ -5,4 +5,7 @@
     <string name="widget_description">Angepinnte Anlässe, sonst die nächsten Geburtstage</string>
     <string name="widget_links_label">Orbit – Links</string>
     <string name="widget_links_description">Angepinnte Portale mit einem Tipp öffnen</string>
+    <string name="widget_favorites_label">Orbit – Favoriten</string>
+    <string name="widget_favorites_description">Favoriten anrufen oder schreiben mit einem Tipp</string>
+    <string name="tile_last_call">Notiz zum Anruf</string>
 </resources>

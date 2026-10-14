@@ -31,6 +31,8 @@ class OrbitApp : Application() {
         OrbitRepository.onSaved = { ctx ->
             OrbitWidget.refresh(ctx)
             io.github.thelony97.orbit.widget.LinksWidget.refresh(ctx)
+            io.github.thelony97.orbit.widget.FavoritesWidget.refresh(ctx)
+            OrbitRepository.data.value?.let { io.github.thelony97.orbit.actions.AppShortcuts.update(ctx, it) }
         }
         Notifications.createChannels(this)
         scope.launch {
@@ -42,6 +44,7 @@ class OrbitApp : Application() {
                 cleaned
             }
             orphanPhotos.forEach { OrbitRepository.photoFile(it).delete() }
+            runCatching { io.github.thelony97.orbit.actions.AppShortcuts.update(this@OrbitApp, OrbitRepository.snapshot()) }
             DigestScheduler.schedule(this@OrbitApp)
             Sync.schedulePeriodic(this@OrbitApp)
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only

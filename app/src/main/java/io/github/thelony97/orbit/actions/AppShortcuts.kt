@@ -1,0 +1,105 @@
+package io.github.thelony97.orbit.actions
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.net.Uri
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import io.github.thelony97.orbit.MainActivity
+import io.github.thelony97.orbit.R
+import io.github.thelony97.orbit.core.domain.Shortcuts
+import io.github.thelony97.orbit.core.domain.Visibility
+import io.github.thelony97.orbit.data.Contact
+import io.github.thelony97.orbit.data.OrbitData
+import io.github.thelony97.orbit.data.OrbitRepository
+import io.github.thelony97.orbit.data.now
+import io.github.thelony97.orbit.domain.Logic
+
+/**
+ * App-Shortcuts (PLAN 3.14): Neuer Kontakt, Verlauf and the top favourites, updated whenever the
+ * favourites change. Archived or deleted contacts drop out on the next update.
+ */
+object AppShortcuts {
+
+    const val ACTION_NEW = "io.github.thelony97.orbit.action.NEW_CONTACT"
+    const val ACTION_VERLAUF = "io.github.thelony97.orbit.action.VERLAUF"
+    const val ACTION_LAST_CALL = "io.github.thelony97.orbit.action.LAST_CALL_NOTE"
+
+    private const val FAVORITES = 2
+    @Volatile private var shown: List<String>? = null
+
+    fun update(ctx: Context, data: OrbitData) {
+        val favs = Shortcuts.topFavorites(data.contacts, now(), { Visibility.inLists(it, data.settings.showOrgs) }, { Logic.displayName(it, false) })
+            .take(FAVORITES)
+        val key = favs.map { it.id + "|" + Logic.displayName(it, false) + "|" + it.photo + "|" + it.groupIds.firstOrNull() }
+        if (key == shown) return
+        val main = { Intent(ctx, MainActivity::class.java) }
+        val list = buildList {
+            add(
+                ShortcutInfoCompat.Builder(ctx, "new")
+                    .setShortLabel("Neuer Kontakt")
+                    .setIcon(IconCompat.createWithResource(ctx, R.mipmap.ic_shortcut_new))
+                    .setIntent(main().setAction(ACTION_NEW))
+                    .setRank(0)
+                    .build(),
+            )
+            add(
+                ShortcutInfoCompat.Builder(ctx, "verlauf")
+                    .setShortLabel("Verlauf")
+                    .setIcon(IconCompat.createWithResource(ctx, R.mipmap.ic_shortcut_verlauf))
+                    .setIntent(main().setAction(ACTION_VERLAUF))
+                    .setRank(1)
+                    .build(),
+            )
+            favs.forEachIndexed { i, c ->
+                add(
+                    ShortcutInfoCompat.Builder(ctx, "fav-" + c.id)
+                        .setShortLabel(Logic.shortName(c).take(24))
+                        .setLongLabel(Logic.displayName(c, false).take(40))
+                        .setIcon(IconCompat.createWithAdaptiveBitmap(icon(c, data)))
+                        .setIntent(
+                            main().setAction(Intent.ACTION_VIEW)
+                                .setData(Uri.parse("orbit://contact/${c.id}"))
+                                .putExtra(MainActivity.EXTRA_CONTACT, c.id),
+                        )
+                        .setRank(2 + i)
+                        .build(),
+                )
+            }
+        }
+        if (runCatching { ShortcutManagerCompat.setDynamicShortcuts(ctx, list) }.getOrDefault(false)) shown = key
+    }
+
+    /** Adaptive 108 dp bitmap: the photo full-bleed, else the initials on the group colour. */
+    private fun icon(c: Contact, data: OrbitData): Bitmap {
+        val px = 216
+        c.photo?.let { name ->
+            val file = OrbitRepository.photoFile(name)
+            val src = runCatching { BitmapFactory.decodeFile(file.path) }.getOrNull()
+            if (src != null) {
+                val side = minOf(src.width, src.height)
+                val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
+                return Bitmap.createScaledBitmap(square, px, px, true)
+            }
+        }
+        val color = c.groupIds.firstNotNullOfOrNull { id -> data.groups.firstOrNull { it.id == id } }?.color ?: 0xFF7986CB
+        val out = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(color.toInt())
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = android.graphics.Color.WHITE
+            textAlign = Paint.Align.CENTER
+            textSize = px * 0.26f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        val y = px / 2f - (paint.descent() + paint.ascent()) / 2f
+        canvas.drawText(Logic.initials(c), px / 2f, y, paint)
+        return out
+    }
+}

@@ -8,8 +8,9 @@ sealed interface Route : NavKey {
     @Serializable
     data object Home : Route
 
+    /** [entryId]: open this Verlauf entry for editing right away (QS tile „Notiz zum letzten Anruf“). */
     @Serializable
-    data class Detail(val id: String) : Route
+    data class Detail(val id: String, val entryId: String? = null) : Route
 
     /** Fotos-Seite (PLAN 3.10): all pictures, or one contact's ([contactId]). */
     @Serializable

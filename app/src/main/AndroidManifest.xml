@@ -207,5 +207,30 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/links_widget_info" />
         </receiver>
+
+        <!-- Favoriten (PLAN 3.14). -->
+        <receiver
+            android:name=".widget.FavoritesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_favorites_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/favorites_widget_info" />
+        </receiver>
+
+        <!-- Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“ (PLAN 3.14). -->
+        <service
+            android:name=".notify.LastCallTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_note"
+            android:label="@string/tile_last_call"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

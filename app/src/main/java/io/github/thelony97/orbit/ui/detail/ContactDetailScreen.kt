@@ -213,7 +213,7 @@ private fun SmallIconAction(icon: androidx.compose.ui.graphics.vector.ImageVecto
 }
 
 @Composable
-fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
+fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openEntry: String? = null) {
     val contact = idx.contacts[id]
     if (contact == null) {
         LaunchedEffect(Unit) { nav.back() }
@@ -233,6 +233,14 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var assignDialog by remember { mutableStateOf(false) }
     var osmDialog by remember { mutableStateOf(false) }
     var mailEntry by remember { mutableStateOf<Entry?>(null) }
+    // Once per visit, not again after a rotation.
+    var entryOpened by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(openEntry) {
+        if (openEntry != null && !entryOpened) {
+            entryOpened = true
+            c.entries.firstOrNull { it.id == openEntry }?.let { entryTarget = EntryTarget.Existing(it) }
+        }
+    }
     var entryPhotos by remember { mutableStateOf<Pair<List<io.github.thelony97.orbit.data.GalleryPhoto>, Int>?>(null) }
     // E-Mail v2 (PLAN 3.9): the page shows the stored state at once, a sync runs behind it.
     val mailAddresses = remember(c.emails, c.emailDomains, c.members) {

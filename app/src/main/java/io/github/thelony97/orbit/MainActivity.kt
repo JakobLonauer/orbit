@@ -36,6 +36,9 @@ class MainActivity : FragmentActivity() {
 
         /** Teilen-Eingang (PLAN 3.8): shown as a sheet once Orbit is unlocked. */
         val pendingShare = MutableStateFlow<io.github.thelony97.orbit.ui.sheets.PendingShare?>(null)
+
+        /** App-Shortcut or QS tile action (see [io.github.thelony97.orbit.actions.AppShortcuts]). */
+        val pendingShortcut = MutableStateFlow<String?>(null)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +91,15 @@ class MainActivity : FragmentActivity() {
             // Handled once: a rotation must not bring the sheet back.
             intent.action = Intent.ACTION_MAIN
             return
+        }
+        when (intent?.action) {
+            io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW,
+            io.github.thelony97.orbit.actions.AppShortcuts.ACTION_VERLAUF,
+            io.github.thelony97.orbit.actions.AppShortcuts.ACTION_LAST_CALL -> {
+                pendingShortcut.value = intent.action
+                intent.action = Intent.ACTION_MAIN
+                return
+            }
         }
         intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
             pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)
