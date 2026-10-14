@@ -38,6 +38,8 @@ import io.github.thelony97.orbit.ui.theme.OrbitTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 
 /**
  * The call screen while Orbit is the phone app (PLAN 3.12). Its own task, over the phone's lock
@@ -67,6 +69,9 @@ class CallActivity : ComponentActivity() {
         // Only a fresh start answers: after rotation or a theme change the old intent must not
         // answer a waiting call by itself.
         if (savedInstanceState == null) handle(intent)
+        lifecycleScope.launch {
+            kotlinx.coroutines.flow.combine(CallSession.version, CallSession.audio) { _, _ -> }.collect { updateProximity() }
+        }
         setContent {
             OrbitTheme {
                 CallRoute(onDone = {
@@ -92,8 +97,32 @@ class CallActivity : ComponentActivity() {
         super.onStop()
     }
 
+    /**
+     * Näherungssensor (PLAN 3.12): at the ear the screen goes dark, so the cheek presses nothing.
+     * Only while talking through the handset – never with speaker, headset or Bluetooth.
+     */
+    private var proximity: android.os.PowerManager.WakeLock? = null
+
+    private fun updateProximity() {
+        val c = CallSession.primary()
+        val state = c?.let(CallSession::stateOf)
+        val talking = state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING
+        val want = talking && CallSession.audio.value.type == android.telecom.CallEndpoint.TYPE_EARPIECE
+        runCatching {
+            val pm = getSystemService(android.os.PowerManager::class.java) ?: return
+            if (!pm.isWakeLockLevelSupported(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) return
+            val lock = proximity ?: pm.newWakeLock(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "orbit:call").apply {
+                setReferenceCounted(false)
+                proximity = this
+            }
+            if (want && !lock.isHeld) lock.acquire(3 * 60 * 60 * 1000L)
+            if (!want && lock.isHeld) lock.release(android.os.PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+        }
+    }
+
     override fun onDestroy() {
         // Left with Back from the after-call screen: it is done, other prompts come back.
+        runCatching { proximity?.takeIf { it.isHeld }?.release() }
         if (isFinishing) {
             val e = CallSession.ended.value
             e?.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
@@ -113,6 +142,20 @@ class CallActivity : ComponentActivity() {
     }
 }
 
+/** Unknown number that called before: „3 Anrufe · zuletzt vor 2 Tagen“ (PLAN 3.12), never dismissed ones. */
+private fun unknownLine(doc: io.github.thelony97.orbit.data.OrbitData?, number: String, ctx: Context, now: Long): String? {
+    if (doc == null || number.isBlank()) return null
+    val key = Phones.normalize(number, Phones.countryIso(ctx)) ?: return null
+    val u = doc.unknownNumbers.firstOrNull { it.key == key && !it.dismissed && it.calls > 0 } ?: return null
+    val zone = java.time.ZoneId.systemDefault()
+    val days = java.time.temporal.ChronoUnit.DAYS.between(
+        java.time.Instant.ofEpochMilli(u.lastAt).atZone(zone).toLocalDate(),
+        java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate(),
+    )
+    val times = if (u.calls == 1) "1 Anruf" else "${u.calls} Anrufe"
+    return listOfNotNull(times, u.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
+}
+
 private fun unlocked(ctx: Context): Boolean =
     ctx.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked != true
 
@@ -123,6 +166,7 @@ private fun CallRoute(onDone: () -> Unit) {
     val audio by CallSession.audio.collectAsState()
     val ended by CallSession.ended.collectAsState()
     val cards by CallSession.cards.collectAsState()
+    val doc by OrbitRepository.data.collectAsState()
     var phoneUnlocked by remember { mutableStateOf(unlocked(ctx)) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Ticks survive rotation (they are saved at once, the screen must show them too).
@@ -157,6 +201,17 @@ private fun CallRoute(onDone: () -> Unit) {
             onHold = state == Call.STATE_HOLDING,
             phoneUnlocked = phoneUnlocked,
             doneTopics = done,
+            route = when (audio.type) {
+                android.telecom.CallEndpoint.TYPE_SPEAKER -> io.github.thelony97.orbit.ui.call.AudioRoute.SPEAKER
+                android.telecom.CallEndpoint.TYPE_BLUETOOTH -> io.github.thelony97.orbit.ui.call.AudioRoute.BLUETOOTH
+                android.telecom.CallEndpoint.TYPE_WIRED_HEADSET -> io.github.thelony97.orbit.ui.call.AudioRoute.WIRED
+                else -> io.github.thelony97.orbit.ui.call.AudioRoute.EARPIECE
+            },
+            routeName = audio.name,
+            moreRoutes = audio.available.any {
+                it.endpointType == android.telecom.CallEndpoint.TYPE_BLUETOOTH || it.endpointType == android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
+            },
+            unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, now) else null,
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),

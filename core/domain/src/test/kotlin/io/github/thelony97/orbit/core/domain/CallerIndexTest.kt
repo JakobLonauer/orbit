@@ -101,6 +101,14 @@ class CallerIndexTest {
         assertEquals(false, off.callerInfo)
     }
 
+    @Test fun birthdayGoesOnThePersonCardOnly() {
+        val bday = io.github.thelony97.orbit.core.model.CalendarDay(15, 10, 1996)
+        val withDate = anna.copy(dates = listOf(io.github.thelony97.orbit.core.model.Occasion("o", io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY, date = bday)))
+        val i = CallerIndex.build(doc.copy(contacts = listOf(withDate, arzt)), at)
+        assertEquals(bday, i.lookup("0664 2", at)!!.birthday)
+        assertNull(i.lookup("0732 111", at)!!.birthday)
+    }
+
     @Test fun oldIndexFileStillReads() {
         // Written by 1.0.101 without the new fields.
         val json = Json { ignoreUnknownKeys = true }

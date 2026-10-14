@@ -301,6 +301,18 @@ class ScreensScreenshotTest {
     }
 
     @Test fun callUnknown() = shot("call_unknown") {
-        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null), noActions, now)
+        io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null, unknownLine = "3 Anrufe · zuletzt vor 2 Tagen"), noActions, now)
+    }
+
+    @Test fun callBluetoothAndBirthday() = shot("call_bluetooth") {
+        io.github.thelony97.orbit.ui.call.CallScreen(
+            io.github.thelony97.orbit.ui.call.CallUi(
+                "+43 660 1234567",
+                callCard.copy(birthday = io.github.thelony97.orbit.core.model.CalendarDay(today.plusDays(2).dayOfMonth, today.plusDays(2).monthValue, 1996)),
+                active = true, elapsed = 65, phoneUnlocked = true,
+                route = io.github.thelony97.orbit.ui.call.AudioRoute.BLUETOOTH, routeName = "Pixel Buds", moreRoutes = true,
+            ),
+            noActions, now,
+        )
     }
 }

@@ -6,6 +6,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** Order in which one tap moves the sound on (pure, see [CallSessionTest]). */
+object AudioCycle {
+    private val E = android.telecom.CallEndpoint.TYPE_EARPIECE
+    private val W = android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
+    private val S = android.telecom.CallEndpoint.TYPE_SPEAKER
+    private val B = android.telecom.CallEndpoint.TYPE_BLUETOOTH
+
+    fun next(current: Int, available: List<Int>): Int {
+        val handset = if (W in available) W else E
+        val order = listOfNotNull(handset, S, B.takeIf { it in available })
+        val i = order.indexOf(if (current == E || current == W) handset else current)
+        return order[(if (i < 0) 0 else i + 1) % order.size]
+    }
+}
+
 /** Which call the screen and the notification are about (pure, see [CallSessionTest]). */
 object CallPick {
     private val order = listOf(
@@ -44,7 +59,15 @@ object CallSession {
     private val _version = MutableStateFlow(0L)
     val version: StateFlow<Long> = _version.asStateFlow()
 
-    data class Audio(val muted: Boolean = false, val speaker: Boolean = false)
+    data class Audio(
+        val muted: Boolean = false,
+        val speaker: Boolean = false,
+        /** CallEndpoint.TYPE_* of where the sound goes now. */
+        val type: Int = android.telecom.CallEndpoint.TYPE_EARPIECE,
+        val name: String = "",
+        val current: android.telecom.CallEndpoint? = null,
+        val available: List<android.telecom.CallEndpoint> = emptyList(),
+    )
     val audio = MutableStateFlow(Audio())
 
     /** A call that connected and just ended: the screen stays for the note line (PLAN 3.12 „Danach“). */
@@ -163,10 +186,24 @@ object CallSession {
 
     fun toggleMute() = runCatching { service?.setMuted(!audio.value.muted) }
 
+    /**
+     * Lautsprecher / Bluetooth / Kopfhörer (PLAN 3.12): one tap moves on to the next way the
+     * sound can go (handset or headset → speaker → Bluetooth → back).
+     */
     @Suppress("DEPRECATION")
     fun toggleSpeaker() = runCatching {
-        service?.setAudioRoute(
-            if (audio.value.speaker) android.telecom.CallAudioState.ROUTE_WIRED_OR_EARPIECE else android.telecom.CallAudioState.ROUTE_SPEAKER,
-        )
+        val a = audio.value
+        val s = service ?: return@runCatching
+        val next = AudioCycle.next(a.type, a.available.map { it.endpointType })
+        val target = a.available.firstOrNull { it.endpointType == next }
+        if (target != null) {
+            s.requestCallEndpointChange(target, java.util.concurrent.Executor { it.run() }, object : android.os.OutcomeReceiver<Void, android.telecom.CallEndpointException> {
+                override fun onResult(result: Void?) {}
+                override fun onError(error: android.telecom.CallEndpointException) {}
+            })
+        } else {
+            // No endpoint list from Telecom yet: the old way, speaker on/off.
+            s.setAudioRoute(if (a.speaker) android.telecom.CallAudioState.ROUTE_WIRED_OR_EARPIECE else android.telecom.CallAudioState.ROUTE_SPEAKER)
+        }
     }
 }

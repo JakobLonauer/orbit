@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,7 +40,10 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import io.github.thelony97.orbit.ui.components.GlowButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.PhoneInTalk
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Pause
@@ -60,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -111,7 +116,16 @@ data class CallUi(
     val dialing: Boolean = false,
     /** Dual SIM „ask every time“: pick one, or the call cannot start. */
     val accounts: List<String> = emptyList(),
+    /** Unknown number that called before: „3 Anrufe · zuletzt vor 2 Tagen“ (PLAN 3.12). */
+    val unknownLine: String? = null,
+    /** Where the sound goes; [routeName] is a Bluetooth device's name. */
+    val route: AudioRoute = AudioRoute.EARPIECE,
+    val routeName: String = "",
+    /** More than earpiece and speaker to choose from (headset, Bluetooth). */
+    val moreRoutes: Boolean = false,
 )
+
+enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
 
 interface CallActions {
     fun answer() {}
@@ -163,7 +177,7 @@ fun CallScreen(
     val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
     SpaceBackground(nebula = { color.copy(alpha = 1f) }) {
         Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp),
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(40.dp))
@@ -183,7 +197,7 @@ fun CallScreen(
                 ui.dialing -> "Wählt …"
                 ui.active -> listOfNotNull(timer(ui.elapsed), "gehalten".takeIf { ui.onHold }).joinToString(" · ")
                 notice != null -> notice.publicLine.ifBlank { ui.number }
-                else -> "Unbekannt"
+                else -> ui.unknownLine ?: "Unbekannt"
             }
             Text(
                 sub,
@@ -263,9 +277,23 @@ private fun SmsTemplates(onPick: (String) -> Unit) {
  * outside the call stay behind the phone's lock (PLAN 3.12).
  */
 @Composable
-private fun AfterCall(unlocked: Boolean, actions: CallActions) {
+private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true) {
     val note = rememberTextFieldState()
     LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
+    // PLAN 1.3: after hanging up the note line glides up with the keyboard already open.
+    val shown = remember { androidx.compose.animation.core.MutableTransitionState(!slideIn).apply { targetState = true } }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    if (unlocked && slideIn) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(io.github.thelony97.orbit.core.designsystem.Motion.MEDIUM_MS.toLong())
+            runCatching { focus.requestFocus() }
+        }
+    }
+    androidx.compose.animation.AnimatedVisibility(
+        visibleState = shown,
+        enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MEDIUM_MS)) { it / 2 } +
+            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MEDIUM_MS)),
+    ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (unlocked) {
             OutlinedTextField(
@@ -274,7 +302,7 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions) {
                 lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 1, maxHeightInLines = 4),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
@@ -283,6 +311,7 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions) {
                 GlowButton("Speichern", { actions.saveNote(note.text.toString().trim()) }, color = Space.Teal, enabled = note.text.isNotBlank())
             }
         }
+    }
     }
 }
 
@@ -346,8 +375,14 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
                 Text(t, style = MaterialTheme.typography.bodyMedium, color = if (t in ui.doneTopics) Space.TextFaint else Space.Text)
             }
         }
+        // Anstehender Anlass (PLAN 3.12), worked out now – not when the index was written.
+        notice.occasion?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Space.Orange) }
         ui.card?.customerNo?.takeIf { it.isNotBlank() }?.let {
-            Text("Kundennummer $it", style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"), color = Space.TextDim)
+            // Copy button also here (PLAN 1.4): the number is what the hotline asks for.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Kundennummer $it", style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"), color = Space.TextDim, modifier = Modifier.weight(1f))
+                io.github.thelony97.orbit.ui.detail.CopyButton(it, "Kundennummer")
+            }
         }
     }
 }
@@ -460,7 +495,15 @@ private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKe
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute)
-            ToggleOrb(Icons.AutoMirrored.Rounded.VolumeUp, "Lautsprecher", ui.speaker, actions::toggleSpeaker)
+            // With a headset or Bluetooth the button names where the sound goes and moves it on.
+            val (icon, label) = when {
+                !ui.moreRoutes -> Icons.AutoMirrored.Rounded.VolumeUp to "Lautsprecher"
+                ui.route == AudioRoute.BLUETOOTH -> Icons.Rounded.Bluetooth to ui.routeName.ifBlank { "Bluetooth" }
+                ui.route == AudioRoute.SPEAKER -> Icons.AutoMirrored.Rounded.VolumeUp to "Lautsprecher"
+                ui.route == AudioRoute.WIRED -> Icons.Rounded.Headphones to "Kopfhörer"
+                else -> Icons.Rounded.PhoneInTalk to "Hörer"
+            }
+            ToggleOrb(icon, label, ui.speaker || ui.route == AudioRoute.BLUETOOTH, actions::toggleSpeaker)
             ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold)
             ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys)
         }

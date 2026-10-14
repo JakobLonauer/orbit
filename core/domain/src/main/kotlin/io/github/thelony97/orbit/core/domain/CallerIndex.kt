@@ -23,6 +23,8 @@ data class CallerCard(
     val lastKind: String = "",
     /** Open "Nächstes Mal ansprechen" topics, a few at most. */
     val topics: List<String> = emptyList(),
+    /** Birthday (persons); the screen turns it into „Morgen Geburtstag · wird 30“ (PLAN 3.12 „anstehender Anlass“). */
+    val birthday: io.github.thelony97.orbit.core.model.CalendarDay? = null,
 )
 
 @Serializable
@@ -77,6 +79,7 @@ data class CallerIndex(
                     lastAt = last?.at,
                     lastKind = last?.let { kinds[it.typeId] }.orEmpty(),
                     topics = if (doc.settings.topicsDuringCall) c.topics.filterNot { it.done }.map { it.text }.take(TOPICS) else emptyList(),
+                    birthday = if (c.isOrg) null else c.birthday,
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue

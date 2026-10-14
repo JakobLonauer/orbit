@@ -82,7 +82,16 @@ class OrbitInCallService : InCallService() {
     }
 
     override fun onCallEndpointChanged(callEndpoint: CallEndpoint) = safe {
-        CallSession.audio.value = CallSession.audio.value.copy(speaker = callEndpoint.endpointType == CallEndpoint.TYPE_SPEAKER)
+        CallSession.audio.value = CallSession.audio.value.copy(
+            speaker = callEndpoint.endpointType == CallEndpoint.TYPE_SPEAKER,
+            type = callEndpoint.endpointType,
+            name = callEndpoint.endpointName.toString(),
+            current = callEndpoint,
+        )
+    }
+
+    override fun onAvailableCallEndpointsChanged(availableEndpoints: List<CallEndpoint>) = safe {
+        CallSession.audio.value = CallSession.audio.value.copy(available = availableEndpoints.toList())
     }
 
     /** Who is calling, from the small caller index (no full load), then refresh screen and notification. */

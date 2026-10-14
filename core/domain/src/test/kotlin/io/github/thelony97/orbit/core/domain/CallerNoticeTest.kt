@@ -29,6 +29,23 @@ class CallerNoticeTest {
         assertFalse(n.publicTitle.contains("geheim") || n.publicLine.contains("geheim"))
     }
 
+    @Test fun upcomingBirthdayIsWorkedOutWhenItRings() {
+        val today = LocalDate.of(2026, 10, 13)
+        val cd = { d: Int, m: Int, y: Int? -> io.github.thelony97.orbit.core.model.CalendarDay(d, m, y) }
+        assertEquals("Heute Geburtstag · wird 30", CallerNotice.occasion(cd(13, 10, 1996), today))
+        assertEquals("Morgen Geburtstag", CallerNotice.occasion(cd(14, 10, null), today))
+        assertEquals("Geburtstag in 14 Tagen · wird 61", CallerNotice.occasion(cd(27, 10, 1965), today))
+        assertEquals(null, CallerNotice.occasion(cd(28, 10, 1965), today))
+        // Yesterday's birthday is next year's – no line.
+        assertEquals(null, CallerNotice.occasion(cd(12, 10, 1990), today))
+        val n = CallerNotice.of(CallerCard("a", "Anna", birthday = cd(15, 10, 1996)), now, zone)
+        assertEquals("Geburtstag in 2 Tagen · wird 30", n.occasion)
+        assertEquals(listOf("Geburtstag in 2 Tagen · wird 30"), n.details)
+        // Never on the lock screen.
+        assertEquals("Anna", n.publicTitle)
+        assertEquals("", n.publicLine)
+    }
+
     @Test fun archivedAndBare() {
         val n = CallerNotice.of(CallerCard("k", "Kevin", archived = true), now, zone)
         assertEquals("Kevin · archiviert", n.title)

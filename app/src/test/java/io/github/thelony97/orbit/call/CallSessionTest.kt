@@ -27,6 +27,23 @@ class CallSessionTest {
         assertNull(CallPick.primary(listOf(Call.STATE_DISCONNECTED)))
     }
 
+    @Test fun audioMovesOnHandsetSpeakerBluetooth() {
+        val e = android.telecom.CallEndpoint.TYPE_EARPIECE
+        val s = android.telecom.CallEndpoint.TYPE_SPEAKER
+        val b = android.telecom.CallEndpoint.TYPE_BLUETOOTH
+        val w = android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
+        // Only handset and speaker: a plain on/off.
+        assertEquals(s, AudioCycle.next(e, listOf(e, s)))
+        assertEquals(e, AudioCycle.next(s, listOf(e, s)))
+        // With Bluetooth: handset → speaker → Bluetooth → handset.
+        assertEquals(b, AudioCycle.next(s, listOf(e, s, b)))
+        assertEquals(e, AudioCycle.next(b, listOf(e, s, b)))
+        // A plugged-in headset takes the handset's place.
+        assertEquals(w, AudioCycle.next(s, listOf(w, s)))
+        // Bluetooth gone while in use: back to the handset.
+        assertEquals(e, AudioCycle.next(b, listOf(e, s)))
+    }
+
     @Test fun outgoingStates() {
         assertTrue(CallPick.isOutgoing(Call.STATE_DIALING))
         assertTrue(CallPick.isOutgoing(Call.STATE_CONNECTING))
