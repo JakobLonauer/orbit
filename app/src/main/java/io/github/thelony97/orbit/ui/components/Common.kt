@@ -329,3 +329,33 @@ fun EmptyHint(
         }
     }
 }
+
+/**
+ * The confirming action of a dialog (W4: one leading action): a filled pill in Orbit violet with a
+ * confirm haptic, drop-in for the TextButton slot (same content lambda). „Abbrechen“ stays a quiet
+ * text button next to it.
+ */
+@Composable
+fun DialogConfirm(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    androidx.compose.material3.Button(
+        onClick = {
+            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+            onClick()
+        },
+        modifier = modifier,
+        enabled = enabled,
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = Space.Violet,
+            contentColor = Space.Void,
+            disabledContainerColor = Space.PanelHighest,
+            disabledContentColor = Space.TextFaint,
+        ),
+        content = content,
+    )
+}

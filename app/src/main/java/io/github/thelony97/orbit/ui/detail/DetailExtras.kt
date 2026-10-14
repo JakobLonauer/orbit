@@ -215,12 +215,12 @@ fun LinkDialog(onDismiss: () -> Unit, onSave: (title: String, url: String) -> Un
             }
         },
         confirmButton = {
-            TextButton(enabled = url.text.isNotBlank(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = url.text.isNotBlank(), onClick = {
                 onSave(title.text.toString().trim(), url.text.toString().trim())
                 onDismiss()
             }) { Text("Hinzufügen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 
@@ -257,12 +257,12 @@ fun FieldDialog(suggestions: List<String>, onDismiss: () -> Unit, onSave: (label
             }
         },
         confirmButton = {
-            TextButton(enabled = value.text.isNotBlank(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = value.text.isNotBlank(), onClick = {
                 onSave(label.text.toString().trim(), value.text.toString().trim())
                 onDismiss()
             }) { Text("Hinzufügen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 
@@ -283,12 +283,12 @@ fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (S
             )
         },
         confirmButton = {
-            TextButton(onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                 onSave(text.text.toString().trim())
                 onDismiss()
             }) { Text("Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 

@@ -286,7 +286,7 @@ private fun MemberEditDialog(m: Member, onDismiss: () -> Unit, onSave: (Member) 
             }
         },
         confirmButton = {
-            TextButton(enabled = name.text.isNotBlank(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = name.text.isNotBlank(), onClick = {
                 // The first number/address is edited here; further ones stay as they are.
                 fun swapFirst(list: List<LabeledValue>, value: String, label: String): List<LabeledValue> {
                     val v = value.trim()
@@ -308,7 +308,7 @@ private fun MemberEditDialog(m: Member, onDismiss: () -> Unit, onSave: (Member) 
                 onDismiss()
             }) { Text("Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 
@@ -360,8 +360,8 @@ private fun PromoteDialog(m: Member, data: OrbitData, idx: Index, onDismiss: () 
             }
         },
         confirmButton = {
-            TextButton(enabled = !merging || into != null, onClick = { onPick(if (merging) into else null); onDismiss() }) { Text("Übernehmen") }
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = !merging || into != null, onClick = { onPick(if (merging) into else null); onDismiss() }) { Text("Übernehmen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }

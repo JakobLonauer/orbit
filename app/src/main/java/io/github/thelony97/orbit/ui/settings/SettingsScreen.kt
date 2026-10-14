@@ -803,7 +803,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                     val list = slots.map { it.text.toString().trim() }.filter { it.isNotEmpty() }
                     OrbitRepository.editSettings { it.copy(smsTemplates = list) }
                     smsDialog = false
@@ -827,7 +827,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                     phoneDialog = false
                     val request = io.github.thelony97.orbit.call.PhoneRole.requestIntent(ctx)
                     if (request != null) runCatching { phoneRoleLauncher.launch(request) }.onFailure {
@@ -854,7 +854,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 )
             },
             confirmButton = {
-                TextButton(enabled = errorText.isNotBlank(), onClick = {
+                io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = errorText.isNotBlank(), onClick = {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, errorText)
                     ctx.startActivity(Intent.createChooser(send, "Fehlerprotokoll teilen"))
                 }) { Text("Teilen") }
@@ -936,12 +936,12 @@ private fun BackupPasswordDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = ok, onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = ok, onClick = {
                 onConfirm(first.text.toString().toCharArray())
                 onDismiss()
             }) { Text("OK") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 

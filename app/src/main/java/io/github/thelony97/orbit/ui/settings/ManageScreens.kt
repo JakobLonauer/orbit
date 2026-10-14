@@ -208,7 +208,7 @@ private fun GroupDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            io.github.thelony97.orbit.ui.components.DialogConfirm(
                 enabled = name.text.isNotBlank(),
                 onClick = {
                     onSave(initial.copy(name = name.text.toString().trim(), color = color))
@@ -216,7 +216,7 @@ private fun GroupDialog(
                 },
             ) { Text("Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
     if (confirmDelete && onDelete != null) {
         ConfirmDialog(
@@ -309,12 +309,12 @@ private fun TypeDialog(initial: EntryType, onDismiss: () -> Unit, onSave: (Entry
             }
         },
         confirmButton = {
-            TextButton(enabled = name.text.isNotBlank(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = name.text.isNotBlank(), onClick = {
                 onSave(initial.copy(name = name.text.toString().trim(), icon = icon))
                 onDismiss()
             }) { Text("Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 

@@ -520,7 +520,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             title = { Text("Diese Nummer gibt es schon") },
             text = { Text(hit.number + " · " + (other?.let { io.github.thelony97.orbit.domain.Logic.displayName(it, false) + if (it.archived) " (Archiv)" else "" } ?: ""), color = Space.TextDim) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                     duplicate = null
                     duplicateOk = true
                     if (save()) leave()

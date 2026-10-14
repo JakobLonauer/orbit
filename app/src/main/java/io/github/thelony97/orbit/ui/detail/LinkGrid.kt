@@ -217,7 +217,7 @@ fun LinkEditDialog(initial: Link, onDismiss: () -> Unit, onSave: (Link) -> Unit)
             }
         },
         confirmButton = {
-            TextButton(enabled = url.text.isNotBlank(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = url.text.isNotBlank(), onClick = {
                 val u = url.text.toString().trim()
                 val full = if (u.startsWith("http://") || u.startsWith("https://")) u else "https://$u"
                 // Another site: its logo is fetched anew.
@@ -234,7 +234,7 @@ fun LinkEditDialog(initial: Link, onDismiss: () -> Unit, onSave: (Link) -> Unit)
                 onDismiss()
             }) { Text("Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 

@@ -51,7 +51,7 @@ fun DateDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                 state.selectedDateMillis?.let { onPick(it.utcDate()) }
                 onDismiss()
             }) { Text("OK") }
@@ -77,13 +77,13 @@ fun TimeDialog(
     TimePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                 onPick(LocalTime.of(state.hour, state.minute))
                 onDismiss()
             }) { Text("OK") }
         },
         title = { Text("Uhrzeit") },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     ) {
         TimePicker(state = state)
     }
@@ -107,14 +107,14 @@ fun DayOfYearDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                 state.selectedDateMillis?.utcDate()?.let { d ->
                     onPick(DayOfYear(d.dayOfMonth, d.monthValue, if (noYear) null else d.year))
                 }
                 onDismiss()
             }) { Text("OK") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),

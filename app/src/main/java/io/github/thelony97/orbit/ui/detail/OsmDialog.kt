@@ -103,12 +103,12 @@ fun OsmDialog(org: Contact, onDismiss: () -> Unit, onApply: ((Contact) -> Contac
             }
         },
         confirmButton = {
-            TextButton(enabled = ticked.isNotEmpty(), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = ticked.isNotEmpty(), onClick = {
                 val chosen = offers.filterIndexed { i, _ -> i in ticked }
                 onApply { c -> chosen.fold(c) { acc, o -> o.apply(acc) } }
                 onDismiss()
             }) { Text("Übernehmen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }

@@ -102,12 +102,12 @@ fun MeetingDialog(name: String, onDismiss: () -> Unit, onPlan: (MeetingDraft) ->
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
                 onPlan(MeetingDraft(LocalDateTime.of(date, time), duration, place.text.toString().trim()))
                 onDismiss()
             }) { Text("Planen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
     if (pickDate) DateDialog(initial = date, onDismiss = { pickDate = false }, onPick = { date = it })
     if (pickTime) TimeDialog(initial = time, onDismiss = { pickTime = false }, onPick = { time = it })
@@ -197,12 +197,12 @@ fun RelationDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = other != null, onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = other != null, onClick = {
                 other?.let { onPick(it, option.kind, option.reversed) }
                 onDismiss()
             }) { Text("Verknüpfen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }
 
@@ -326,11 +326,11 @@ fun AssignDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = other != null && (!isCustom || custom.text.isNotBlank()), onClick = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = other != null && (!isCustom || custom.text.isNotBlank()), onClick = {
                 other?.let { onPick(it, role, if (isCustom) custom.text.toString().trim() else "") }
                 onDismiss()
             }) { Text("Zuordnen") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
 }

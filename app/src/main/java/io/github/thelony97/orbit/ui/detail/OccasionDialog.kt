@@ -204,8 +204,8 @@ fun OccasionDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                val d = date ?: return@TextButton
+            io.github.thelony97.orbit.ui.components.DialogConfirm(enabled = valid, onClick = {
+                val d = date ?: return@DialogConfirm
                 if (kind == OccasionKind.BIRTHDAY && greetingFor != null) {
                     // The plain default (Du, Deutsch) is stored as no template at all.
                     val g = greeting.takeIf { it != io.github.thelony97.orbit.core.model.Greeting() }
@@ -215,7 +215,7 @@ fun OccasionDialog(
                 onDismiss()
             }) { Text(if (initial == null) "Hinzufügen" else "Speichern") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = io.github.thelony97.orbit.ui.theme.Space.TextDim) } },
     )
     if (pickDate) DayOfYearDialog(initial = date, onDismiss = { pickDate = false }, onPick = { date = it })
 }
