@@ -49,6 +49,7 @@ import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.rounded.Groups
@@ -229,6 +230,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
     var assignDialog by remember { mutableStateOf(false) }
+    var osmDialog by remember { mutableStateOf(false) }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
@@ -364,6 +366,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                                 text = { Text("Als vCard teilen") },
                                 leadingIcon = { Icon(Icons.Rounded.Share, null) },
                                 onClick = { menu = false; ShareContact.vcard(ctx, c) },
+                            )
+                            // Only on request, each value confirmed (PLAN 3.8).
+                            if (c.isOrg) DropdownMenuItem(
+                                text = { Text("Daten ergänzen") },
+                                leadingIcon = { Icon(Icons.Rounded.Public, null) },
+                                onClick = { menu = false; osmDialog = true },
                             )
                             if (!c.isMe) HorizontalDivider(color = Space.Line)
                             if (!c.isMe) DropdownMenuItem(
@@ -1027,6 +1035,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             },
         )
     }
+
+    if (osmDialog) OsmDialog(c, onDismiss = { osmDialog = false }) { change -> edit(change) }
 
     if (assignDialog) {
         AssignDialog(
