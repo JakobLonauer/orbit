@@ -118,6 +118,14 @@
             android:exported="false" />
 
         <activity
+            android:name=".notify.CongratulateActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Orbit.Invisible" />
+
+        <activity
             android:name=".notify.CallActionActivity"
             android:exported="false"
             android:excludeFromRecents="true"

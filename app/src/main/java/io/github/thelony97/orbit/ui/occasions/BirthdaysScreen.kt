@@ -223,7 +223,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                         // Gratulieren on the day itself; it ticks „Gratuliert“ on its way (PLAN 3.5).
                         onCongratulate = if (r.daysUntil == 0L && io.github.thelony97.orbit.actions.ContactActions.defaultNumber(c) != null) {
                             {
-                                val opened = io.github.thelony97.orbit.actions.ContactActions.congratulate(ctx, c, "Alles Gute zum Geburtstag, ${c.firstName.ifBlank { Logic.displayName(c, false) }}!")
+                                val opened = io.github.thelony97.orbit.actions.ContactActions.congratulate(ctx, c, io.github.thelony97.orbit.actions.ContactActions.greeting(c))
                                 if (opened && tracking && !BirthdayTab.congratulated(c, r.occasion.id, r.date.year)) {
                                     io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
                                         io.github.thelony97.orbit.data.Mutations.toggleCongrats(d, c.id, r.occasion.id, r.date.year)

@@ -44,7 +44,6 @@ internal fun BroadcastReceiver.runAsync(context: Context, block: suspend () -> U
 }
 
 object DigestScheduler {
-    private const val BIRTHDAY_LEAD_DAYS = 7L
 
 
     private fun pendingIntent(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
@@ -79,26 +78,10 @@ object DigestScheduler {
         if (before.settings.lastDigestDay >= todayDate.toEpochDay()) return
         runCatching { SyncEngine.syncAll(ctx) }
         val data = OrbitRepository.snapshot()
-        val active = Logic.others(data).filterNot { it.archived }
-
-        // Only occasions (PLAN 3.0/3.5): today, plus birthdays a week ahead with gift ideas.
-        val birthdays = active.filter { c -> !c.isOrg && c.birthday?.let { Logic.isToday(it, todayDate) } == true }
-        val soon = active.filter { c -> !c.isOrg && c.birthday?.let { Logic.daysUntil(it, todayDate) } == BIRTHDAY_LEAD_DAYS }
-        val anniversaries = active.flatMap { c ->
-            c.anniversaries.filter { Logic.isToday(it.date, todayDate) }.map { a ->
-                val years = a.date.year?.let { todayDate.year - it }
-                c to (if (years != null && years > 0) "${a.title} ($years Jahre)" else a.title)
-            }
-        }
-        Notifications.digest(
-            ctx,
-            Notifications.DigestContent(
-                birthdays = birthdays,
-                soon = soon,
-                anniversaries = anniversaries,
-                lastNameFirst = data.settings.sortByLastName,
-            ),
-        )
+        // Only occasions (PLAN 3.5/3.13a), each with its own reminders (am Tag / 1 / 3 / 7 / 14 Tage
+        // vorher); never archived or deleted contacts. Your own („Ich & Anna“) remind like any other.
+        val due = io.github.thelony97.orbit.core.domain.ReminderPlan.dueOn(data.contacts, todayDate) { it.deletedAt == null && !it.archived }
+        Notifications.occasions(ctx, due, data)
 
         val startOfToday = todayDate.startMillis()
         val meetingsToAsk = data.meetings.filter { !it.asked && !it.resolved && it.end < startOfToday }
@@ -209,6 +192,54 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     if (notifId >= 0) Notifications.cancel(context, notifId)
                 }
             }
+        }
+    }
+}
+
+/**
+ * Invisible activity behind „Gratulieren“ in the birthday notification (PLAN 3.5): opens WhatsApp
+ * or SMS with the greeting and ticks „Gratuliert“ for this year. An activity, not a receiver, so
+ * starting the messenger is allowed.
+ */
+class CongratulateActivity : ComponentActivity() {
+
+    companion object {
+        private const val EXTRA_CONTACT = "contact"
+        private const val EXTRA_OCCASION = "occasion"
+        private const val EXTRA_YEAR = "year"
+
+        fun pendingIntent(ctx: Context, contactId: String, occasionId: String, year: Int): PendingIntent {
+            val intent = Intent(ctx, CongratulateActivity::class.java)
+                .putExtra(EXTRA_CONTACT, contactId)
+                .putExtra(EXTRA_OCCASION, occasionId)
+                .putExtra(EXTRA_YEAR, year)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return PendingIntent.getActivity(
+                ctx, ("congrats-$contactId").hashCode(), intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Notifications.cancel(this, Notifications.ID_DIGEST)
+        val contactId = intent.getStringExtra(EXTRA_CONTACT)
+        val occasionId = intent.getStringExtra(EXTRA_OCCASION)
+        val year = intent.getIntExtra(EXTRA_YEAR, 0)
+        lifecycleScope.launch {
+            OrbitRepository.init(applicationContext)
+            val data = OrbitRepository.ensureLoaded()
+            data.contacts.firstOrNull { it.id == contactId }?.let { c ->
+                val opened = ContactActions.congratulate(this@CongratulateActivity, c, ContactActions.greeting(c))
+                if (opened && occasionId != null && data.settings.giftTracking &&
+                    !io.github.thelony97.orbit.core.domain.BirthdayTab.congratulated(c, occasionId, year)
+                ) {
+                    OrbitRepository.update { d -> Mutations.toggleCongrats(d, c.id, occasionId, year) }
+                    OrbitRepository.flush()
+                }
+            }
+            finish()
         }
     }
 }

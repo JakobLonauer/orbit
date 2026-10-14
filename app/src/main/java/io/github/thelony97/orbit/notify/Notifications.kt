@@ -146,6 +146,53 @@ object Notifications {
         post(ctx, ID_DIGEST, builder)
     }
 
+    /** A contact photo for a notification's large icon (a quarter of the stored size). */
+    private fun photoOf(ctx: Context, name: String?): android.graphics.Bitmap? = name?.takeIf { it.isNotBlank() }?.let {
+        runCatching {
+            val file = java.io.File(java.io.File(ctx.filesDir, "photos"), it)
+            android.graphics.BitmapFactory.decodeFile(file.absolutePath, android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 })
+        }.getOrNull()
+    }
+
+    /**
+     * Tägliche Anlässe (PLAN 3.5/3.13a), gathered in one notification: „Heute: Annas 30. Geburtstag ·
+     * In 7 Tagen: 5. Hochzeitstag Anna & Tom“. Lead-time birthday reminders list the gift ideas.
+     * One person only: photo, „Anrufen“, and on the birthday itself „Gratulieren“.
+     */
+    fun occasions(ctx: Context, due: List<io.github.thelony97.orbit.core.domain.DueReminder>, data: io.github.thelony97.orbit.data.OrbitData) {
+        if (due.isEmpty()) return
+        val byId = data.contacts.associateBy { it.id }
+        val nameOf = { id: String -> byId[id]?.let { Logic.shortName(it) }.orEmpty() }
+        val lines = due.map { r ->
+            val head = io.github.thelony97.orbit.core.domain.ReminderPlan.dayWord(r.daysBefore) + ": " +
+                io.github.thelony97.orbit.core.domain.ReminderPlan.phrase(r.upcoming, nameOf)
+            val ideas = if (r.withGiftIdeas) byId[r.upcoming.ownerId]?.gifts?.filterNot { it.done }?.joinToString(", ") { it.text }.orEmpty() else ""
+            if (ideas.isNotEmpty()) "$head · 🎁 $ideas" else head
+        }
+        val people = due.flatMap { listOfNotNull(it.upcoming.ownerId, it.upcoming.withId) }.distinct()
+        val single = people.singleOrNull()?.let { byId[it] }
+        val style = NotificationCompat.InboxStyle()
+        lines.take(7).forEach { style.addLine(it) }
+        if (lines.size > 7) style.setSummaryText("+${lines.size - 7} weitere")
+        val builder = base(ctx, CH_DIGEST)
+            .setContentTitle(lines.first())
+            .setContentText(if (lines.size > 1) lines.drop(1).joinToString(" · ") else null)
+            .setStyle(if (lines.size > 1) style else NotificationCompat.BigTextStyle().bigText(lines.first()))
+            .setContentIntent(openContact(ctx, single?.id, ID_DIGEST))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+        if (single != null) {
+            photoOf(ctx, single.photo)?.let { builder.setLargeIcon(it) }
+            val birthdayToday = due.firstOrNull { it.daysBefore == 0 && it.upcoming.occasion.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
+            if (single.phones.any { it.value.isNotBlank() }) {
+                if (birthdayToday != null) {
+                    builder.addAction(0, "Gratulieren", CongratulateActivity.pendingIntent(ctx, single.id, birthdayToday.upcoming.occasion.id, birthdayToday.upcoming.date.year))
+                }
+                builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, single.id))
+            }
+        }
+        post(ctx, ID_DIGEST, builder)
+    }
+
     fun topics(ctx: Context, contact: Contact) {
         val open = contact.topics.filterNot { it.done }
         if (open.isEmpty()) return
