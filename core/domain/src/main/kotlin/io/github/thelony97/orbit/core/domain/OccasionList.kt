@@ -44,7 +44,7 @@ object OccasionList {
                 (!filter.onlyRound || (u.turning != null && u.turning > 0 && u.turning % 5 == 0)) &&
                 (!filter.pinnedOnly || u.occasion.pinned)
         }
-        fun ordered(list: List<Upcoming>) = if (reversed) list.reversed() else list
+        fun <T> ordered(list: List<T>): List<T> = if (reversed) list.reversed() else list
         return when (sort) {
             Sort.NEXT -> {
                 val endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
