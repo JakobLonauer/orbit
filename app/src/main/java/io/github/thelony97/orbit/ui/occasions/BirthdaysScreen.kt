@@ -3,6 +3,7 @@ package io.github.thelony97.orbit.ui.occasions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -158,10 +159,10 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         if (shown != 0) {
             if (shown == 2) item(key = "controls") {
                 // Sortierung (tap: next one, arrow: reverse) and quick filters (PLAN 3.5).
-                androidx.compose.foundation.layout.FlowRow(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                // One line that scrolls sideways, like the kind chips in the Verlauf.
+                androidx.compose.foundation.layout.Row(
+                    Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     val sorts = io.github.thelony97.orbit.core.domain.OccasionList.Sort.entries
                     io.github.thelony97.orbit.ui.components.SpaceChip(sort.label, true, { sort = sorts[(sort.ordinal + 1) % sorts.size] })

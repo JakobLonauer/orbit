@@ -69,6 +69,20 @@ object Mutations {
             }
         })
 
+    /**
+     * Saves an occasion at its owner (PLAN 3.5: stored once, a shared one shows at both): replaces
+     * the one with the same id or adds it. A contact keeps at most one birthday.
+     */
+    fun upsertOccasion(d: OrbitData, ownerId: String, o: Anniversary): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != ownerId) c
+            else {
+                val others = c.dates.filterNot { it.id == o.id || (o.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY && it.kind == o.kind) }
+                val at = c.dates.indexOfFirst { it.id == o.id }
+                c.copy(dates = if (at >= 0) others.toMutableList().apply { add(at.coerceAtMost(size), o) } else others + o)
+            }
+        })
+
     /** „Zurückholen“ from the archive (also from the caller card while it rings). */
     fun unarchive(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })

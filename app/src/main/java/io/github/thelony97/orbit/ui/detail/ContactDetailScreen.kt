@@ -213,6 +213,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
     var anniversaryDialog by remember { mutableStateOf(false) }
+    // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
+    var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
     var linkDialog by remember { mutableStateOf(false) }
@@ -692,11 +694,15 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Anlässe (birthday and the others), soonest first; hidden while there are none.
-            if (c.dates.isNotEmpty()) item(key = "dates") {
+            // Shared ones are stored at the other contact and show here too (PLAN 3.5).
+            val sharedIn = data.contacts
+                .filter { it.id != c.id && it.deletedAt == null }
+                .flatMap { o -> o.dates.filter { it.sharedWith == c.id }.map { o to it } }
+            if (c.dates.isNotEmpty() || sharedIn.isNotEmpty()) item(key = "dates") {
                 SectionCard(
                     title = "Anlässe",
                     icon = Icons.Rounded.Cake,
-                    action = { SmallIconAction(Icons.Rounded.Add, "Anlass hinzufügen") { anniversaryDialog = true } },
+                    action = { SmallIconAction(Icons.Rounded.Add, "Anlass hinzufügen") { occasionEdit = c.id to null } },
                 ) {
                     val b = c.birthday
                     if (b != null) {
@@ -711,15 +717,26 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
                         val years = a.date.year?.let { Logic.nextOccurrence(a.date, todayDate).year - it }
+                        val partner = a.sharedWith?.let { idx.contacts[it] }
                         InfoRow(
-                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days) + weekdayHint(days, a.date, todayDate)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: ""),
+                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days) + weekdayHint(days, a.date, todayDate)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: "") +
+                                (partner?.let { " · mit " + Logic.shortName(it) } ?: "") + (if (a.pinned) " · 📌" else ""),
                             value = Fmt.dayOfYear(a.date),
+                            onClick = { occasionEdit = c.id to a },
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
                                     edit { it.copy(dates = it.dates.filterNot { x -> x.id == a.id }) }
                                     Undo.offer("${a.title} entfernt") { edit { it.copy(dates = it.dates + a) } }
                                 }
                             },
+                        )
+                    }
+                    sharedIn.sortedBy { Logic.daysUntil(it.second.date, todayDate) }.forEach { (owner, a) ->
+                        val days = Logic.daysUntil(a.date, todayDate)
+                        InfoRow(
+                            label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + " · mit " + Logic.shortName(owner),
+                            value = Fmt.dayOfYear(a.date),
+                            onClick = { occasionEdit = owner.id to a },
                         )
                     }
                 }
@@ -729,7 +746,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             if (!c.archived) item(key = "add") {
                 AddRow(
                     buildList {
-                        if (c.dates.isEmpty()) add(AddItem("Anlass") { anniversaryDialog = true })
+                        if (c.dates.isEmpty() && sharedIn.isEmpty()) add(AddItem("Anlass") { occasionEdit = c.id to null })
                         add(AddItem("Link") { linkDialog = true })
                         if (c.gallery.isEmpty() && !gallery.importing) add(AddItem("Foto") { gallery.launch() })
                         if (c.notes.isBlank()) add(AddItem("Notiz") { noteDialog = NoteTarget.Notes })
@@ -917,6 +934,18 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     if (reversed) Mutations.addRelation(d, otherId, c.id, kind) else Mutations.addRelation(d, c.id, otherId, kind)
                 }
             },
+        )
+    }
+
+    occasionEdit?.let { (ownerId, initial) ->
+        val owner = idx.contacts[ownerId]
+        OccasionDialog(
+            initial = initial,
+            people = data.contacts.filter { !it.isOrg && !it.isMe && it.deletedAt == null && !it.archived && it.id != ownerId },
+            allowBirthday = owner != null && !owner.isOrg && owner.birthday == null,
+            lastFirst = data.settings.sortByLastName,
+            onDismiss = { occasionEdit = null },
+            onSave = { o -> OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.upsertOccasion(d, ownerId, o) } },
         )
     }
 
