@@ -206,6 +206,10 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     }
 
     var savedId by remember { mutableStateOf<String?>(null) }
+    // „Diese Nummer gibt es schon“ (PLAN 3.14): asked once per save, then it is Jakob's call.
+    var duplicate by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.Duplicates.Hit?>(null) }
+    var duplicateOk by remember { mutableStateOf(false) }
+    val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
 
     /** Persists; the page closes after the save button's check morph (see [leave]). */
     fun save(): Boolean {
@@ -213,6 +217,11 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         if ((contact.isOrg && contact.company.isBlank()) || (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank())) {
             Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
             return false
+        }
+        if (!duplicateOk) {
+            val newNumbers = contact.phones.filter { p -> original.phones.none { it.value == p.value } || isNew }
+            io.github.thelony97.orbit.core.domain.Duplicates.sameNumber(contact.copy(phones = newNumbers), data.contacts) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
+                ?.let { duplicate = it; return false }
         }
         val oldPhoto = original.photo
         if (oldPhoto != null && oldPhoto != contact.photo && !isNew) {
@@ -503,6 +512,28 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             },
         )
     }
+    duplicate?.let { hit ->
+        val other = data.contacts.firstOrNull { it.id == hit.contactId }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { duplicate = null },
+            containerColor = Space.PanelHigh,
+            title = { Text("Diese Nummer gibt es schon") },
+            text = { Text(hit.number + " · " + (other?.let { io.github.thelony97.orbit.domain.Logic.displayName(it, false) + if (it.archived) " (Archiv)" else "" } ?: ""), color = Space.TextDim) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    duplicate = null
+                    duplicateOk = true
+                    if (save()) leave()
+                }) { Text("Trotzdem speichern") }
+            },
+            dismissButton = {
+                if (other != null) androidx.compose.material3.TextButton(onClick = { duplicate = null; nav.open(Route.Detail(other.id)) }) {
+                    Text(io.github.thelony97.orbit.domain.Logic.shortName(other) + " öffnen")
+                }
+            },
+        )
+    }
+
     if (confirmDiscard) {
         ConfirmDialog(
             title = "Änderungen verwerfen?",
