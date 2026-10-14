@@ -193,5 +193,18 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/orbit_widget_info" />
         </receiver>
+
+        <!-- Angepinnte Links (PLAN 3.7). -->
+        <receiver
+            android:name=".widget.LinksWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_links_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/links_widget_info" />
+        </receiver>
     </application>
 </manifest>

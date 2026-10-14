@@ -28,7 +28,10 @@ class OrbitApp : Application() {
         errorLog.installUncaughtHandler()
         OrbitRepository.init(this)
         MailAccounts.init(this)
-        OrbitRepository.onSaved = { ctx -> OrbitWidget.refresh(ctx) }
+        OrbitRepository.onSaved = { ctx ->
+            OrbitWidget.refresh(ctx)
+            io.github.thelony97.orbit.widget.LinksWidget.refresh(ctx)
+        }
         Notifications.createChannels(this)
         scope.launch {
             OrbitRepository.ensureLoaded()

@@ -60,6 +60,8 @@ private data class WidgetRow(
     val color: Color,
     val birthday: Boolean,
     val days: Long,
+    /** From the pinned occasions (the header then says „Anlässe“). */
+    val pinned: Boolean = false,
 )
 
 class OrbitWidget : GlanceAppWidget() {
@@ -84,14 +86,28 @@ class OrbitWidget : GlanceAppWidget() {
     }
 
     /**
-     * Anlässe widget (PLAN 3.0): upcoming birthdays, soonest first. Pinned occasions of every
-     * kind take over in R3; until then birthdays are the fallback the plan asks for.
+     * Anlässe-Widget (PLAN 3.0): the next pinned occasions of every kind; without pinned ones the
+     * next birthdays. Never archived contacts; organisations only while they are shown.
      */
     private fun rows(data: OrbitData): List<WidgetRow> {
         val idx = Index(data)
         val todayDate = today()
         val lastFirst = data.settings.sortByLastName
         fun color(c: Contact) = c.groupIds.firstNotNullOfOrNull { idx.groups[it] }?.let { Color(it.color) } ?: Color(0xFF7986CB)
+        val pinned = io.github.thelony97.orbit.core.domain.UpcomingIndex.build(data.contacts, todayDate) {
+            io.github.thelony97.orbit.core.domain.Visibility.inLists(it, data.settings.showOrgs)
+        }.filter { it.occasion.pinned }
+        if (pinned.isNotEmpty()) {
+            val nameOf = { id: String -> idx.contacts[id]?.let { Logic.shortName(it) }.orEmpty() }
+            return pinned.mapNotNull { u ->
+                val c = idx.contacts[u.ownerId] ?: return@mapNotNull null
+                val sub = if (u.daysUntil == 0L) "heute" else "${Fmt.until(u.daysUntil)} · ${AtFormat.weekdayDate(u.date)}"
+                WidgetRow(
+                    c, io.github.thelony97.orbit.core.domain.ReminderPlan.phrase(u, nameOf), sub, color(c),
+                    birthday = u.occasion.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY, days = u.daysUntil, pinned = true,
+                )
+            }.sortedWith(compareBy({ it.days }, { it.title }))
+        }
         return Logic.others(data).filter { !it.archived && !it.isOrg }.mapNotNull { c ->
             val b = c.birthday ?: return@mapNotNull null
             val days = Logic.daysUntil(b, todayDate)
@@ -132,7 +148,7 @@ class OrbitWidget : GlanceAppWidget() {
                     return@Column
                 }
                 Text(
-                    if (next.days == 0L) "🎂" else "${next.days}",
+                    if (next.days == 0L) (if (next.birthday) "🎂" else "★") else "${next.days}",
                     style = TextStyle(color = ColorProvider(Space.Orange), fontSize = 40.sp, fontWeight = FontWeight.Bold),
                 )
                 Text(
@@ -160,7 +176,7 @@ class OrbitWidget : GlanceAppWidget() {
                         .padding(horizontal = 10.dp, vertical = 3.dp),
                 ) {
                     Text(
-                        "Geburtstage",
+                        if (rows.firstOrNull()?.pinned == true) "Anlässe" else "Geburtstage",
                         style = TextStyle(color = ColorProvider(Space.Void), fontSize = 12.sp, fontWeight = FontWeight.Medium),
                     )
                 }
@@ -186,7 +202,7 @@ class OrbitWidget : GlanceAppWidget() {
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            if (row.days == 0L) "🎂" else Logic.initials(row.contact),
+                            if (row.days == 0L) (if (row.birthday) "🎂" else "★") else Logic.initials(row.contact),
                             style = TextStyle(color = ColorProvider(Color.White), fontSize = 13.sp, fontWeight = FontWeight.Bold),
                         )
                     }
