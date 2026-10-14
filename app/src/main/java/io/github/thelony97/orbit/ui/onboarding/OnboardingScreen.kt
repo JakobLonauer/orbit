@@ -105,7 +105,11 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
     var arrived by remember { mutableStateOf<List<Contact>?>(null) }
     var busy by remember { mutableStateOf(false) }
 
+    // Tap and the end of the animation (also during the cross-fade) may both call finish – once.
+    var finished by remember { mutableStateOf(false) }
     fun finish() {
+        if (finished) return
+        finished = true
         AppLock.unlock()
         // „Dein Orbit füllt sich“ was the start moment – the ring would only cover the new list.
         if (!arrived.isNullOrEmpty()) io.github.thelony97.orbit.ui.Session.startPlayed = true

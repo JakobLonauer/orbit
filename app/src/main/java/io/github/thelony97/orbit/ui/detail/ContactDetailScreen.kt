@@ -222,10 +222,18 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     val ctx = LocalContext.current
     // Collected here, outside the LazyColumn builder (not a composable context).
     val mailSyncing by io.github.thelony97.orbit.mail.MailSync.running.collectAsState()
-    val phoneIso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
-    val landline: (String) -> Boolean = remember(phoneIso) {
-        { raw -> io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(raw, phoneIso)) }
+    // Home country from the SIM (not the network: roaming must not turn „0660 …“ into a German
+    // landline); results per number computed once, not on every recomposition.
+    val phoneIso = remember {
+        ctx.getSystemService(android.telephony.TelephonyManager::class.java)?.simCountryIso?.takeIf { it.isNotBlank() }?.uppercase()
+            ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
+    val landlines = remember(contact.phones, phoneIso) {
+        contact.phones.associate { p ->
+            p.value to io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(p.value, phoneIso))
+        }
+    }
+    val landline: (String) -> Boolean = { raw -> landlines[raw] == true }
     val c: Contact = contact
     val lastFirst = data.settings.sortByLastName
     val color = contactColor(c, idx)
@@ -536,7 +544,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             // Quick actions
             val number = ContactActions.defaultNumber(c)
             val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
-            val texting = c.phones.any { !landline(it.value) }
+            // SMS/WhatsApp go to the default number unless that one is a landline (W5, NumberKind).
+            val textNumber = number?.takeIf { !landline(it) } ?: c.phones.firstOrNull { it.value.isNotBlank() && !landline(it.value) }?.value
+            val texting = textNumber != null
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 Row(
@@ -556,8 +566,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     // Only what applies (W5): no greyed-out orbs.
                     // W5: no SMS/WhatsApp for a landline (fixed rule, NumberKind).
                     if (number != null && texting) {
-                        ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
-                        ActionOrb(Icons.Rounded.Forum, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
+                        ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, textNumber) }, onLongClick = { chooser = Chooser.Sms })
+                        ActionOrb(Icons.Rounded.Forum, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, textNumber) }, onLongClick = { chooser = Chooser.WhatsApp })
                     }
                     if (email != null) {
                         ActionOrb(

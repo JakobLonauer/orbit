@@ -188,9 +188,16 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
             style = st
         }
     }
-    // Back online without a loaded style: load it now instead of leaving a blank map.
+    // Back online without a loaded style: load it again instead of leaving a blank map. Only after
+    // having been offline – the first load comes from the map setup below (never two at once).
+    val sawOffline = remember { booleanArrayOf(false) }
     LaunchedEffect(online) {
-        if (online && style == null) mapView.getMapAsync { m -> if (style == null) loadStyle(m) }
+        if (!online) {
+            sawOffline[0] = true
+        } else if (sawOffline[0] && style == null) {
+            sawOffline[0] = false
+            mapView.getMapAsync { m -> if (style == null) loadStyle(m) }
+        }
     }
     LaunchedEffect(mapView) {
         mapView.getMapAsync { m ->

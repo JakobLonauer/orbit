@@ -168,3 +168,6 @@
 
 - 2026-10-15 · COMPOSABLE_INVOCATION: `collectAsState()` zwischen `item {}`-Aufrufen im LazyColumn-Builder (LazyListScope ist kein Composable) -> State oben im Screen sammeln, im Builder nur lesen.
 - Glance generated previews (15.10.): `override suspend fun providePreview(context, widgetCategory: Int)` + `GlanceAppWidgetManager(ctx).setWidgetPreviews<ReceiverKlasse>()` (Extension, reified, import androidx.glance.appwidget.setWidgetPreviews), nur API 35+, ~2 Aufrufe/Stunde -> `widget/WidgetPreviews.refreshDaily` beim App-Start.
+- 2026-10-15 · (Review) `rememberOnline`: ohne aktives Netz ist `activeNetwork` null und `registerDefaultNetworkCallback` meldet nie onLost -> Startwert `?: (cm == null)`, nicht `?: true`.
+- 2026-10-15 · (Review) Zwei Effekte, die beide `setStyle` auslösen -> nur EIN Erstlade-Pfad; Nachladen nur nach erlebtem Offline (Flag).
+- NumberKind (Festnetz-Regel) mit `simCountryIso` normalisieren, nicht mit dem Netz-Land (Roaming). Ergebnisse je Nummer per remember, nicht im LazyColumn-Builder rechnen.

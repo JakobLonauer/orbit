@@ -57,5 +57,6 @@ class StorageUsageTest {
         assertEquals("1 MB", StorageUsage.format(1_000_000))
         assertEquals("182 MB", StorageUsage.format(182_000_000))
         assertEquals("1,2 GB", StorageUsage.format(1_200_000_000))
+        assertEquals("1 MB", StorageUsage.format(999_700))
     }
 }

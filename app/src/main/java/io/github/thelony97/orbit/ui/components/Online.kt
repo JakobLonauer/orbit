@@ -21,7 +21,7 @@ fun rememberOnline(): State<Boolean> {
     val state = remember {
         mutableStateOf(
             cm?.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ?: true,
+                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ?: (cm == null),
         )
     }
     DisposableEffect(cm) {

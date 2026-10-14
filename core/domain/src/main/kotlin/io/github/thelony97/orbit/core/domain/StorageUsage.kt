@@ -42,6 +42,8 @@ object StorageUsage {
         var v = bytes.coerceAtLeast(0).toDouble()
         var u = 0
         while (v >= 1000 && u < units.lastIndex) { v /= 1000; u++ }
+        // 999,6 kB would round to „1000 kB“: that is 1 MB.
+        if (u in 1 until units.lastIndex && v >= 999.5) { v /= 1000; u++ }
         val text = if (u == 0 || v >= 100) Math.round(v).toString()
         else java.lang.String.format(java.util.Locale.forLanguageTag("de-AT"), "%.1f", v).removeSuffix(",0")
         return "$text ${units[u]}"

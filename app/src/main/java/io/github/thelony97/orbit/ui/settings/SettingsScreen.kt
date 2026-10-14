@@ -590,7 +590,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Category, "Eintragsarten", if (data.entryTypes.size == 1) "1 Art" else "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
                 Hairline()
                 // Fotos (PLAN 3.10): the page with every picture, how much room they take, full size.
-                val photoCount = remember(data) { data.contacts.flatMap { c -> c.gallery.map { it.file } }.distinct().size }
+                // Counted like the Fotos page shows them (organisations only while they are shown, PLAN 2.3).
+                val orgsShown = io.github.thelony97.orbit.ui.Session.audience != io.github.thelony97.orbit.domain.Audience.PEOPLE
+                val photoCount = remember(data, orgsShown) {
+                    data.contacts.filter { io.github.thelony97.orbit.core.domain.Visibility.inLists(it, orgsShown) }
+                        .flatMap { c -> c.gallery.filter { it.mime.startsWith("image/") }.map { it.file } }.distinct().size
+                }
                 val photoBytes by androidx.compose.runtime.produceState(0L, photoCount) {
                     value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         OrbitRepository.photoDir.listFiles()?.sumOf { it.length() } ?: 0L
