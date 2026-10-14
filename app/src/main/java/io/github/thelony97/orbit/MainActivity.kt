@@ -71,7 +71,7 @@ class MainActivity : FragmentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
             val images = buildList {
-                if (intent.type?.startsWith("image/") == true) {
+                if (intent.type?.startsWith("image/") == true || intent.type == "application/pdf") {
                     // One picture comes as a Uri, several as a list – never read one as the other.
                     if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
                         runCatching { intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java) }.getOrNull()?.let { addAll(it) }
@@ -83,7 +83,8 @@ class MainActivity : FragmentActivity() {
             val item = io.github.thelony97.orbit.core.domain.ShareIn.parse(
                 intent.getStringExtra(Intent.EXTRA_TEXT), intent.getStringExtra(Intent.EXTRA_SUBJECT),
             )
-            if (images.isNotEmpty() || item != null) pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(item, images)
+            val pdf = intent.type == "application/pdf"
+            if (images.isNotEmpty() || item != null) pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(if (pdf) null else item, images, documents = pdf)
             // Handled once: a rotation must not bring the sheet back.
             intent.action = Intent.ACTION_MAIN
             return

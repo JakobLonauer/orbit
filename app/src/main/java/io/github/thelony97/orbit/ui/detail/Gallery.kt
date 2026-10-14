@@ -31,6 +31,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.lifecycle.lifecycleScope
@@ -150,6 +152,39 @@ object GalleryStore {
         decode(file, 320)?.asImageBitmap()?.also { thumbs.put(name, it) }
     }
 
+    /**
+     * Documents (PLAN 3.10: „Fotos und PDFs einmal gespeichert“): copied as they are, up to 40 MB,
+     * with their display name for the tile.
+     */
+    suspend fun importDocs(ctx: Context, uris: List<Uri>): List<GalleryPhoto> = withContext(Dispatchers.IO) {
+        uris.mapNotNull { uri ->
+            val file = "d-${newId()}.pdf"
+            val target = OrbitRepository.photoFile(file)
+            runCatching {
+                val name = ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }.orEmpty().ifBlank { "Dokument.pdf" }
+                ctx.contentResolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        var total = 0L
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            total += n
+                            if (total > 40L * 1024 * 1024) error("zu groß")
+                            out.write(buf, 0, n)
+                        }
+                    }
+                } ?: error("nicht lesbar")
+                GalleryPhoto(id = newId(), contactId = "", file = file, mime = "application/pdf", addedAt = now(), name = name)
+            }.onFailure { e ->
+                // A half copy is never kept.
+                target.delete()
+                android.util.Log.w("Orbit", "document import failed", e)
+            }.getOrNull()
+        }
+    }
+
     /** The already decoded small version, if any – the viewer shows it until the sharp one is ready. */
     fun cachedThumb(name: String): ImageBitmap? = thumbs.get(name)
 
@@ -161,12 +196,15 @@ object GalleryStore {
 
 /** Photo import for one contact; remembered at screen level so "+ Foto" works with no section. */
 @androidx.compose.runtime.Stable
-class GalleryImport(private val running: androidx.compose.runtime.State<Int>, private val start: () -> Unit) {
+class GalleryImport(private val running: androidx.compose.runtime.State<Int>, private val start: () -> Unit, private val startDocs: () -> Unit = {}) {
     val importing: Boolean get() = running.value > 0
     /** Pictures still being copied (placeholders in their final place). */
     val pending: Int get() = running.value
 
     fun launch() = start()
+
+    /** PDFs into the folder. */
+    fun launchDocs() = startDocs()
 }
 
 @Composable
@@ -187,11 +225,30 @@ fun rememberGalleryImport(contactId: String): GalleryImport {
             }
         }
     }
-    return remember(contactId, picker) {
-        GalleryImport(running) {
-            AppLock.allowExternal()
-            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    val docPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) {
+            running.intValue = uris.size
+            scope.launch {
+                withContext(NonCancellable) {
+                    val added = GalleryStore.importDocs(ctx.applicationContext, uris)
+                    OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
+                }
+                running.intValue = 0
+            }
         }
+    }
+    return remember(contactId, picker, docPicker) {
+        GalleryImport(
+            running,
+            start = {
+                AppLock.allowExternal()
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            startDocs = {
+                AppLock.allowExternal()
+                docPicker.launch(arrayOf("application/pdf"))
+            },
+        )
     }
 }
 
@@ -203,19 +260,33 @@ fun GallerySection(contact: Contact, import: GalleryImport, onAll: () -> Unit = 
     val photos = contact.gallery
     val shown = io.github.thelony97.orbit.core.domain.PhotoMonths.newest(contact, 6)
 
+    val docs = photos.filter { it.mime == "application/pdf" }
+    val pictures = photos.size - docs.size
+    var addMenu by remember { mutableStateOf(false) }
     SectionCard(
-        title = if (photos.isEmpty()) "Fotos" else "Fotos · ${photos.size}",
+        title = when {
+            pictures == 0 && docs.isEmpty() -> "Fotos"
+            docs.isEmpty() -> "Fotos · $pictures"
+            pictures == 0 -> "Dokumente · ${docs.size}"
+            else -> "Fotos · $pictures · Dokumente · ${docs.size}"
+        },
         icon = Icons.Rounded.PhotoLibrary,
         action = {
-            Icon(
-                Icons.Rounded.AddPhotoAlternate, "Fotos hinzufügen",
-                tint = Space.Violet,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(50))
-                    .clickable { import.launch() }
-                    .padding(5.dp),
-            )
+            Box {
+                Icon(
+                    Icons.Rounded.AddPhotoAlternate, "Hinzufügen",
+                    tint = Space.Violet,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable { addMenu = true }
+                        .padding(5.dp),
+                )
+                androidx.compose.material3.DropdownMenu(addMenu, { addMenu = false }, containerColor = Space.PanelHigh) {
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("Fotos") }, onClick = { addMenu = false; import.launch() })
+                    androidx.compose.material3.DropdownMenuItem(text = { Text("PDF") }, onClick = { addMenu = false; import.launchDocs() })
+                }
+            }
         },
     ) {
         if (importing) {
@@ -230,6 +301,8 @@ fun GallerySection(contact: Contact, import: GalleryImport, onAll: () -> Unit = 
                 }
             }
         }
+        // Dokumente: tap opens, long-press shares / saves / removes.
+        docs.forEach { d -> DocRow(contact.id, d) }
         // Die neuesten 6 + „Alle“ (PLAN 3.10).
         shown.chunked(3).forEachIndexed { row, chunk ->
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -237,7 +310,7 @@ fun GallerySection(contact: Contact, import: GalleryImport, onAll: () -> Unit = 
                     val index = row * 3 + col
                     Box(Modifier.weight(1f).aspectRatio(1f)) {
                         Thumb(p.file, Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).clickable { viewer = index })
-                        if (index == 5 && photos.size > 6) {
+                        if (index == 5 && pictures > 6) {
                             Box(
                                 Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(Space.Void.copy(alpha = 0.6f)).clickable(onClick = onAll),
                                 contentAlignment = Alignment.Center,
@@ -252,6 +325,52 @@ fun GallerySection(contact: Contact, import: GalleryImport, onAll: () -> Unit = 
 
     viewer?.let { start ->
         PhotoViewer(shown.map { io.github.thelony97.orbit.core.domain.PhotoMonths.Item(contact.id, it) }, start, onDismiss = { viewer = null })
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun DocRow(contactId: String, d: GalleryPhoto) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(onClick = { scope.launch { io.github.thelony97.orbit.actions.PhotoActions.open(ctx, d.file, d.mime, d.name) } }, onLongClick = { menu = true })
+                .padding(vertical = 8.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.PictureAsPdf, null, tint = Space.Coral, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(d.name.ifBlank { "Dokument" }, style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(Fmt.date(d.addedAt), style = MaterialTheme.typography.labelSmall, color = Space.TextFaint)
+            }
+        }
+        androidx.compose.material3.DropdownMenu(menu, { menu = false }, containerColor = Space.PanelHigh) {
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Teilen") }, onClick = { menu = false; scope.launch { io.github.thelony97.orbit.actions.PhotoActions.share(ctx, d.file, d.mime, d.name) } })
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Ins Handy speichern") }, onClick = {
+                menu = false
+                scope.launch {
+                    val ok = io.github.thelony97.orbit.actions.PhotoActions.saveToPhone(ctx, d.file, d.mime, d.name)
+                    android.widget.Toast.makeText(ctx, if (ok) "In „Download/Orbit“ gespeichert" else "Speichern nicht möglich", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            })
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Entfernen", color = Space.Coral) }, onClick = {
+                menu = false
+                OrbitRepository.editContact(contactId) { it.copy(gallery = it.gallery.filterNot { g -> g.id == d.id }) }
+                io.github.thelony97.orbit.ui.components.Undo.offer("${d.name.ifBlank { "Dokument" }} entfernt") {
+                    OrbitRepository.editContact(contactId) { c -> if (c.gallery.any { it.id == d.id }) c else c.copy(gallery = c.gallery + d) }
+                }
+                androidx.lifecycle.ProcessLifecycleOwner.get().lifecycleScope.launch {
+                    kotlinx.coroutines.delay(15_000)
+                    if (io.github.thelony97.orbit.data.Mutations.unreferenced(OrbitRepository.snapshot(), listOf(d.file)).isNotEmpty()) GalleryStore.delete(d.file)
+                }
+            })
+        }
     }
 }
 

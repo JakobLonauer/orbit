@@ -61,7 +61,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What came in through „Teilen“: parsed text and/or pictures (read while Orbit is in front). */
-data class PendingShare(val item: ShareIn.Item?, val images: List<Uri>)
+data class PendingShare(val item: ShareIn.Item?, val images: List<Uri>, val documents: Boolean = false)
 
 /**
  * Teilen-Eingang (PLAN 3.8): a place from Maps → new organisation or an existing contact; a page →
@@ -89,7 +89,8 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
         when {
             share.images.isNotEmpty() -> scope.launch {
                 withContext(NonCancellable) {
-                    val added = io.github.thelony97.orbit.ui.detail.GalleryStore.import(ctx.applicationContext, share.images)
+                    val added = if (share.documents) io.github.thelony97.orbit.ui.detail.GalleryStore.importDocs(ctx.applicationContext, share.images)
+                    else io.github.thelony97.orbit.ui.detail.GalleryStore.import(ctx.applicationContext, share.images)
                     OrbitRepository.editContact(target.id) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = target.id) } + it.gallery) }
                 }
             }
@@ -117,6 +118,7 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val (title, sub) = when {
+                share.images.isNotEmpty() && share.documents -> (if (share.images.size == 1) "1 PDF" else "${share.images.size} PDFs") to ""
                 share.images.isNotEmpty() -> (if (share.images.size == 1) "1 Bild" else "${share.images.size} Bilder") to ""
                 item is ShareIn.Item.Place -> item.name.ifBlank { "Ort" } to item.address
                 item is ShareIn.Item.Page -> item.title to io.github.thelony97.orbit.ui.detail.linkHost(item.url)
