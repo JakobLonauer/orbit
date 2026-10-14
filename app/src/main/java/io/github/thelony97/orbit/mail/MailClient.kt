@@ -211,6 +211,43 @@ object MailClient {
         MailResult(headers, errors, System.currentTimeMillis())
     }
 
+    /**
+     * The picture attachments of one message (PLAN 3.9 „Bild-Anhänge in den Ordner übernehmen“),
+     * at most [max] of them and 15 MB each, written to [dir]; returns the files.
+     */
+    suspend fun images(h: MailHeader, dir: java.io.File, max: Int = 20): Result<List<java.io.File>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val a = MailAccounts.accounts.value.firstOrNull { it.id == h.accountId } ?: error("Konto wurde entfernt.")
+            val password = MailAccounts.password(a) ?: error("Passwort nicht mehr lesbar.")
+            val store = connect(a.host, a.port, a.username, password)
+            try {
+                val folder = store.getFolder(h.folder)
+                folder.open(Folder.READ_ONLY)
+                try {
+                    val m = (folder as UIDFolder).getMessageByUID(h.uid) ?: error("Die Nachricht gibt es nicht mehr.")
+                    val out = ArrayList<java.io.File>()
+                    fun walk(p: Part) {
+                        if (out.size >= max) return
+                        when {
+                            p.isMimeType("multipart/*") -> (p.content as? Multipart)?.let { mp -> for (i in 0 until mp.count) walk(mp.getBodyPart(i)) }
+                            p.isMimeType("image/*") && (p.size < 0 || p.size <= 15 * 1024 * 1024) -> {
+                                val f = java.io.File(dir, "mail-" + java.util.UUID.randomUUID() + ".img")
+                                p.inputStream.use { input -> f.outputStream().use { input.copyTo(it) } }
+                                out += f
+                            }
+                        }
+                    }
+                    walk(m)
+                    out
+                } finally {
+                    runCatching { folder.close(false) }
+                }
+            } finally {
+                runCatching { store.close() }
+            }
+        }
+    }
+
     /** Plain text of one message (HTML is flattened). */
     suspend fun body(h: MailHeader): Result<String> = withContext(Dispatchers.IO) {
         runCatching {

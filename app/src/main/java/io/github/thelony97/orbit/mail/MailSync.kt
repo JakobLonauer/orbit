@@ -103,10 +103,17 @@ object MailSync {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
-    /** Opening a contact (PLAN 3.9): a run behind the page, unless one just happened. */
-    fun requestSoon(ctx: Context) {
-        if (MailAccounts.accounts.value.isEmpty()) return
-        if (System.currentTimeMillis() - maxOf(_lastRun.value, load(ctx).lastRunAt) < SOON_MS) return
+    /**
+     * Opening a contact (PLAN 3.9): a run behind the page, unless one just happened – an address
+     * of [addresses] not searched yet (new address, new contact) always gets its run.
+     */
+    fun requestSoon(ctx: Context, addresses: List<String> = emptyList()) {
+        val accounts = MailAccounts.accounts.value
+        if (accounts.isEmpty()) return
+        val state = load(ctx)
+        val unsearched = addresses.map { it.trim().lowercase() }.filter { it.contains('@') }
+            .any { a -> accounts.any { "${it.id}|$a" !in state.searched } }
+        if (!unsearched && System.currentTimeMillis() - maxOf(_lastRun.value, state.lastRunAt) < SOON_MS) return
         val request = OneTimeWorkRequestBuilder<MailSyncWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()

@@ -170,7 +170,7 @@ private fun MailRow(h: MailHeader, showAccount: Boolean, showSender: Boolean, on
 }
 
 @Composable
-internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
+internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String? = null) {
     var text by remember(h) { mutableStateOf<String?>(null) }
     var error by remember(h) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -206,7 +206,31 @@ internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+        confirmButton = {
+            androidx.compose.foundation.layout.Row {
+                // Bild-Anhänge in den Ordner (PLAN 3.9): one tap, then they are the contact's photos.
+                if (contactId != null && text != null) {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    var copying by remember(h) { mutableStateOf(false) }
+                    TextButton(enabled = !copying, onClick = {
+                        copying = true
+                        scope.launch {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                                val files = MailClient.images(h, ctx.cacheDir).getOrDefault(emptyList())
+                                if (files.isNotEmpty()) {
+                                    val added = GalleryStore.import(ctx.applicationContext, files.map { android.net.Uri.fromFile(it) })
+                                    files.forEach { it.delete() }
+                                    io.github.thelony97.orbit.data.OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
+                                }
+                                android.widget.Toast.makeText(ctx, if (files.isEmpty()) "Keine Bilder in dieser Mail" else "${files.size} Bilder im Ordner", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            copying = false
+                        }
+                    }) { Text("Bilder") }
+                }
+                TextButton(onClick = onDismiss) { Text("Schließen") }
+            }
+        },
         // „Antworten“ (PLAN 3.9): the mail app with recipient and „Re: Betreff“.
         dismissButton = if (h.fromAddress.contains('@')) {
             {
@@ -229,7 +253,7 @@ fun MailEntryDialog(entry: io.github.thelony97.orbit.data.Entry, onDismiss: () -
     var open by remember(entry.id) { mutableStateOf(entry.mails.singleOrNull()) }
     val chosen = open
     if (chosen != null) {
-        MailDialog(io.github.thelony97.orbit.mail.MailSync.header(chosen), onDismiss = { if (entry.mails.size == 1) onDismiss() else open = null })
+        MailDialog(io.github.thelony97.orbit.mail.MailSync.header(chosen), onDismiss = { if (entry.mails.size == 1) onDismiss() else open = null }, contactId = entry.contactId)
         return
     }
     AlertDialog(

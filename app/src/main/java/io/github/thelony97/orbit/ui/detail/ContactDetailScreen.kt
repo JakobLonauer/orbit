@@ -235,7 +235,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var mailEntry by remember { mutableStateOf<Entry?>(null) }
     // E-Mail v2 (PLAN 3.9): the page shows the stored state at once, a sync runs behind it.
     androidx.compose.runtime.LaunchedEffect(c.id) {
-        if (c.emails.isNotEmpty() || c.emailDomains.isNotEmpty() || c.members.any { it.emails.isNotEmpty() }) io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx)
+        val addresses = c.emails.map { it.value } + c.emailDomains.map { "@" + it.trim().removePrefix("@") } + c.members.flatMap { m -> m.emails.map { it.value } }
+        if (addresses.isNotEmpty()) {
+            // Off the main thread: it reads the small sync state file.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx, addresses) }
+        }
     }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
