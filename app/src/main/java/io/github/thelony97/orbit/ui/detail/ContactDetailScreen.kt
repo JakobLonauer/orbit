@@ -960,6 +960,32 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             onDismiss = { occasionEdit = null },
             greetingFor = owner?.takeIf { !it.isOrg && !it.isMe },
             onGreeting = { g -> OrbitRepository.editContact(ownerId) { it.copy(greeting = g) } },
+            onCalendar = { o ->
+                val e = io.github.thelony97.orbit.core.domain.OccasionCalendar.event(o, ownerId, io.github.thelony97.orbit.domain.today()) { id ->
+                    idx.contacts[id]?.let { Logic.shortName(it) }.orEmpty()
+                }
+                if (e != null) {
+                    // All-day events are placed in UTC midnight to midnight.
+                    val begin = e.day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                    val intent = Intent(Intent.ACTION_INSERT)
+                        .setData(CalendarContract.Events.CONTENT_URI)
+                        .putExtra(CalendarContract.Events.TITLE, e.title)
+                        .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+                        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, begin)
+                        .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, begin + 86_400_000L)
+                        .putExtra(CalendarContract.Events.AVAILABILITY, CalendarContract.Events.AVAILABILITY_FREE)
+                        .apply {
+                            e.rrule?.let { putExtra(CalendarContract.Events.RRULE, it) }
+                            if (e.description.isNotEmpty()) putExtra(CalendarContract.Events.DESCRIPTION, e.description)
+                        }
+                    try {
+                        AppLock.allowExternal()
+                        ctx.startActivity(intent)
+                    } catch (_: Exception) {
+                        Toast.makeText(ctx, "Keine Kalender-App gefunden", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
             onSave = { o -> OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.upsertOccasion(d, ownerId, o) } },
         )
     }

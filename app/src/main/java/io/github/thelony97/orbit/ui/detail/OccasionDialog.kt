@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.EditCalendar
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.AlertDialog
@@ -58,6 +59,8 @@ fun OccasionDialog(
     /** The person „Gratulieren“ greets; with it, a birthday shows Du/Sie and the language (PLAN 3.5). */
     greetingFor: Contact? = null,
     onGreeting: (io.github.thelony97.orbit.core.model.Greeting?) -> Unit = {},
+    /** „In den Kalender“ (PLAN 3.5): hands the occasion as it stands to the phone's calendar. */
+    onCalendar: ((Anniversary) -> Unit)? = null,
     onSave: (Anniversary) -> Unit,
 ) {
     var kind by remember { mutableStateOf(initial?.kind ?: OccasionKind.WEDDING) }
@@ -75,6 +78,21 @@ fun OccasionDialog(
     val kinds = OccasionKind.entries.filter { it != OccasionKind.BIRTHDAY || allowBirthday || initial?.kind == OccasionKind.BIRTHDAY }
     // A one-off occasion needs its year; a custom one needs a name.
     val valid = date != null && (repeat == Repeat.YEARLY || date?.year != null) && (kind != OccasionKind.CUSTOM || label.text.isNotBlank())
+    fun current(d: DayOfYear): Anniversary {
+        val title = label.text.toString().trim()
+        return Anniversary(
+            id = initial?.id ?: newId(),
+            kind = kind,
+            // The kind's own name is no label („Hochzeitstag“ stays a plain wedding day).
+            label = if (title.equals(kind.label, ignoreCase = true)) "" else title,
+            date = d,
+            repeat = repeat,
+            pinned = pinned,
+            reminders = reminders.sorted(),
+            sharedWith = if (kind == OccasionKind.BIRTHDAY) null else sharedWith,
+            note = note.text.toString().trim(),
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -164,32 +182,23 @@ fun OccasionDialog(
                     shape = Corners.Row,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                SpaceChip("Anpinnen", pinned, { pinned = !pinned }, leading = Icons.Rounded.PushPin)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SpaceChip("Anpinnen", pinned, { pinned = !pinned }, leading = Icons.Rounded.PushPin)
+                    if (onCalendar != null && valid) {
+                        SpaceChip("In den Kalender", false, { date?.let { onCalendar(current(it)) } }, leading = Icons.Rounded.EditCalendar)
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(enabled = valid, onClick = {
                 val d = date ?: return@TextButton
-                val title = label.text.toString().trim()
                 if (kind == OccasionKind.BIRTHDAY && greetingFor != null) {
                     // The plain default (Du, Deutsch) is stored as no template at all.
                     val g = greeting.takeIf { it != io.github.thelony97.orbit.core.model.Greeting() }
                     if (g != greetingFor.greeting) onGreeting(g)
                 }
-                onSave(
-                    Anniversary(
-                        id = initial?.id ?: newId(),
-                        kind = kind,
-                        // The kind's own name is no label („Hochzeitstag“ stays a plain wedding day).
-                        label = if (title.equals(kind.label, ignoreCase = true)) "" else title,
-                        date = d,
-                        repeat = repeat,
-                        pinned = pinned,
-                        reminders = reminders.sorted(),
-                        sharedWith = if (kind == OccasionKind.BIRTHDAY) null else sharedWith,
-                        note = note.text.toString().trim(),
-                    ),
-                )
+                onSave(current(d))
                 onDismiss()
             }) { Text(if (initial == null) "Hinzufügen" else "Speichern") }
         },
