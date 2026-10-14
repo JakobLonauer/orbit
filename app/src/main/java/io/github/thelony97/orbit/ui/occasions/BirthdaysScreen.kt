@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.CardGiftcard
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -205,6 +207,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                         OccasionRow(
                             u, owner, u.withId?.let { byId[it] }, idx, lastFirst, Modifier.animateItem(),
                             // Langdruck pinnt (PLAN 3.5); the occasion stays stored at its owner.
+                            settings = data.settings,
                             onPin = {
                                 haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
                                 io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
@@ -521,10 +524,14 @@ private fun OccasionRow(
     idx: Index,
     lastFirst: Boolean,
     modifier: Modifier = Modifier,
+    settings: io.github.thelony97.orbit.data.Settings? = null,
     onPin: () -> Unit = {},
     onOpen: () -> Unit,
 ) {
     val today = u.daysUntil == 0L
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    // Heute hervorgehoben mit Anrufen/WhatsApp (PLAN 3.5) – only with a number to reach.
+    val reachable = today && settings != null && io.github.thelony97.orbit.actions.ContactActions.defaultNumber(owner) != null
     Row(
         modifier
             .fillMaxWidth()
@@ -548,7 +555,21 @@ private fun OccasionRow(
             )
             Text(io.github.thelony97.orbit.core.domain.OccasionList.line(u), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1)
         }
-        Text(relativeDay(u.daysUntil), style = MaterialTheme.typography.labelMedium, color = if (today) Space.Orange else Space.TextDim)
+        if (reachable) {
+            io.github.thelony97.orbit.ui.components.OrbButton(
+                androidx.compose.material.icons.Icons.Rounded.Call, "Anrufen",
+                { io.github.thelony97.orbit.actions.ContactActions.call(ctx, owner, null, settings!!) },
+                size = 36.dp, accent = Space.Teal,
+            )
+            Spacer(Modifier.width(8.dp))
+            io.github.thelony97.orbit.ui.components.OrbButton(
+                androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat, "WhatsApp",
+                { io.github.thelony97.orbit.actions.ContactActions.whatsapp(ctx, owner, null) },
+                size = 36.dp, accent = Space.Orange,
+            )
+        } else {
+            Text(relativeDay(u.daysUntil), style = MaterialTheme.typography.labelMedium, color = if (today) Space.Orange else Space.TextDim)
+        }
         if (u.occasion.pinned) {
             Spacer(Modifier.width(8.dp))
             androidx.compose.material3.Icon(
