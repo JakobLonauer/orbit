@@ -20,4 +20,13 @@ class DuplicatesTest {
         assertNull(Duplicates.sameNumber(c("neu", "0699 1"), all, norm))
         assertNull(Duplicates.sameNumber(c("neu"), all, norm))
     }
+
+    @Test fun lookupFindsTheSameAsTheSingleCheck() {
+        val all = listOf(c("anna", "0660 1234567"), c("weg", "0699 1111111", deleted = true), c("alt", "+43 664 555555", archived = true))
+        val lookup = Duplicates.Lookup(all, norm)
+        assertEquals(Duplicates.Hit("anna", "+43 660 1234567"), lookup.hit(listOf("123", "+43 660 1234567")))
+        assertEquals("alt", lookup.hit(listOf("0664555555"))?.contactId)
+        assertNull(lookup.hit(listOf("0699 1111111")))
+        assertNull(lookup.hit(emptyList()))
+    }
 }

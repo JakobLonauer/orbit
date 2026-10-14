@@ -10,6 +10,8 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import io.github.thelony97.orbit.backup.BackupKey
 import io.github.thelony97.orbit.core.domain.BackupCrypto
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.ContactPage
+import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -294,6 +296,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 OrbitRepository.editSettings { it.copy(lastBackupAt = now()) }
                 toast("Backup gespeichert")
             }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
+        }
+    }
+    // Export Excel (PLAN 3.14): Kontakte and Verlauf as one .xlsx.
+    val excelExporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(io.github.thelony97.orbit.backup.ExcelExport.MIME)) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val snapshot = OrbitRepository.snapshot()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    ctx.contentResolver.openOutputStream(uri)?.use { io.github.thelony97.orbit.backup.ExcelExport.write(it, snapshot) } ?: error("Datei nicht beschreibbar")
+                }
+            }.onSuccess { toast("Excel gespeichert") }
+                .onFailure { toast("Export fehlgeschlagen: ${it.message}") }
         }
     }
     fun readBackup(uri: Uri, password: CharArray?) {
@@ -670,6 +684,19 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Restore, "Wiederherstellen", "aus einem Orbit-Backup (.zip)", iconTint = Space.Blue, onClick = {
                     AppLock.allowExternal()
                     importer.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+                })
+            }
+        }
+
+        if (area == "security") item(key = "export") {
+            SettingsGroup("Exportieren") {
+                SettingItem(Icons.Rounded.TableChart, "Excel", "Kontakte und Verlauf", iconTint = Space.Blue, onClick = {
+                    AppLock.allowExternal()
+                    excelExporter.launch(io.github.thelony97.orbit.backup.ExcelExport.fileName())
+                })
+                Hairline()
+                SettingItem(Icons.Rounded.ContactPage, "vCard", "alle Kontakte", iconTint = Space.Blue, onClick = {
+                    io.github.thelony97.orbit.actions.ShareContact.vcards(ctx, data.contacts.filter { it.deletedAt == null && !it.isMe })
                 })
             }
         }

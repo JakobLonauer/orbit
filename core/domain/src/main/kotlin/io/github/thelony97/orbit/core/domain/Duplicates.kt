@@ -20,4 +20,17 @@ object Duplicates {
         }
         return null
     }
+
+    /** Many candidates against the same contacts (Mehrfach-Import): normalised number → contact. */
+    class Lookup(contacts: List<Contact>, private val normalize: (String) -> String?) {
+        private val byNumber: Map<String, String> = buildMap {
+            for (c in contacts) {
+                if (c.deletedAt != null || c.isMe) continue
+                for (p in c.phones) normalize(p.value)?.let { putIfAbsent(it, c.id) }
+            }
+        }
+
+        fun hit(numbers: List<String>): Hit? =
+            numbers.firstNotNullOfOrNull { n -> normalize(n)?.let { byNumber[it] }?.let { Hit(it, n) } }
+    }
 }

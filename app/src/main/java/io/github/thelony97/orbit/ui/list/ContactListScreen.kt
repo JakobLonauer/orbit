@@ -129,9 +129,7 @@ import io.github.thelony97.orbit.domain.SortMode
 import io.github.thelony97.orbit.domain.StatusFilter
 import io.github.thelony97.orbit.domain.toLocalDate
 import io.github.thelony97.orbit.domain.today
-import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.ui.Nav
-import io.github.thelony97.orbit.ui.PhoneImport
 import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.Session
 import io.github.thelony97.orbit.ui.components.BadgeOrb
@@ -919,21 +917,10 @@ private fun ContactRow(
 @Composable
 fun ContactFabMenu(nav: Nav) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val contact = PhoneImport.read(ctx, uri) ?: return@launch
-                nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), contact)))
-            }
-        }
-    }
+    // Mehrere auf einmal (PLAN 3.14): Orbit's own list of the phone book.
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            AppLock.allowExternal()
-            picker.launch(null)
-        }
+        if (granted) nav.open(Route.PhoneImport)
     }
 
     FloatingActionButtonMenu(
@@ -981,8 +968,7 @@ fun ContactFabMenu(nav: Nav) {
             onClick = {
                 expanded = false
                 if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                    AppLock.allowExternal()
-                    picker.launch(null)
+                    nav.open(Route.PhoneImport)
                 } else {
                     permission.launch(Manifest.permission.READ_CONTACTS)
                 }

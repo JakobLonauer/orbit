@@ -167,6 +167,20 @@ class ScreensScreenshotTest {
         shot("photos") { io.github.thelony97.orbit.ui.detail.PhotosScreen(null, withPics, Index(withPics), nav) }
     }
 
+    /** Mehrfach-Import (PLAN 3.14): picked rows, a number Orbit already has, „Alle neuen“. */
+    @Test fun phoneImport() = shot("phone_import") {
+        io.github.thelony97.orbit.ui.list.PhoneImportScreen(
+            data, nav,
+            preview = listOf(
+                io.github.thelony97.orbit.ui.PhoneImport.Item(1, "Anna Berger", listOf("0660 1234567")),
+                io.github.thelony97.orbit.ui.PhoneImport.Item(2, "Bäckerei Fuchs", listOf("+43 732 771100")),
+                io.github.thelony97.orbit.ui.PhoneImport.Item(3, "Clemens Wagner", listOf("+43 699 1112223")),
+                io.github.thelony97.orbit.ui.PhoneImport.Item(4, "Doris Lehner", emptyList()),
+            ),
+            initialSelection = setOf(2L, 3L),
+        )
+    }
+
     /** Teilen-Eingang (PLAN 3.8): a place from Google Maps. */
     @Test fun shareSheet() {
         compose.setContent {

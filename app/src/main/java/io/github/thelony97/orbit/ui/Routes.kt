@@ -24,6 +24,10 @@ sealed interface Route : NavKey {
     @Serializable
     data class Edit(val id: String? = null, val prefill: String? = null) : Route
 
+    /** Mehrere Handy-Kontakte auf einmal übernehmen (PLAN 3.14). */
+    @Serializable
+    data object PhoneImport : Route
+
     @Serializable
     data object Groups : Route
 

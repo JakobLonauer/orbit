@@ -199,6 +199,9 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.Detail> { key ->
                 ContactDetailScreen(id = key.id, data = data, idx = idx, nav = nav, openEntry = key.entryId)
             }
+            entry<Route.PhoneImport> {
+                io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav)
+            }
             entry<Route.Photos> { key ->
                 io.github.thelony97.orbit.ui.detail.PhotosScreen(contactId = key.contactId, data = data, idx = idx, nav = nav)
             }

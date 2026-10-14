@@ -67,6 +67,42 @@ object Photos {
 /** Reads one contact from the phone book (needs READ_CONTACTS). */
 object PhoneImport {
 
+    /** One phone-book contact for the Mehrfach-Import list (PLAN 3.14). */
+    data class Item(val id: Long, val name: String, val numbers: List<String>) {
+        val uri: Uri get() = android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, id)
+    }
+
+    /** All phone-book contacts with a name, A–Z, with their numbers (two queries, no photos). */
+    suspend fun list(ctx: Context): List<Item> = withContext(Dispatchers.IO) {
+        val resolver = ctx.contentResolver
+        val numbers = HashMap<Long, MutableList<String>>()
+        runCatching {
+            resolver.query(
+                CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(CommonDataKinds.Phone.CONTACT_ID, CommonDataKinds.Phone.NUMBER), null, null, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val n = c.getString(1)?.trim().orEmpty()
+                    if (n.isNotEmpty()) numbers.getOrPut(c.getLong(0)) { mutableListOf() }.let { if (n !in it) it += n }
+                }
+            }
+        }
+        val items = mutableListOf<Item>()
+        runCatching {
+            resolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME_PRIMARY), null, null,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY + " COLLATE LOCALIZED ASC",
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val name = c.getString(1)?.trim().orEmpty()
+                    if (name.isNotEmpty()) items += Item(c.getLong(0), name, numbers[c.getLong(0)].orEmpty())
+                }
+            }
+        }
+        items
+    }
+
     suspend fun read(ctx: Context, contactUri: Uri): Contact? = withContext(Dispatchers.IO) {
         val resolver = ctx.contentResolver
         val contactId = resolver.query(contactUri, arrayOf(ContactsContract.Contacts._ID), null, null, null)?.use { c ->

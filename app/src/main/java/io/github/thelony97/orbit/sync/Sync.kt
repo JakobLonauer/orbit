@@ -47,6 +47,16 @@ object Sync {
         WorkManager.getInstance(ctx).enqueueUniqueWork(AFTER_CALL, ExistingWorkPolicy.REPLACE, request)
     }
 
+    /** Several new contacts at once (Mehrfach-Import): one worker, one pass. */
+    fun backfill(ctx: Context, contactIds: Collection<String>) {
+        if (contactIds.isEmpty()) return
+        if (contactIds.size == 1) return backfill(ctx, contactIds.first())
+        val request = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setInputData(workDataOf(SyncWorker.KEY_MODE to SyncWorker.MODE_BACKFILL, SyncWorker.KEY_CONTACTS to contactIds.joinToString(",")))
+            .build()
+        WorkManager.getInstance(ctx).enqueueUniqueWork("orbit-backfill-many-" + contactIds.hashCode(), ExistingWorkPolicy.REPLACE, request)
+    }
+
     fun backfill(ctx: Context, contactId: String) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInputData(workDataOf(SyncWorker.KEY_MODE to SyncWorker.MODE_BACKFILL, SyncWorker.KEY_CONTACT to contactId))
@@ -60,6 +70,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     companion object {
         const val KEY_MODE = "mode"
         const val KEY_CONTACT = "contact"
+        const val KEY_CONTACTS = "contacts"
         const val KEY_SINCE = "since"
         const val MODE_AFTER_CALL = "after_call"
         const val MODE_BACKFILL = "backfill"
@@ -69,7 +80,11 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         OrbitRepository.init(applicationContext)
         OrbitRepository.ensureLoaded()
         when (inputData.getString(KEY_MODE)) {
-            MODE_BACKFILL -> inputData.getString(KEY_CONTACT)?.let { SyncEngine.backfill(applicationContext, it) }
+            MODE_BACKFILL -> {
+                val ids = (inputData.getString(KEY_CONTACTS)?.split(",").orEmpty() + listOfNotNull(inputData.getString(KEY_CONTACT)))
+                    .filter { it.isNotBlank() }.toSet()
+                SyncEngine.backfill(applicationContext, ids)
+            }
             MODE_AFTER_CALL -> {
                 val since = inputData.getLong(KEY_SINCE, 0L)
                 val fresh = SyncEngine.syncAll(applicationContext)

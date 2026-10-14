@@ -89,7 +89,7 @@ object SyncEngine {
         OrbitRepository.update { d ->
             newCalls.clear()
             val matcher = PhoneMatcher(d.contacts, iso)
-            var result = apply(d, calls, sms, matcher, onlyContact = null, countUnknown = true, newCalls = newCalls)
+            var result = apply(d, calls, sms, matcher, onlyContacts = null, countUnknown = true, newCalls = newCalls)
             val callMax = calls.maxOfOrNull { it.date }
             val smsMax = sms.maxOfOrNull { it.date }
             result = result.copy(
@@ -104,7 +104,11 @@ object SyncEngine {
     }
 
     /** Imports up to a year of history for one contact (after creating it or changing its numbers). */
-    suspend fun backfill(ctx: Context, contactId: String) {
+    suspend fun backfill(ctx: Context, contactId: String) = backfill(ctx, setOf(contactId))
+
+    /** One pass over call log and SMS for several contacts at once (Mehrfach-Import, PLAN 3.14). */
+    suspend fun backfill(ctx: Context, contactIds: Set<String>) {
+        if (contactIds.isEmpty()) return
         val since = now() - BACKFILL
         val calls = if (canReadCalls(ctx)) readCalls(ctx, since) else emptyList()
         val sms = if (canReadSms(ctx)) readSms(ctx, since) else emptyList()
@@ -112,10 +116,10 @@ object SyncEngine {
         val iso = Phones.countryIso(ctx)
         OrbitRepository.update { d ->
             val matcher = PhoneMatcher(d.contacts, iso)
-            val result = apply(d, calls, sms, matcher, onlyContact = contactId, countUnknown = false, newCalls = ArrayList())
-            // Numbers that now belong to this contact are no longer "unknown".
-            val keys = d.contacts.firstOrNull { it.id == contactId }?.phones
-                ?.mapNotNull { Phones.normalize(it.value, iso) }?.toSet().orEmpty()
+            val result = apply(d, calls, sms, matcher, onlyContacts = contactIds, countUnknown = false, newCalls = ArrayList())
+            // Numbers that now belong to these contacts are no longer "unknown".
+            val keys = d.contacts.filter { it.id in contactIds }.flatMap { it.phones }
+                .mapNotNull { Phones.normalize(it.value, iso) }.toSet()
             result.copy(unknownNumbers = result.unknownNumbers.filterNot { it.key in keys })
         }
     }
@@ -125,7 +129,7 @@ object SyncEngine {
         calls: List<CallRec>,
         sms: List<SmsRec>,
         matcher: PhoneMatcher,
-        onlyContact: String?,
+        onlyContacts: Set<String>?,
         countUnknown: Boolean,
         newCalls: MutableList<NewCall>,
     ): OrbitData {
@@ -165,7 +169,7 @@ object SyncEngine {
                 if (call.type != CallLog.Calls.BLOCKED_TYPE) noteUnknown(call.number, call.date, call.cachedName, true)
                 continue
             }
-            if (onlyContact != null && contactId != onlyContact) continue
+            if (onlyContacts != null && contactId !in onlyContacts) continue
             if (!connected(call.type) || call.duration < minSeconds) continue
             val ext = "call:${call.date}"
             val ids = idsOf(contactId)
@@ -193,7 +197,7 @@ object SyncEngine {
                 noteUnknown(msg.address, msg.date, null, false)
                 continue
             }
-            if (onlyContact != null && contactId != onlyContact) continue
+            if (onlyContacts != null && contactId !in onlyContacts) continue
             val ext = "sms:${msg.date.toLocalDate()}"
             val message = SmsMessage(msg.id, msg.date, msg.incoming, msg.body)
             val pending = replaced.getOrPut(contactId) { mutableMapOf() }
