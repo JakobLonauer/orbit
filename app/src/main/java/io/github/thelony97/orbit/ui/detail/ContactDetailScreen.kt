@@ -1234,7 +1234,7 @@ private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(Space.Blue.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                    Text(m.name.trim().take(1).uppercase(), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
+                    Text(memberInitials(m.name), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {

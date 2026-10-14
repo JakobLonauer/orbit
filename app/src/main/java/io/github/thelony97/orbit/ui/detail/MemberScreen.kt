@@ -93,23 +93,24 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
     SpaceBackground {
         LazyColumn(
             Modifier.fillMaxSize().statusBarsPadding(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+            // Cards bring their own 16 dp gutter (as on the contact page); the head rows get theirs.
+            contentPadding = PaddingValues(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "top") {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", { nav.back() })
                     Spacer(Modifier.weight(1f))
                     OrbButton(Icons.Rounded.Edit, "Bearbeiten", { editing = true })
                 }
             }
             item(key = "head") {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(64.dp).clip(CircleShape).background(Space.Blue.copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(initials(m.name), style = MaterialTheme.typography.titleLarge, color = Space.Blue, fontWeight = FontWeight.SemiBold)
+                        Text(memberInitials(m.name), style = MaterialTheme.typography.titleLarge, color = Space.Blue, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
@@ -127,7 +128,7 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
                 }
             }
             item(key = "actions") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GlowButton("Gespräch eintragen", { newEntry = true }, icon = Icons.Rounded.EditNote)
                     m.phones.firstOrNull { it.value.isNotBlank() }?.let { p ->
                         OrbButton(Icons.Rounded.Call, "Anrufen", { ContactActions.call(ctx, org, p.value, data.settings) }, accent = Space.Teal)
@@ -186,7 +187,7 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
                         }
                     }
                     nav.back()
-                }, icon = Icons.Rounded.Delete, color = Space.Coral, modifier = Modifier.navigationBarsPadding())
+                }, icon = Icons.Rounded.Delete, color = Space.Coral, modifier = Modifier.padding(horizontal = 16.dp).navigationBarsPadding())
             }
         }
     }
@@ -221,7 +222,8 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
     }
 }
 
-private fun initials(name: String): String =
+/** „Herr Mayer“ → „M“, „Anna Maria Huber“ → „AM“: titles are no initials. */
+internal fun memberInitials(name: String): String =
     name.split(' ').filter { it.isNotBlank() && it.first().isLetter() }
         .filterNot { it.lowercase().trimEnd('.') in setOf("herr", "frau", "hr", "fr", "dr", "mag", "di", "ing") }
         .take(2).joinToString("") { it.first().uppercase() }.ifEmpty { name.take(1).uppercase() }
