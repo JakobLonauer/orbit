@@ -132,7 +132,11 @@ private fun BirthdayRow(r: BirthdayTab.Row, c: Contact, idx: Index, lastFirst: B
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                listOfNotNull(WEEKDAYS[r.date.dayOfWeek.value - 1], r.turning?.let { if (past) "$it geworden" else "wird $it" }).joinToString(" · "),
+                // The weekday only where it helps: „heute/morgen/gestern“ on the right says it already.
+                listOfNotNull(
+                    WEEKDAYS[r.date.dayOfWeek.value - 1].takeIf { kotlin.math.abs(r.daysUntil) > 1 },
+                    r.turning?.let { if (past) "$it geworden" else "wird $it" },
+                ).joinToString(" · "),
                 style = MaterialTheme.typography.labelMedium,
                 color = Space.TextFaint,
             )
