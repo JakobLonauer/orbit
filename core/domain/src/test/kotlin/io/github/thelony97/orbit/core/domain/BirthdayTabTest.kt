@@ -70,6 +70,28 @@ class BirthdayTabTest {
         assertEquals(1, result.withoutBirthday)
     }
 
+    @Test fun typedBirthdays() {
+        val cd = { d: Int, m: Int, y: Int? -> CalendarDay(d, m, y) }
+        assertEquals(cd(14, 10, null), BirthdayTab.parseDay("14.10.", today))
+        assertEquals(cd(14, 10, null), BirthdayTab.parseDay("14.10", today))
+        assertEquals(cd(14, 10, 1996), BirthdayTab.parseDay("14.10.1996", today))
+        assertEquals(cd(14, 10, 1996), BirthdayTab.parseDay("14.10.96", today))
+        assertEquals(cd(1, 2, 2005), BirthdayTab.parseDay("1.2.05", today))
+        assertEquals(cd(14, 10, null), BirthdayTab.parseDay("1410", today))
+        assertEquals(cd(29, 2, null), BirthdayTab.parseDay("29.02.", today))
+        assertEquals(cd(29, 2, 2000), BirthdayTab.parseDay("29.2.2000", today))
+        assertEquals(null, BirthdayTab.parseDay("29.2.2001", today))
+        assertEquals(null, BirthdayTab.parseDay("31.4.", today))
+        assertEquals(null, BirthdayTab.parseDay("12.13.", today))
+        assertEquals(null, BirthdayTab.parseDay("1.1.2030", today))
+        assertEquals(null, BirthdayTab.parseDay("abc", today))
+        assertEquals(null, BirthdayTab.parseDay("", today))
+    }
+
+    @Test fun peopleWithoutBirthdayByName() {
+        assertEquals(listOf("ohne"), result.without)
+    }
+
     @Test fun onSundayThereIsNoRestOfTheWeek() {
         val sunday = LocalDate.of(2026, 10, 18)
         val r = BirthdayTab.build(listOf(p("a", 19, 10), p("b", 18, 10)), sunday, { true })

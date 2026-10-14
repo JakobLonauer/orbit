@@ -63,6 +63,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     val tracking = data.settings.giftTracking
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     val coGivers = remember(data) { BirthdayTab.coGivers(data.contacts).mapNotNull { byId[it] } }
+    var filling by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
@@ -116,9 +117,22 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 Text(
                     if (result.withoutBirthday == 1) "1 Kontakt ohne Geburtstag" else "${result.withoutBirthday} Kontakte ohne Geburtstag",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Space.TextFaint,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp),
+                    color = if (filling) Space.TextDim else Space.TextFaint,
+                    modifier = Modifier
+                        .padding(start = 8.dp, end = 8.dp, top = 16.dp)
+                        .clip(Corners.Row)
+                        .clickable { filling = !filling }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                 )
+            }
+            // Eingabe in der Zeile (PLAN 3.5): type the day, Enter – the person moves up into the list.
+            if (filling) {
+                result.without.forEach { id ->
+                    val c = byId[id] ?: return@forEach
+                    item(key = "w-$id") {
+                        MissingBirthdayRow(c, lastFirst, todayDate, Modifier.animateItem())
+                    }
+                }
             }
         }
     }
@@ -265,5 +279,46 @@ private fun GiftLine(gift: io.github.thelony97.orbit.core.model.HistoryEntry?, c
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MissingBirthdayRow(c: Contact, lastFirst: Boolean, todayDate: LocalDate, modifier: Modifier = Modifier) {
+    val text = androidx.compose.foundation.text.input.rememberTextFieldState()
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    Row(
+        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            Logic.displayName(c, lastFirst),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Space.Text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        androidx.compose.material3.OutlinedTextField(
+            state = text,
+            placeholder = { Text("TT.MM.JJJJ") },
+            lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+            ),
+            onKeyboardAction = {
+                val day = BirthdayTab.parseDay(text.text.toString(), todayDate)
+                if (day == null) {
+                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Reject)
+                } else {
+                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                    io.github.thelony97.orbit.data.OrbitRepository.editContact(c.id) { it.withBirthday(day, io.github.thelony97.orbit.data::newId) }
+                }
+            },
+            shape = Corners.Row,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+            modifier = Modifier.width(150.dp),
+        )
     }
 }

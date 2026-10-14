@@ -28,12 +28,41 @@ object BirthdayTab {
 
     data class Group(val section: Section, val title: String, val rows: List<Row>)
 
-    data class Result(val groups: List<Group>, val withoutBirthday: Int)
+    data class Result(val groups: List<Group>, val withoutBirthday: Int, val without: List<String> = emptyList())
 
     /** de-AT month names (W9 formats: „Jänner“). */
     val MONTHS = listOf("Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember")
 
     private const val JUST_PASSED_DAYS = 7L
+
+    /**
+     * Typed birthday in the row („14.10.“, „14.10.1996“, „14.10.96“, „1410“): a real calendar day
+     * or null. A two-digit year means 19xx/20xx, whichever is not in the future.
+     */
+    fun parseDay(text: String, today: LocalDate): io.github.thelony97.orbit.core.model.CalendarDay? {
+        val t = text.trim()
+        val parts = if (t.contains('.') || t.contains('/') || t.contains('-') || t.contains(' ')) {
+            t.split('.', '/', '-', ' ').filter { it.isNotEmpty() }
+        } else if (t.length == 4 || t.length == 6 || t.length == 8) {
+            listOf(t.substring(0, 2), t.substring(2, 4)) + listOfNotNull(t.substring(4).takeIf { it.isNotEmpty() })
+        } else return null
+        if (parts.size !in 2..3 || parts.any { p -> p.any { !it.isDigit() } }) return null
+        val day = parts[0].toInt()
+        val month = parts[1].toInt()
+        val year = parts.getOrNull(2)?.let { y ->
+            when (y.length) {
+                2 -> (2000 + y.toInt()).let { if (it > today.year) it - 100 else it }
+                4 -> y.toInt()
+                else -> return null
+            }
+        }
+        if (month !in 1..12) return null
+        // 29 February is fine without a year; with a year only in leap years.
+        val maxDay = if (year == null) java.time.Month.of(month).maxLength() else java.time.YearMonth.of(year, month).lengthOfMonth()
+        if (day !in 1..maxDay) return null
+        if (year != null && (year < 1900 || year > today.year)) return null
+        return io.github.thelony97.orbit.core.model.CalendarDay(day, month, year)
+    }
 
     /** „Gratuliert“ for this occurrence: a Verlauf entry with the occasion and its year (status per year). */
     fun congratulated(c: Contact, occasionId: String, year: Int): Boolean =
@@ -64,11 +93,11 @@ object BirthdayTab {
     fun build(contacts: List<Contact>, today: LocalDate, visible: (Contact) -> Boolean, name: (Contact) -> String = { it.id }): Result {
         val people = contacts.filter { !it.isOrg && visible(it) }
         val rows = ArrayList<Pair<Row, Contact>>()
-        var without = 0
+        val without = ArrayList<Contact>()
         for (c in people) {
             val o = c.dates.firstOrNull { it.kind == OccasionKind.BIRTHDAY }
             if (o == null) {
-                if (!c.isMe) without++
+                if (!c.isMe) without += c
                 continue
             }
             val last = DateMath.nextOccurrence(o.date, today.minusDays(JUST_PASSED_DAYS))
@@ -103,6 +132,7 @@ object BirthdayTab {
                 groups += Group(section, title, listOf(row))
             }
         }
-        return Result(groups, without)
+        val missing = without.sortedBy { name(it).lowercase() }.map { it.id }
+        return Result(groups, missing.size, missing)
     }
 }
