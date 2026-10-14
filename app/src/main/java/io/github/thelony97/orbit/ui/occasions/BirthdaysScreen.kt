@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +62,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     // „Gratuliert“ abhaken (PLAN 3.5), unless switched off in the settings.
     val tracking = data.settings.giftTracking
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    val coGivers = remember(data) { BirthdayTab.coGivers(data.contacts).mapNotNull { byId[it] } }
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
@@ -89,7 +93,21 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                             }
                         }
                     } else null
-                    BirthdayRow(r, c, idx, lastFirst, Modifier.animateItem(), tick) { nav.open(Route.Detail(c.id)) }
+                    val giftHere = tracking && r.daysUntil in -7L..0L
+                    BirthdayRow(
+                        r, c, idx, lastFirst, Modifier.animateItem(), tick,
+                        gift = if (giftHere) BirthdayTab.gift(c, r.occasion.id, r.date.year) else null,
+                        giftEnabled = giftHere,
+                        coGivers = coGivers.filter { it.id != c.id },
+                        onGift = { what, with ->
+                            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                            // The gift is dated on the birthday itself (the date chip's default).
+                            val at = r.date.atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                io.github.thelony97.orbit.data.Mutations.setGift(d, c.id, r.occasion.id, r.date.year, what, with, at)
+                            }
+                        },
+                    ) { nav.open(Route.Detail(c.id)) }
                 }
             }
         }
@@ -127,12 +145,18 @@ private fun BirthdayRow(
     modifier: Modifier = Modifier,
     /** Congratulated already, and the tap that ticks it; null = no tick for this row. */
     tick: Pair<Boolean, () -> Unit>? = null,
+    gift: io.github.thelony97.orbit.core.model.HistoryEntry? = null,
+    giftEnabled: Boolean = false,
+    coGivers: List<Contact> = emptyList(),
+    onGift: (String, List<String>) -> Unit = { _, _ -> },
     onOpen: () -> Unit,
 ) {
+    var editing by androidx.compose.runtime.saveable.rememberSaveable(r.contactId) { androidx.compose.runtime.mutableStateOf(false) }
+    Column(modifier.fillMaxWidth()) {
     val today = r.daysUntil == 0L
     val past = r.daysUntil < 0
     Row(
-        modifier
+        Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 1.dp)
             .clip(Corners.Row)
@@ -157,6 +181,7 @@ private fun BirthdayRow(
                 listOfNotNull(
                     WEEKDAYS[r.date.dayOfWeek.value - 1].takeIf { kotlin.math.abs(r.daysUntil) > 1 },
                     r.turning?.let { if (past) "$it geworden" else "wird $it" },
+                    gift?.note?.takeIf { it.isNotBlank() },
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelMedium,
                 color = Space.TextFaint,
@@ -167,10 +192,27 @@ private fun BirthdayRow(
             style = MaterialTheme.typography.labelMedium,
             color = if (today) Space.Orange else Space.TextDim,
         )
+        if (giftEnabled) {
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Rounded.CardGiftcard,
+                "Geschenk",
+                tint = if (gift != null) Space.Orange else Space.TextDim,
+                modifier = Modifier.size(36.dp).clip(Corners.Pill).clickable { editing = !editing }.padding(8.dp),
+            )
+        }
         if (tick != null) {
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(4.dp))
             io.github.thelony97.orbit.ui.components.CheckDot(tick.first, tick.second)
         }
+    }
+    // „Was?“ opens in the row, Enter saves and closes (PLAN 3.5: no dialog).
+    androidx.compose.animation.AnimatedVisibility(editing) {
+        GiftLine(gift, coGivers, lastFirst) { what, with ->
+            onGift(what, with)
+            editing = false
+        }
+    }
     }
 }
 
@@ -195,5 +237,33 @@ private fun DateTile(date: LocalDate, today: Boolean, past: Boolean) {
             color = if (past) Space.TextDim else Space.Text,
         )
         Text(SHORT_MONTHS[date.monthValue - 1], style = MaterialTheme.typography.labelSmall, color = if (past) Space.TextFaint else accent.copy(alpha = 0.9f))
+    }
+}
+
+@Composable
+private fun GiftLine(gift: io.github.thelony97.orbit.core.model.HistoryEntry?, coGivers: List<Contact>, lastFirst: Boolean, onSave: (String, List<String>) -> Unit) {
+    val what = androidx.compose.foundation.text.input.rememberTextFieldState(gift?.note.orEmpty())
+    var with by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(gift?.withIds.orEmpty()) }
+    Column(Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        androidx.compose.material3.OutlinedTextField(
+            state = what,
+            placeholder = { Text("Was?") },
+            lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+            ),
+            onKeyboardAction = { onSave(what.text.toString(), with) },
+            shape = Corners.Row,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (coGivers.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                coGivers.forEach { p ->
+                    val on = p.id in with
+                    io.github.thelony97.orbit.ui.components.SpaceChip(Logic.displayName(p, lastFirst), on, { with = if (on) with - p.id else with + p.id })
+                }
+            }
+        }
     }
 }

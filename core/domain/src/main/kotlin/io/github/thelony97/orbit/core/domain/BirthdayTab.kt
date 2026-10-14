@@ -39,6 +39,23 @@ object BirthdayTab {
     fun congratulated(c: Contact, occasionId: String, year: Int): Boolean =
         c.entries.any { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS && it.occasionId == occasionId && it.occasionYear == year }
 
+    /** The gift entry for this occurrence, if one was noted (PLAN 3.5 „Geschenk“). */
+    fun gift(c: Contact, occasionId: String, year: Int): io.github.thelony97.orbit.core.model.HistoryEntry? =
+        c.entries.firstOrNull { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT && it.occasionId == occasionId && it.occasionYear == year }
+
+    /** People who recently gave a gift together with Jakob, most recent first – the chips under „Was?“. */
+    fun coGivers(contacts: List<Contact>, limit: Int = 4): List<String> {
+        val alive = contacts.filter { it.deletedAt == null && !it.archived }.map { it.id }.toSet()
+        return contacts.asSequence()
+            .flatMap { c -> c.entries.asSequence().filter { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT } }
+            .sortedByDescending { it.at }
+            .flatMap { it.withIds.asSequence() }
+            .filter { it in alive }
+            .distinct()
+            .take(limit)
+            .toList()
+    }
+
     /**
      * [visible] decides who may appear (callers pass the list rules: no archive, no trash).
      * Organisations never appear; „ohne Geburtstag“ counts people only, not yourself.

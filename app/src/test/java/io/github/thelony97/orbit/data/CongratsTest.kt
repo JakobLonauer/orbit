@@ -23,6 +23,30 @@ class CongratsTest {
         assertEquals(doc.contacts.first { it.id == "tom" }, d.contacts.first { it.id == "tom" })
     }
 
+    @Test fun giftIsOneEntryPerYearAndCanBeChangedOrRemoved() {
+        val d1 = Mutations.setGift(doc, "anna", "bd", 2026, " Buch ", listOf("tom"), at = 7L)
+        val g = BirthdayTab.gift(d1.contacts.first { it.id == "anna" }, "bd", 2026)!!
+        assertEquals("Buch", g.note)
+        assertEquals(listOf("tom"), g.withIds)
+        val d2 = Mutations.setGift(d1, "anna", "bd", 2026, "Gutschein", emptyList(), at = 8L)
+        val a2 = d2.contacts.first { it.id == "anna" }
+        assertEquals("Gutschein", BirthdayTab.gift(a2, "bd", 2026)!!.note)
+        assertEquals(1, a2.entries.count { it.typeId == BuiltinTypes.GIFT })
+        val d3 = Mutations.setGift(d2, "anna", "bd", 2026, "  ", emptyList(), at = 9L)
+        assertEquals(listOf(call, lastYear), d3.contacts.first { it.id == "anna" }.entries)
+    }
+
+    @Test fun coGiversMostRecentFirstWithoutArchived() {
+        val bea = Contact(id = "bea", firstName = "Bea")
+        val alt = Contact(id = "alt", firstName = "Alt", archived = true)
+        val gifts = listOf(
+            Entry(id = "x1", contactId = "anna", typeId = BuiltinTypes.GIFT, at = 1L, withIds = listOf("tom")),
+            Entry(id = "x2", contactId = "anna", typeId = BuiltinTypes.GIFT, at = 2L, withIds = listOf("bea", "alt")),
+        )
+        val contacts = listOf(anna.copy(entries = gifts), Contact(id = "tom", firstName = "Tom"), bea, alt)
+        assertEquals(listOf("bea", "tom"), BirthdayTab.coGivers(contacts))
+    }
+
     @Test fun secondTapTakesOnlyThisYearsTickAway() {
         val once = Mutations.toggleCongrats(doc, "anna", "bd", 2026)
         val twice = Mutations.toggleCongrats(once, "anna", "bd", 2026)

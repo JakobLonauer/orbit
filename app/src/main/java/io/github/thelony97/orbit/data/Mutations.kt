@@ -46,6 +46,29 @@ object Mutations {
             }
         })
 
+    /**
+     * „Geschenk“ (PLAN 3.5): one gift entry per occasion and year with what and who gave together;
+     * saving again changes that entry, an empty text removes it.
+     */
+    fun setGift(d: OrbitData, contactId: String, occasionId: String, year: Int, what: String, withIds: List<String>, at: Long): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != contactId) c
+            else {
+                val gift = io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT
+                val old = c.entries.firstOrNull { it.typeId == gift && it.occasionId == occasionId && it.occasionYear == year }
+                val text = what.trim()
+                when {
+                    text.isEmpty() && old != null -> c.copy(entries = c.entries - old)
+                    text.isEmpty() -> c
+                    old != null -> c.copy(entries = c.entries.map { if (it.id == old.id) it.copy(note = text, withIds = withIds) else it })
+                    else -> c.copy(entries = c.entries + Entry(
+                        id = newId(), contactId = c.id, typeId = gift, at = at, note = text,
+                        occasionId = occasionId, occasionYear = year, withIds = withIds,
+                    ))
+                }
+            }
+        })
+
     /** „Zurückholen“ from the archive (also from the caller card while it rings). */
     fun unarchive(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })
