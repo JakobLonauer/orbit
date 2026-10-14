@@ -71,6 +71,10 @@ data class Attachment(
     val mime: String = "image/jpeg",
     val addedAt: Long = 0,
     val caption: String = "",
+    /** PLAN 3.10: when the picture was taken (EXIF), for the Fotos page; null = unknown. */
+    val takenAt: Long? = null,
+    /** Original file name of a document (PDF) for its tile. */
+    val name: String = "",
 )
 
 object BuiltinTypes {

@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +44,15 @@ import kotlin.math.roundToInt
  * the finger, every new letter ticks and jumps the list. [onLetter] scrolls to that section.
  */
 @Composable
-fun AlphabetRail(letters: List<String>, onLetter: (String) -> Unit, modifier: Modifier = Modifier) {
+fun AlphabetRail(
+    letters: List<String>,
+    onLetter: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    /** What the rail shows for a key (the Fotos page: „O“ for 2026-10). */
+    railLabel: (String) -> String = { it },
+    /** What the bubble says („Oktober 2026“); a longer text makes the bubble a pill. */
+    bubbleLabel: (String) -> String = { it },
+) {
     if (letters.size < 2) return
     val haptics = rememberHaptics()
     var height by remember { mutableFloatStateOf(1f) }
@@ -65,17 +76,20 @@ fun AlphabetRail(letters: List<String>, onLetter: (String) -> Unit, modifier: Mo
         // Magnifier bubble left of the rail, following the finger.
         if (bubble > 0.01f) {
             val half = with(density) { 28.dp.toPx() }
+            val label = active?.let(bubbleLabel).orEmpty()
+            val pill = label.length > 2
             Box(
                 Modifier
-                    .align(Alignment.TopStart)
-                    .offset { IntOffset(0, (fingerY - half).roundToInt()) }
+                    .align(if (pill) Alignment.TopEnd else Alignment.TopStart)
+                    .offset { IntOffset(if (pill) -with(density) { 30.dp.roundToPx() } else 0, (fingerY - half).roundToInt()) }
                     .graphicsLayer { scaleX = bubble; scaleY = bubble; alpha = bubble }
-                    .size(56.dp)
-                    .glow(Space.Violet, 18.dp, CircleShape, 0.5f)
-                    .background(Space.PanelHigh, CircleShape),
+                    .then(if (pill) Modifier.wrapContentWidth(unbounded = true).height(56.dp) else Modifier.size(56.dp))
+                    .glow(Space.Violet, 18.dp, if (pill) RoundedCornerShape(28.dp) else CircleShape, 0.5f)
+                    .background(Space.PanelHigh, if (pill) RoundedCornerShape(28.dp) else CircleShape)
+                    .then(if (pill) Modifier.padding(horizontal = 18.dp) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(active.orEmpty(), style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                Text(label, style = if (pill) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, maxLines = 1)
             }
         }
         Column(
@@ -105,7 +119,7 @@ fun AlphabetRail(letters: List<String>, onLetter: (String) -> Unit, modifier: Mo
         ) {
             letters.forEach { l ->
                 Text(
-                    l,
+                    railLabel(l),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (l == active) Space.Violet else Space.TextFaint,
                     textAlign = TextAlign.Center,

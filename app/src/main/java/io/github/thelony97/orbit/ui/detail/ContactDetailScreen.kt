@@ -703,7 +703,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             }
 
             // Photo folder
-            if (c.gallery.isNotEmpty() || gallery.importing) item(key = "gallery") { GallerySection(c, gallery) }
+            if (c.gallery.isNotEmpty() || gallery.importing) item(key = "gallery") { GallerySection(c, gallery) { nav.open(Route.Photos(c.id)) } }
 
             // Archived people never show up in someone else's relations (PLAN 3.11).
             val rels = data.relations.mapNotNull { r ->

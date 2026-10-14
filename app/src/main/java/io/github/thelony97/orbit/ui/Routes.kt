@@ -11,6 +11,10 @@ sealed interface Route : NavKey {
     @Serializable
     data class Detail(val id: String) : Route
 
+    /** Fotos-Seite (PLAN 3.10): all pictures, or one contact's ([contactId]). */
+    @Serializable
+    data class Photos(val contactId: String? = null) : Route
+
     /** A hidden member's own page inside its organisation (PLAN 3.6). */
     @Serializable
     data class MemberPage(val orgId: String, val memberId: String) : Route

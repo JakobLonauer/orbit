@@ -111,6 +111,22 @@ object Mutations {
     fun unarchive(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })
 
+    /**
+     * Files of [candidates] that nothing in [d] uses any more (PLAN 3.10: one picture can belong
+     * to several contacts – a file goes only with its last reference).
+     */
+    fun unreferenced(d: OrbitData, candidates: Collection<String>): List<String> {
+        val used = d.contacts.flatMapTo(HashSet()) { files(it) }
+        return candidates.filter { it !in used }.distinct()
+    }
+
+    /** „Auch bei …“ (PLAN 3.10): the same picture in another contact's folder, stored once. */
+    fun shareAttachment(d: OrbitData, a: GalleryPhoto, toId: String, at: Long = now()): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != toId || c.gallery.any { it.file == a.file }) c
+            else c.copy(gallery = listOf(a.copy(id = newId(), contactId = toId, addedAt = at)) + c.gallery)
+        })
+
     /** Removes a contact for good, together with relations, Zuordnungen and meetings that point at it. */
     fun purge(d: OrbitData, id: String): OrbitData = if (d.contacts.any { it.id == id && it.isMe }) d else d.copy(
         contacts = d.contacts.filterNot { it.id == id },
@@ -125,7 +141,8 @@ object Mutations {
         val expired = d.contacts.filter { (it.deletedAt ?: Long.MAX_VALUE) < limit }
         var result = d
         expired.forEach { result = purge(result, it.id) }
-        return result to expired.flatMap { files(it) }
+        // Pictures shared with a contact that stays are kept.
+        return result to unreferenced(result, expired.flatMap { files(it) })
     }
 
     /** All picture files that belong to a contact (profile photo and photo folder). */

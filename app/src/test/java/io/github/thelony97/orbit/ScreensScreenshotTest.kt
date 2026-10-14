@@ -157,6 +157,16 @@ class ScreensScreenshotTest {
         shot("detail_org") { ContactDetailScreen("jku", full, Index(full), nav) }
     }
 
+    /** Fotos-Seite (PLAN 3.10): month headers, three per row, scrubber at the edge. */
+    @Test fun photosPage() {
+        val month = 31L * 86_400_000L
+        val pics = (0 until 14).map { i ->
+            io.github.thelony97.orbit.data.GalleryPhoto(id = "p$i", contactId = "", file = "missing-$i.jpg", addedAt = now - i * month / 3, takenAt = now - i * month / 3)
+        }
+        val withPics = data.copy(contacts = data.contacts.map { if (it.id == data.contacts.first { c -> !c.isMe && !c.isOrg }.id) it.copy(gallery = pics) else it })
+        shot("photos") { io.github.thelony97.orbit.ui.detail.PhotosScreen(null, withPics, Index(withPics), nav) }
+    }
+
     /** Teilen-Eingang (PLAN 3.8): a place from Google Maps. */
     @Test fun shareSheet() {
         compose.setContent {

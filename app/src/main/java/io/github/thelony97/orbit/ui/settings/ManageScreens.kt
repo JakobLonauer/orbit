@@ -348,8 +348,10 @@ fun TrashScreen(data: OrbitData, idx: Index, nav: Nav) {
                                 Icon(Icons.Rounded.RestoreFromTrash, "Wiederherstellen")
                             }
                             IconButton(onClick = {
-                                Mutations.files(c).forEach { Photos.delete(it) }
+                                // Files shared with another contact stay (PLAN 3.10).
+                                val gone = Mutations.unreferenced(Mutations.purge(data, c.id), Mutations.files(c))
                                 OrbitRepository.edit { d -> Mutations.purge(d, c.id) }
+                                gone.forEach { Photos.delete(it) }
                             }) { Icon(Icons.Rounded.DeleteForever, "Endgültig löschen") }
                         }
                     },
@@ -365,8 +367,10 @@ fun TrashScreen(data: OrbitData, idx: Index, nav: Nav) {
             text = "${trashed.size} Kontakte werden endgültig gelöscht.",
             confirm = "Leeren",
             onConfirm = {
-                trashed.forEach { c -> Mutations.files(c).forEach { Photos.delete(it) } }
+                val after = trashed.fold(data) { acc, c -> Mutations.purge(acc, c.id) }
+                val gone = Mutations.unreferenced(after, trashed.flatMap { Mutations.files(it) })
                 OrbitRepository.edit { d -> trashed.fold(d) { acc, c -> Mutations.purge(acc, c.id) } }
+                gone.forEach { Photos.delete(it) }
             },
             onDismiss = { confirmEmpty = false },
         )

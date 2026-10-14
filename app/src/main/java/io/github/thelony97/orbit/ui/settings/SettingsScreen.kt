@@ -54,6 +54,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
@@ -569,6 +571,24 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
                 SettingItem(Icons.Rounded.Category, "Eintragsarten", "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
+                Hairline()
+                // Fotos (PLAN 3.10): the page with every picture, how much room they take, full size.
+                val photoCount = remember(data) { data.contacts.flatMap { c -> c.gallery.map { it.file } }.distinct().size }
+                val photoBytes by androidx.compose.runtime.produceState(0L, photoCount) {
+                    value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        OrbitRepository.photoDir.listFiles()?.sumOf { it.length() } ?: 0L
+                    }
+                }
+                SettingItem(
+                    Icons.Rounded.PhotoLibrary, "Fotos",
+                    "$photoCount Bilder · " + android.text.format.Formatter.formatShortFileSize(LocalContext.current, photoBytes),
+                    onClick = { nav.open(Route.Photos()) },
+                )
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.PhotoSizeSelectLarge, "Originalgröße behalten",
+                    trailing = { SpaceSwitch(s.keepOriginalPhotos) { v -> OrbitRepository.editSettings { it.copy(keepOriginalPhotos = v) } } },
+                )
                 Hairline()
                 // PLAN 3.5: hides „Gratuliert“/„Geschenk“ in the Anlässe tab completely.
                 SettingItem(

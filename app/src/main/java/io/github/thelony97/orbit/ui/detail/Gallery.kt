@@ -31,6 +31,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.lifecycle.lifecycleScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.rounded.PersonAddAlt
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Close
@@ -90,13 +98,15 @@ object GalleryStore {
     }
 
     suspend fun import(ctx: Context, uris: List<Uri>): List<GalleryPhoto> = withContext(Dispatchers.IO) {
+        // „Originalgröße behalten“ (PLAN 3.10), otherwise 2048 px on the long edge.
+        val keep = OrbitRepository.data.value?.settings?.keepOriginalPhotos == true
         uris.mapNotNull { uri ->
             runCatching {
                 val source = ImageDecoder.createSource(ctx.contentResolver, uri)
                 val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                     val longest = maxOf(info.size.width, info.size.height)
-                    if (longest > MAX_EDGE) {
+                    if (!keep && longest > MAX_EDGE) {
                         val f = MAX_EDGE.toFloat() / longest
                         decoder.setTargetSize((info.size.width * f).toInt(), (info.size.height * f).toInt())
                     }
@@ -104,10 +114,22 @@ object GalleryStore {
                 val name = "g-${newId()}.jpg"
                 OrbitRepository.photoFile(name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 86, it) }
                 // contactId is filled in by the store when the contact is saved.
-                GalleryPhoto(id = newId(), contactId = "", file = name, addedAt = now())
+                GalleryPhoto(id = newId(), contactId = "", file = name, addedAt = now(), takenAt = takenAt(ctx, uri))
             }.getOrNull()
         }
     }
+
+    /** PLAN 3.10: the date the picture was taken (EXIF), for the Fotos page; null if unknown. */
+    private fun takenAt(ctx: Context, uri: Uri): Long? = runCatching {
+        ctx.contentResolver.openInputStream(uri)?.use { input ->
+            val exif = android.media.ExifInterface(input)
+            val raw = exif.getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL) ?: exif.getAttribute(android.media.ExifInterface.TAG_DATETIME)
+            raw?.let {
+                java.time.LocalDateTime.parse(it.trim(), java.time.format.DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"))
+                    .atZone(io.github.thelony97.orbit.domain.zone()).toInstant().toEpochMilli()
+            }
+        }
+    }.getOrNull()
 
     fun delete(name: String) {
         OrbitRepository.photoFile(name).delete()
@@ -175,10 +197,11 @@ fun rememberGalleryImport(contactId: String): GalleryImport {
 
 /** The photo folder; only composed when there are photos or an import is running (W5). */
 @Composable
-fun GallerySection(contact: Contact, import: GalleryImport) {
+fun GallerySection(contact: Contact, import: GalleryImport, onAll: () -> Unit = {}) {
     var viewer by remember { mutableStateOf<Int?>(null) }
     val importing = import.importing
     val photos = contact.gallery
+    val shown = io.github.thelony97.orbit.core.domain.PhotoMonths.newest(contact, 6)
 
     SectionCard(
         title = if (photos.isEmpty()) "Fotos" else "Fotos · ${photos.size}",
@@ -207,18 +230,18 @@ fun GallerySection(contact: Contact, import: GalleryImport) {
                 }
             }
         }
-        val shown = photos.take(9)
+        // Die neuesten 6 + „Alle“ (PLAN 3.10).
         shown.chunked(3).forEachIndexed { row, chunk ->
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 chunk.forEachIndexed { col, p ->
                     val index = row * 3 + col
                     Box(Modifier.weight(1f).aspectRatio(1f)) {
                         Thumb(p.file, Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).clickable { viewer = index })
-                        if (index == 8 && photos.size > 9) {
+                        if (index == 5 && photos.size > 6) {
                             Box(
-                                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(Space.Void.copy(alpha = 0.6f)).clickable { viewer = index },
+                                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(Space.Void.copy(alpha = 0.6f)).clickable(onClick = onAll),
                                 contentAlignment = Alignment.Center,
-                            ) { Text("+${photos.size - 8}", style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text) }
+                            ) { Text("Alle", style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text) }
                         }
                     }
                 }
@@ -228,9 +251,13 @@ fun GallerySection(contact: Contact, import: GalleryImport) {
     }
 
     viewer?.let { start ->
-        GalleryViewer(contact, start.coerceIn(0, (photos.size - 1).coerceAtLeast(0)), onDismiss = { viewer = null })
+        PhotoViewer(shown.map { io.github.thelony97.orbit.core.domain.PhotoMonths.Item(contact.id, it) }, start, onDismiss = { viewer = null })
     }
 }
+
+/** A square thumbnail from the photo folder (also on the Fotos page). */
+@Composable
+fun PhotoThumb(name: String, modifier: Modifier) = Thumb(name, modifier)
 
 @Composable
 private fun Thumb(name: String, modifier: Modifier) {
@@ -240,72 +267,138 @@ private fun Thumb(name: String, modifier: Modifier) {
     }
 }
 
+/**
+ * Foto im Vollbild (PLAN 3.10): swipe through [items], zoom; Profilbild, Teilen, ins Handy
+ * speichern, „Auch bei …“ (the same file in another contact's folder) and Entfernen with Undo –
+ * the file goes only when no contact uses it any more.
+ */
 @Composable
-private fun GalleryViewer(contact: Contact, start: Int, onDismiss: () -> Unit) {
-    val photos = contact.gallery
-    if (photos.isEmpty()) {
-        onDismiss()
+fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.Item>, start: Int, onDismiss: () -> Unit) {
+    if (items.isEmpty()) {
+        LaunchedEffect(Unit) { onDismiss() }
         return
     }
-    val pager = rememberPagerState(initialPage = start) { photos.size }
-    var confirmDelete by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    val pager = rememberPagerState(initialPage = start.coerceIn(0, items.lastIndex)) { items.size }
+    var shareTo by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.PhotoMonths.Item?>(null) }
     val scope = rememberCoroutineScope()
+    val data by OrbitRepository.data.collectAsState()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            HorizontalPager(pager, Modifier.fillMaxSize(), key = { photos.getOrNull(it)?.id ?: it }) { page ->
-                photos.getOrNull(page)?.let { ZoomableImage(it.file) }
+            HorizontalPager(pager, Modifier.fillMaxSize(), key = { items.getOrNull(it)?.photo?.id ?: it }) { page ->
+                items.getOrNull(page)?.let { ZoomableImage(it.photo.file) }
             }
-            val current = photos.getOrNull(pager.currentPage)
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OrbButton(Icons.Rounded.Close, "Schließen", onDismiss, size = 40.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("${pager.currentPage + 1} / ${photos.size}", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
-                    current?.let { Text("hinzugefügt ${Fmt.date(it.addedAt)}", style = MaterialTheme.typography.labelSmall, color = Space.TextDim) }
+            val current = items.getOrNull(pager.currentPage)
+            val owner = current?.let { cur -> data?.contacts?.firstOrNull { it.id == cur.contactId } }
+            Column(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OrbButton(Icons.Rounded.Close, "Schließen", onDismiss, size = 40.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("${pager.currentPage + 1} / ${items.size}", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
+                        current?.let { cur ->
+                            val date = io.github.thelony97.orbit.core.domain.PhotoMonths.dateOf(cur.photo)
+                            Text(
+                                listOfNotNull(owner?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) }, Fmt.date(date)).joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall, color = Space.TextDim,
+                            )
+                        }
+                    }
                 }
-                OrbButton(
-                    Icons.Rounded.AccountCircle, "Als Profilbild",
-                    {
-                        val p = current ?: return@OrbButton
-                        scope.launch {
-                            val name = runCatching {
-                                OrbitRepository.photoFile(p.file).inputStream().use { Photos.saveFromStream(it) }
-                            }.getOrNull() ?: return@launch
-                            val old = contact.photo
-                            OrbitRepository.editContact(contact.id) { it.copy(photo = name) }
-                            if (old != null) {
-                                Photos.delete(old)
-                                PhotoCache.evict(old)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (owner != null && !owner.isOrg) {
+                        OrbButton(Icons.Rounded.AccountCircle, "Als Profilbild", {
+                            val p = current.photo
+                            scope.launch {
+                                val name = runCatching { OrbitRepository.photoFile(p.file).inputStream().use { Photos.saveFromStream(it) } }.getOrNull() ?: return@launch
+                                val old = owner.photo
+                                OrbitRepository.editContact(owner.id) { it.copy(photo = name) }
+                                if (old != null) {
+                                    Photos.delete(old)
+                                    PhotoCache.evict(old)
+                                }
+                            }
+                        }, size = 40.dp)
+                    }
+                    OrbButton(Icons.Rounded.Share, "Teilen", { current?.let { scope.launch { io.github.thelony97.orbit.actions.PhotoActions.share(ctx, it.photo.file) } } }, size = 40.dp)
+                    OrbButton(Icons.Rounded.Download, "Ins Handy speichern", {
+                        current?.let { cur ->
+                            scope.launch {
+                                val ok = io.github.thelony97.orbit.actions.PhotoActions.saveToPhone(ctx, cur.photo.file)
+                                android.widget.Toast.makeText(ctx, if (ok) "In „Bilder/Orbit“ gespeichert" else "Speichern nicht möglich", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
-                    },
-                    size = 40.dp,
-                )
-                Spacer(Modifier.width(8.dp))
-                OrbButton(Icons.Rounded.Delete, "Löschen", { confirmDelete = true }, size = 40.dp, tint = Space.Coral)
+                    }, size = 40.dp)
+                    OrbButton(Icons.Rounded.PersonAddAlt, "Auch bei …", { shareTo = current }, size = 40.dp)
+                    Spacer(Modifier.weight(1f))
+                    OrbButton(Icons.Rounded.Delete, "Entfernen", {
+                        val cur = current ?: return@OrbButton
+                        val p = cur.photo
+                        // Rückgängig statt Nachfragen (PLAN 1.2).
+                        OrbitRepository.editContact(cur.contactId) { it.copy(gallery = it.gallery.filterNot { g -> g.id == p.id }) }
+                        io.github.thelony97.orbit.ui.components.Undo.offer("Foto entfernt") {
+                            OrbitRepository.editContact(cur.contactId) { c -> if (c.gallery.any { it.id == p.id }) c else c.copy(gallery = listOf(p) + c.gallery) }
+                        }
+                        // The file only after the undo time, and only if no contact uses it.
+                        androidx.lifecycle.ProcessLifecycleOwner.get().lifecycleScope.launch {
+                            kotlinx.coroutines.delay(15_000)
+                            val d = OrbitRepository.snapshot()
+                            if (io.github.thelony97.orbit.data.Mutations.unreferenced(d, listOf(p.file)).isNotEmpty()) GalleryStore.delete(p.file)
+                        }
+                        if (items.size <= 1) onDismiss()
+                    }, size = 40.dp, tint = Space.Coral)
+                }
             }
         }
-        if (confirmDelete) {
-            ConfirmDialog(
-                title = "Foto löschen?",
-                text = "Das Foto wird aus dem Ordner von ${io.github.thelony97.orbit.domain.Logic.shortName(contact)} entfernt. Das Original in deiner Galerie bleibt.",
-                confirm = "Löschen",
-                onConfirm = {
-                    val p = photos.getOrNull(pager.currentPage) ?: return@ConfirmDialog
-                    OrbitRepository.editContact(contact.id) { it.copy(gallery = it.gallery.filterNot { g -> g.id == p.id }) }
-                    GalleryStore.delete(p.file)
-                    if (photos.size <= 1) onDismiss()
-                },
-                onDismiss = { confirmDelete = false },
-            )
+        shareTo?.let { item ->
+            ContactPickDialog(
+                title = "Auch bei …",
+                exclude = data?.contacts.orEmpty().filter { c -> c.gallery.any { it.file == item.photo.file } }.map { it.id }.toSet(),
+                onDismiss = { shareTo = null },
+            ) { toId ->
+                OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.shareAttachment(d, item.photo, toId) }
+                android.widget.Toast.makeText(ctx, "Auch im Ordner von " + (data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) } ?: ""), android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
     }
+}
+
+/** A person or organisation to pick (not archived, not in the trash). */
+@Composable
+fun ContactPickDialog(title: String, exclude: Set<String>, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    val data by OrbitRepository.data.collectAsState()
+    val search = androidx.compose.foundation.text.input.rememberTextFieldState()
+    val q = search.text.toString().trim().lowercase()
+    val lastFirst = data?.settings?.sortByLastName ?: false
+    val people = data?.contacts.orEmpty()
+        .filter { it.deletedAt == null && !it.archived && it.id !in exclude && (q.isEmpty() || io.github.thelony97.orbit.domain.Logic.displayName(it, lastFirst).lowercase().contains(q)) }
+        .sortedBy { io.github.thelony97.orbit.domain.Logic.sortKey(it, lastFirst) }
+        .take(40)
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                io.github.thelony97.orbit.ui.components.SpaceSearchField(search, "Kontakt", Modifier.fillMaxWidth())
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                    items(people.size, key = { people[it].id }) { i ->
+                        val c = people[i]
+                        Text(
+                            io.github.thelony97.orbit.domain.Logic.displayName(c, lastFirst),
+                            color = Space.Text,
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(c.id); onDismiss() }.padding(vertical = 10.dp, horizontal = 4.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
 }
 
 @Composable
