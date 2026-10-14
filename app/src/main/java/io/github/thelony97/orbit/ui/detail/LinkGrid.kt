@@ -131,7 +131,7 @@ private fun LinkTileView(
         Column(
             Modifier
                 .fillMaxWidth()
-                .height(104.dp)
+                .height(88.dp)
                 .clip(shape)
                 .background(Space.Panel)
                 .border(1.dp, if (l.pinned) Space.Orange.copy(alpha = 0.5f) else Space.Line, shape)

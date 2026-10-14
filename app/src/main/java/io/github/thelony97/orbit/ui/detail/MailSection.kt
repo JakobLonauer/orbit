@@ -1,6 +1,8 @@
 package io.github.thelony97.orbit.ui.detail
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
@@ -252,32 +254,122 @@ internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String?
     )
 }
 
-/** A bundled mail entry (PLAN 3.9): its mails, one tap loads the text. */
+/**
+ * A bundled mail entry (PLAN 3.9): its mails; a tap unfolds the mail in place – it springs open,
+ * the text loads into lines in its final shape (R5: „Mails klappen weich auf“). A single mail is
+ * open from the start. Offline the mail says so in one line and the rest stays usable.
+ */
 @Composable
 fun MailEntryDialog(entry: io.github.thelony97.orbit.data.Entry, onDismiss: () -> Unit) {
     var open by remember(entry.id) { mutableStateOf(entry.mails.singleOrNull()) }
-    val chosen = open
-    if (chosen != null) {
-        MailDialog(io.github.thelony97.orbit.mail.MailSync.header(chosen), onDismiss = { if (entry.mails.size == 1) onDismiss() else open = null }, contactId = entry.contactId)
-        return
-    }
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Space.PanelHigh,
         title = { Text(io.github.thelony97.orbit.core.domain.MailBundle.title(entry)) },
         text = {
-            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 entry.mails.forEach { m ->
+                    val isOpen = open == m
+                    val shape = RoundedCornerShape(14.dp)
                     Column(
-                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                            .clickable { open = m }.padding(vertical = 8.dp, horizontal = 4.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(shape)
+                            .then(if (isOpen) Modifier.background(Space.Panel) else Modifier)
+                            .animateContentSize(androidx.compose.animation.core.spring(dampingRatio = 0.86f, stiffness = 600f))
+                            .clickable {
+                                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                open = if (isOpen) null else m
+                            }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                     ) {
-                        Text(m.subject, style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            m.subject,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Space.Text,
+                            maxLines = if (isOpen) 4 else 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         Text(m.address + " · " + Fmt.time(m.at), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                        if (isOpen) {
+                            Spacer(Modifier.height(10.dp))
+                            MailBody(io.github.thelony97.orbit.mail.MailSync.header(m), entry.contactId)
+                        }
                     }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
     )
+}
+
+/** The text of one mail, loaded on demand, with „Antworten“ and „Bilder“ underneath. */
+@Composable
+private fun MailBody(h: MailHeader, contactId: String?) {
+    var text by remember(h) { mutableStateOf<String?>(null) }
+    var error by remember(h) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(h) {
+        MailClient.body(h)
+            .onSuccess { text = it }
+            .onFailure { error = MailClient.describe(it) }
+    }
+    val body = text
+    val failed = error
+    Column {
+        when {
+            failed != null -> Text(failed, style = MaterialTheme.typography.bodySmall, color = Space.Coral)
+            body == null -> {
+                val breath = io.github.thelony97.orbit.ui.components.rememberBreath()
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(1f, 0.92f, 0.97f, 0.6f).forEach { w -> io.github.thelony97.orbit.ui.components.PlaceholderLine(breath, w, 11.dp) }
+                }
+            }
+            else -> SelectionContainer { Text(body, style = MaterialTheme.typography.bodySmall, color = Space.Text) }
+        }
+        Row(Modifier.padding(top = 4.dp)) {
+            if (h.fromAddress.contains('@')) {
+                TextButton(onClick = {
+                    val subject = if (h.subject.startsWith("Re:", ignoreCase = true)) h.subject else "Re: ${h.subject}"
+                    val uri = android.net.Uri.parse("mailto:" + android.net.Uri.encode(h.fromAddress) + "?subject=" + android.net.Uri.encode(subject))
+                    io.github.thelony97.orbit.security.AppLock.allowExternal()
+                    runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, uri)) }
+                }) { Text("Antworten") }
+            }
+            // Bild-Anhänge in den Ordner (PLAN 3.9).
+            if (contactId != null && body != null) {
+                var copying by remember(h) { mutableStateOf(false) }
+                TextButton(enabled = !copying, onClick = {
+                    copying = true
+                    scope.launch {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                            val result = MailClient.images(h, ctx.cacheDir)
+                            val files = result.getOrDefault(emptyList())
+                            result.exceptionOrNull()?.let { e ->
+                                android.widget.Toast.makeText(ctx, MailClient.describe(e), android.widget.Toast.LENGTH_LONG).show()
+                                return@withContext
+                            }
+                            if (files.isNotEmpty()) {
+                                val added = GalleryStore.import(ctx.applicationContext, files.map { android.net.Uri.fromFile(it) })
+                                files.forEach { it.delete() }
+                                io.github.thelony97.orbit.data.OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
+                            }
+                            android.widget.Toast.makeText(
+                                ctx,
+                                when (files.size) {
+                                    0 -> "Keine Bilder in dieser Mail"
+                                    1 -> "1 Bild im Ordner"
+                                    else -> "${files.size} Bilder im Ordner"
+                                },
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        copying = false
+                    }
+                }) { Text("Bilder") }
+            }
+        }
+    }
 }
