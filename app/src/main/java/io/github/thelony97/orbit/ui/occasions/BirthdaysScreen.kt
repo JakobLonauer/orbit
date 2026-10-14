@@ -129,6 +129,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         }
         map
     }
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -270,6 +271,12 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
             }
         }
     }
+    // Sternenregen: a birthday today, once per day.
+    val birthdayToday = result.groups.any { it.section == BirthdayTab.Section.TODAY }
+    StarRain(play = birthdayToday && io.github.thelony97.orbit.ui.Session.starRainDay != todayDate.toEpochDay()) {
+        io.github.thelony97.orbit.ui.Session.starRainDay = todayDate.toEpochDay()
+    }
+    }
 }
 
 private val WEEKDAYS = listOf("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
@@ -357,7 +364,10 @@ private fun BirthdayRow(
         }
         if (tick != null) {
             Spacer(Modifier.width(4.dp))
-            io.github.thelony97.orbit.ui.components.CheckDot(tick.first, tick.second)
+            val spark = rememberSpark(tick.first)
+            Box(Modifier.starSpark(spark)) {
+                io.github.thelony97.orbit.ui.components.CheckDot(tick.first, tick.second)
+            }
         }
     }
     // „Was?“ opens in the row, Enter saves and closes (PLAN 3.5: no dialog).

@@ -12,6 +12,8 @@ import io.github.thelony97.orbit.domain.StatusFilter
  * Deliberately not saved – "Organisationen anzeigen" switches itself off again after closing the app.
  */
 object Session {
+    /** Day (epoch) the Sternenregen last played – once per day, not on every tab visit. */
+    var starRainDay = -1L
     var audience by mutableStateOf(Audience.PEOPLE)
     var status by mutableStateOf(StatusFilter.ALL)
     var groups by mutableStateOf(emptySet<String>())
