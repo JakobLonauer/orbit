@@ -256,6 +256,24 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         }
         }
 
+        // Schnellzugriff (PLAN 3.7): pinned portals, only while there are some – organisations' too.
+        val quick = remember(data.contacts) { io.github.thelony97.orbit.core.domain.QuickLinks.pinned(data.contacts) { Logic.displayName(it, false) } }
+        if (quick.isNotEmpty()) {
+            val linkCtx = androidx.compose.ui.platform.LocalContext.current
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                quick.forEach { q ->
+                    io.github.thelony97.orbit.ui.detail.QuickLinkChip(
+                        q.link,
+                        onClick = { io.github.thelony97.orbit.actions.ContactActions.openLink(linkCtx, q.link) },
+                        onLongClick = { nav.open(Route.Detail(q.ownerId)) },
+                    )
+                }
+            }
+        }
+
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,

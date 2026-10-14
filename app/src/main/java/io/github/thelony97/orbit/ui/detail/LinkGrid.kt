@@ -61,7 +61,6 @@ fun linkHost(url: String): String =
 fun linkIcon(l: Link): ImageVector {
     val t = (l.title + " " + l.url).lowercase()
     return when {
-        listOf("moodle", "kusss", "ph-online", "uni", "schule", "jku").any { it in t } -> Icons.Rounded.School
         listOf("bibliothek", "library", "biblio").any { it in t } -> Icons.Rounded.LocalLibrary
         listOf("mensa", "menu", "speise").any { it in t } -> Icons.Rounded.Restaurant
         listOf("mail", "outlook", "webmail").any { it in t } -> Icons.Rounded.Email
@@ -69,6 +68,8 @@ fun linkIcon(l: Link): ImageVector {
         listOf("termin", "kalender", "calendar", "booking").any { it in t } -> Icons.Rounded.CalendarMonth
         listOf("maps", "karte").any { it in t } -> Icons.Rounded.Map
         listOf("linkedin", "xing", "job").any { it in t } -> Icons.Rounded.Work
+        // The school words last: „jku.at/bibliothek“ is the library, not the university.
+        listOf("moodle", "kusss", "ph-online", "uni", "schule", "jku").any { it in t } -> Icons.Rounded.School
         else -> Icons.Rounded.Language
     }
 }
@@ -209,4 +210,26 @@ fun LinkEditDialog(initial: Link, onDismiss: () -> Unit, onSave: (Link) -> Unit)
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
+}
+
+/** Schnellzugriff-Chip (PLAN 3.7): tap opens the link, long-press the contact it belongs to. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun QuickLinkChip(l: Link, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val tint = TILE_COLORS[(linkHost(l.url).hashCode() and 0x7fffffff) % TILE_COLORS.size]
+    val shape = RoundedCornerShape(50)
+    Row(
+        Modifier
+            .height(34.dp)
+            .clip(shape)
+            .background(Space.Panel)
+            .border(1.dp, tint.copy(alpha = 0.35f), shape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(start = 10.dp, end = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.size(8.dp))
+        Text(l.title.ifBlank { linkHost(l.url) }, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1)
+    }
 }
