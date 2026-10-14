@@ -714,6 +714,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             onClick = { birthdayDialog = true },
                         )
                     }
+                    // Geschenk-Historie (PLAN 3.5), only once something was given.
+                    val gifts = io.github.thelony97.orbit.core.domain.BirthdayTab.giftHistory(c) { id -> idx.contacts[id]?.let { Logic.shortName(it) } }
+                    if (gifts.isNotEmpty()) {
+                        Text(
+                            "Geschenke · $gifts",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Space.TextFaint,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
                     c.anniversaries.sortedBy { Logic.daysUntil(it.date, todayDate) }.forEach { a ->
                         val days = Logic.daysUntil(a.date, todayDate)
                         val years = a.date.year?.let { Logic.nextOccurrence(a.date, todayDate).year - it }

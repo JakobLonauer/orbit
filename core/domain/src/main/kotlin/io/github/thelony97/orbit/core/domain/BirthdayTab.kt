@@ -72,6 +72,18 @@ object BirthdayTab {
     fun gift(c: Contact, occasionId: String, year: Int): io.github.thelony97.orbit.core.model.HistoryEntry? =
         c.entries.firstOrNull { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT && it.occasionId == occasionId && it.occasionYear == year }
 
+    /**
+     * Geschenk-Historie im Kontakt (PLAN 3.5): „2025: Buch (mit Tom) · 2024: Gutschein“, newest
+     * year first; [name] turns a co-giver's id into a short name.
+     */
+    fun giftHistory(c: Contact, name: (String) -> String?): String =
+        c.entries.filter { it.typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT && it.note.isNotBlank() }
+            .sortedWith(compareByDescending<io.github.thelony97.orbit.core.model.HistoryEntry> { it.occasionYear ?: 0 }.thenByDescending { it.at })
+            .joinToString(" · ") { e ->
+                val with = e.withIds.mapNotNull(name).takeIf { it.isNotEmpty() }?.joinToString(", ")
+                listOfNotNull(e.occasionYear?.let { "$it:" }, e.note.trim(), with?.let { "(mit $it)" }).joinToString(" ")
+            }
+
     /** People who recently gave a gift together with Jakob, most recent first – the chips under „Was?“. */
     fun coGivers(contacts: List<Contact>, limit: Int = 4): List<String> {
         val alive = contacts.filter { it.deletedAt == null && !it.archived }.map { it.id }.toSet()

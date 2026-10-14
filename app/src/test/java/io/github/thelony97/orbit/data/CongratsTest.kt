@@ -47,6 +47,16 @@ class CongratsTest {
         assertEquals(listOf("bea", "tom"), BirthdayTab.coGivers(contacts))
     }
 
+    @Test fun giftHistoryNewestYearFirst() {
+        val gifts = listOf(
+            Entry(id = "g1", contactId = "anna", typeId = BuiltinTypes.GIFT, at = 1L, note = "Gutschein", occasionYear = 2024),
+            Entry(id = "g2", contactId = "anna", typeId = BuiltinTypes.GIFT, at = 2L, note = "Buch", occasionYear = 2025, withIds = listOf("tom", "weg")),
+        )
+        val names = mapOf("tom" to "Tom")
+        assertEquals("2025: Buch (mit Tom) · 2024: Gutschein", BirthdayTab.giftHistory(anna.copy(entries = gifts)) { names[it] })
+        assertEquals("", BirthdayTab.giftHistory(anna) { names[it] })
+    }
+
     @Test fun secondTapTakesOnlyThisYearsTickAway() {
         val once = Mutations.toggleCongrats(doc, "anna", "bd", 2026)
         val twice = Mutations.toggleCongrats(once, "anna", "bd", 2026)
