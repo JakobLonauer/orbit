@@ -107,3 +107,29 @@ class MemberToContactTest {
         assertEquals("Berger" to "", Mutations.splitMemberName("Berger"))
     }
 }
+
+/** Review R4: a call both at the member and (synced) at the person is merged, its note kept. */
+class MemberMergeDuplicateTest {
+    @Test fun sameCallTwiceKeepsOneRowWithTheNote() {
+        val memberCall = Entry(id = "o1", contactId = "jku", typeId = TypeIds.CALL, at = 5, note = "Anrechnung", memberId = "m1", externalId = "call:5")
+        val personCall = Entry(id = "p1", contactId = "max", typeId = TypeIds.CALL, at = 5, externalId = "call:5")
+        val doc = OrbitData(contacts = listOf(
+            Contact(id = "jku", kind = io.github.thelony97.orbit.core.model.ContactKind.ORG,
+                members = listOf(io.github.thelony97.orbit.core.model.Member("m1", "Herr Mayer")), entries = listOf(memberCall)),
+            Contact(id = "max", firstName = "Max", entries = listOf(personCall)),
+        ))
+        val (d, _) = Mutations.memberToContact(doc, "jku", "m1", intoId = "max")
+        val max = d.contacts.first { it.id == "max" }
+        assertEquals(listOf("p1"), max.entries.map { it.id })
+        assertEquals("Anrechnung", max.entries.single().note)
+        assertEquals(emptyList<Entry>(), d.contacts.first { it.id == "jku" }.entries)
+    }
+
+    @Test fun editSaveKeepsMembersAddedMeanwhile() {
+        val stale = Contact(id = "jku", kind = io.github.thelony97.orbit.core.model.ContactKind.ORG, company = "JKU")
+        val now = stale.copy(members = listOf(io.github.thelony97.orbit.core.model.Member("m9", "Neu")))
+        val d = Mutations.upsertContact(OrbitData(contacts = listOf(now)), stale.copy(company = "JKU Linz"))
+        assertEquals("JKU Linz", d.contacts.single().company)
+        assertEquals(listOf("m9"), d.contacts.single().members.map { it.id })
+    }
+}

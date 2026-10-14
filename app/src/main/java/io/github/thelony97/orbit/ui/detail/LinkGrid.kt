@@ -219,9 +219,13 @@ fun LinkEditDialog(initial: Link, onDismiss: () -> Unit, onSave: (Link) -> Unit)
         confirmButton = {
             TextButton(enabled = url.text.isNotBlank(), onClick = {
                 val u = url.text.toString().trim()
+                val full = if (u.startsWith("http://") || u.startsWith("https://")) u else "https://$u"
+                // Another site: its logo is fetched anew.
+                val sameSite = linkHost(full) == linkHost(initial.url)
                 onSave(
                     initial.copy(
-                        url = if (u.startsWith("http://") || u.startsWith("https://")) u else "https://$u",
+                        url = full,
+                        logo = if (sameSite) initial.logo else null,
                         title = title.text.toString().trim(),
                         note = note.text.toString().trim(),
                         openWith = openWith,

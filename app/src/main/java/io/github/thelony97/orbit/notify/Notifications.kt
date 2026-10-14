@@ -367,6 +367,9 @@ object Notifications {
         val builder = base(ctx, CH_CALL)
             .setContentTitle("Gespräch mit ${Logic.displayName(contact, false)} ($minutes)")
             .setContentText(if (extension != null) "$extension · Mitarbeiter zuordnen?" else "Willst du eine Notiz festhalten?")
+            // Name and number only once the phone is unlocked.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(base(ctx, CH_CALL).setContentTitle("Gespräch beendet").build())
         if (note) builder.addAction(action)
         if (extension != null && contact.isOrg) {
             val memberIntent = Intent(ctx, NotificationActionReceiver::class.java).apply {

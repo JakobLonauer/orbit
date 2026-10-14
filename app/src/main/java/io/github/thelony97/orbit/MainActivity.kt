@@ -72,8 +72,12 @@ class MainActivity : FragmentActivity() {
         if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
             val images = buildList {
                 if (intent.type?.startsWith("image/") == true) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)?.let { add(it) }
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)?.let { addAll(it) }
+                    // One picture comes as a Uri, several as a list – never read one as the other.
+                    if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+                        runCatching { intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java) }.getOrNull()?.let { addAll(it) }
+                    } else {
+                        runCatching { intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java) }.getOrNull()?.let { add(it) }
+                    }
                 }
             }.distinct()
             val item = io.github.thelony97.orbit.core.domain.ShareIn.parse(

@@ -40,7 +40,8 @@ object NetworkLayout {
      * relation from the person to the organisation; [roleOf] reads its role from both sides.
      */
     fun links(data: OrbitData): List<Relation> =
-        data.relations + data.orgLinks.map { Relation(it.id, it.personId, it.orgId, ORG_KIND + it.role + ":" + it.label) }
+        // Two roles at one organisation are one line (the first role names it).
+        data.relations + data.orgLinks.distinctBy { it.personId to it.orgId }.map { Relation(it.id, it.personId, it.orgId, ORG_KIND + it.role + ":" + it.label) }
 
     fun build(data: OrbitData, root: Contact, depth: Int, include: (Contact) -> Boolean, lastFirst: Boolean = false): Network {
         val contacts = Logic.active(data).filter { it.id == root.id || include(it) }.associateBy { it.id }

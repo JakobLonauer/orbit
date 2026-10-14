@@ -72,6 +72,7 @@ import io.github.thelony97.orbit.ui.components.entryIcon
 import io.github.thelony97.orbit.ui.sheets.EntrySheet
 import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
+import kotlinx.coroutines.launch
 
 /**
  * Seite eines versteckten Mitarbeiters (PLAN 3.6): name, role, Durchwahl, Mail, dauerhafte Notiz
@@ -201,10 +202,22 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
             }
         }
     }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     if (promote) PromoteDialog(m, data, idx, onDismiss = { promote = false }) { intoId ->
-        val newId = newId()
-        OrbitRepository.edit { d -> Mutations.memberToContact(d, org.id, m.id, intoId = intoId, newContactId = newId).first }
-        nav.replace(Route.Detail(intoId ?: newId))
+        scope.launch {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                // Two saved steps: first the person exists on disk, only then the conversations
+                // move to them – a kill in between leaves everything at the member.
+                val personId = intoId ?: newId().also { id ->
+                    val (first, last) = Mutations.splitMemberName(m.name)
+                    OrbitRepository.update { d -> d.copy(contacts = d.contacts + io.github.thelony97.orbit.data.Contact(id = id, firstName = first, lastName = last, createdAt = io.github.thelony97.orbit.data.now())) }
+                    OrbitRepository.flush()
+                }
+                OrbitRepository.update { d -> Mutations.memberToContact(d, org.id, m.id, intoId = personId).first }
+                OrbitRepository.flush()
+                nav.replace(Route.Detail(personId))
+            }
+        }
     }
     if (editing) MemberEditDialog(m, onDismiss = { editing = false }) { changed ->
         OrbitRepository.edit { d -> Mutations.upsertMember(d, org.id, changed) }

@@ -31,9 +31,12 @@ fun LoadErrorScreen(error: Throwable) {
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) {
             val dir = ctx.filesDir
-            val source = File(dir, StoreUpgrade.BACKUP).takeIf { it.exists() }
-                ?: dir.listFiles { f -> f.name.startsWith("orbit-broken-") }?.maxByOrNull { it.lastModified() }
-                ?: File(dir, "orbit.json")
+            // The newest data first: the file that failed, then the copies from before each
+            // conversion (schema 2, then 1.0.7).
+            val source = dir.listFiles { f -> f.name.startsWith("orbit-broken-") }?.maxByOrNull { it.lastModified() }
+                ?: File(dir, "orbit.json").takeIf { it.exists() }
+                ?: File(dir, StoreUpgrade.BACKUP_V2).takeIf { it.exists() }
+                ?: File(dir, StoreUpgrade.BACKUP)
             runCatching {
                 ctx.contentResolver.openOutputStream(uri)?.use { out -> source.inputStream().use { it.copyTo(out) } }
             }

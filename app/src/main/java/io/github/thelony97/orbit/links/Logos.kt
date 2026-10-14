@@ -29,8 +29,10 @@ object Logos {
         if (!tried.add(linkId)) return@withContext null
         val host = runCatching { URL(if (url.startsWith("http")) url else "https://$url").host }.getOrNull()?.takeIf { it.isNotBlank() } ?: return@withContext null
         val candidates = listOf("apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico").map { "https://$host/$it" }
+        var offline = false
         for (c in candidates) {
-            val bmp = runCatching { download(c)?.let(::decode) }.getOrNull() ?: continue
+            val bytes = try { download(c) } catch (_: java.io.IOException) { offline = true; null }
+            val bmp = bytes?.let(::decode) ?: continue
             // Tiny 16-px favicons look worse than the symbol.
             if (bmp.width < 32 || bmp.height < 32) continue
             val name = fileName(linkId)
@@ -38,6 +40,8 @@ object Logos {
             OrbitRepository.photoFile(name).outputStream().use { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }
             return@withContext name
         }
+        // No network: try again on a later visit; a site without a logo is asked once only.
+        if (offline) tried.remove(linkId)
         null
     }
 
@@ -85,8 +89,14 @@ object Logos {
     }
 
     private fun decode(bytes: ByteArray): Bitmap? = runCatching {
-        ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { d, _, _ ->
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { d, info, _ ->
             d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            // A huge icon is decoded small right away (memory).
+            val longest = maxOf(info.size.width, info.size.height)
+            if (longest > 512) {
+                val f = 512f / longest
+                d.setTargetSize((info.size.width * f).toInt().coerceAtLeast(1), (info.size.height * f).toInt().coerceAtLeast(1))
+            }
         }
     }.getOrNull()
 }

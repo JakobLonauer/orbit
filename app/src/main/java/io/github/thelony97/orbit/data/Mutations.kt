@@ -16,7 +16,18 @@ object Mutations {
         val exists = d.contacts.any { it.id == c.id }
         return d.copy(
             contacts = if (exists) {
-                d.contacts.map { if (it.id == c.id) stamped.copy(entries = it.entries, gallery = it.gallery) else it }
+                d.contacts.map { cur ->
+                    if (cur.id != c.id) cur
+                    else stamped.copy(
+                        entries = cur.entries,
+                        gallery = cur.gallery,
+                        // Hidden members are edited on their own pages; a member added from a
+                        // notification meanwhile must survive this save.
+                        members = cur.members,
+                        // A logo fetched while the page was open stays (same address only).
+                        links = stamped.links.map { l -> if (l.logo == null) cur.links.firstOrNull { it.id == l.id && it.url == l.url }?.logo?.let { l.copy(logo = it) } ?: l else l },
+                    )
+                }
             } else {
                 d.contacts + stamped
             },
@@ -212,8 +223,14 @@ object Mutations {
         val target = intoId?.let { id -> d.contacts.firstOrNull { it.id == id && !it.isOrg && it.deletedAt == null } }
         if (intoId != null && target == null) return d to null
         val personId = target?.id ?: newContactId
-        val moved = org.entries.filter { it.memberId == m.id }.map { it.copy(contactId = personId, memberId = null) }
-        val movedIds = moved.mapTo(HashSet()) { it.id }
+        val talks = org.entries.filter { it.memberId == m.id }
+        // A call the person already has (synced from the same number) is one call: its note goes
+        // onto the person's entry instead of a second row the database would refuse.
+        val targetByExt = target?.entries.orEmpty().filter { it.externalId != null }.associateBy { it.externalId }
+        val duplicates = talks.filter { it.externalId != null && targetByExt.containsKey(it.externalId) }
+        val moved = (talks - duplicates.toSet()).map { it.copy(contactId = personId, memberId = null) }
+        val movedIds = talks.mapTo(HashSet()) { it.id }
+        val notesFor = duplicates.filter { it.note.isNotBlank() }.associate { targetByExt.getValue(it.externalId)!!.id to it.note }
         fun merge(old: List<LabeledValue>, add: List<LabeledValue>): List<LabeledValue> {
             val have = old.map { v -> v.value.filter { it.isLetterOrDigit() }.lowercase() }.toSet()
             return old + add.filter { v -> v.value.isNotBlank() && v.value.filter { it.isLetterOrDigit() }.lowercase() !in have }
@@ -224,7 +241,9 @@ object Mutations {
                 emails = merge(target.emails, m.emails),
                 notes = listOf(target.notes, m.note).filter { it.isNotBlank() }.joinToString("\n"),
                 photo = target.photo ?: m.photo,
-                entries = (target.entries + moved).sortedByDescending { it.at },
+                entries = (target.entries.map { e ->
+                    notesFor[e.id]?.let { n -> if (n in e.note) e else e.copy(note = listOf(e.note, n).filter { it.isNotBlank() }.joinToString("\n")) } ?: e
+                } + moved).sortedByDescending { it.at },
                 updatedAt = at,
             )
         } else {
@@ -252,7 +271,7 @@ object Mutations {
     }
 
     /** „Herr Mayer“ → („“, „Mayer“), „Anna Maria Huber“ → („Anna Maria“, „Huber“). */
-    internal fun splitMemberName(name: String): Pair<String, String> {
+    fun splitMemberName(name: String): Pair<String, String> {
         val titles = setOf("herr", "frau", "hr", "fr", "dr", "mag", "di", "ing", "prof")
         val parts = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         val words = parts.filterNot { it.lowercase().trimEnd('.') in titles }

@@ -171,9 +171,11 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val quickPull = remember { androidx.compose.animation.core.Animatable(0f) }
     var drawer by remember { mutableStateOf(false) }
     val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
-    val belongsTo = remember(query, data.contacts) {
+    // Built once per data change, not per keystroke.
+    val numberMatcher = remember(data.contacts) { io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso) }
+    val belongsTo = remember(query, numberMatcher) {
         if (query.count { it.isDigit() } < 6 || query.any { it.isLetter() }) null
-        else io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso).matchCall(query)
+        else numberMatcher.matchCall(query)
             ?.takeIf { !it.archived && it.via != io.github.thelony97.orbit.core.domain.Matcher.Via.NUMBER }
             ?.let { m -> data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived } }
     }
