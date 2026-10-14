@@ -253,6 +253,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     fun links(c: Contact) {
         LinkGrid(
             c.links,
+            ownerId = c.id,
             onEdit = { linkEdit = it },
             onChange = { list -> edit { it.copy(links = list) } },
             onRemove = { l ->

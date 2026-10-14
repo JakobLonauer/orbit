@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +85,8 @@ private val TILE_COLORS = listOf(Space.Blue, Space.Violet, Space.Teal, Space.Ora
 @Composable
 fun LinkGrid(
     links: List<Link>,
+    /** The contact the links belong to (for the logo once it is loaded). */
+    ownerId: String,
     onEdit: (Link) -> Unit,
     onChange: (List<Link>) -> Unit,
     onRemove: (Link) -> Unit,
@@ -92,7 +95,7 @@ fun LinkGrid(
     Column(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         links.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { l -> LinkTileView(l, links, onEdit, onChange, onRemove, Modifier.weight(1f)) }
+                row.forEach { l -> LinkTileView(l, ownerId, links, onEdit, onChange, onRemove, Modifier.weight(1f)) }
                 // Keep three columns on the last row.
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -104,6 +107,7 @@ fun LinkGrid(
 @Composable
 private fun LinkTileView(
     l: Link,
+    ownerId: String,
     all: List<Link>,
     onEdit: (Link) -> Unit,
     onChange: (List<Link>) -> Unit,
@@ -114,6 +118,15 @@ private fun LinkTileView(
     var menu by remember { mutableStateOf(false) }
     val tint = TILE_COLORS[(linkHost(l.url).hashCode() and 0x7fffffff) % TILE_COLORS.size]
     val shape = RoundedCornerShape(16.dp)
+    // Echtes Logo (PLAN 1.3): loaded once, then from the file.
+    androidx.compose.runtime.LaunchedEffect(l.id, l.url, l.logo == null) {
+        if (l.logo == null) {
+            io.github.thelony97.orbit.links.Logos.fetch(l.id, l.url)?.let { name ->
+                io.github.thelony97.orbit.data.OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.setLinkLogo(d, ownerId, l.id, name) }
+            }
+        }
+    }
+    val logo = io.github.thelony97.orbit.ui.components.rememberPhoto(l.logo)
     Box(modifier) {
         Column(
             Modifier
@@ -126,8 +139,12 @@ private fun LinkTileView(
                 .padding(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(18.dp))
+                Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(if (logo != null) Color.White else tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                    if (logo != null) {
+                        androidx.compose.foundation.Image(logo, null, modifier = Modifier.size(30.dp), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    } else {
+                        Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(18.dp))
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 if (l.pinned) Icon(Icons.Rounded.PushPin, "Angepinnt", tint = Space.Orange, modifier = Modifier.size(14.dp))
@@ -163,7 +180,12 @@ private fun pinToHome(ctx: android.content.Context, l: Link) {
     val uri = android.net.Uri.parse(if (raw.startsWith("http")) raw else "https://$raw")
     val info = androidx.core.content.pm.ShortcutInfoCompat.Builder(ctx, "link-" + l.id)
         .setShortLabel(l.title.ifBlank { linkHost(l.url) }.take(24))
-        .setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, io.github.thelony97.orbit.R.mipmap.ic_launcher))
+        // Mit Logo (PLAN 1.3) once it is there, Orbit's icon otherwise.
+        .setIcon(
+            l.logo?.let { runCatching { android.graphics.BitmapFactory.decodeFile(io.github.thelony97.orbit.data.OrbitRepository.photoFile(it).path) }.getOrNull() }
+                ?.let { androidx.core.graphics.drawable.IconCompat.createWithAdaptiveBitmap(padForAdaptive(it)) }
+                ?: androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, io.github.thelony97.orbit.R.mipmap.ic_launcher),
+        )
         .setIntent(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
         .build()
     if (!androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(ctx, info, null)) {
@@ -228,8 +250,25 @@ fun QuickLinkChip(l: Link, onClick: () -> Unit, onLongClick: () -> Unit) {
             .padding(start = 10.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(16.dp))
+        val logo = io.github.thelony97.orbit.ui.components.rememberPhoto(l.logo)
+        if (logo != null) {
+            androidx.compose.foundation.Image(logo, null, modifier = Modifier.size(18.dp).clip(RoundedCornerShape(5.dp)))
+        } else {
+            Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(16.dp))
+        }
         Spacer(Modifier.size(8.dp))
         Text(l.title.ifBlank { linkHost(l.url) }, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1)
     }
+}
+
+/** Adaptive icons crop the outer third: the logo sits centred on white inside the safe zone. */
+private fun padForAdaptive(logo: android.graphics.Bitmap): android.graphics.Bitmap {
+    val size = 216
+    val out = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(out)
+    canvas.drawColor(android.graphics.Color.WHITE)
+    val inner = 96
+    val off = ((size - inner) / 2).toFloat()
+    canvas.drawBitmap(android.graphics.Bitmap.createScaledBitmap(logo, inner, inner, true), off, off, null)
+    return out
 }

@@ -118,7 +118,7 @@ object Mutations {
     }
 
     /** All picture files that belong to a contact (profile photo and photo folder). */
-    fun files(c: Contact): List<String> = listOfNotNull(c.photo) + c.gallery.map { it.file }
+    fun files(c: Contact): List<String> = listOfNotNull(c.photo) + c.gallery.map { it.file } + c.links.mapNotNull { it.logo }
 
     fun addEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->
@@ -162,6 +162,13 @@ object Mutations {
         if (d.orgLinks.any { it.personId == personId && it.orgId == orgId && it.role == role && it.label == text }) return d
         return d.copy(orgLinks = d.orgLinks + io.github.thelony97.orbit.core.model.OrgLink(newId(), personId, orgId, role, text))
     }
+
+    /** A fetched site logo for a link tile (PLAN 3.7); the link may have gone meanwhile. */
+    fun setLinkLogo(d: OrbitData, ownerId: String, linkId: String, file: String): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != ownerId || c.links.none { it.id == linkId }) c
+            else c.copy(links = c.links.map { if (it.id == linkId) it.copy(logo = file) else it })
+        })
 
     fun removeOrgLink(d: OrbitData, linkId: String): OrbitData =
         d.copy(orgLinks = d.orgLinks.filterNot { it.id == linkId })
