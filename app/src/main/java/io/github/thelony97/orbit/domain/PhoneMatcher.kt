@@ -33,7 +33,7 @@ object Phones {
 }
 
 /** Maps phone numbers to contacts. Exact E.164 match first, then the last nine digits. */
-class PhoneMatcher(contacts: List<Contact>, private val iso: String) {
+class PhoneMatcher(private val contacts: List<Contact>, private val iso: String) {
     private val exact = HashMap<String, String>()
     private val byTail = HashMap<String, MutableSet<String>>()
 
@@ -57,4 +57,12 @@ class PhoneMatcher(contacts: List<Contact>, private val iso: String) {
     }
 
     fun key(raw: String?): String? = raw?.let { Phones.normalize(it, iso) }
+
+    /**
+     * For calls (PLAN 3.6 Regeln): the Zuordnungs-Maschine – a person's or organisation's own
+     * number first, then a hidden member's Durchwahl, then an organisation's number range.
+     */
+    private val machine by lazy { io.github.thelony97.orbit.core.domain.Matcher(contacts) { Phones.normalize(it, iso) } }
+
+    fun matchCall(raw: String?): io.github.thelony97.orbit.core.domain.Matcher.Match? = machine.matchNumber(raw)
 }

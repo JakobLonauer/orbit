@@ -157,7 +157,9 @@ object SyncEngine {
         }
 
         for (call in calls) {
-            val contactId = matcher.match(call.number)
+            // A member's Durchwahl lands at the organisation with the member („Anruf · Empfang“).
+            val hit = matcher.matchCall(call.number)
+            val contactId = hit?.contactId
             if (contactId == null) {
                 if (call.type != CallLog.Calls.BLOCKED_TYPE) noteUnknown(call.number, call.date, call.cachedName, true)
                 continue
@@ -177,6 +179,7 @@ object SyncEngine {
                 durationSec = call.duration,
                 incoming = call.type != CallLog.Calls.OUTGOING_TYPE,
                 externalId = ext,
+                memberId = hit?.memberId,
             )
             added.getOrPut(contactId) { mutableListOf() } += entry
             newCalls += NewCall(contactId, entry)

@@ -132,6 +132,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val notes = remember { TextFieldState(original.notes) }
     val pinnedNote = remember { TextFieldState(original.pinnedNote) }
     val hours = remember { TextFieldState(original.openingHours) }
+    val prefixes = remember { TextFieldState(original.numberPrefixes.joinToString(", ")) }
+    val domains = remember { TextFieldState(original.emailDomains.joinToString(", ")) }
     val links = remember { mutableStateListOf<PairRow>().apply { original.links.forEach { add(PairRow(it.id, it.title, it.url)) } } }
     val fields = remember { mutableStateListOf<PairRow>().apply { original.fields.forEach { add(PairRow(it.id, it.label, it.value)) } } }
     var kind by remember { mutableStateOf(original.kind) }
@@ -177,6 +179,9 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             notes = notes.text.toString().trim(),
             pinnedNote = pinnedNote.text.toString().trim(),
             openingHours = if (kind == ContactKind.ORG) hours.text.toString().trim() else original.openingHours,
+            // Regeln (PLAN 3.6): numbers and mail addresses that belong to the organisation.
+            numberPrefixes = if (kind == ContactKind.ORG) splitList(prefixes.text.toString()) else original.numberPrefixes,
+            emailDomains = if (kind == ContactKind.ORG) splitList(domains.text.toString()).map { it.lowercase().removePrefix("@") } else original.emailDomains,
             // Rows keep their id, so note, logo and "open with" of a link survive editing.
             links = links.mapNotNull { row ->
                 val url = row.second.text.toString().trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
@@ -393,6 +398,13 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     )
                 }
 
+                if (isOrg) GlassCard {
+                    SectionTitle("Regeln")
+                    SpaceField(prefixes, "Nummernbereich", placeholder = "0732 2468")
+                    Spacer(Modifier.size(8.dp))
+                    SpaceField(domains, "E-Mail-Domain", placeholder = "jku.at")
+                }
+
                 // Öffnungszeiten (PLAN 3.6), shown live on the page; the line below is what it will say now.
                 if (isOrg) GlassCard {
                     SectionTitle("Öffnungszeiten")
@@ -583,3 +595,6 @@ private fun PairList(
         }
     }
 }
+
+/** „0732 2468, 0732 2469“ → two entries; empty pieces dropped. */
+private fun splitList(text: String): List<String> = text.split(',', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
