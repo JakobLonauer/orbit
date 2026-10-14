@@ -46,6 +46,12 @@ object Mutations {
             }
         })
 
+    /** A gift idea was given (PLAN 3.5 „Geschenkideen antippen = in diesem Jahr verschenkt“): tick it off. */
+    fun giveIdea(d: OrbitData, contactId: String, ideaId: String): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != contactId) c else c.copy(gifts = c.gifts.map { if (it.id == ideaId) it.copy(done = true) else it })
+        })
+
     /** „Gratuliert“ from the Gratulieren button: only ever adds, decided inside the transform. */
     fun markCongrats(d: OrbitData, contactId: String, occasionId: String, year: Int, at: Long = now()): OrbitData {
         val c = d.contacts.firstOrNull { it.id == contactId } ?: return d

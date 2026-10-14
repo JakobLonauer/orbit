@@ -66,6 +66,15 @@ class CongratsTest {
         assertEquals(BuiltinTypes.CONGRATS, twice.contacts.first { it.id == "anna" }.entries.first().typeId)
     }
 
+    @Test fun givenIdeaIsTickedOffOnlyThere() {
+        val withIdeas = doc.copy(contacts = doc.contacts.map {
+            if (it.id == "anna") it.copy(gifts = listOf(CheckItem("i1", "Buch"), CheckItem("i2", "Tee"))) else it
+        })
+        val d = Mutations.giveIdea(withIdeas, "anna", "i1")
+        assertEquals(listOf(true, false), d.contacts.first { it.id == "anna" }.gifts.map { it.done })
+        assertEquals(withIdeas.contacts.first { it.id == "tom" }, d.contacts.first { it.id == "tom" })
+    }
+
     @Test fun secondTapTakesOnlyThisYearsTickAway() {
         val once = Mutations.toggleCongrats(doc, "anna", "bd", 2026)
         val twice = Mutations.toggleCongrats(once, "anna", "bd", 2026)

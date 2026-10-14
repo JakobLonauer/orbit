@@ -392,7 +392,11 @@ private fun BirthdayRow(
     }
     // „Was?“ opens in the row, Enter saves and closes (PLAN 3.5: no dialog).
     androidx.compose.animation.AnimatedVisibility(editing) {
-        GiftLine(gift, coGivers, lastFirst) { what, with ->
+        GiftLine(gift, coGivers, lastFirst, ideas = c.gifts.filterNot { it.done }, onIdea = { idea, with ->
+            onGift(idea.text, with)
+            io.github.thelony97.orbit.data.OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.giveIdea(d, c.id, idea.id) }
+            editing = false
+        }) { what, with ->
             onGift(what, with)
             editing = false
         }
@@ -425,7 +429,14 @@ private fun DateTile(date: LocalDate, today: Boolean, past: Boolean) {
 }
 
 @Composable
-private fun GiftLine(gift: io.github.thelony97.orbit.core.model.HistoryEntry?, coGivers: List<Contact>, lastFirst: Boolean, onSave: (String, List<String>) -> Unit) {
+private fun GiftLine(
+    gift: io.github.thelony97.orbit.core.model.HistoryEntry?,
+    coGivers: List<Contact>,
+    lastFirst: Boolean,
+    ideas: List<io.github.thelony97.orbit.core.model.CheckItem> = emptyList(),
+    onIdea: (io.github.thelony97.orbit.core.model.CheckItem, List<String>) -> Unit = { _, _ -> },
+    onSave: (String, List<String>) -> Unit,
+) {
     val what = androidx.compose.foundation.text.input.rememberTextFieldState(gift?.note.orEmpty())
     var with by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(gift?.withIds.orEmpty()) }
     Column(Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -441,6 +452,14 @@ private fun GiftLine(gift: io.github.thelony97.orbit.core.model.HistoryEntry?, c
             shape = Corners.Row,
             modifier = Modifier.fillMaxWidth(),
         )
+        // The person's open gift ideas: one tap = given this year (and ticked off as an idea).
+        if (ideas.isNotEmpty() && gift == null) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ideas.take(6).forEach { idea ->
+                    io.github.thelony97.orbit.ui.components.SpaceChip(idea.text, false, { onIdea(idea, with) }, leading = androidx.compose.material.icons.Icons.Rounded.CardGiftcard, accent = Space.Orange)
+                }
+            }
+        }
         if (coGivers.isNotEmpty()) {
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 coGivers.forEach { p ->
