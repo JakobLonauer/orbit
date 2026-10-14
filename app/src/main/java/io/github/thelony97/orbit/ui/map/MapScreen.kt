@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -142,8 +143,14 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
     val withoutAddress = remember(data, audience) { Logic.others(data).count { audience.accepts(it) && !it.archived && it.address.isBlank() } }
     val mePoint = Logic.me(data)?.let { Geo.point(it) }
 
-    // Look up coordinates for new or changed addresses.
-    LaunchedEffect(Unit) {
+    // Offline (PLAN 1.4): say what is missing in one line, fetch it once the network is back.
+    val online by io.github.thelony97.orbit.ui.components.rememberOnline()
+    // Look up coordinates for new or changed addresses (again when the network returns).
+    LaunchedEffect(online) {
+        if (!online) {
+            progress = null
+            return@LaunchedEffect
+        }
         Geo.refreshAll(ctx) { done, total -> progress = if (done < total) done to total else null }
     }
 
@@ -175,6 +182,16 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
     val bottomInset = with(density) { (BottomBarSpace + 8.dp).roundToPx() }
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     val popScope = androidx.compose.runtime.rememberCoroutineScope()
+    fun loadStyle(m: org.maplibre.android.maps.MapLibreMap) {
+        m.setStyle(Style.Builder().fromUri(STYLE_URL)) { st ->
+            addLayers(st)
+            style = st
+        }
+    }
+    // Back online without a loaded style: load it now instead of leaving a blank map.
+    LaunchedEffect(online) {
+        if (online && style == null) mapView.getMapAsync { m -> if (style == null) loadStyle(m) }
+    }
     LaunchedEffect(mapView) {
         mapView.getMapAsync { m ->
             m.uiSettings.apply {
@@ -188,10 +205,7 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 setAttributionTintColor(Space.TextDim.toArgb())
             }
             m.cameraPosition = CameraPosition.Builder().target(LatLng(48.2, 13.5)).zoom(4.6).build()
-            m.setStyle(Style.Builder().fromUri(STYLE_URL)) { st ->
-                addLayers(st)
-                style = st
-            }
+            loadStyle(m)
             m.addOnMapClickListener { latLng ->
                 val pt = m.projection.toScreenLocation(latLng)
                 val hits = m.queryRenderedFeatures(pt, L_CONTACTS)
@@ -307,6 +321,8 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .glass(RoundedCornerShape(20.dp), tint = Space.PanelHigh, border = Space.LineStrong)
+                // Offline line and address progress come and go without a jump (W2).
+                .animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.snappy())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,6 +346,14 @@ fun MapScreen(data: OrbitData, idx: Index, nav: Nav) {
                 )
                 Spacer(Modifier.width(6.dp))
                 OrbButton(Icons.Rounded.ZoomOutMap, "Alle zeigen", { Session.mapFocus = null; fitRequest++ }, size = 34.dp)
+            }
+            if (!online) {
+                Text(
+                    if (style == null) "Offline · Karte lädt, sobald Netz da ist" else "Offline · neue Adressen werden später gesucht",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Space.Violet,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
             progress?.let { (done, total) ->
                 Text("Adressen werden gesucht … $done/$total", style = MaterialTheme.typography.labelMedium, color = Space.Violet, modifier = Modifier.padding(top = 6.dp))
