@@ -313,7 +313,7 @@ private fun MissingBirthdayRow(c: Contact, lastFirst: Boolean, todayDate: LocalD
                     haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Reject)
                 } else {
                     haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
-                    io.github.thelony97.orbit.data.OrbitRepository.editContact(c.id) { it.withBirthday(day, io.github.thelony97.orbit.data::newId) }
+                    io.github.thelony97.orbit.data.OrbitRepository.editContact(c.id) { it.withBirthday(day) { io.github.thelony97.orbit.data.newId() } }
                 }
             },
             shape = Corners.Row,
