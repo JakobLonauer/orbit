@@ -195,6 +195,69 @@ object Mutations {
     }
 
     /**
+     * „Zu eigenem Kontakt machen“ (PLAN 3.6): the hidden member becomes a person – new, or merged
+     * into [intoId]. Conversations and note move along (the entries keep their ids), and the
+     * Zuordnung to the organisation is created with the member's role. Returns the person's id.
+     */
+    fun memberToContact(d: OrbitData, orgId: String, memberId: String, intoId: String? = null, newContactId: String = newId(), at: Long = now()): Pair<OrbitData, String?> {
+        val org = d.contacts.firstOrNull { it.id == orgId && it.isOrg } ?: return d to null
+        val m = org.members.firstOrNull { it.id == memberId } ?: return d to null
+        val target = intoId?.let { id -> d.contacts.firstOrNull { it.id == id && !it.isOrg && it.deletedAt == null } }
+        if (intoId != null && target == null) return d to null
+        val personId = target?.id ?: newContactId
+        val moved = org.entries.filter { it.memberId == m.id }.map { it.copy(contactId = personId, memberId = null) }
+        val movedIds = moved.mapTo(HashSet()) { it.id }
+        fun merge(old: List<LabeledValue>, add: List<LabeledValue>): List<LabeledValue> {
+            val have = old.map { v -> v.value.filter { it.isLetterOrDigit() }.lowercase() }.toSet()
+            return old + add.filter { v -> v.value.isNotBlank() && v.value.filter { it.isLetterOrDigit() }.lowercase() !in have }
+        }
+        val person = if (target != null) {
+            target.copy(
+                phones = merge(target.phones, m.phones),
+                emails = merge(target.emails, m.emails),
+                notes = listOf(target.notes, m.note).filter { it.isNotBlank() }.joinToString("\n"),
+                photo = target.photo ?: m.photo,
+                entries = (target.entries + moved).sortedByDescending { it.at },
+                updatedAt = at,
+            )
+        } else {
+            val (first, last) = splitMemberName(m.name)
+            Contact(
+                id = personId, firstName = first, lastName = last, phones = m.phones, emails = m.emails,
+                notes = m.note, photo = m.photo, entries = moved.sortedByDescending { it.at }, createdAt = at, updatedAt = at,
+            )
+        }
+        val role = m.role.trim()
+        val link = io.github.thelony97.orbit.core.model.OrgLink(
+            newId(), personId, orgId,
+            role = if (role.isEmpty()) "employer" else io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM,
+            label = role,
+        )
+        val contacts = d.contacts.map { c ->
+            when (c.id) {
+                orgId -> c.copy(members = c.members.filterNot { it.id == m.id }, entries = c.entries.filterNot { it.id in movedIds })
+                personId -> person
+                else -> c
+            }
+        } + if (target == null) listOf(person) else emptyList()
+        val links = if (d.orgLinks.any { it.personId == personId && it.orgId == orgId }) d.orgLinks else d.orgLinks + link
+        return d.copy(contacts = contacts, orgLinks = links) to personId
+    }
+
+    /** „Herr Mayer“ → („“, „Mayer“), „Anna Maria Huber“ → („Anna Maria“, „Huber“). */
+    internal fun splitMemberName(name: String): Pair<String, String> {
+        val titles = setOf("herr", "frau", "hr", "fr", "dr", "mag", "di", "ing", "prof")
+        val parts = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val words = parts.filterNot { it.lowercase().trimEnd('.') in titles }
+        return when {
+            words.isEmpty() -> "" to name.trim()
+            words.size == 1 && parts.size > words.size -> "" to words.single()
+            words.size == 1 -> words.single() to ""
+            else -> words.dropLast(1).joinToString(" ") to words.last()
+        }
+    }
+
+    /**
      * Removes a member; their conversations stay with the organisation (without the name), so
      * nothing written is lost.
      */

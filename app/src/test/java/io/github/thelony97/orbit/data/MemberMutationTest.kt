@@ -54,3 +54,56 @@ class MemberFromCallTest {
         assertEquals(doc, Mutations.memberFromCall(doc, "jku", "weg", "Herr X", "0732 9"))
     }
 }
+
+/** „Zu eigenem Kontakt machen“ (PLAN 3.6): nothing written about the member is lost. */
+class MemberToContactTest {
+    private val talk1 = Entry(id = "e1", contactId = "jku", typeId = TypeIds.CALL, at = 5, note = "Anrechnung", memberId = "m1")
+    private val talk2 = Entry(id = "e2", contactId = "jku", typeId = TypeIds.MEET, at = 9, memberId = "m1")
+    private val other = Entry(id = "e3", contactId = "jku", typeId = TypeIds.CALL, at = 7)
+    private val mayer = io.github.thelony97.orbit.core.model.Member(
+        "m1", "Herr Mayer", role = "Studienservice", note = "Spricht schnell",
+        phones = listOf(LabeledValue("Durchwahl", "0732 2468 1234")), emails = listOf(LabeledValue("Arbeit", "mayer@jku.at")),
+    )
+    private val doc = OrbitData(contacts = listOf(
+        Contact(id = "jku", kind = io.github.thelony97.orbit.core.model.ContactKind.ORG, members = listOf(mayer), entries = listOf(talk2, other, talk1)),
+        Contact(id = "max", firstName = "Max", lastName = "Mayer", phones = listOf(LabeledValue("Mobil", "0660 1")), emails = listOf(LabeledValue("Privat", "MAYER@jku.at")), notes = "Nachbar"),
+    ))
+
+    @Test fun newPersonTakesConversationsNoteAndGetsTheZuordnung() {
+        val (d, id) = Mutations.memberToContact(doc, "jku", "m1", newContactId = "p1", at = 100)
+        assertEquals("p1", id)
+        val jku = d.contacts.first { it.id == "jku" }
+        assertEquals(emptyList<io.github.thelony97.orbit.core.model.Member>(), jku.members)
+        assertEquals(listOf("e3"), jku.entries.map { it.id })
+        val p = d.contacts.first { it.id == "p1" }
+        assertEquals("" to "Mayer", p.firstName to p.lastName)
+        assertEquals(listOf("e2", "e1"), p.entries.map { it.id })
+        assertEquals(listOf("p1", "p1"), p.entries.map { it.contactId })
+        assertEquals(listOf(null, null), p.entries.map { it.memberId })
+        assertEquals("Spricht schnell", p.notes)
+        assertEquals("0732 2468 1234", p.phones.single().value)
+        val link = d.orgLinks.single()
+        assertEquals(Triple("p1", "jku", "custom"), Triple(link.personId, link.orgId, link.role))
+        assertEquals("Studienservice", link.label)
+    }
+
+    @Test fun mergeIntoExistingKeepsTheirDataAndAddsOnlyNew() {
+        val (d, id) = Mutations.memberToContact(doc, "jku", "m1", intoId = "max", at = 100)
+        assertEquals("max", id)
+        val max = d.contacts.first { it.id == "max" }
+        assertEquals(listOf("0660 1", "0732 2468 1234"), max.phones.map { it.value })
+        // Same address in another case is no second one.
+        assertEquals(1, max.emails.size)
+        assertEquals("Nachbar\nSpricht schnell", max.notes)
+        assertEquals(listOf("e2", "e1"), max.entries.map { it.id })
+        assertEquals(2, d.contacts.size)
+    }
+
+    @Test fun unknownTargetsChangeNothing() {
+        assertEquals(doc to null, Mutations.memberToContact(doc, "jku", "weg"))
+        assertEquals(doc to null, Mutations.memberToContact(doc, "jku", "m1", intoId = "jku"))
+        assertEquals("" to "Huber", Mutations.splitMemberName("Frau Huber"))
+        assertEquals("Anna Maria" to "Huber", Mutations.splitMemberName("Anna Maria Huber"))
+        assertEquals("Berger" to "", Mutations.splitMemberName("Berger"))
+    }
+}

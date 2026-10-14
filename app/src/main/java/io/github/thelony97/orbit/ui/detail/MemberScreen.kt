@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,14 +82,20 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
     val org = idx.contacts[orgId]?.takeIf { it.isOrg && it.deletedAt == null }
     val m = org?.members?.firstOrNull { it.id == memberId }
     if (org == null || m == null) {
-        // Removed meanwhile (or the organisation is gone): back to where it came from.
-        androidx.compose.runtime.LaunchedEffect(Unit) { nav.back() }
+        // Removed or turned into a contact meanwhile. No automatic back: during the exit
+        // animation that would pop the page we just went to.
+        SpaceBackground {
+            Box(Modifier.fillMaxSize().statusBarsPadding(), contentAlignment = Alignment.Center) {
+                EmptyHint("Nicht mehr hier", "", action = "Zurück" to { nav.back() })
+            }
+        }
         return
     }
     val ctx = LocalContext.current
     var editing by remember { mutableStateOf(false) }
     var newEntry by remember { mutableStateOf(false) }
     var openEntry by remember { mutableStateOf<io.github.thelony97.orbit.data.Entry?>(null) }
+    var promote by remember { mutableStateOf(false) }
     val talks = Members.talks(org, m.id)
     SpaceBackground {
         LazyColumn(
@@ -172,6 +179,9 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
                     }
                 }
             }
+            item(key = "promote") {
+                GhostButton("Zu eigenem Kontakt machen", { promote = true }, icon = Icons.Rounded.PersonAdd, modifier = Modifier.padding(horizontal = 16.dp))
+            }
             item(key = "remove") {
                 GhostButton("Mitarbeiter entfernen", {
                     val original = m
@@ -190,6 +200,11 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
                 }, icon = Icons.Rounded.Delete, color = Space.Coral, modifier = Modifier.padding(horizontal = 16.dp).navigationBarsPadding())
             }
         }
+    }
+    if (promote) PromoteDialog(m, data, idx, onDismiss = { promote = false }) { intoId ->
+        val newId = newId()
+        OrbitRepository.edit { d -> Mutations.memberToContact(d, org.id, m.id, intoId = intoId, newContactId = newId).first }
+        nav.replace(Route.Detail(intoId ?: newId))
     }
     if (editing) MemberEditDialog(m, onDismiss = { editing = false }) { changed ->
         OrbitRepository.edit { d -> Mutations.upsertMember(d, org.id, changed) }
@@ -281,4 +296,50 @@ fun addMemberFromText(orgId: String, text: String): String? {
     val id = newId()
     OrbitRepository.edit { d -> Mutations.upsertMember(d, orgId, Member(id, name, role = role)) }
     return id
+}
+
+/**
+ * „Zu eigenem Kontakt machen“: a new contact, or „Mit bestehendem Kontakt zusammenführen“ –
+ * conversations and note go along, the Zuordnung to the organisation comes by itself.
+ */
+@Composable
+private fun PromoteDialog(m: Member, data: OrbitData, idx: Index, onDismiss: () -> Unit, onPick: (String?) -> Unit) {
+    var into by remember { mutableStateOf<String?>(null) }
+    var merging by remember { mutableStateOf(false) }
+    val search = rememberTextFieldState(m.name.split(' ').lastOrNull().orEmpty())
+    val q = search.text.toString()
+    val people = Logic.active(data).filter { !it.isOrg && !it.isMe && !it.archived && Logic.matches(it, q, idx) }
+        .sortedBy { Logic.sortKey(it, data.settings.sortByLastName) }.take(30)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(m.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Neuer Kontakt", !merging, { merging = false; into = null })
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Zusammenführen", merging, { merging = true })
+                }
+                if (merging) {
+                    OutlinedTextField(state = search, placeholder = { Text("Person") }, lineLimits = TextFieldLineLimits.SingleLine, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
+                    LazyColumn(Modifier.heightIn(max = 240.dp)) {
+                        items(people, key = { it.id }) { p ->
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { into = p.id }.padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                androidx.compose.material3.RadioButton(selected = into == p.id, onClick = { into = p.id })
+                                Spacer(Modifier.width(6.dp))
+                                Text(Logic.displayName(p, data.settings.sortByLastName), color = Space.Text)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !merging || into != null, onClick = { onPick(if (merging) into else null); onDismiss() }) { Text("Übernehmen") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
 }
