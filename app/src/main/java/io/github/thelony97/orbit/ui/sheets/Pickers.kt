@@ -36,6 +36,8 @@ fun DateDialog(
     initial: LocalDate,
     onDismiss: () -> Unit,
     onPick: (LocalDate) -> Unit,
+    /** Shown as „Entfernen“ when the value can be taken away again. */
+    onClear: (() -> Unit)? = null,
 ) {
     val state = rememberDatePickerState(initialSelectedDateMillis = initial.utcMillis())
     DatePickerDialog(
@@ -46,7 +48,12 @@ fun DateDialog(
                 onDismiss()
             }) { Text("OK") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = {
+            androidx.compose.foundation.layout.Row {
+                if (onClear != null) TextButton(onClick = { onClear(); onDismiss() }) { Text("Entfernen", color = io.github.thelony97.orbit.ui.theme.Space.Coral) }
+                TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            }
+        },
     ) {
         DatePicker(state = state)
     }

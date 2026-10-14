@@ -78,7 +78,7 @@ class ScreensScreenshotTest {
             Contact("anna", firstName = "Anna", lastName = "Berger", groupIds = listOf("fr"), favorite = true,
                 phones = listOf(LabeledValue("Mobil", "+43 660 1234567")),
                 position = "Lehrerin",
-                topics = listOf(CheckItem("t1", "Wohnung in Wien?")),
+                topics = listOf(CheckItem("t1", "Wohnung in Wien?"), CheckItem("t2", "Konzertkarten fürs Frühjahr", remindOn = "2026-10-20")),
                 gifts = listOf(CheckItem("g1", "Bücher von Zweig")),
                 entries = listOf(e("a1", TypeIds.CALL, 0, sec = 754, incoming = true), e("a2", TypeIds.MEET, 6, "Kaffee am Hauptplatz"), e("a3", TypeIds.MESSAGE, 2)))
                 .withBirthday(inDays(0)) { "bd-anna" },

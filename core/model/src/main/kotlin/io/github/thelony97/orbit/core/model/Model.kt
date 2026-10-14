@@ -41,6 +41,8 @@ data class CheckItem(
     val text: String,
     val done: Boolean = false,
     val createdAt: Long = 0,
+    /** PLAN 3.3 „Themen optional mit Datum“: ISO day (2026-10-20) the morning notification names it; null = none. */
+    val remindOn: String? = null,
 )
 
 @Serializable

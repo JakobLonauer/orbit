@@ -35,6 +35,7 @@ object Notifications {
     const val ID_CALLER = 1003
     /** 1004 is the call itself (call/CallNotification). */
     const val ID_PHONE_FALLBACK = 1005
+    const val ID_TOPICS_DAY = 1006
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
@@ -155,6 +156,38 @@ object Notifications {
             .setContentIntent(openContact(ctx, contact.id, ID_TOPICS))
             .setTimeoutAfter(3 * 60 * 60 * 1000L)
         post(ctx, ID_TOPICS, builder)
+    }
+
+    /**
+     * Themen mit Datum (PLAN 3.3/3.13a): „Heute ansprechen“ in the morning. One person → photo,
+     * „Anrufen“ and a tap into the contact; on the lock screen only that topics are due.
+     */
+    fun topicsDue(ctx: Context, due: List<io.github.thelony97.orbit.core.domain.TopicPlan.Due>, data: io.github.thelony97.orbit.data.OrbitData) {
+        if (due.isEmpty()) return
+        val byId = data.contacts.associateBy { it.id }
+        val single = due.map { it.contactId }.distinct().singleOrNull()?.let { byId[it] }
+        val builder = base(ctx, CH_DIGEST)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(openContact(ctx, single?.id, ID_TOPICS_DAY))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(base(ctx, CH_DIGEST).setContentTitle("Heute ansprechen").build())
+        if (single != null) {
+            val texts = due.map { it.topic.text }
+            builder.setContentTitle("Heute ansprechen: " + Logic.shortName(single))
+                .setContentText(texts.joinToString(" · "))
+                .setStyle(NotificationCompat.InboxStyle().also { st -> texts.take(7).forEach { st.addLine("• $it") } })
+            photoOf(ctx, single.photo)?.let { builder.setLargeIcon(it) }
+            if (single.phones.any { it.value.isNotBlank() }) builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, single.id))
+        } else {
+            val lines = due.map { d -> (byId[d.contactId]?.let { Logic.shortName(it) } ?: "") + ": " + d.topic.text }
+            builder.setContentTitle("Heute ansprechen")
+                .setContentText(lines.joinToString(" · "))
+                .setStyle(NotificationCompat.InboxStyle().also { st ->
+                    lines.take(7).forEach { st.addLine(it) }
+                    if (lines.size > 7) st.setSummaryText("+${lines.size - 7} weitere")
+                })
+        }
+        post(ctx, ID_TOPICS_DAY, builder)
     }
 
     fun cancelTopics(ctx: Context) {

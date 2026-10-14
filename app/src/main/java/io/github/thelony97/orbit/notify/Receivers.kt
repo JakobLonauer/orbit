@@ -85,6 +85,13 @@ object DigestScheduler {
             // Your own birthday is no reminder for you; shared ones with „Ich“ stay.
             .filterNot { it.upcoming.ownerId == me && it.upcoming.occasion.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
         Notifications.occasions(ctx, due, data)
+        // Themen mit Datum (PLAN 3.3): since the last morning run, missed days caught up.
+        val lastRun = before.settings.lastDigestDay.takeIf { it > 0 }?.let { java.time.LocalDate.ofEpochDay(it) }
+        Notifications.topicsDue(
+            ctx,
+            io.github.thelony97.orbit.core.domain.TopicPlan.due(data.contacts, todayDate, lastRun) { it.deletedAt == null && !it.archived },
+            data,
+        )
 
         val startOfToday = todayDate.startMillis()
         val meetingsToAsk = data.meetings.filter { !it.asked && !it.resolved && it.end < startOfToday }

@@ -598,6 +598,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         onDelete = { item -> edit { it.copy(topics = it.topics.filterNot { t -> t.id == item.id }) } },
                         onClearDone = { edit { it.copy(topics = it.topics.filterNot { t -> t.done }) } },
                         autoFocus = c.topics.isEmpty() && "topics" in opened,
+                        onDate = { item, day -> edit { it.copy(topics = it.topics.map { t -> if (t.id == item.id) t.copy(remindOn = day?.toString()) else t }) } },
                     )
                 }
             }

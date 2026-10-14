@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CallMade
 import androidx.compose.material.icons.automirrored.rounded.CallReceived
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -95,6 +96,8 @@ fun Checklist(
     onDelete: (CheckItem) -> Unit,
     onClearDone: () -> Unit,
     autoFocus: Boolean = false,
+    /** Themen mit Datum (PLAN 3.3): the day picked for a topic, null = taken away. Null = no dates here. */
+    onDate: ((CheckItem, java.time.LocalDate?) -> Unit)? = null,
 ) {
     val input = rememberTextFieldState()
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -116,7 +119,7 @@ fun Checklist(
         }
     }
     Column(Modifier.animateContentSize()) {
-        open.forEach { item -> CheckRow(item, onToggle, onDelete) }
+        open.forEach { item -> CheckRow(item, onToggle, onDelete, onDate) }
         SpaceSearchField(
             state = input,
             placeholder = placeholder,
@@ -163,7 +166,14 @@ fun Checklist(
 }
 
 @Composable
-private fun CheckRow(item: CheckItem, onToggle: (CheckItem) -> Unit, onDelete: (CheckItem) -> Unit) {
+private fun CheckRow(
+    item: CheckItem,
+    onToggle: (CheckItem) -> Unit,
+    onDelete: (CheckItem) -> Unit,
+    onDate: ((CheckItem, java.time.LocalDate?) -> Unit)? = null,
+) {
+    var picking by remember { mutableStateOf(false) }
+    val day = io.github.thelony97.orbit.core.domain.TopicPlan.dayOf(item)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -177,10 +187,36 @@ private fun CheckRow(item: CheckItem, onToggle: (CheckItem) -> Unit, onDelete: (
             textDecoration = if (item.done) TextDecoration.LineThrough else null,
             color = if (item.done) Space.TextFaint else Space.Text,
         )
+        if (onDate != null && !item.done) {
+            if (day != null) {
+                // The day it reminds on; past days stay visible in coral until done.
+                val past = day.isBefore(io.github.thelony97.orbit.domain.today())
+                Text(
+                    io.github.thelony97.orbit.util.Fmt.shortDate(day),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (past) Space.Coral else Space.Violet,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable { picking = true }.padding(horizontal = 6.dp, vertical = 4.dp),
+                )
+            } else {
+                Icon(
+                    Icons.Rounded.CalendarMonth, "Datum",
+                    tint = Space.TextFaint,
+                    modifier = Modifier.size(26.dp).clip(CircleShape).clickable { picking = true }.padding(5.dp),
+                )
+            }
+        }
         Icon(
             Icons.Rounded.Close, "Löschen",
             tint = Space.TextFaint,
             modifier = Modifier.size(26.dp).clip(CircleShape).clickable { onDelete(item) }.padding(5.dp),
+        )
+    }
+    if (picking && onDate != null) {
+        io.github.thelony97.orbit.ui.sheets.DateDialog(
+            day ?: io.github.thelony97.orbit.domain.today().plusDays(1),
+            onDismiss = { picking = false },
+            onPick = { onDate(item, it) },
+            onClear = if (day != null) ({ onDate(item, null) }) else null,
         )
     }
 }
