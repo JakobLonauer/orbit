@@ -63,6 +63,29 @@ object ContactActions {
         if (start(ctx, intent)) log(c.id, TypeIds.MESSAGE, "WhatsApp")
     }
 
+    /**
+     * „Gratulieren“ (PLAN 3.5): WhatsApp with the greeting filled in if it is installed, otherwise
+     * an SMS with it. Returns whether something opened.
+     */
+    fun congratulate(ctx: Context, c: Contact, text: String): Boolean {
+        val target = defaultNumber(c) ?: run { toast(ctx, "Keine Nummer hinterlegt"); return false }
+        val pm = ctx.packageManager
+        val whatsapp = listOf("com.whatsapp", "com.whatsapp.w4b").any { runCatching { pm.getLaunchIntentForPackage(it) != null }.getOrDefault(false) }
+        return if (whatsapp) {
+            val digits = target.filter { it.isDigit() || it == '+' }.let {
+                when {
+                    it.startsWith("+") -> it.drop(1)
+                    it.startsWith("00") -> it.drop(2)
+                    it.startsWith("0") -> "43" + it.drop(1)
+                    else -> it
+                }
+            }
+            start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits?text=" + Uri.encode(text))))
+        } else {
+            start(ctx, Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", target, null)).putExtra("sms_body", text))
+        }
+    }
+
     fun email(ctx: Context, c: Contact, address: String?) {
         val target = address ?: c.emails.firstOrNull { it.value.isNotBlank() }?.value
             ?: return toast(ctx, "Keine E-Mail hinterlegt")

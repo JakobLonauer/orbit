@@ -63,6 +63,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     val tracking = data.settings.giftTracking
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     val coGivers = remember(data) { BirthdayTab.coGivers(data.contacts).mapNotNull { byId[it] } }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     var filling by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -97,6 +98,17 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                     val giftHere = tracking && r.daysUntil in -7L..0L
                     BirthdayRow(
                         r, c, idx, lastFirst, Modifier.animateItem(), tick,
+                        // Gratulieren on the day itself; it ticks „Gratuliert“ on its way (PLAN 3.5).
+                        onCongratulate = if (r.daysUntil == 0L && io.github.thelony97.orbit.actions.ContactActions.defaultNumber(c) != null) {
+                            {
+                                val opened = io.github.thelony97.orbit.actions.ContactActions.congratulate(ctx, c, "Alles Gute zum Geburtstag, ${c.firstName.ifBlank { Logic.displayName(c, false) }}!")
+                                if (opened && tracking && !BirthdayTab.congratulated(c, r.occasion.id, r.date.year)) {
+                                    io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                        io.github.thelony97.orbit.data.Mutations.toggleCongrats(d, c.id, r.occasion.id, r.date.year)
+                                    }
+                                }
+                            }
+                        } else null,
                         gift = if (giftHere) BirthdayTab.gift(c, r.occasion.id, r.date.year) else null,
                         giftEnabled = giftHere,
                         coGivers = coGivers.filter { it.id != c.id },
@@ -163,6 +175,7 @@ private fun BirthdayRow(
     giftEnabled: Boolean = false,
     coGivers: List<Contact> = emptyList(),
     onGift: (String, List<String>) -> Unit = { _, _ -> },
+    onCongratulate: (() -> Unit)? = null,
     onOpen: () -> Unit,
 ) {
     var editing by androidx.compose.runtime.saveable.rememberSaveable(r.contactId) { androidx.compose.runtime.mutableStateOf(false) }
@@ -201,11 +214,16 @@ private fun BirthdayRow(
                 color = Space.TextFaint,
             )
         }
-        Text(
-            relativeDay(r.daysUntil),
-            style = MaterialTheme.typography.labelMedium,
-            color = if (today) Space.Orange else Space.TextDim,
-        )
+        // Today the section says „Heute“; the place of „heute“ holds the one thing to do (W6).
+        if (onCongratulate != null) {
+            io.github.thelony97.orbit.ui.components.GlowButton("Gratulieren", onCongratulate, color = Space.Orange)
+        } else {
+            Text(
+                relativeDay(r.daysUntil),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (today) Space.Orange else Space.TextDim,
+            )
+        }
         if (giftEnabled) {
             Spacer(Modifier.width(8.dp))
             androidx.compose.material3.Icon(

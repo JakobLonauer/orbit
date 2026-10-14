@@ -19,6 +19,12 @@
     <!-- Screen off at the ear during a call (proximity sensor). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- „Gratulieren“ opens WhatsApp only if it is installed (else SMS): Orbit must be allowed to see it. -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+    </queries>
+
     <application
         android:name=".OrbitApp"
         android:allowBackup="true"
