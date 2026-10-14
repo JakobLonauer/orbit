@@ -16,6 +16,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import io.github.thelony97.orbit.actions.ShareContact
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
@@ -167,6 +168,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
     val query = search.text.toString()
+    val quickPull = remember { androidx.compose.animation.core.Animatable(0f) }
+    var drawer by remember { mutableStateOf(false) }
     val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
     val belongsTo = remember(query, data.contacts) {
         if (query.count { it.isDigit() } < 6 || query.any { it.isLetter() }) null
@@ -265,10 +268,16 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
 
         // Schnellzugriff (PLAN 3.7): pinned portals, only while there are some – organisations' too.
         val quick = remember(data.contacts) { io.github.thelony97.orbit.core.domain.QuickLinks.pinned(data.contacts) { Logic.displayName(it, false) } }
+        val linkCtx = androidx.compose.ui.platform.LocalContext.current
         if (quick.isNotEmpty()) {
-            val linkCtx = androidx.compose.ui.platform.LocalContext.current
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 10.dp),
+                Modifier
+                    .fillMaxWidth()
+                    // Pulling the list down stretches the row towards the drawer (W8).
+                    .graphicsLayer { translationY = quickPull.value * 0.35f }
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 quick.forEach { q ->
@@ -278,6 +287,15 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         onLongClick = { nav.open(Route.Detail(q.ownerId)) },
                     )
                 }
+            }
+            // Schublade (PLAN 1.3): all pinned links in large tiles; pulling down opens, pushing up closes.
+            AnimatedVisibility(drawer) {
+                io.github.thelony97.orbit.ui.detail.QuickDrawer(
+                    quick.map { it.link to it.ownerId },
+                    onOpen = { l -> io.github.thelony97.orbit.actions.ContactActions.openLink(linkCtx, l) },
+                    onOwner = { id -> nav.open(Route.Detail(id)) },
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
             }
         }
 
@@ -327,6 +345,39 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
 
         val listState = rememberLazyListState()
         val railScope = rememberCoroutineScope()
+        // Overscroll at the top of the list feeds the drawer pull (only with pinned links).
+        val pullConnection = remember(quick.isNotEmpty()) {
+            object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                override fun onPostScroll(consumed: Offset, available: Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): Offset {
+                    if (quick.isEmpty() || source != androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) return Offset.Zero
+                    if (available.y > 0f) {
+                        railScope.launch { quickPull.snapTo((quickPull.value + available.y * 0.5f).coerceAtMost(240f)) }
+                        return Offset(0f, available.y)
+                    }
+                    return Offset.Zero
+                }
+
+                override fun onPreScroll(available: Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): Offset {
+                    // Any push up closes the drawer again.
+                    if (available.y < 0f && drawer) drawer = false
+                    // Pushing up while pulled takes the pull back first.
+                    if (available.y < 0f && quickPull.value > 0f) {
+                        val take = maxOf(available.y, -quickPull.value * 2f)
+                        railScope.launch { quickPull.snapTo((quickPull.value + take * 0.5f).coerceAtLeast(0f)) }
+                        return Offset(0f, take)
+                    }
+                    return Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                    if (quickPull.value > 0f) {
+                        if (quickPull.value > 90f) drawer = true
+                        quickPull.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f))
+                    }
+                    return androidx.compose.ui.unit.Velocity.Zero
+                }
+            }
+        }
         // Index of each letter's header: must follow the item order below exactly.
         val letterIndex = remember(sections, suggestions, defaultView, me, audience) {
             var i = 1 // update banner
@@ -359,7 +410,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(pullConnection),
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner() }

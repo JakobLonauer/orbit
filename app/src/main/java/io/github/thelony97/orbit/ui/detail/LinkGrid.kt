@@ -272,3 +272,40 @@ private fun padForAdaptive(logo: android.graphics.Bitmap): android.graphics.Bitm
     canvas.drawBitmap(android.graphics.Bitmap.createScaledBitmap(logo, inner, inner, true), off, off, null)
     return out
 }
+
+/** Die Schublade (PLAN 1.3): every pinned link as a large tile; long-press opens its contact. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun QuickDrawer(links: List<Pair<Link, String>>, onOpen: (Link) -> Unit, onOwner: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        links.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (l, owner) ->
+                    val tint = TILE_COLORS[(linkHost(l.url).hashCode() and 0x7fffffff) % TILE_COLORS.size]
+                    val logo = io.github.thelony97.orbit.ui.components.rememberPhoto(l.logo)
+                    val shape = RoundedCornerShape(16.dp)
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .height(96.dp)
+                            .clip(shape)
+                            .background(Space.Panel)
+                            .border(1.dp, tint.copy(alpha = 0.35f), shape)
+                            .combinedClickable(onClick = { onOpen(l) }, onLongClick = { onOwner(owner) })
+                            .padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(if (logo != null) Color.White else tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                            if (logo != null) androidx.compose.foundation.Image(logo, null, modifier = Modifier.size(36.dp))
+                            else Icon(linkIcon(l), null, tint = tint, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(l.title.ifBlank { linkHost(l.url) }, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
