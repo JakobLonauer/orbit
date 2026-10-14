@@ -33,6 +33,9 @@ class MainActivity : FragmentActivity() {
         const val EXTRA_NEW_ORG = "new_org"
         const val EXTRA_NOTIF = "notif_id"
         val pendingNew = MutableStateFlow<Pair<String, Boolean>?>(null)
+
+        /** Teilen-Eingang (PLAN 3.8): shown as a sheet once Orbit is unlocked. */
+        val pendingShare = MutableStateFlow<io.github.thelony97.orbit.ui.sheets.PendingShare?>(null)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +69,21 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
+            val images = buildList {
+                if (intent.type?.startsWith("image/") == true) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)?.let { add(it) }
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)?.let { addAll(it) }
+                }
+            }.distinct()
+            val item = io.github.thelony97.orbit.core.domain.ShareIn.parse(
+                intent.getStringExtra(Intent.EXTRA_TEXT), intent.getStringExtra(Intent.EXTRA_SUBJECT),
+            )
+            if (images.isNotEmpty() || item != null) pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(item, images)
+            // Handled once: a rotation must not bring the sheet back.
+            intent.action = Intent.ACTION_MAIN
+            return
+        }
         intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
             pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)
             intent.getIntExtra(EXTRA_NOTIF, -1).takeIf { it >= 0 }?.let { io.github.thelony97.orbit.notify.Notifications.cancel(this, it) }

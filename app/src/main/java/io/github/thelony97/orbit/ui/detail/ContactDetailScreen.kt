@@ -592,7 +592,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             InfoRow(
                                 label = "Adresse$distance",
                                 value = c.address,
-                                onClick = { ContactActions.maps(ctx, c.address) },
+                                // A place shared from Google Maps opens exactly there (PLAN 3.8).
+                                onClick = { c.mapsUrl?.let { ContactActions.web(ctx, it) } ?: ContactActions.maps(ctx, c.address) },
                                 trailing = {
                                     SmallIconAction(Icons.Rounded.Map, "Auf der Orbit-Karte zeigen") {
                                         Session.mapFocus = c.id

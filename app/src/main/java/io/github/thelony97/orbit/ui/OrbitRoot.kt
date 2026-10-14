@@ -147,6 +147,11 @@ private fun MainNavigation(data: OrbitData) {
         MainActivity.pendingNew.value = null
     }
 
+    val share by MainActivity.pendingShare.collectAsStateWithLifecycle()
+    share?.let { s ->
+        io.github.thelony97.orbit.ui.sheets.ShareSheet(s, data, idx, nav, onDone = { MainActivity.pendingShare.value = null })
+    }
+
     val pending by MainActivity.pendingContact.collectAsStateWithLifecycle()
     LaunchedEffect(pending) {
         val id = pending ?: return@LaunchedEffect
