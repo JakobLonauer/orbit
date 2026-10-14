@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Contact
@@ -302,6 +304,21 @@ class ScreensScreenshotTest {
     @Test fun settings() = shot("settings") { SettingsScreen(data, nav) }
 
     @Test fun settingsArea() = shot("settings_security") { SettingsScreen(data, nav, area = "security") }
+
+    /** Speicher-Übersicht (PLAN 3.13): bar split by part, sizes in tabular figures. */
+    @Test fun storage() = shot("storage") {
+        androidx.compose.foundation.layout.Column(Modifier.padding(top = 40.dp)) {
+            io.github.thelony97.orbit.ui.settings.StorageCard(
+                preset = listOf(
+                    io.github.thelony97.orbit.core.domain.StorageUsage.Slice(io.github.thelony97.orbit.core.domain.StorageUsage.Part.PHOTOS, 182_000_000, 412),
+                    io.github.thelony97.orbit.core.domain.StorageUsage.Slice(io.github.thelony97.orbit.core.domain.StorageUsage.Part.HISTORY, 24_500_000, 1),
+                    io.github.thelony97.orbit.core.domain.StorageUsage.Slice(io.github.thelony97.orbit.core.domain.StorageUsage.Part.DOCUMENTS, 9_800_000, 7),
+                    io.github.thelony97.orbit.core.domain.StorageUsage.Slice(io.github.thelony97.orbit.core.domain.StorageUsage.Part.CONTACTS, 1_200_000, 2),
+                    io.github.thelony97.orbit.core.domain.StorageUsage.Slice(io.github.thelony97.orbit.core.domain.StorageUsage.Part.SAFETY, 900_000, 2),
+                ),
+            )
+        }
+    }
 
     /** Long-press preview lives in a Popup – capture the whole screen, not just the root. */
     @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)

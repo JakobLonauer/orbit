@@ -163,3 +163,4 @@
 - Jakob 14.10. 21:08: „Gib Gas, arbeite so lange du kannst“ – weiter auf `dev`, weiterhin nichts veröffentlichen.
 - Session-Limit (Jakob 14.10. 12:35: „über 65 % sofort stoppen“): aus der Sitzung heraus nicht ablesbar – sparsam arbeiten (Review-Agent mit sonnet), Jakob schreibt „stopp“.
 - Jakob 14.10. 9:34: „nichts veröffentlichen“ – auch der Hotfix bleibt liegen, bis er es ausdrücklich sagt.
+- !! 15.10. 00:05 · PARALLELE SITZUNG auf `dev` (Tagsitzung session_01MVUMJn…, „Gib Gas“) arbeitet gleichzeitig weiter → meine Ich-Karte kollidierte mit ihrer (gleiche Idee, 1 min früher gepusht). -> Vor jedem Arbeitspaket `git fetch && git log origin/dev -3` prüfen; nur Pakete nehmen, die dort nicht gerade entstehen; klein committen, `git pull --rebase` vor jedem Push. Nachtsitzung übernimmt: Speicher-Übersicht, Reviews (Code + Wow) über R6/R7, Funde.

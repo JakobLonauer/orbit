@@ -701,6 +701,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             }
         }
 
+        if (area == "security") item(key = "storage") { StorageCard() }
+
         if (area == "about") item(key = "more") {
             SettingsGroup("") {
                 SettingItem(
