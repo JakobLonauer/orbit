@@ -131,6 +131,8 @@ data class CallUi(
     val moreRoutes: Boolean = false,
     /** Orbit may block numbers (only as the phone app). */
     val canBlock: Boolean = false,
+    /** Note text typed before the screen was left (kept in the call session). */
+    val draft: String = "",
     /** Replies for „Ablehnen mit SMS“ (Einstellungen › Mitschreiben); none = no SMS button. */
     val smsTemplates: List<String> = io.github.thelony97.orbit.core.model.Settings.DEFAULT_SMS_TEMPLATES,
     /** Anklopfen: the other call, „Tom Huber · gehalten“; [canMerge] when both can become one. */
@@ -209,7 +211,9 @@ fun CallScreen(
     // After hanging up the portrait steps back so the note line and keyboard fit (PLAN 1.3).
     val portrait by androidx.compose.animation.core.animateDpAsState(if (ui.ended) 72.dp else 132.dp, tween(Motion.MEDIUM_MS), label = "portrait")
     val top by androidx.compose.animation.core.animateDpAsState(if (ui.ended) 16.dp else 40.dp, tween(Motion.MEDIUM_MS), label = "top")
-    SpaceBackground(nebula = { color.copy(alpha = 1f) }, camera = rememberTiltCamera()) {
+    // No tilt at the ear (the screen is dark there anyway) – saves the sensor for the whole call.
+    val tilt = !(ui.active && !ui.ended && ui.route == AudioRoute.EARPIECE)
+    SpaceBackground(nebula = { color.copy(alpha = 1f) }, camera = rememberTiltCamera(tilt)) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -275,7 +279,7 @@ fun CallScreen(
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (m == CallMode.ENDED) {
                 // The note needs a contact to land on, and an unlocked phone.
-                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked)
+                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked, initial = ui.draft)
             } else if (m == CallMode.ACTIVE) {
                 ui.otherCall?.let { other ->
                     Row(
@@ -369,8 +373,8 @@ private fun SmsTemplates(templates: List<String>, onPick: (String) -> Unit) {
  * outside the call stay behind the phone's lock (PLAN 3.12).
  */
 @Composable
-private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true, unknown: Boolean = false) {
-    val note = rememberTextFieldState()
+private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true, unknown: Boolean = false, initial: String = "") {
+    val note = rememberTextFieldState(initial)
     LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
     // PLAN 1.3: after hanging up the note line glides up with the keyboard already open.
     val shown = remember { androidx.compose.animation.core.MutableTransitionState(!slideIn).apply { targetState = true } }
@@ -393,7 +397,12 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
                 placeholder = { Text("Notiz zum Anruf") },
                 lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 1, maxHeightInLines = 4),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
-                onKeyboardAction = { if (note.text.isNotBlank()) actions.saveNote(note.text.toString().trim()) },
+                onKeyboardAction = {
+                    if (note.text.isNotBlank()) {
+                        actions.saveNote(note.text.toString().trim())
+                        actions.close()
+                    }
+                },
                 shape = io.github.thelony97.orbit.core.designsystem.Corners.Row,
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
@@ -410,7 +419,11 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
             if (unlocked) {
                 // Speichern morphs into the check (PLAN 1.2), then the screen closes.
                 val text = note.text.toString().trim()
-                io.github.thelony97.orbit.ui.components.SaveMorphButton(onSave = { text.isNotEmpty() }, onDone = { actions.saveNote(text) })
+                io.github.thelony97.orbit.ui.components.SaveMorphButton(
+                    // Saved right away; only closing waits for the check morph.
+                    onSave = { if (text.isNotEmpty()) { actions.saveNote(text); true } else false },
+                    onDone = { actions.close() },
+                )
             }
         }
     }
@@ -422,14 +435,15 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
  * into the camera's draw-phase state only – no recomposition; off in power saving mode.
  */
 @Composable
-private fun rememberTiltCamera(): io.github.thelony97.orbit.ui.components.SpaceCamera {
+private fun rememberTiltCamera(enabled: Boolean): io.github.thelony97.orbit.ui.components.SpaceCamera {
     val camera = remember { io.github.thelony97.orbit.ui.components.SpaceCamera() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    // Only while the screen is in front (paused in the background).
+    androidx.lifecycle.compose.LifecycleResumeEffect(enabled) {
         val sm = ctx.getSystemService(android.hardware.SensorManager::class.java)
         val sensor = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
         val saver = ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true
-        if (sm == null || sensor == null || saver) return@DisposableEffect onDispose { }
+        if (!enabled || sm == null || sensor == null || saver) return@LifecycleResumeEffect onPauseOrDispose { }
         var fx = Float.NaN
         var fy = Float.NaN
         var bx = 0f
@@ -451,8 +465,8 @@ private fun rememberTiltCamera(): io.github.thelony97.orbit.ui.components.SpaceC
 
             override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
         }
-        sm.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_GAME)
-        onDispose { sm.unregisterListener(listener) }
+        sm.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+        onPauseOrDispose { sm.unregisterListener(listener) }
     }
     return camera
 }

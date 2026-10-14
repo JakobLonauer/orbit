@@ -167,7 +167,9 @@ private fun CallRoute(onDone: () -> Unit) {
     val ended by CallSession.ended.collectAsState()
     val cards by CallSession.cards.collectAsState()
     val doc by OrbitRepository.data.collectAsState()
-    val canBlock = remember { CallSession.canBlock(ctx) }
+    // A system call: worked out off the main thread, the button appears once it is known.
+    var canBlock by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { canBlock = withContext(Dispatchers.IO) { CallSession.canBlock(ctx) } }
     var phoneUnlocked by remember { mutableStateOf(unlocked(ctx)) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Ticks survive rotation (they are saved at once, the screen must show them too).
@@ -189,9 +191,12 @@ private fun CallRoute(onDone: () -> Unit) {
     }
     // Rebuilt only when something changes – never by the second (W8); the timer reads [now] itself.
     val stamp = remember(version, after) { System.currentTimeMillis() }
-    val connectedAt = remember(version, call) { call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: 0L }
+    // After hanging up the fading timer keeps its start (no flash of 0:00).
+    val connectedAt = remember(version, call, after) {
+        call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: after?.connectedAt ?: 0L
+    }
     val clock = remember(connectedAt) { { if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0L } }
-    val ui = remember(version, call, after, audio, cards, doc, phoneUnlocked, done) {
+    val ui = remember(version, call, after, audio, cards, doc, phoneUnlocked, done, canBlock) {
     if (call != null) {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
@@ -215,7 +220,8 @@ private fun CallRoute(onDone: () -> Unit) {
             moreRoutes = audio.available.any {
                 it.endpointType == android.telecom.CallEndpoint.TYPE_BLUETOOTH || it.endpointType == android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
             },
-            unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, stamp) else null,
+            // Call history of an unknown number is not for the lock screen (name, photo, role only).
+            unknownLine = if (cards[number] == null && phoneUnlocked) unknownLine(doc, number, ctx, stamp) else null,
             canBlock = canBlock && number.isNotBlank(),
             smsTemplates = doc?.settings?.smsTemplates ?: io.github.thelony97.orbit.core.model.Settings.DEFAULT_SMS_TEMPLATES,
             otherCall = CallSession.other()?.let { o ->
@@ -242,6 +248,7 @@ private fun CallRoute(onDone: () -> Unit) {
             elapsed = ((after.endedAt - after.connectedAt) / 1000).coerceAtLeast(0),
             phoneUnlocked = phoneUnlocked,
             doneTopics = done,
+            draft = CallSession.draft,
         )
     }
     }
@@ -311,7 +318,13 @@ private fun CallRoute(onDone: () -> Unit) {
                 Toast.makeText(ctx, "Zurückgeholt", Toast.LENGTH_SHORT).show()
             }
         }
-        override fun saveNote(text: String) = finishAfter(text)
+        // Saved the moment Speichern is tapped; the screen closes after the check (close()).
+        override fun saveNote(text: String) {
+            val e = CallSession.ended.value ?: return
+            CallSession.draft = ""
+            e.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
+            if (text.isNotBlank()) CallNoteWorker.enqueue(ctx, e, text)
+        }
         override fun close() = finishAfter(null)
         override fun createContact(org: Boolean) {
             val number = CallSession.ended.value?.number ?: return

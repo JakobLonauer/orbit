@@ -38,6 +38,13 @@ class OrbitInCallService : InCallService() {
         }
 
         override fun onDetailsChanged(call: Call, details: Call.Details) = safe { CallSession.changed() }
+
+        // Conference: parents, participants and what can be merged change the screen too.
+        override fun onParentChanged(call: Call, parent: Call?) = safe { CallSession.changed() }
+
+        override fun onChildrenChanged(call: Call, children: List<Call>) = safe { CallSession.changed() }
+
+        override fun onConferenceableCallsChanged(call: Call, conferenceableCalls: List<Call>) = safe { CallSession.changed() }
     }
 
     override fun onCreate() {
@@ -103,7 +110,7 @@ class OrbitInCallService : InCallService() {
                 runCatching {
                     val iso = Phones.countryIso(this@OrbitInCallService)
                     CallerIndexFile.read(this@OrbitInCallService)?.lookup(number) { Phones.normalize(it, iso) }
-                }.getOrNull()
+                }.getOrNull()?.also { CallNotification.preload(this@OrbitInCallService, it.photo) }
             }
             CallSession.cards.value = CallSession.cards.value + (number to card)
             CallSession.changed()
@@ -124,19 +131,21 @@ class OrbitInCallService : InCallService() {
 object CallNotification {
     const val ID = 1004
 
-    /** Caller photos, decoded once per call (small: a quarter of the stored size). */
-    private val photos = HashMap<String, androidx.core.graphics.drawable.IconCompat?>()
+    /** Caller photos, decoded once per call off the main thread (a quarter of the stored size). */
+    private val photos = java.util.concurrent.ConcurrentHashMap<String, androidx.core.graphics.drawable.IconCompat>()
 
-    private fun photoIcon(ctx: Context, name: String?): androidx.core.graphics.drawable.IconCompat? {
-        if (name.isNullOrBlank()) return null
-        return photos.getOrPut(name) {
-            runCatching {
-                val file = java.io.File(java.io.File(ctx.filesDir, "photos"), name)
-                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
-                android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
-            }.getOrNull()
+    /** Decodes the photo; call from a background thread (see the lookup in [OrbitInCallService]). */
+    fun preload(ctx: Context, name: String?) {
+        if (name.isNullOrBlank() || photos.containsKey(name)) return
+        runCatching {
+            val file = java.io.File(java.io.File(ctx.filesDir, "photos"), name)
+            val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+            android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)?.let { photos[name] = androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
         }
     }
+
+    private fun photoIcon(@Suppress("UNUSED_PARAMETER") ctx: Context, name: String?): androidx.core.graphics.drawable.IconCompat? =
+        name?.takeIf { it.isNotBlank() }?.let { photos[it] }
 
     /** The ringing call the notification last alerted for; a new one (call waiting) alerts again. */
     private var alertedFor: Call? = null
