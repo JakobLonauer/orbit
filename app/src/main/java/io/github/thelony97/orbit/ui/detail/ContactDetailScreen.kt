@@ -231,6 +231,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var relationDialog by remember { mutableStateOf(false) }
     var assignDialog by remember { mutableStateOf(false) }
     var osmDialog by remember { mutableStateOf(false) }
+    var mailEntry by remember { mutableStateOf<Entry?>(null) }
+    // E-Mail v2 (PLAN 3.9): the page shows the stored state at once, a sync runs behind it.
+    androidx.compose.runtime.LaunchedEffect(c.id) {
+        if (c.emails.isNotEmpty() || c.emailDomains.isNotEmpty() || c.members.any { it.emails.isNotEmpty() }) io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx)
+    }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
@@ -625,12 +630,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             // A person's links (LinkedIn, Instagram) after the contact details.
             if (!c.isOrg && c.links.isNotEmpty()) item(key = "links") { links(c) }
 
-            // Mails from this contact
-            if (c.emails.any { it.value.contains('@') } && !c.isMe) {
-                item(key = "mails") {
-                    MailSection(c)
-                }
-            }
+            // Mails are Verlauf entries since R5 (PLAN 3.9: the own mail section goes).
 
             // Pinned note (also shown on incoming calls)
             if (c.pinnedNote.isNotBlank()) item(key = "pinned") {
@@ -928,7 +928,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 // Each node draws in once per visit, not again when scrolling back up.
                 val first = drawnEntries.add(e.id)
                 EntryRow(
-                    e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) }, drawIn = first,
+                    e, idx.types[e.typeId], last = i == visible.lastIndex,
+                    onClick = { if (e.mails.isNotEmpty()) mailEntry = e else entryTarget = EntryTarget.Existing(e) }, drawIn = first,
                     member = e.memberId?.let { mid -> c.members.firstOrNull { it.id == mid }?.name },
                 )
             }
@@ -1036,6 +1037,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
         )
     }
 
+    mailEntry?.let { e -> MailEntryDialog(e, onDismiss = { mailEntry = null }) }
     if (osmDialog) OsmDialog(c, onDismiss = { osmDialog = false }) { change -> edit(change) }
 
     if (assignDialog) {

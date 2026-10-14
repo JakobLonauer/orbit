@@ -184,6 +184,7 @@ private fun AddAccountSheet(onDismiss: () -> Unit) {
         }
     }
     val provider = MailProviders.byKey(providerKey)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(providerKey) {
         if (provider.host.isNotEmpty()) {
             host.setTextAndPlaceCursorAtEnd(provider.host)
@@ -221,6 +222,8 @@ private fun AddAccountSheet(onDismiss: () -> Unit) {
                     ),
                 )
                 MailCache.clear()
+                // The first run: the last 12 months of every known address into the Verlauf.
+                io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx)
                 busy = false
                 onDismiss()
             } else {

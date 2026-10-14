@@ -331,7 +331,8 @@ fun EntryRow(
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         buildString {
-                            append(type?.name ?: "Eintrag")
+                            // Mails (PLAN 3.9): „3 E-Mails empfangen“.
+                            append(if (entry.mails.isNotEmpty()) io.github.thelony97.orbit.core.domain.MailBundle.title(entry) else type?.name ?: "Eintrag")
                             member?.let { append(" · ").append(it) }
                             entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
                             if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
@@ -362,6 +363,13 @@ fun EntryRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = Space.TextFaint,
             )
+            // The subjects, newest first (never the text, PLAN 3.9).
+            if (entry.mails.isNotEmpty()) {
+                entry.mails.take(3).forEach { m ->
+                    Text("• " + m.subject, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (entry.mails.size > 3) Text("+${entry.mails.size - 3}", style = MaterialTheme.typography.labelSmall, color = Space.TextFaint)
+            }
             if (entry.note.isNotBlank()) {
                 Text(
                     entry.note,

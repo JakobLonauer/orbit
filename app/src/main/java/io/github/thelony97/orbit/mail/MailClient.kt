@@ -88,6 +88,21 @@ object MailClient {
         return Session.getInstance(p)
     }
 
+    /** One connection for a whole sync run (PLAN 3.9); the caller closes it. */
+    fun open(host: String, port: Int, user: String, password: String): Store = connect(host, port, user, password)
+
+    /**
+     * Folders to keep in sync: Gmail only „Alle Nachrichten“ (\All); otherwise the inbox, Sent
+     * and Archive by SPECIAL-USE.
+     */
+    fun syncFolders(store: Store): List<String> {
+        val special = runCatching {
+            store.defaultFolder.list("*").mapNotNull { f -> (f as? IMAPFolder)?.let { it.fullName to it.attributes.map { a -> a.lowercase() } } }
+        }.getOrDefault(emptyList())
+        special.firstOrNull { "\\all" in it.second }?.let { return listOf(it.first) }
+        return listOf("INBOX") + special.filter { "\\sent" in it.second || "\\archive" in it.second }.map { it.first }
+    }
+
     private fun connect(host: String, port: Int, user: String, password: String): Store {
         val store = session(host, port).getStore("imaps")
         store.connect(host, port, user, password)

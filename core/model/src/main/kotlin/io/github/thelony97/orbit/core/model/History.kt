@@ -13,6 +13,27 @@ data class SmsMessage(
     val text: String,
 )
 
+/**
+ * One mail in a bundled mail entry (PLAN 3.9): only subject, date, direction and where to find
+ * it – never the text, which is loaded on tap.
+ */
+@Serializable
+data class MailRef(
+    val account: String,
+    val folder: String,
+    val uidValidity: Long,
+    val uid: Long,
+    val at: Long,
+    val incoming: Boolean,
+    val subject: String,
+    /** The other side's address (sender of an incoming, first recipient of an outgoing mail). */
+    val address: String,
+    val messageId: String? = null,
+) {
+    /** Same mail across folders (Gmail labels) and after UIDVALIDITY changes. */
+    val key: String get() = messageId?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: "$account/$folder/$uidValidity/$uid"
+}
+
 /** One Verlauf row (SQLite `entries`). [externalId] is unique per contact ("call:<millis>", "sms:<day>"). */
 @Serializable
 data class HistoryEntry(
@@ -33,6 +54,8 @@ data class HistoryEntry(
     val sharedId: String? = null,
     /** Mail reference "<accountId>/<folder>/<uid>" for mail entries. */
     val mailRef: String? = null,
+    /** E-Mail v2 (PLAN 3.9): the mails of one day and direction, newest first. */
+    val mails: List<MailRef> = emptyList(),
     /** For "Gratuliert"/"Geschenk": occasion, its year and who gave together. */
     val occasionId: String? = null,
     val occasionYear: Int? = null,

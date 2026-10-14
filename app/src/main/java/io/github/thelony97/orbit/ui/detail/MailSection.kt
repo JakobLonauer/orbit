@@ -170,7 +170,7 @@ private fun MailRow(h: MailHeader, showAccount: Boolean, showSender: Boolean, on
 }
 
 @Composable
-private fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
+internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
     var text by remember(h) { mutableStateOf<String?>(null) }
     var error by remember(h) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -203,6 +203,49 @@ private fun MailDialog(h: MailHeader, onDismiss: () -> Unit) {
                         }
                     }
                     else -> SelectionContainer { Text(text!!, style = MaterialTheme.typography.bodySmall, color = Space.Text) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+        // „Antworten“ (PLAN 3.9): the mail app with recipient and „Re: Betreff“.
+        dismissButton = if (h.fromAddress.contains('@')) {
+            {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                TextButton(onClick = {
+                    val subject = if (h.subject.startsWith("Re:", ignoreCase = true)) h.subject else "Re: ${h.subject}"
+                    val uri = android.net.Uri.parse("mailto:" + android.net.Uri.encode(h.fromAddress) + "?subject=" + android.net.Uri.encode(subject))
+                    io.github.thelony97.orbit.security.AppLock.allowExternal()
+                    runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, uri)) }
+                    onDismiss()
+                }) { Text("Antworten") }
+            }
+        } else null,
+    )
+}
+
+/** A bundled mail entry (PLAN 3.9): its mails, one tap loads the text. */
+@Composable
+fun MailEntryDialog(entry: io.github.thelony97.orbit.data.Entry, onDismiss: () -> Unit) {
+    var open by remember(entry.id) { mutableStateOf(entry.mails.singleOrNull()) }
+    val chosen = open
+    if (chosen != null) {
+        MailDialog(io.github.thelony97.orbit.mail.MailSync.header(chosen), onDismiss = { if (entry.mails.size == 1) onDismiss() else open = null })
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(io.github.thelony97.orbit.core.domain.MailBundle.title(entry)) },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                entry.mails.forEach { m ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .clickable { open = m }.padding(vertical = 8.dp, horizontal = 4.dp),
+                    ) {
+                        Text(m.subject, style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(m.address + " · " + Fmt.time(m.at), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                    }
                 }
             }
         },

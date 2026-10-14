@@ -44,6 +44,8 @@ class OrbitApp : Application() {
             orphanPhotos.forEach { OrbitRepository.photoFile(it).delete() }
             DigestScheduler.schedule(this@OrbitApp)
             Sync.schedulePeriodic(this@OrbitApp)
+            // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors.
+            io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(this@OrbitApp)
             Backups.schedule(this@OrbitApp)
         }
     }

@@ -221,7 +221,7 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
                 // Same type icon on every row; calls add their direction as a small arrow.
                 Icon(entryIcon(idx.types[e.typeId]?.icon ?: "star"), null, tint = Space.TextFaint, modifier = Modifier.size(12.dp))
                 Spacer(Modifier.width(4.dp))
-                val kind = idx.types[e.typeId]?.name ?: "Eintrag"
+                val kind = if (e.mails.isNotEmpty()) io.github.thelony97.orbit.core.domain.MailBundle.title(e) else idx.types[e.typeId]?.name ?: "Eintrag"
                 Text(
                     kind + (e.durationSec?.let { " · " + Fmt.duration(it) } ?: ""),
                     style = MaterialTheme.typography.labelMedium,
@@ -238,7 +238,7 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
                 }
             }
             // Never the content of a hidden member talk (PLAN 3.4).
-            val text = if (member) "" else e.note.ifBlank { e.messages.lastOrNull()?.text.orEmpty() }
+            val text = if (member) "" else e.note.ifBlank { e.messages.lastOrNull()?.text ?: e.mails.firstOrNull()?.subject.orEmpty() }
             if (text.isNotBlank()) {
                 Text(
                     text,
