@@ -21,6 +21,7 @@ import android.content.Intent
 import android.provider.CalendarContract
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,6 +93,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -163,7 +165,15 @@ private enum class NoteTarget { Notes, Pinned }
 private data class RelView(val id: String, val other: Contact, val label: String)
 
 @Composable
-private fun RelationRow(r: RelView, idx: Index, lastFirst: Boolean, onOpen: () -> Unit, trailing: @Composable () -> Unit) {
+private fun RelationRow(
+    r: RelView,
+    idx: Index,
+    lastFirst: Boolean,
+    onOpen: () -> Unit,
+    /** Kachel → Organisation / Bild → Kontaktkopf (PLAN W3): only once per contact on a page. */
+    shared: Boolean = false,
+    trailing: @Composable () -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -173,7 +183,7 @@ private fun RelationRow(r: RelView, idx: Index, lastFirst: Boolean, onOpen: () -
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Organisations keep their square tile (Avatar), people are round.
-        Avatar(r.other, contactColor(r.other, idx), 34.dp)
+        Avatar(r.other, contactColor(r.other, idx), 34.dp, modifier = if (shared) Modifier.sharedContact("avatar-${r.other.id}") else Modifier)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(Logic.displayName(r.other, lastFirst), style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -701,11 +711,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     icon = if (c.isOrg) Icons.Rounded.Groups else Icons.Rounded.Business,
                     action = { SmallIconAction(Icons.Rounded.Add, "Zuordnen") { assignDialog = true } },
                 ) {
+                    val sharedOnce = HashSet<String>()
                     assigned.forEach { a ->
                         val other = idx.contacts[a.otherId] ?: return@forEach
                         RelationRow(
                             RelView(a.linkId, other, a.role), idx, lastFirst,
                             onOpen = { nav.open(Route.Detail(other.id)) },
+                            shared = sharedOnce.add(other.id),
                             trailing = {
                                 if (ContactActions.defaultNumber(other) != null) {
                                     SmallIconAction(Icons.Rounded.Call, "${Logic.shortName(other)} anrufen") {
@@ -742,10 +754,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         }
                     },
                 ) {
+                    // Someone already shown under the organisations keeps the transition there.
+                    val sharedOnce = assigned.mapTo(HashSet()) { it.otherId }
                     humanRels.forEach { r ->
                         RelationRow(
                             r, idx, lastFirst,
                             onOpen = { nav.open(Route.Detail(r.other.id)) },
+                            shared = sharedOnce.add(r.other.id),
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
                                     removeRelation(r)
@@ -1205,7 +1220,28 @@ private fun OpenNow(week: io.github.thelony97.orbit.core.domain.OpeningHours.Wee
     }
     Column(modifier.clip(RoundedCornerShape(6.dp)).clickable { open = !open }.animateContentSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).glow(color, 6.dp).clip(CircleShape).background(color))
+            // „Geöffnet“-Punkt pulsiert (PLAN 1.3): a slow halo, drawn only (no recomposition);
+            // still in power save and when closed.
+            val ctx = LocalContext.current
+            val calm = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+            val pulsing = st is io.github.thelony97.orbit.core.domain.OpeningHours.Status.Open && !calm
+            val halo = if (!pulsing) null else androidx.compose.animation.core.rememberInfiniteTransition(label = "open").animateFloat(
+                0f, 1f,
+                androidx.compose.animation.core.infiniteRepeatable(
+                    androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MAX_MS * 4, easing = io.github.thelony97.orbit.core.designsystem.Motion.Standard),
+                ),
+                label = "halo",
+            )
+            Box(
+                Modifier.size(8.dp).drawBehind {
+                    if (halo != null) {
+                        val p = halo.value
+                        drawCircle(color.copy(alpha = 0.45f * (1f - p)), radius = size.minDimension / 2 * (1f + 1.6f * p))
+                    }
+                },
+            ) {
+                Box(Modifier.size(8.dp).glow(color, 6.dp).clip(CircleShape).background(color))
+            }
             Spacer(Modifier.width(8.dp))
             Text(
                 io.github.thelony97.orbit.core.domain.OpeningHours.line(st) { d -> Fmt.weekdayShort(d) },
@@ -1247,27 +1283,47 @@ private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
         if (ordered.size >= io.github.thelony97.orbit.core.domain.Members.SEARCH_FROM) {
             SpaceSearchField(search, "In ${Logic.shortName(org)} suchen", Modifier.fillMaxWidth().padding(bottom = 6.dp), leading = Icons.Rounded.Search)
         }
-        shown.forEach { m ->
-            val last = io.github.thelony97.orbit.core.domain.Members.lastTalk(org, m.id)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { nav.open(Route.MemberPage(org.id, m.id)) }
-                    .padding(vertical = 6.dp, horizontal = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(36.dp).clip(CircleShape).background(Space.Blue.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                    Text(memberInitials(m.name), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(m.name, style = MaterialTheme.typography.bodyLarge, color = Space.Text)
-                    val sub = listOfNotNull(
-                        m.role.takeIf { it.isNotBlank() },
-                        last?.let { Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), todayDate)) },
-                    ).joinToString(" · ")
-                    if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+        // Satelliten-Reihe (PLAN 1.3): the members circle the organisation on one orbit line,
+        // the one talked to last first.
+        if (shown.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth()) {
+                Box(
+                    Modifier.matchParentSize().drawBehind {
+                        val y = 26.dp.toPx()
+                        val path = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(0f, y + 10.dp.toPx())
+                            quadraticTo(size.width / 2, y - 14.dp.toPx(), size.width, y + 10.dp.toPx())
+                        }
+                        drawPath(path, Space.Blue.copy(alpha = 0.22f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+                    },
+                )
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    shown.forEach { m ->
+                        val last = io.github.thelony97.orbit.core.domain.Members.lastTalk(org, m.id)
+                        Column(
+                            Modifier
+                                .width(76.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { nav.open(Route.MemberPage(org.id, m.id)) }
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(
+                                Modifier.size(40.dp).glow(Space.Blue, 8.dp, alpha = if (last != null) 0.35f else 0f).clip(CircleShape)
+                                    .background(Space.Panel).border(1.dp, Space.Blue.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(memberInitials(m.name), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(m.name, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val sub = m.role.ifBlank { last?.let { Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), todayDate)) }.orEmpty() }
+                            if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
             }
         }
