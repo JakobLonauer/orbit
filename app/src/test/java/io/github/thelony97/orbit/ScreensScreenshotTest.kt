@@ -157,6 +157,24 @@ class ScreensScreenshotTest {
         shot("detail_org") { ContactDetailScreen("jku", full, Index(full), nav) }
     }
 
+    /** Teilen-Eingang (PLAN 3.8): a place from Google Maps. */
+    @Test fun shareSheet() {
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.sheets.ShareSheet(
+                        io.github.thelony97.orbit.ui.sheets.PendingShare(
+                            io.github.thelony97.orbit.core.domain.ShareIn.Item.Place("Hausarztpraxis Dr. Huber", "Landstraße 12, 4020 Linz", "https://maps.app.goo.gl/x"),
+                            emptyList(),
+                        ),
+                        data, idx, nav, onDone = {},
+                    )
+                }
+            }
+        }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_share.png")
+    }
+
     /** A hidden member's own page (PLAN 3.6): role, Durchwahl, conversations. */
     @Test fun memberPage() {
         val full = fullData()
