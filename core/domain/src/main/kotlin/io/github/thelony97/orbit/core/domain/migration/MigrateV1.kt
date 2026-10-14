@@ -77,7 +77,9 @@ object MigrateV1 {
         val types = old.entryTypes.map { EntryType(it.id, it.name, it.icon, it.builtin) }
         val missing = BuiltinTypes.all.filter { b -> types.none { it.id == b.id } }
 
+        // Schema 2 exactly: MigrateV2 moves the person ↔ organisation relations next.
         val doc = OrbitDoc(
+            schema = io.github.thelony97.orbit.core.model.SCHEMA_V2,
             contacts = contacts,
             groups = old.groups.map { Group(it.id, it.name, it.color, it.pinned) },
             entryTypes = types + missing,
