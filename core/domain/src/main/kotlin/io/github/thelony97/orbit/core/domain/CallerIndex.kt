@@ -25,6 +25,8 @@ data class CallerCard(
     val topics: List<String> = emptyList(),
     /** Birthday (persons); the screen turns it into „Morgen Geburtstag · wird 30“ (PLAN 3.12 „anstehender Anlass“). */
     val birthday: io.github.thelony97.orbit.core.model.CalendarDay? = null,
+    /** First group colour (ARGB), so the caller has the same colour as in the list. */
+    val color: Long? = null,
 )
 
 @Serializable
@@ -65,6 +67,7 @@ data class CallerIndex(
             val prefixes = ArrayList<CallerPrefix>()
 
             val kinds = doc.entryTypes.associate { it.id to it.name }
+            val groupColors = doc.groups.associate { it.id to it.color }
             for (c in live) {
                 val last = c.entries.filter { it.memberId == null }.maxByOrNull { it.at }
                 val base = CallerCard(
@@ -80,6 +83,7 @@ data class CallerIndex(
                     lastKind = last?.let { kinds[it.typeId] }.orEmpty(),
                     topics = if (doc.settings.topicsDuringCall) c.topics.filterNot { it.done }.map { it.text }.take(TOPICS) else emptyList(),
                     birthday = if (c.isOrg) null else c.birthday,
+                    color = c.groupIds.firstNotNullOfOrNull { groupColors[it] },
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue

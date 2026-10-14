@@ -166,7 +166,8 @@ fun DialpadContent(
             val number = digits.takeIf { it.any(Char::isDigit) }
             Box(
                 Modifier
-                    .size(68.dp)
+                    // Same size as the hang-up button that takes its place (W3).
+                    .size(72.dp)
                     .then(if (number != null) Modifier.glow(Space.Teal, 20.dp, CircleShape, 0.5f) else Modifier)
                     .clip(CircleShape)
                     .background(if (number != null) Space.Teal else Space.PanelHigh)
@@ -240,9 +241,10 @@ private fun Suggestion(r: DialRow, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(io.github.thelony97.orbit.core.designsystem.Corners.Row)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            // On the 16 dp gutter like every list (no extra inset).
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(r.contact, r.color, 40.dp)

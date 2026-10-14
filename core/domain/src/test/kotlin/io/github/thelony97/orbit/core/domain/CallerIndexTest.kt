@@ -109,6 +109,13 @@ class CallerIndexTest {
         assertNull(i.lookup("0732 111", at)!!.birthday)
     }
 
+    @Test fun groupColourGoesOnTheCard() {
+        val fam = io.github.thelony97.orbit.core.model.Group("fam", "Familie", 0xFFFF6B6BL)
+        val i = CallerIndex.build(doc.copy(groups = listOf(fam), contacts = listOf(anna.copy(groupIds = listOf("fam")), papa)), at)
+        assertEquals(0xFFFF6B6BL, i.lookup("0664 2", at)!!.color)
+        assertNull(i.lookup("0660 1", at)!!.color)
+    }
+
     @Test fun oldIndexFileStillReads() {
         // Written by 1.0.101 without the new fields.
         val json = Json { ignoreUnknownKeys = true }

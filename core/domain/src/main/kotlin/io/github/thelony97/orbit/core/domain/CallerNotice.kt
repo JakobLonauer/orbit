@@ -19,6 +19,8 @@ data class CallerNotice(
     val occasion: String? = null,
 ) {
     companion object {
+        private val WEEKDAYS = listOf("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
+
         fun of(card: CallerCard, now: Long, zone: ZoneId): CallerNotice {
             val title = card.name.ifBlank { "Unbekannt" } + if (card.archived) " · archiviert" else ""
             val last = card.lastAt?.let { at ->
@@ -37,13 +39,17 @@ data class CallerNotice(
             return CallerNotice(title, line, details, card.name.ifBlank { "Unbekannt" }, card.role, occasion)
         }
 
-        /** „Heute Geburtstag · wird 30“, „Morgen Geburtstag“, „Geburtstag in 5 Tagen · wird 30“; null beyond 14 days. */
+        /**
+         * „Heute Geburtstag · wird 30“, „Morgen Geburtstag“, within a week the weekday („Geburtstag
+         * am Freitag“, W7: a day you can picture), then „Geburtstag in 12 Tagen“; null beyond 14 days.
+         */
         fun occasion(birthday: io.github.thelony97.orbit.core.model.CalendarDay, today: java.time.LocalDate): String? {
             val days = DateMath.daysUntil(birthday, today)
             if (days > 14) return null
-            val head = when (days) {
-                0L -> "Heute Geburtstag"
-                1L -> "Morgen Geburtstag"
+            val head = when {
+                days == 0L -> "Heute Geburtstag"
+                days == 1L -> "Morgen Geburtstag"
+                days < 7L -> "Geburtstag am " + WEEKDAYS[DateMath.nextOccurrence(birthday, today).dayOfWeek.value - 1]
                 else -> "Geburtstag in $days Tagen"
             }
             return head + (DateMath.turning(birthday, today)?.let { " · wird $it" } ?: "")

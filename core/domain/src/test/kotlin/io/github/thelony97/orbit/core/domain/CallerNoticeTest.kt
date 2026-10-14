@@ -38,9 +38,12 @@ class CallerNoticeTest {
         assertEquals(null, CallerNotice.occasion(cd(28, 10, 1965), today))
         // Yesterday's birthday is next year's – no line.
         assertEquals(null, CallerNotice.occasion(cd(12, 10, 1990), today))
+        // Within a week the weekday: 13.10.2026 is a Tuesday, the 15th a Thursday.
+        assertEquals("Geburtstag am Sonntag", CallerNotice.occasion(cd(18, 10, null), today))
+        assertEquals("Geburtstag in 7 Tagen", CallerNotice.occasion(cd(20, 10, null), today))
         val n = CallerNotice.of(CallerCard("a", "Anna", birthday = cd(15, 10, 1996)), now, zone)
-        assertEquals("Geburtstag in 2 Tagen · wird 30", n.occasion)
-        assertEquals(listOf("Geburtstag in 2 Tagen · wird 30"), n.details)
+        assertEquals("Geburtstag am Donnerstag · wird 30", n.occasion)
+        assertEquals(listOf("Geburtstag am Donnerstag · wird 30"), n.details)
         // Never on the lock screen.
         assertEquals("Anna", n.publicTitle)
         assertEquals("", n.publicLine)

@@ -137,6 +137,9 @@ private val fallbackPalette = listOf(
     Color(0xFFFF8FB1), Color(0xFF9BE37A), Color(0xFFFFD166),
 )
 
+/** The stable pick for a contact without group colour (also used by the call screen). */
+fun fallbackColor(id: String): Color = fallbackPalette[(id.hashCode() and 0x7FFFFFFF) % fallbackPalette.size]
+
 /** Stable colour per contact: "Ich" is the sun, organisations are blue, people take their first group colour. */
 fun contactColor(c: Contact, idx: Index): Color {
     if (c.isMe) return Space.Orange

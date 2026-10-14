@@ -124,6 +124,20 @@ class OrbitInCallService : InCallService() {
 object CallNotification {
     const val ID = 1004
 
+    /** Caller photos, decoded once per call (small: a quarter of the stored size). */
+    private val photos = HashMap<String, androidx.core.graphics.drawable.IconCompat?>()
+
+    private fun photoIcon(ctx: Context, name: String?): androidx.core.graphics.drawable.IconCompat? {
+        if (name.isNullOrBlank()) return null
+        return photos.getOrPut(name) {
+            runCatching {
+                val file = java.io.File(java.io.File(ctx.filesDir, "photos"), name)
+                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+                android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)?.let { androidx.core.graphics.drawable.IconCompat.createWithBitmap(it) }
+            }.getOrNull()
+        }
+    }
+
     /** The ringing call the notification last alerted for; a new one (call waiting) alerts again. */
     private var alertedFor: Call? = null
 
@@ -163,6 +177,7 @@ object CallNotification {
         val call = CallSession.primary()
         if (call == null) {
             alertedFor = null
+            photos.clear()
             NotificationManagerCompat.from(ctx).cancel(ID)
             return
         }
@@ -173,6 +188,7 @@ object CallNotification {
         // The tel: URI lets Do Not Disturb recognise starred contacts like the system dialer does.
         val person = Person.Builder().setName(name).setImportant(card != null)
             .apply { if (number.isNotBlank()) setUri("tel:$number") }
+            .apply { photoIcon(ctx, card?.photo)?.let { setIcon(it) } }
             .build()
         val screen = PendingIntent.getActivity(ctx, ID, CallActivity.intent(ctx), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val style = if (state == Call.STATE_RINGING) {
@@ -181,15 +197,23 @@ object CallNotification {
             NotificationCompat.CallStyle.forOngoingCall(person, CallActionReceiver.pending(ctx, CallActionReceiver.HANG_UP))
         }
         val line = when (state) {
-            Call.STATE_RINGING -> card?.role?.takeIf { it.isNotBlank() } ?: "Anruf"
+            Call.STATE_RINGING -> card?.role.orEmpty()
             Call.STATE_HOLDING -> "Gehalten"
             Call.STATE_ACTIVE -> "Im Gespräch"
             else -> "Wählt …"
         }
-        // Lock screen: name and role only (PLAN 3.12), whatever the user's lock-screen setting says.
+        // Lock screen: name and role only (PLAN 3.12), whatever the user's lock-screen setting says –
+        // but with the same buttons, so a call can be answered or ended from there too.
+        val publicPerson = Person.Builder().setName(name).apply { if (number.isNotBlank()) setUri("tel:$number") }.build()
+        val publicStyle = if (state == Call.STATE_RINGING) {
+            NotificationCompat.CallStyle.forIncomingCall(publicPerson, CallActionReceiver.pending(ctx, CallActionReceiver.DECLINE), CallActivity.answerIntent(ctx))
+        } else {
+            NotificationCompat.CallStyle.forOngoingCall(publicPerson, CallActionReceiver.pending(ctx, CallActionReceiver.HANG_UP))
+        }
         val public = NotificationCompat.Builder(ctx, Notifications.CH_INCALL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(name)
+            .setStyle(publicStyle)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
             .setContentText(card?.role.orEmpty())
         val builder = NotificationCompat.Builder(ctx, Notifications.CH_INCALL)
             .setSmallIcon(R.drawable.ic_notification)

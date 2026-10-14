@@ -73,11 +73,11 @@ fun OngoingCallChip(modifier: Modifier = Modifier) {
                 .clip(RoundedCornerShape(50))
                 .background(Space.Teal)
                 .clickable { runCatching { ctx.startActivity(CallActivity.intent(ctx)) } }
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Rounded.Call, null, tint = Space.Void, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
                 "$name · $time",
                 style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),

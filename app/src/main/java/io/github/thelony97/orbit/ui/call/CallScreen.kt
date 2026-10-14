@@ -1,5 +1,8 @@
 package io.github.thelony97.orbit.ui.call
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -43,6 +46,8 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PhoneInTalk
 import androidx.compose.material.icons.rounded.Dialpad
@@ -161,6 +166,8 @@ interface CallActions {
     /** Every change of the note line, so nothing typed is lost when the screen goes away. */
     fun noteDraft(text: String) {}
     fun close() {}
+    /** After a call with an unknown number: create it as a person or an organisation (PLAN 3.12). */
+    fun createContact(org: Boolean) {}
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
@@ -169,10 +176,14 @@ private fun callerColor(card: CallerCard?, unlocked: Boolean): Color {
     // Archived: a distant, colourless star (PLAN 1.3) – only on an unlocked phone, the lock
     // screen must not tell that a caller is archived (name, photo, role only).
     if (card.archived && unlocked) return Space.TextDim
-    if (card.org) return Space.Blue
-    val palette = listOf(Color(0xFFA78BFF), Color(0xFF5EE6CF), Color(0xFFFFB45E), Color(0xFF6FB7FF), Color(0xFFFF8FB1), Color(0xFF9BE37A))
-    return palette[(card.contactId.hashCode() and 0x7FFFFFFF) % palette.size]
+    // Same colour as in the list and the dialpad: first group colour, else the stable pick.
+    val c = card.color?.let { Color(it) }
+        ?: if (card.org) Space.Blue else io.github.thelony97.orbit.ui.components.fallbackColor(card.contactId)
+    // The sun is orange: a caller in the same colour would vanish into it.
+    return if (c == Space.Orange) Space.Violet else c
 }
+
+private enum class CallMode { INCOMING, ACTIVE, ENDED }
 
 @Composable
 fun CallScreen(
@@ -181,19 +192,29 @@ fun CallScreen(
     now: Long = System.currentTimeMillis(),
     /** Opens with the SMS templates shown (screenshots). */
     smsOpen: Boolean = false,
+    /** Seconds talked, read only by the timer text – the rest of the screen does not tick (W8). */
+    clock: (() -> Long)? = null,
 ) {
     var templates by remember { mutableStateOf(smsOpen) }
     var keys by remember { mutableStateOf(false) }
     val color = callerColor(ui.card, ui.phoneUnlocked)
-    val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
+    val notice = remember(ui.card, now / 3_600_000L) { ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) } }
+    val mode = when {
+        ui.ended -> CallMode.ENDED
+        ui.active -> CallMode.ACTIVE
+        else -> CallMode.INCOMING
+    }
+    // After hanging up the portrait steps back so the note line and keyboard fit (PLAN 1.3).
+    val portrait by androidx.compose.animation.core.animateDpAsState(if (ui.ended) 72.dp else 132.dp, tween(Motion.MEDIUM_MS), label = "portrait")
+    val top by androidx.compose.animation.core.animateDpAsState(if (ui.ended) 16.dp else 40.dp, tween(Motion.MEDIUM_MS), label = "top")
     SpaceBackground(nebula = { color.copy(alpha = 1f) }, camera = rememberTiltCamera()) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(40.dp))
-            CallerPortrait(ui.card, color, faded = ui.card?.archived == true && ui.phoneUnlocked)
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(top))
+            CallerPortrait(ui.card, color, faded = ui.card?.archived == true && ui.phoneUnlocked, size = portrait)
+            Spacer(Modifier.height(16.dp))
             // The name alone; the archive hint sits in the details with „Zurückholen“.
             Text(
                 notice?.publicTitle ?: ui.number,
@@ -203,19 +224,27 @@ fun CallScreen(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            // One line under the name that cross-fades between the states (W2: no hard cuts).
             val sub = when {
-                ui.ended -> "Beendet · " + timer(ui.elapsed)
+                ui.ended -> "Beendet nach " + timer(ui.elapsed)
+                ui.accounts.isNotEmpty() -> ui.number
                 ui.dialing -> "Wählt …"
-                ui.active -> listOfNotNull(timer(ui.elapsed), "gehalten".takeIf { ui.onHold }).joinToString(" · ")
+                ui.active -> null
                 notice != null -> notice.publicLine.ifBlank { ui.number }
                 else -> ui.unknownLine ?: "Unbekannt"
             }
-            Text(
-                sub,
-                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                color = if (ui.active && !ui.ended) Space.Teal else Space.TextDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
+            androidx.compose.animation.Crossfade(sub == null, animationSpec = tween(Motion.MEDIUM_MS), label = "sub") { live ->
+                if (live) {
+                    CallTimer(clock ?: { ui.elapsed }, ui.onHold)
+                } else {
+                    Text(
+                        sub.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                        color = if (ui.dialing) Space.Teal else Space.TextDim,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
             // Anklopfen while ringing: who is waiting on the other line (held when answering).
             if (!ui.active && ui.otherCall != null) {
                 Text(
@@ -232,10 +261,20 @@ fun CallScreen(
                 Details(notice, ui, actions)
             }
             Spacer(Modifier.weight(1f))
-            if (ui.ended) {
+            androidx.compose.animation.AnimatedContent(
+                targetState = mode,
+                transitionSpec = {
+                    (fadeIn(tween(Motion.MEDIUM_MS)) + androidx.compose.animation.slideInVertically(tween(Motion.MEDIUM_MS)) { it / 6 }) togetherWith
+                        fadeOut(tween(Motion.FAST_MS))
+                },
+                contentAlignment = Alignment.BottomCenter,
+                label = "mode",
+            ) { m ->
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (m == CallMode.ENDED) {
                 // The note needs a contact to land on, and an unlocked phone.
-                AfterCall(ui.phoneUnlocked && ui.card != null, actions)
-            } else if (ui.active) {
+                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked)
+            } else if (m == CallMode.ACTIVE) {
                 ui.otherCall?.let { other ->
                     Row(
                         Modifier
@@ -254,8 +293,9 @@ fun CallScreen(
                     Spacer(Modifier.height(20.dp))
                 }
                 if (ui.accounts.isNotEmpty()) {
+                    // Nothing is selected yet: equal buttons, none glowing (W5).
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ui.accounts.forEachIndexed { i, label -> GlowButton(label, { actions.pickAccount(i) }, color = Space.Teal) }
+                        ui.accounts.forEachIndexed { i, label -> GhostButton(label, { actions.pickAccount(i) }) }
                     }
                     Spacer(Modifier.height(20.dp))
                 }
@@ -283,9 +323,22 @@ fun CallScreen(
                 Spacer(Modifier.height(8.dp))
                 AnswerOrbit(color, onAnswer = actions::answer, onDecline = actions::decline)
             }
+            }
+            }
             Spacer(Modifier.height(16.dp))
         }
     }
+}
+
+/** The running time; only this text recomposes every second. */
+@Composable
+private fun CallTimer(clock: () -> Long, onHold: Boolean) {
+    Text(
+        listOfNotNull(timer(clock()), "gehalten".takeIf { onHold }).joinToString(" · "),
+        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+        color = Space.Teal,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }
 
 /** Fixed for now; editable templates come with the settings for the phone role. */
@@ -321,7 +374,7 @@ private fun SmsTemplates(onPick: (String) -> Unit) {
  * outside the call stay behind the phone's lock (PLAN 3.12).
  */
 @Composable
-private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true) {
+private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true, unknown: Boolean = false) {
     val note = rememberTextFieldState()
     LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
     // PLAN 1.3: after hanging up the note line glides up with the keyboard already open.
@@ -344,15 +397,25 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
                 state = note,
                 placeholder = { Text("Notiz zum Anruf") },
                 lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 1, maxHeightInLines = 4),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                onKeyboardAction = { if (note.text.isNotBlank()) actions.saveNote(note.text.toString().trim()) },
+                shape = io.github.thelony97.orbit.core.designsystem.Corners.Row,
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
+        }
+        if (unknown) {
+            // Talked to an unknown number: keep it (PLAN 3.12 „Danach“).
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton("Als Kontakt anlegen", { actions.createContact(false) }, icon = Icons.Rounded.PersonAdd)
+                GhostButton("Organisation", { actions.createContact(true) }, icon = Icons.Rounded.Business)
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             GhostButton("Schließen", actions::close)
             if (unlocked) {
-                GlowButton("Speichern", { actions.saveNote(note.text.toString().trim()) }, color = Space.Teal, enabled = note.text.isNotBlank())
+                // Speichern morphs into the check (PLAN 1.2), then the screen closes.
+                val text = note.text.toString().trim()
+                io.github.thelony97.orbit.ui.components.SaveMorphButton(onSave = { text.isNotEmpty() }, onDone = { actions.saveNote(text) })
             }
         }
     }
@@ -384,8 +447,11 @@ private fun rememberTiltCamera(): io.github.thelony97.orbit.ui.components.SpaceC
                 // Low-pass: calm drift, no jitter from the hand.
                 fx += (e.values[0] - fx) * 0.06f
                 fy += (e.values[1] - fy) * 0.06f
-                camera.pan = ((bx - fx) / 9.81f).coerceIn(-1f, 1f) * 0.25f
-                camera.scroll = ((fy - by) / 9.81f).coerceIn(-1f, 1f) * 160f
+                val pan = ((bx - fx) / 9.81f).coerceIn(-1f, 1f) * 0.25f
+                val scroll = ((fy - by) / 9.81f).coerceIn(-1f, 1f) * 160f
+                // Only noticeable changes redraw the sky.
+                if (abs(pan - camera.pan) > 0.002f) camera.pan = pan
+                if (abs(scroll - camera.scroll) > 1f) camera.scroll = scroll
             }
 
             override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
@@ -399,11 +465,11 @@ private fun rememberTiltCamera(): io.github.thelony97.orbit.ui.components.SpaceC
 private fun timer(sec: Long): String = "%d:%02d".format(sec / 60, sec % 60)
 
 @Composable
-private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean) {
+private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean, size: androidx.compose.ui.unit.Dp = 132.dp) {
     val photo = rememberPhoto(card?.photo)
     Box(
         Modifier
-            .size(132.dp)
+            .size(size)
             .glow(color, 40.dp, CircleShape, 0.55f)
             .clip(CircleShape)
             // Inside the clip, so the glow outside is not cut by the layer.
@@ -422,7 +488,7 @@ private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean) {
             Image(photo, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
             val initials = card?.name?.split(' ')?.filter { it.isNotBlank() }?.take(2)?.joinToString("") { it.take(1).uppercase() }
-            Text(initials?.ifBlank { null } ?: "?", fontFamily = Grotesk, fontWeight = FontWeight.SemiBold, fontSize = 46.sp, color = Space.Text)
+            Text(initials?.ifBlank { null } ?: "?", fontFamily = Grotesk, fontWeight = FontWeight.SemiBold, fontSize = (size.value * 0.35f).sp, color = Space.Text)
         }
     }
 }
@@ -445,14 +511,24 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
             }
         }
         if (notice.line.isNotBlank() && notice.line != notice.publicLine) {
-            Text(notice.line.removePrefix(notice.publicLine).removePrefix(" · "), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+            Text(
+                notice.line.removePrefix(notice.publicLine).removePrefix(" · ").replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.labelLarge,
+                color = Space.TextDim,
+            )
         }
         ui.card?.note?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Space.Text) }
         // Topics can be ticked off during the call (PLAN 3.12 „Themen abhaken“).
+        val haptics = rememberHaptics()
         ui.card?.topics?.forEach { t ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CheckDot(t in ui.doneTopics, { actions.toggleTopic(t) })
-                Spacer(Modifier.width(10.dp))
+            val tick = { haptics.perform(Haptic.Confirm); actions.toggleTopic(t) }
+            // The whole row is the target, not just the 22 dp dot.
+            Row(
+                Modifier.fillMaxWidth().clip(io.github.thelony97.orbit.core.designsystem.Corners.Row).clickable(onClick = tick).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CheckDot(t in ui.doneTopics, tick)
+                Spacer(Modifier.width(12.dp))
                 Text(t, style = MaterialTheme.typography.bodyMedium, color = if (t in ui.doneTopics) Space.TextFaint else Space.Text)
             }
         }
@@ -470,6 +546,7 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
 
 @Composable
 private fun SmallAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean = false, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -477,10 +554,10 @@ private fun SmallAction(icon: androidx.compose.ui.graphics.vector.ImageVector, l
                 .clip(CircleShape)
                 .background(if (on) Space.Teal.copy(alpha = 0.22f) else Space.PanelHigh)
                 .border(1.dp, if (on) Space.Teal.copy(alpha = 0.6f) else Space.Line, CircleShape)
-                .clickable(onClick = onClick),
+                .clickable { haptics.perform(Haptic.Tick); onClick() },
             contentAlignment = Alignment.Center,
         ) { Icon(icon, label, tint = if (on) Space.Teal else Space.TextDim) }
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, modifier = Modifier.padding(top = 4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Space.TextDim, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -496,7 +573,26 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
     var captured by remember { mutableStateOf(false) }
     var done by remember { mutableStateOf(false) }
     val density = LocalDensity.current
-    val hint = rememberInfiniteTransition(label = "hint").animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart), label = "hint")
+    val springBack = MaterialTheme.motionScheme.defaultSpatialSpec<Offset>()
+    // A dot travels to the sun as a hint: 400 ms (Motion.MAX) then a pause; none in power saving.
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val saver = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+    val hint: androidx.compose.runtime.State<Float> = if (saver) {
+        remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    } else {
+        rememberInfiniteTransition(label = "hint").animateFloat(
+            0f, 1f,
+            infiniteRepeatable(
+                androidx.compose.animation.core.keyframes {
+                    durationMillis = 1400
+                    0f at 0 using LinearEasing
+                    1f at Motion.MAX_MS
+                },
+                RepeatMode.Restart,
+            ),
+            label = "hint",
+        )
+    }
     BoxWithConstraints(Modifier.fillMaxWidth().height(250.dp)) {
         val w = with(density) { maxWidth.toPx() }
         val h = with(density) { maxHeight.toPx() }
@@ -507,7 +603,7 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
         Canvas(
             Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
+                .pointerInput(w, h) {
                     detectDragGestures(
                         onDragStart = { tracker.resetTracking() },
                         onDrag = { change, drag ->
@@ -528,9 +624,10 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
                             when {
                                 captured -> {
                                     done = true
-                                    haptics.perform(Haptic.Confirm)
                                     scope.launch {
                                         offset.animateTo(sun - home, tween(Motion.FAST_MS, easing = Motion.Emphasized))
+                                        // The haptic lands with the planet, not before.
+                                        haptics.perform(Haptic.Confirm)
                                         onAnswer()
                                     }
                                 }
@@ -544,7 +641,7 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
                                         onDecline()
                                     }
                                 }
-                                else -> scope.launch { offset.animateTo(Offset.Zero, spring(dampingRatio = 0.6f, stiffness = 500f)) }
+                                else -> scope.launch { offset.animateTo(Offset.Zero, springBack) }
                             }
                         },
                     )
@@ -573,9 +670,11 @@ private fun AnswerOrbit(color: Color, onAnswer: () -> Unit, onDecline: () -> Uni
 
 @Composable
 private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKeys: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute)
+    val haptics = rememberHaptics()
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        // SIM still to pick: no call yet, so nothing to mute or hold (W5).
+        if (ui.accounts.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            ToggleOrb(Icons.Rounded.MicOff, "Stumm", ui.muted, actions::toggleMute, Modifier.weight(1f))
             // With a headset or Bluetooth the button names where the sound goes and moves it on.
             val (icon, label) = when {
                 !ui.moreRoutes -> Icons.AutoMirrored.Rounded.VolumeUp to "Lautsprecher"
@@ -584,29 +683,44 @@ private fun ActiveControls(ui: CallUi, actions: CallActions, keys: Boolean, onKe
                 ui.route == AudioRoute.WIRED -> Icons.Rounded.Headphones to "Kopfhörer"
                 else -> Icons.Rounded.PhoneInTalk to "Hörer"
             }
-            ToggleOrb(icon, label, ui.speaker || ui.route == AudioRoute.BLUETOOTH, actions::toggleSpeaker)
-            ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold)
-            ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys)
+            ToggleOrb(icon, label, ui.speaker || ui.route == AudioRoute.BLUETOOTH, actions::toggleSpeaker, Modifier.weight(1f))
+            // Holding and keys only once the other side answered.
+            if (!ui.dialing) {
+                ToggleOrb(Icons.Rounded.Pause, "Halten", ui.onHold, actions::toggleHold, Modifier.weight(1f))
+                ToggleOrb(Icons.Rounded.Dialpad, "Tasten", keys, onKeys, Modifier.weight(1f))
+            }
         }
         Box(
-            Modifier.size(72.dp).glow(Space.Coral, 22.dp, CircleShape, 0.6f).clip(CircleShape).background(Space.Coral).clickable(onClick = actions::hangUp),
+            Modifier.size(72.dp).glow(Space.Coral, 22.dp, CircleShape, 0.6f).clip(CircleShape).background(Space.Coral)
+                .clickable { haptics.perform(Haptic.Reject); actions.hangUp() },
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Rounded.CallEnd, "Auflegen", tint = Space.Void, modifier = Modifier.size(32.dp)) }
     }
 }
 
 @Composable
-private fun ToggleOrb(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean, onClick: () -> Unit) {
-    Column(Modifier.width(80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ToggleOrb(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = rememberHaptics()
+    // On/off fades instead of jumping (W2).
+    val fill by androidx.compose.animation.animateColorAsState(if (on) Space.Text else Space.PanelHigh, tween(Motion.FAST_MS), label = "orbFill")
+    val tint by androidx.compose.animation.animateColorAsState(if (on) Space.Void else Space.Text, tween(Motion.FAST_MS), label = "orbTint")
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(if (on) Space.Text else Space.PanelHigh)
+                .background(fill)
                 .border(1.dp, if (on) Space.Text else Space.Line, CircleShape)
-                .clickable(onClick = onClick),
+                .clickable { haptics.perform(Haptic.Tick); onClick() },
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, label, tint = if (on) Space.Void else Space.Text) }
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Space.TextDim, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+        ) { Icon(icon, label, tint = tint) }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Space.TextDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp),
+        )
     }
 }

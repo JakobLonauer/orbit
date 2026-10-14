@@ -187,16 +187,19 @@ private fun CallRoute(onDone: () -> Unit) {
         LaunchedEffect(Unit) { onDone() }
         return
     }
-    val ui = if (call != null) {
+    // Rebuilt only when something changes – never by the second (W8); the timer reads [now] itself.
+    val stamp = remember(version, after) { System.currentTimeMillis() }
+    val connectedAt = remember(version, call) { call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: 0L }
+    val clock = remember(connectedAt) { { if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0L } }
+    val ui = remember(version, call, after, audio, cards, doc, phoneUnlocked, done) {
+    if (call != null) {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
-        val connectedAt = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
         CallUi(
             number = number,
             card = cards[number],
             active = state != Call.STATE_RINGING,
             dialing = CallPick.isOutgoing(state),
-            elapsed = if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0,
             muted = audio.muted,
             speaker = audio.speaker,
             onHold = state == Call.STATE_HOLDING,
@@ -212,7 +215,7 @@ private fun CallRoute(onDone: () -> Unit) {
             moreRoutes = audio.available.any {
                 it.endpointType == android.telecom.CallEndpoint.TYPE_BLUETOOTH || it.endpointType == android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
             },
-            unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, now) else null,
+            unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, stamp) else null,
             canBlock = canBlock && number.isNotBlank(),
             otherCall = CallSession.other()?.let { o ->
                 val n = CallSession.numberOf(o)
@@ -239,6 +242,7 @@ private fun CallRoute(onDone: () -> Unit) {
             phoneUnlocked = phoneUnlocked,
             doneTopics = done,
         )
+    }
     }
 
     fun finishAfter(note: String?) {
@@ -308,9 +312,22 @@ private fun CallRoute(onDone: () -> Unit) {
         }
         override fun saveNote(text: String) = finishAfter(text)
         override fun close() = finishAfter(null)
+        override fun createContact(org: Boolean) {
+            val number = CallSession.ended.value?.number ?: return
+            finishAfter(null)
+            // Orbit's edit page with the number, behind the Orbit lock as always.
+            runCatching {
+                ctx.startActivity(
+                    Intent(ctx, io.github.thelony97.orbit.MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .putExtra(io.github.thelony97.orbit.MainActivity.EXTRA_NEW_NUMBER, number)
+                        .putExtra(io.github.thelony97.orbit.MainActivity.EXTRA_NEW_ORG, org),
+                )
+            }
+        }
         override fun noteDraft(text: String) { CallSession.draft = text }
     }
-    CallScreen(ui, actions, now)
+    CallScreen(ui, actions, stamp, clock = clock)
 }
 
 /** After the call: ticked topics go into Orbit at once (PLAN 3.12 „Themen abhaken“). */
