@@ -268,6 +268,9 @@ fun EntryRow(
     drawIn: Boolean = false,
     /** On an organisation's page: who the conversation was with („Anruf · Empfang“, PLAN 3.6). */
     member: String? = null,
+    /** The entry's pictures (PLAN 3.10 „Vorschau im Verlauf“), already looked up. */
+    photos: List<io.github.thelony97.orbit.data.GalleryPhoto> = emptyList(),
+    onPhoto: (Int) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val drawn = remember { androidx.compose.animation.core.Animatable(if (drawIn) 0f else 1f) }
@@ -363,6 +366,14 @@ fun EntryRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = Space.TextFaint,
             )
+            if (photos.isNotEmpty()) {
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    photos.take(4).forEachIndexed { i, p ->
+                        PhotoThumb(p.file, Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).clickable { onPhoto(i) })
+                    }
+                    if (photos.size > 4) Text("+${photos.size - 4}", style = MaterialTheme.typography.labelSmall, color = Space.TextFaint, modifier = Modifier.align(Alignment.CenterVertically))
+                }
+            }
             // The subjects, newest first (never the text, PLAN 3.9).
             if (entry.mails.isNotEmpty()) {
                 entry.mails.take(3).forEach { m ->

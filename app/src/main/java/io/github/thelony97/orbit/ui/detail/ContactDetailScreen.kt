@@ -233,6 +233,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var assignDialog by remember { mutableStateOf(false) }
     var osmDialog by remember { mutableStateOf(false) }
     var mailEntry by remember { mutableStateOf<Entry?>(null) }
+    var entryPhotos by remember { mutableStateOf<Pair<List<io.github.thelony97.orbit.data.GalleryPhoto>, Int>?>(null) }
     // E-Mail v2 (PLAN 3.9): the page shows the stored state at once, a sync runs behind it.
     val mailAddresses = remember(c.emails, c.emailDomains, c.members) {
         if (c.isMe) emptyList() else c.emails.map { it.value } + c.emailDomains.map { "@" + it.trim().removePrefix("@") } + c.members.flatMap { m -> m.emails.map { it.value } }
@@ -947,6 +948,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     e, idx.types[e.typeId], last = i == visible.lastIndex,
                     onClick = { if (e.mails.isNotEmpty()) mailEntry = e else entryTarget = EntryTarget.Existing(e) }, drawIn = first,
                     member = e.memberId?.let { mid -> c.members.firstOrNull { it.id == mid }?.name },
+                    photos = if (e.attachmentIds.isEmpty()) emptyList() else e.attachmentIds.mapNotNull { id -> c.gallery.firstOrNull { it.id == id } },
+                    onPhoto = { i -> entryPhotos = e.attachmentIds.mapNotNull { id -> c.gallery.firstOrNull { it.id == id } } to i },
                 )
             }
             if (visible.size < filtered.size) {
@@ -977,12 +980,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             onDismiss = { entryTarget = null },
             members = if (c.isOrg) c.members else emptyList(),
             onNewMember = if (c.isOrg) ({ text -> addMemberFromText(c.id, text) }) else null,
+            photos = c.gallery,
+            onAddPhotos = { uris -> importPhotosFor(ctx, c.id, uris) },
         )
         is EntryTarget.Existing -> EntrySheet(
             title = "Eintrag bearbeiten",
             types = data.entryTypes,
             initial = target.entry,
             members = if (c.isOrg) c.members else emptyList(),
+            photos = c.gallery,
+            onAddPhotos = { uris -> importPhotosFor(ctx, c.id, uris) },
             onSave = { e -> OrbitRepository.edit { d -> Mutations.updateEntry(d, c.id, e) } },
             onDelete = {
                 // Keep the live copy (sync may have merged new SMS into it since the sheet opened).
@@ -1054,6 +1061,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     }
 
     mailEntry?.let { e -> MailEntryDialog(e, onDismiss = { mailEntry = null }) }
+    entryPhotos?.let { (list, start) ->
+        PhotoViewer(list.map { io.github.thelony97.orbit.core.domain.PhotoMonths.Item(c.id, it) }, start, onDismiss = { entryPhotos = null })
+    }
     if (osmDialog) OsmDialog(c, onDismiss = { osmDialog = false }) { change -> edit(change) }
 
     if (assignDialog) {
@@ -1391,4 +1401,11 @@ private fun MailWave(modifier: Modifier = Modifier) {
             }
         },
     )
+}
+
+/** New pictures for an entry: into the contact's folder first (PLAN 3.10), then attached. */
+private suspend fun importPhotosFor(ctx: android.content.Context, contactId: String, uris: List<android.net.Uri>): List<io.github.thelony97.orbit.data.GalleryPhoto> {
+    val added = GalleryStore.import(ctx.applicationContext, uris).map { it.copy(contactId = contactId) }
+    OrbitRepository.update { d -> d.copy(contacts = d.contacts.map { if (it.id == contactId) it.copy(gallery = added.asReversed() + it.gallery) else it }) }
+    return added
 }
