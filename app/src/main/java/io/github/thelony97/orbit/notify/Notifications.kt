@@ -40,6 +40,7 @@ object Notifications {
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
     private const val ID_UNKNOWN_BASE = 50_000
+    private const val ID_BRIEF_BASE = 60_000
     /** Each kind keeps to its own range of 4096 ids (ids double as PendingIntent request codes). */
     private const val ID_MASK = 0x0FFF
 
@@ -366,6 +367,37 @@ object Notifications {
     }
 
     fun meetingId(m: Meeting) = ID_MEETING_BASE + (m.id.hashCode() and ID_MASK)
+
+    /**
+     * Am Morgen eines geplanten Treffens (PLAN 3.13a): „Heute 18:00 · Anna · Café“ with the open
+     * topics, the last note and partner/children. Private on the lock screen.
+     */
+    fun meetingBrief(ctx: Context, b: io.github.thelony97.orbit.core.domain.MeetingBrief.Brief, data: io.github.thelony97.orbit.data.OrbitData) {
+        val byId = data.contacts.associateBy { it.id }
+        val c = byId[b.contactId] ?: return
+        val names = { ids: List<String> -> ids.mapNotNull { byId[it]?.let { p -> Logic.shortName(p) } }.joinToString(", ") }
+        val lines = buildList {
+            b.topics.take(5).forEach { add("• $it") }
+            b.lastNote?.let { add("Zuletzt: $it") }
+            val family = listOfNotNull(
+                names(b.partners).takeIf { it.isNotEmpty() },
+                names(b.children).takeIf { it.isNotEmpty() }?.let { if (b.children.size == 1) "Kind: $it" else "Kinder: $it" },
+            )
+            if (family.isNotEmpty()) add(family.joinToString(" · "))
+        }
+        val title = "Heute " + Fmt.time(b.meeting.start) + " · " + Logic.shortName(c) + if (b.meeting.place.isNotBlank()) " · ${b.meeting.place}" else ""
+        val id = ID_BRIEF_BASE + (b.meeting.id.hashCode() and ID_MASK)
+        val builder = base(ctx, CH_MEETING)
+            .setContentTitle(title)
+            .setContentText(lines.joinToString(" · ").ifEmpty { null })
+            .setStyle(NotificationCompat.InboxStyle().also { st -> lines.forEach { st.addLine(it) } })
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(openContact(ctx, c.id, id))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(base(ctx, CH_MEETING).setContentTitle("Treffen heute " + Fmt.time(b.meeting.start)).build())
+        photoOf(ctx, c.photo)?.let { builder.setLargeIcon(it) }
+        post(ctx, id, builder)
+    }
 
     fun meetingFollowUp(ctx: Context, meeting: Meeting, contact: Contact) {
         val notifId = meetingId(meeting)

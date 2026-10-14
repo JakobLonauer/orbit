@@ -20,6 +20,7 @@ class GreetingsTest {
     @Test fun oldDataHasNoGreetingAndGreetsAsBefore() {
         val c = DocJson.decode(old).contacts.single()
         assertNull(c.greeting)
+        assertTrue(DocJson.decode(old).settings.meetingBrief)
         assertEquals("sim-2", c.simId)
         // Exactly the text R3 used before the template existed.
         assertEquals("Alles Gute zum Geburtstag, Anna!", Greetings.text(c))

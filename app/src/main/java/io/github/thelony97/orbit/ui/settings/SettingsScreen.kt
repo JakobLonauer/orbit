@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
@@ -553,6 +554,11 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(
                     Icons.Rounded.Notifications, "Nach dem Anruf nach Notiz fragen",
                     trailing = { SpaceSwitch(s.noteAfterCall) { v -> OrbitRepository.editSettings { it.copy(noteAfterCall = v) } } },
+                )
+                Hairline()
+                SettingItem(
+                    Icons.Rounded.Event, "Treffen am Morgen",
+                    trailing = { SpaceSwitch(s.meetingBrief) { v -> OrbitRepository.editSettings { it.copy(meetingBrief = v) } } },
                 )
             }
         }

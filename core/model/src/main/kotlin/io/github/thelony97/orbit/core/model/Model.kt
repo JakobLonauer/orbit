@@ -296,6 +296,8 @@ data class Settings(
     val suggestUnknown: Boolean = true,
     val noteAfterCall: Boolean = true,
     val topicsDuringCall: Boolean = true,
+    /** PLAN 3.13a „Treffen am Morgen“: topics, last note and family before a planned meeting. */
+    val meetingBrief: Boolean = true,
     /** PLAN 3.12 without the dialer role: who is calling, as a notification while it rings. */
     val callerInfo: Boolean = true,
     val callSyncedUntil: Long = 0,
