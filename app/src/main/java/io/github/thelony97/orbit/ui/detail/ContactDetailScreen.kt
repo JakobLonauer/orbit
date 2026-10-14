@@ -711,6 +711,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         InfoRow(
                             label = "Geburtstag · " + if (days == 0L) (age?.let { "wird heute $it" } ?: "heute") + " 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
                             value = Fmt.dayOfYear(b),
+                            valueModifier = c.dates.firstOrNull { it.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
+                                ?.let { Modifier.sharedContact("occ-${it.id}", text = true) } ?: Modifier,
                             // The full dialog: date, reminders, pin, note (PLAN 3.5).
                             onClick = { occasionEdit = c.id to c.dates.firstOrNull { it.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY } },
                         )
@@ -735,6 +737,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                             label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days) + weekdayHint(days, a.date, todayDate)) + (years?.takeIf { it > 0 }?.let { " · $it Jahre" } ?: "") +
                                 (partner?.let { " · mit " + Logic.shortName(it) } ?: "") + (if (a.pinned) " · 📌" else ""),
                             value = Fmt.dayOfYear(a.date),
+                            valueModifier = Modifier.sharedContact("occ-${a.id}", text = true),
                             onClick = { occasionEdit = c.id to a },
                             trailing = {
                                 SmallIconAction(Icons.Rounded.Close, "Entfernen") {
@@ -749,6 +752,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         InfoRow(
                             label = a.title + " · " + (if (days == 0L) "heute" else Fmt.until(days)) + " · mit " + Logic.shortName(owner),
                             value = Fmt.dayOfYear(a.date),
+                            valueModifier = Modifier.sharedContact("occ-${a.id}", text = true),
                             onClick = { occasionEdit = owner.id to a },
                         )
                     }

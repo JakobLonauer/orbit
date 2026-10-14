@@ -228,6 +228,8 @@ fun InfoRow(
     value: String,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** For a shared transition on the value (Datumskachel → Anlass, PLAN W3). */
+    valueModifier: Modifier = Modifier,
 ) {
     Row(
         modifier = Modifier
@@ -238,7 +240,7 @@ fun InfoRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = valueModifier)
             if (label.isNotEmpty()) Text(label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
         }
         trailing?.invoke()

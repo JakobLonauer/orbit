@@ -51,6 +51,7 @@ import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.glow
+import io.github.thelony97.orbit.ui.components.sharedContact
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
 import io.github.thelony97.orbit.ui.theme.Space
 import java.time.LocalDate
@@ -366,7 +367,7 @@ private fun BirthdayRow(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DateTile(r.date, today, past)
+        DateTile(r.date, today, past, Modifier.sharedContact("occ-${r.occasion.id}", text = true))
         Spacer(Modifier.width(12.dp))
         Avatar(c, contactColor(c, idx), 36.dp)
         Spacer(Modifier.width(12.dp))
@@ -433,10 +434,11 @@ private fun BirthdayRow(
 
 /** Day and month on a small tile; today glows in the sun's colour. */
 @Composable
-private fun DateTile(date: LocalDate, today: Boolean, past: Boolean) {
+private fun DateTile(date: LocalDate, today: Boolean, past: Boolean, modifier: Modifier = Modifier) {
     val accent = if (today) Space.Orange else Space.Violet
+    // Geteilter Übergang Datumskachel → Anlass (PLAN W3): the tile flies to the date on the contact page.
     Column(
-        Modifier
+        modifier
             .size(44.dp)
             .then(if (today) Modifier.glow(Space.Orange, 12.dp, Corners.Row, 0.5f) else Modifier)
             .clip(Corners.Row)
@@ -578,7 +580,7 @@ private fun OccasionRow(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DateTile(u.date, today, past = false)
+        DateTile(u.date, today, past = false, Modifier.sharedContact("occ-${u.occasion.id}", text = true))
         Spacer(Modifier.width(12.dp))
         Avatar(owner, contactColor(owner, idx), 36.dp)
         Spacer(Modifier.width(12.dp))
