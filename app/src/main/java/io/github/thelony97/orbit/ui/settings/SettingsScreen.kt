@@ -736,7 +736,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     onClick = { errorDialog = true },
                 )
                 Hairline()
-                SettingItem(Icons.Rounded.Info, "Orbit ${BuildConfig.VERSION_NAME}", "Kotlin · Compose · Material 3 Expressive", iconTint = Space.TextDim)
+                SettingItem(
+                    Icons.Rounded.Info, "Orbit ${BuildConfig.VERSION_NAME}",
+                    // W8: the measured cold start of this run, next to the stack it runs on.
+                    listOfNotNull("Kotlin · Compose · Material 3 Expressive", io.github.thelony97.orbit.StartTime.lastMs?.let { "Start $it ms" }).joinToString(" · "),
+                    iconTint = Space.TextDim,
+                )
             }
         }
     }

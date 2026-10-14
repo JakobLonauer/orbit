@@ -17,8 +17,15 @@ import io.github.thelony97.orbit.update.Updates
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+/** Cold start measurement (PLAN 8.2), per process. */
+object StartTime {
+    @Volatile var measured = false
+    @Volatile var lastMs: Long? = null
+}
 
 class MainActivity : FragmentActivity() {
 
@@ -63,6 +70,27 @@ class MainActivity : FragmentActivity() {
                 }
         }
         lifecycleScope.launch { Updates.checkIfDue() }
+        measureColdStart()
+    }
+
+    /**
+     * W8 / PLAN 8.2: cold start until the first frame with data (budget 400 ms). Logged, handed to
+     * the system (reportFullyDrawn) and shown in Über Orbit. Only the first activity of a process.
+     */
+    private fun measureColdStart() {
+        if (StartTime.measured) return
+        StartTime.measured = true
+        // A process started for a call, widget or worker earlier is no cold start of the app.
+        if (android.os.SystemClock.uptimeMillis() - android.os.Process.getStartUptimeMillis() > 5_000) return
+        lifecycleScope.launch {
+            OrbitRepository.data.filterNotNull().first()
+            window.decorView.post {
+                val ms = android.os.SystemClock.uptimeMillis() - android.os.Process.getStartUptimeMillis()
+                StartTime.lastMs = ms
+                android.util.Log.i("Orbit", "Kaltstart bis Liste: $ms ms (Budget 400 ms)")
+                runCatching { reportFullyDrawn() }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
