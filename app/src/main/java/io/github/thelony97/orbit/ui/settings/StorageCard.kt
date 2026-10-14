@@ -72,6 +72,8 @@ fun StorageCard(preset: List<StorageUsage.Slice>? = null) {
         if (preset == null) value = withContext(Dispatchers.IO) { StorageUsage.slices(storageFiles(ctx)) }
     }
     val total = slices?.sumOf { it.bytes } ?: 0L
+    // W5: nothing measured, nothing to show.
+    if (slices != null && total == 0L) return
     SettingsGroup("Speicher", status = slices?.let { StorageUsage.format(total) }) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             val grow = remember { Animatable(0f) }

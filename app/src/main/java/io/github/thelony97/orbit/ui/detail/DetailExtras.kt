@@ -56,6 +56,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -295,7 +296,17 @@ fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (S
 @Composable
 fun QrDialog(c: Contact, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
-    val qr = remember(c) { ShareContact.qr(c)?.asImageBitmap() }
+    // zxing off the main thread (W8); the code fades in where its square already waits.
+    val qrState = androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, c) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ShareContact.qr(c)?.asImageBitmap() }
+    }
+    var qrDone by remember(c) { mutableStateOf(false) }
+    LaunchedEffect(qrState.value) { if (qrState.value != null) qrDone = true }
+    LaunchedEffect(c) {
+        kotlinx.coroutines.delay(2_000)
+        qrDone = true
+    }
+    val qr = qrState.value
     Dialog(onDismissRequest = onDismiss) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         DisposableEffect(window) {
@@ -305,7 +316,9 @@ fun QrDialog(c: Contact, onDismiss: () -> Unit) {
         // Ich-Karte (PLAN 1.3): a business card with a holo sheen that moves as the phone tilts –
         // on the card only, never over the code, so it still scans.
         val tilt = if (c.isMe) io.github.thelony97.orbit.ui.components.rememberTilt() else null
-        val drift = if (c.isMe) {
+        val calm = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+        // No endless drift while saving power (PLAN 1.1); the tilt is off there as well.
+        val drift = if (c.isMe && !calm) {
             androidx.compose.animation.core.rememberInfiniteTransition(label = "holo").animateFloat(
                 0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(9_000, easing = androidx.compose.animation.core.LinearEasing)), label = "drift",
             )
@@ -315,8 +328,8 @@ fun QrDialog(c: Contact, onDismiss: () -> Unit) {
                 .clip(RoundedCornerShape(28.dp))
                 .background(Space.PanelHigh)
                 .then(
-                    if (tilt != null && drift != null) {
-                        Modifier.holo(phase = { drift.value }, tiltX = { tilt.value.x }, tiltY = { tilt.value.y }, behind = true)
+                    if (tilt != null) {
+                        Modifier.holo(phase = { drift?.value ?: 0.15f }, tiltX = { tilt.value.x }, tiltY = { tilt.value.y }, behind = true)
                     } else Modifier,
                 )
                 .border(1.dp, if (c.isMe) Space.Violet.copy(alpha = 0.6f) else Space.LineStrong, RoundedCornerShape(28.dp))
@@ -328,18 +341,38 @@ fun QrDialog(c: Contact, onDismiss: () -> Unit) {
                 val line = listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
                 if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
                 val reach = listOfNotNull(c.phones.firstOrNull()?.value, c.emails.firstOrNull()?.value).filter { it.isNotBlank() }
-                if (reach.isNotEmpty()) Text(reach.joinToString("  ·  "), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                // One per line, readable on the sheen (not faint), figures in tabular form.
+                if (reach.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                reach.forEach { r ->
+                    Text(
+                        r,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                        color = Space.TextDim,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
             }
             Spacer(Modifier.height(14.dp))
-            if (qr != null) {
-                // One bitmap pixel per module: scaled without smoothing, so the edges stay sharp.
-                Image(
-                    qr, "QR-Code",
-                    filterQuality = FilterQuality.None,
-                    modifier = Modifier.size(260.dp).clip(RoundedCornerShape(18.dp)),
-                )
-            } else {
+            if (qr == null && qrDone) {
                 Text("Zu viele Angaben für einen QR-Code", style = MaterialTheme.typography.bodyMedium, color = Space.TextDim)
+            } else {
+                // Placeholder in end form: the white square is there at once, the code fades in.
+                val shown by androidx.compose.animation.core.animateFloatAsState(
+                    if (qr != null) 1f else 0f,
+                    tween(io.github.thelony97.orbit.core.designsystem.Motion.MEDIUM_MS),
+                    label = "qr",
+                )
+                androidx.compose.foundation.layout.Box(Modifier.size(260.dp).clip(RoundedCornerShape(18.dp)).background(androidx.compose.ui.graphics.Color.White)) {
+                    // One bitmap pixel per module: scaled without smoothing, so the edges stay sharp.
+                    if (qr != null) {
+                        Image(
+                            qr, "QR-Code",
+                            filterQuality = FilterQuality.None,
+                            modifier = Modifier.matchParentSize().graphicsLayer { alpha = shown },
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(16.dp))
             GhostButton("Als Datei teilen", { ShareContact.vcard(ctx, c) }, icon = Icons.Rounded.Share)

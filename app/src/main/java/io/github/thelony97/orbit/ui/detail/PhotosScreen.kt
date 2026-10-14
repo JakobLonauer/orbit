@@ -107,14 +107,15 @@ fun PhotosScreen(contactId: String?, data: OrbitData, idx: Index, nav: Nav) {
                     offset += m.items.size
                 }
             }
-            // Monats-Scrubber (PLAN 1.3): first letter of the month on the rail, „Oktober 2026“ in the bubble.
+            // Monats-Scrubber (PLAN 1.3): month number on the rail, „Oktober 2026“ in the bubble.
             if (months.size >= 3) {
                 val byKey = months.associateBy { it.key }
                 AlphabetRail(
                     letters = months.map { it.key },
                     onLetter = { k -> monthIndex[k]?.let { scope.launch { listState.scrollToItem(it) } } },
                     modifier = Modifier.align(Alignment.CenterEnd),
-                    railLabel = { k -> byKey[k]?.title?.take(1).orEmpty() },
+                    // Month number: „J“ would not tell Juni from Juli (and Jänner).
+                    railLabel = { k -> k.substringAfterLast('-').toIntOrNull()?.toString().orEmpty() },
                     bubbleLabel = { k -> byKey[k]?.title.orEmpty() },
                 )
             }

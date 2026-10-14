@@ -1,5 +1,7 @@
 package io.github.thelony97.orbit.ui.detail
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -116,10 +118,12 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
             item(key = "head") {
                 Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(64.dp).clip(CircleShape).background(Space.Blue.copy(alpha = 0.22f)),
+                        // Same ring as every avatar (organisation blue), initials in text colour.
+                        Modifier.size(64.dp).border(2.5.dp, Space.Blue.copy(alpha = 0.85f), CircleShape).padding(4.dp)
+                            .clip(CircleShape).background(Brush.linearGradient(listOf(Space.Blue.copy(alpha = 0.55f), Space.Blue.copy(alpha = 0.20f)))),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(memberInitials(m.name), style = MaterialTheme.typography.titleLarge, color = Space.Blue, fontWeight = FontWeight.SemiBold)
+                        Text(memberInitials(m.name), style = MaterialTheme.typography.titleLarge, color = Space.Text, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
@@ -138,7 +142,7 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
             }
             item(key = "actions") {
                 Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GlowButton("Gespräch eintragen", { newEntry = true }, icon = Icons.Rounded.EditNote)
+                    GlowButton("Eintragen", { newEntry = true }, icon = Icons.Rounded.EditNote)
                     m.phones.firstOrNull { it.value.isNotBlank() }?.let { p ->
                         OrbButton(Icons.Rounded.Call, "Anrufen", { ContactActions.call(ctx, org, p.value, data.settings) }, accent = Space.Teal)
                     }

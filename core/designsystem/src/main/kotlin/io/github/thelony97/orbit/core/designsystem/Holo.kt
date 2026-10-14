@@ -21,8 +21,9 @@ half4 main(float2 p) {
         0.5 + 0.5 * sin(6.2831 * (band + 0.33)),
         0.5 + 0.5 * sin(6.2831 * (band + 0.66))
     );
-    float glint = smoothstep(0.92, 1.0, sin(6.2831 * (band * 1.7)));
-    return half4(c * 0.22 + glint * 0.35, 0.22 + glint * 0.3);
+    // Soft, narrow glint: a sheen, not a plastic reflection.
+    float glint = smoothstep(0.82, 1.0, sin(6.2831 * (band * 1.7)));
+    return half4(c * 0.20 + glint * 0.12, 0.20 + glint * 0.10);
 }
 """
 

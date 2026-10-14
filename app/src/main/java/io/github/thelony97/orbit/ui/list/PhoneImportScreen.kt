@@ -1,5 +1,7 @@
 package io.github.thelony97.orbit.ui.list
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -194,7 +196,10 @@ internal fun PhoneBookList(
 private fun ImportRow(item: PhoneImport.Item, selected: Boolean, already: String?, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     val fill by animateColorAsState(if (selected) Space.Violet else Space.Panel, Motion.fast(), label = "pick")
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 10.dp),
+        // One row height with or without a second line (steady rhythm); rows already in Orbit recede.
+        modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onToggle)
+            .graphicsLayer { alpha = if (already != null && !selected) 0.6f else 1f }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -206,9 +211,14 @@ private fun ImportRow(item: PhoneImport.Item, selected: Boolean, already: String
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.bodyLarge, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val sub = if (already != null) "gibt es schon · $already" else item.numbers.firstOrNull().orEmpty()
+            // Quiet note, not an error; the name only when it differs from the phone's.
+            val sub = when {
+                already == null -> item.numbers.firstOrNull().orEmpty()
+                already.equals(item.name.trim(), ignoreCase = true) -> "schon im Orbit"
+                else -> "schon im Orbit · $already"
+            }
             if (sub.isNotEmpty()) {
-                Text(sub, style = MaterialTheme.typography.labelMedium, color = if (already != null) Space.Coral else Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

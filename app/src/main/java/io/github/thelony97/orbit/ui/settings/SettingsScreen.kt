@@ -65,6 +65,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Restore
@@ -582,9 +583,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
 
         if (area == "contacts") item(key = "org") {
             SettingsGroup("") {
-                SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
+                SettingItem(Icons.Rounded.Groups, "Gruppen", if (data.groups.size == 1) "1 Gruppe" else "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
-                SettingItem(Icons.Rounded.Category, "Eintragsarten", "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
+                SettingItem(Icons.Rounded.Category, "Eintragsarten", if (data.entryTypes.size == 1) "1 Art" else "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
                 Hairline()
                 // Fotos (PLAN 3.10): the page with every picture, how much room they take, full size.
                 val photoCount = remember(data) { data.contacts.flatMap { c -> c.gallery.map { it.file } }.distinct().size }
@@ -617,9 +618,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     }
                 })
                 Hairline()
-                SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })
+                SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else if (archiveCount == 1) "1 Kontakt" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })
                 Hairline()
-                SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })
+                SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else if (trashCount == 1) "1 Kontakt" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })
             }
         }
 
@@ -627,7 +628,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             SettingsGroup("") {
                 SettingItem(
                     Icons.Rounded.Lock, "App-Sperre",
-                    if (lockAvailable) "Biometrie oder PIN" else "erst eine Displaysperre einrichten",
+                    if (lockAvailable) null else "erst eine Displaysperre einrichten",
                     iconTint = Space.Orange,
                     trailing = {
                         SpaceSwitch(s.lockEnabled && lockAvailable, enabled = lockAvailable) { v ->
@@ -669,7 +670,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 Hairline()
                 SettingItem(Icons.Rounded.Upload, "Jetzt sichern", if (folder != null) "in den Backup-Ordner" else "als Datei speichern", iconTint = Space.Blue, onClick = { backupNow() })
                 Hairline()
-                SettingItem(Icons.Rounded.Lock, "Verschlüsselung", if (encrypted) "an · mit deinem Passwort" else "aus", iconTint = Space.Blue, onClick = {
+                SettingItem(Icons.Rounded.Key, "Verschlüsselung", if (encrypted) "an · mit deinem Passwort" else "aus", iconTint = Space.Blue, onClick = {
                     encryptionDialog = true
                 })
                 // Without a folder "Jetzt sichern" already saves a file – no second row for the same (W5).
@@ -681,7 +682,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     })
                 }
                 Hairline()
-                SettingItem(Icons.Rounded.Restore, "Wiederherstellen", "aus einem Orbit-Backup (.zip)", iconTint = Space.Blue, onClick = {
+                SettingItem(Icons.Rounded.Restore, "Wiederherstellen", iconTint = Space.Blue, onClick = {
                     AppLock.allowExternal()
                     importer.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                 })

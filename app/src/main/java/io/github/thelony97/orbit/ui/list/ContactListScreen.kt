@@ -699,7 +699,7 @@ private fun MeCard(me: Contact, idx: Index, onOpen: () -> Unit) {
             Text(Logic.displayName(me, false), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = Space.Text)
             val rels = idx.data.relations.count { it.fromId == me.id || it.toId == me.id }
             Text(
-                if (rels > 0) "Das bist du · $rels Beziehungen" else "Das bist du",
+                if (rels > 0) "Das bist du · $rels " + if (rels == 1) "Beziehung" else "Beziehungen" else "Das bist du",
                 style = MaterialTheme.typography.labelMedium,
                 color = Space.TextFaint,
             )

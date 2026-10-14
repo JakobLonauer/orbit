@@ -220,6 +220,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         return
     }
     val ctx = LocalContext.current
+    val phoneIso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
+    val landline: (String) -> Boolean = remember(phoneIso) {
+        { raw -> io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(raw, phoneIso)) }
+    }
     val c: Contact = contact
     val lastFirst = data.settings.sortByLastName
     val color = contactColor(c, idx)
@@ -530,6 +534,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             // Quick actions
             val number = ContactActions.defaultNumber(c)
             val email = c.emails.firstOrNull { it.value.isNotBlank() }?.value
+            val texting = c.phones.any { !landline(it.value) }
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 Row(
@@ -547,7 +552,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         )
                     }
                     // Only what applies (W5): no greyed-out orbs.
-                    if (number != null) {
+                    // W5: no SMS/WhatsApp for a landline (fixed rule, NumberKind).
+                    if (number != null && texting) {
                         ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, null) }, onLongClick = { chooser = Chooser.Sms })
                         ActionOrb(Icons.Rounded.Forum, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, null) }, onLongClick = { chooser = Chooser.WhatsApp })
                     }
@@ -610,7 +616,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 label = p.label + if (i == c.defaultPhone && c.phones.size > 1) " · Standard" else "",
                                 value = p.value,
                                 onClick = { ContactActions.call(ctx, c, p.value, data.settings) },
-                                trailing = { SmallIconAction(Icons.Rounded.Sms, "SMS") { ContactActions.sms(ctx, c, p.value) } },
+                                trailing = if (landline(p.value)) null else {
+                                    { SmallIconAction(Icons.Rounded.Sms, "SMS") { ContactActions.sms(ctx, c, p.value) } }
+                                },
                             )
                         }
                         c.emails.forEach { e ->
@@ -816,8 +824,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         val days = Logic.daysUntil(b, todayDate)
                         val age = Logic.turningAge(b, todayDate)
                         InfoRow(
-                            label = "Geburtstag · " + if (days == 0L) (age?.let { "wird heute $it" } ?: "heute") + " 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
-                            value = Fmt.dayOfYear(b),
+                            // On the day the news is the big line; the date moves into the label.
+                            label = if (days == 0L) "Geburtstag · " + Fmt.dayOfYear(b)
+                            else "Geburtstag · " + Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
+                            value = if (days == 0L) (age?.let { "Heute · $it. Geburtstag" } ?: "Heute Geburtstag") else Fmt.dayOfYear(b),
                             valueModifier = c.dates.firstOrNull { it.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY }
                                 ?.let { Modifier.sharedContact("occ-${it.id}", text = true) } ?: Modifier,
                             // The full dialog: date, reminders, pin, note (PLAN 3.5).

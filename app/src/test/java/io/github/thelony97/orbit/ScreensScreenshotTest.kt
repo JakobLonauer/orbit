@@ -216,6 +216,10 @@ class ScreensScreenshotTest {
         compose.setContent {
             OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { io.github.thelony97.orbit.ui.detail.QrDialog(me, onDismiss = {}) } }
         }
+        // The QR code is drawn off the main thread.
+        Thread.sleep(1_000)
+        // No waitForIdle: the holo drift never rests; advancing the clock runs the pending frames.
+        compose.mainClock.advanceTimeBy(500)
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_ich_karte.png")
     }
 
@@ -346,6 +350,10 @@ class ScreensScreenshotTest {
                 }
             }
         }
+        compose.waitForIdle()
+        // The QR code is drawn off the main thread.
+        Thread.sleep(1_000)
+        compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_qr.png")
     }

@@ -148,7 +148,7 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
 
     SpaceBackground {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(vertical = 16.dp)) {
-            GlowBar((step + 1f) / 2f, Space.Orange, Modifier.padding(horizontal = 22.dp))
+            GlowBar((step + 1f) / 2f, Space.Orange, Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.size(16.dp))
             AnimatedContent(
                 targetState = step,
@@ -160,14 +160,14 @@ fun OnboardingScreen(data: OrbitData, preview: List<PhoneImport.Item>? = null, i
                 modifier = Modifier.weight(1f),
             ) { current ->
                 if (current == 0) {
-                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                         MeStep(me, first, last, photo, onPhoto = { photo = it })
                     }
                 } else {
                     PeopleStep(data, items, { items = it }, selected, { selected = it })
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (step > 0) GhostButton("Zurück", { step-- })
                 Spacer(Modifier.weight(1f))
                 if (step == 0) {
@@ -257,7 +257,7 @@ private fun PeopleStep(
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     LaunchedEffect(granted) { if (granted && items == null) onItems(PhoneImport.list(ctx)) }
     Column(Modifier.fillMaxSize()) {
-        Text("Wer gehört in deinen Orbit?", style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text, modifier = Modifier.padding(horizontal = 22.dp))
+        Text("Wer gehört in deinen Orbit?", style = MaterialTheme.typography.headlineMediumEmphasized, color = Space.Text, modifier = Modifier.padding(horizontal = 16.dp))
         Spacer(Modifier.size(12.dp))
         if (!granted && items == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -354,7 +354,7 @@ internal fun OrbitFills(me: Contact?, contacts: List<Contact>, idx: Index, onDon
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("Dein Orbit füllt sich", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
-                Text("${contacts.size} Kontakte", style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+                Text(if (contacts.size == 1) "1 Kontakt" else "${contacts.size} Kontakte", style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
             }
         }
     }
