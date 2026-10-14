@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.CardGiftcard
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +55,7 @@ import kotlinx.coroutines.launch
  * per Tipp. Jahresrad, Geschenk und die Eingabe für „ohne Geburtstag“ folgen.
  */
 @Composable
-fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate = today()) {
+fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate = today(), initialReiter: Int = 0) {
     val lastFirst = data.settings.sortByLastName
     val result = remember(data, todayDate) {
         BirthdayTab.build(data.contacts, todayDate, visible = { Visibility.inLists(it, showOrgs = false) }, name = { Logic.displayName(it, lastFirst) })
@@ -67,10 +68,26 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var filling by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Reiter (PLAN 3.5): Geburtstage (Standard) · Angepinnt (only when something is pinned, W5) · Alle Anlässe.
+    var reiter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(initialReiter) }
+    var sort by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(io.github.thelony97.orbit.core.domain.OccasionList.Sort.NEXT) }
+    var reversed by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var within by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    var round by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // Jahresrad (PLAN 1.3): every visible occasion of the coming year as a dot in its contact's colour.
     val upcoming = remember(data, todayDate) {
         io.github.thelony97.orbit.core.domain.UpcomingIndex.build(data.contacts, todayDate) { Visibility.inLists(it, data.settings.showOrgs) }
+    }
+    val hasPinned = upcoming.any { it.occasion.pinned }
+    val shown = if (reiter == 1 && !hasPinned) 0 else reiter
+    val occGroups = remember(data, todayDate, shown, sort, reversed, within, round) {
+        if (shown == 0) emptyList()
+        else io.github.thelony97.orbit.core.domain.OccasionList.build(
+            data.contacts, todayDate, { Visibility.inLists(it, data.settings.showOrgs) },
+            io.github.thelony97.orbit.core.domain.OccasionList.Filter(withinDays = within, onlyRound = round, pinnedOnly = shown == 1),
+            sort, reversed, name = { id -> byId[id]?.let { Logic.displayName(it, lastFirst) }.orEmpty() },
+        )
     }
     val dots = remember(upcoming, idx) { upcoming.mapNotNull { u -> byId[u.ownerId]?.let { RingDot(u.date, contactColor(it, idx)) } } }
     val ringTitle = "${todayDate.dayOfMonth}. ${BirthdayTab.MONTHS[todayDate.monthValue - 1]}"
@@ -84,16 +101,29 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
     }
     // Index of the first list item of each month, for „Monat antippen springt in die Liste“.
     // Mirrors the order the LazyColumn below emits its items in (header, ring, then the groups).
-    val monthIndex = remember(result, byId) {
+    val monthIndex = remember(result, byId, occGroups, shown) {
         val map = HashMap<Int, Int>()
-        var i = 2
-        for (g in result.groups) {
-            val head = i
-            i++
-            for (r in g.rows) {
-                if (byId[r.contactId] == null) continue
-                if (r.daysUntil >= 0) map.putIfAbsent(r.date.monthValue, head)
+        if (shown == 0) {
+            var i = 3
+            for (g in result.groups) {
+                val head = i
                 i++
+                for (r in g.rows) {
+                    if (byId[r.contactId] == null) continue
+                    if (r.daysUntil >= 0) map.putIfAbsent(r.date.monthValue, head)
+                    i++
+                }
+            }
+        } else {
+            var i = 3 + if (shown == 2) 1 else 0
+            for (g in occGroups) {
+                val head = i
+                if (g.title.isNotEmpty()) i++
+                for (u in g.rows) {
+                    if (byId[u.ownerId] == null) continue
+                    map.putIfAbsent(u.date.monthValue, if (g.title.isNotEmpty()) head else i)
+                    i++
+                }
             }
         }
         map
@@ -115,7 +145,57 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 if (target != null) scope.launch { listState.animateScrollToItem(target) }
             })
         }
-        result.groups.forEach { g ->
+        item(key = "reiter") {
+            androidx.compose.foundation.layout.Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                io.github.thelony97.orbit.ui.components.SpaceChip("Geburtstage", shown == 0, { reiter = 0 }, accent = Space.Coral)
+                if (hasPinned) io.github.thelony97.orbit.ui.components.SpaceChip("Angepinnt", shown == 1, { reiter = 1 }, accent = Space.Coral)
+                io.github.thelony97.orbit.ui.components.SpaceChip("Alle Anlässe", shown == 2, { reiter = 2 }, accent = Space.Coral)
+            }
+        }
+        if (shown != 0) {
+            if (shown == 2) item(key = "controls") {
+                // Sortierung (tap: next one, arrow: reverse) and quick filters (PLAN 3.5).
+                androidx.compose.foundation.layout.FlowRow(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val sorts = io.github.thelony97.orbit.core.domain.OccasionList.Sort.entries
+                    io.github.thelony97.orbit.ui.components.SpaceChip(sort.label, true, { sort = sorts[(sort.ordinal + 1) % sorts.size] })
+                    io.github.thelony97.orbit.ui.components.SpaceChip(if (reversed) "↑" else "↓", reversed, { reversed = !reversed })
+                    listOf(7, 30, 90).forEach { d -> io.github.thelony97.orbit.ui.components.SpaceChip("$d Tage", within == d, { within = if (within == d) null else d }) }
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Nur runde", round, { round = !round })
+                }
+            }
+            if (occGroups.isEmpty()) item(key = "occ-empty") {
+                Text(
+                    "Keine Anlässe",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Space.TextFaint,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                )
+            }
+            occGroups.forEach { g ->
+                if (g.title.isNotEmpty()) item(key = "og-${g.title}") {
+                    Text(
+                        g.title,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        color = if (g.title == "Heute") Space.Orange else Space.TextDim,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                    )
+                }
+                g.rows.forEach { u ->
+                    val owner = byId[u.ownerId] ?: return@forEach
+                    item(key = "o-${u.occasion.id}") {
+                        OccasionRow(u, owner, u.withId?.let { byId[it] }, idx, lastFirst, Modifier.animateItem()) { nav.open(Route.Detail(owner.id)) }
+                    }
+                }
+            }
+        }
+        if (shown == 0) result.groups.forEach { g ->
             item(key = "s-${g.section}-${g.title}") {
                 Text(
                     g.title,
@@ -165,7 +245,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 }
             }
         }
-        if (result.withoutBirthday > 0) {
+        if (shown == 0 && result.withoutBirthday > 0) {
             item(key = "without") {
                 Text(
                     if (result.withoutBirthday == 1) "1 Kontakt ohne Geburtstag" else "${result.withoutBirthday} Kontakte ohne Geburtstag",
@@ -379,5 +459,50 @@ private fun MissingBirthdayRow(c: Contact, lastFirst: Boolean, todayDate: LocalD
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
             modifier = Modifier.width(150.dp),
         )
+    }
+}
+
+/** A row in „Angepinnt“/„Alle“: tile, name (both for a shared one), what it is, countdown, pin. */
+@Composable
+private fun OccasionRow(
+    u: io.github.thelony97.orbit.core.domain.Upcoming,
+    owner: Contact,
+    with: Contact?,
+    idx: Index,
+    lastFirst: Boolean,
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+) {
+    val today = u.daysUntil == 0L
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 1.dp)
+            .clip(Corners.Row)
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        DateTile(u.date, today, past = false)
+        Spacer(Modifier.width(12.dp))
+        Avatar(owner, contactColor(owner, idx), 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                listOfNotNull(Logic.displayName(owner, lastFirst), with?.let { Logic.shortName(it) }).joinToString(" & "),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Space.Text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(io.github.thelony97.orbit.core.domain.OccasionList.line(u), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1)
+        }
+        Text(relativeDay(u.daysUntil), style = MaterialTheme.typography.labelMedium, color = if (today) Space.Orange else Space.TextDim)
+        if (u.occasion.pinned) {
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Rounded.PushPin, "Angepinnt", tint = Space.Coral, modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }

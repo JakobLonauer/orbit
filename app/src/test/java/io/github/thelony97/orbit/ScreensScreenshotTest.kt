@@ -308,6 +308,10 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav)
     }
 
+    @Test fun occasionsAll() = shot("anlaesse_alle") {
+        io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav, initialReiter = 2)
+    }
+
     @Test fun homeOccasionsTab() = shot("home_anlaesse") {
         HomeScreen(data, idx, nav, tab = io.github.thelony97.orbit.ui.home.HomeTab.ANLAESSE, onTab = {})
     }
