@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ui.components.AppWorkTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-14T06:10:57.490Z" hostname="runnervmmprz5" time="2.257">
+  <properties/>
+  <testcase name="workOutlivesTheComposableThatStartedIt" classname="io.github.thelony97.orbit.ui.components.AppWorkTest" time="2.237"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

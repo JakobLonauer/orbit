@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.R2FieldsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-14T06:09:17.670Z" hostname="runnervmmprz5" time="0.038">
+  <properties/>
+  <testcase name="emptyTemplateListStaysEmpty" classname="io.github.thelony97.orbit.core.domain.R2FieldsTest" time="0.032"/>
+  <testcase name="oldDataReadsWithDefaults" classname="io.github.thelony97.orbit.core.domain.R2FieldsTest" time="0.001"/>
+  <testcase name="newFieldsRoundTrip" classname="io.github.thelony97.orbit.core.domain.R2FieldsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

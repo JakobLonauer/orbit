@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.store.HistoryDbTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-14T06:10:56.346Z" hostname="runnervmmprz5" time="0.456">
+  <properties/>
+  <testcase name="forContactNewestFirstWithPaging" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.086"/>
+  <testcase name="updateAndDeleteKeepFtsInSync" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.09"/>
+  <testcase name="searchFindsNotesAndSmsWithoutDiacriticsAndHidesMembers" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.083"/>
+  <testcase name="fullJsonSurvives" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.08"/>
+  <testcase name="attachmentsWithReferenceCount" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.06"/>
+  <testcase name="insertIsIdempotentByIdAndExternalId" classname="io.github.thelony97.orbit.store.HistoryDbTest" time="0.047"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

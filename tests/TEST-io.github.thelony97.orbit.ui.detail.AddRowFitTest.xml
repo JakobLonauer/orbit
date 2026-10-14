@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ui.detail.AddRowFitTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-14T06:11:00.546Z" hostname="runnervmmprz5" time="0.007">
+  <properties/>
+  <testcase name="tooManyLeavesRoomForMore" classname="io.github.thelony97.orbit.ui.detail.AddRowFitTest" time="0.001"/>
+  <testcase name="neverOnlyMore" classname="io.github.thelony97.orbit.ui.detail.AddRowFitTest" time="0.006"/>
+  <testcase name="exactFitCountsGapsOnlyBetweenChips" classname="io.github.thelony97.orbit.ui.detail.AddRowFitTest" time="0.0"/>
+  <testcase name="allFitShowsAll" classname="io.github.thelony97.orbit.ui.detail.AddRowFitTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

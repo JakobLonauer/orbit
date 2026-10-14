@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.notify.CallerNotificationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-14T06:10:55.652Z" hostname="runnervmmprz5" time="0.41">
+  <properties/>
+  <testcase name="callbackReminderHasCallButton" classname="io.github.thelony97.orbit.notify.CallerNotificationTest" time="0.273"/>
+  <testcase name="idleClearsTheCallerCard" classname="io.github.thelony97.orbit.notify.CallerNotificationTest" time="0.071"/>
+  <testcase name="callerInfoKeepsSecretsOffTheLockScreen" classname="io.github.thelony97.orbit.notify.CallerNotificationTest" time="0.046"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
