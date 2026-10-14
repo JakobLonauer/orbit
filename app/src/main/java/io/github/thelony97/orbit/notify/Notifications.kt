@@ -93,59 +93,6 @@ object Notifications {
         .setColor(0xFFA78BFF.toInt())
         .setAutoCancel(true)
 
-    data class DigestContent(
-        val birthdays: List<Contact>,
-        /** Birthdays a week ahead – shown with open gift ideas. */
-        val soon: List<Contact>,
-        val anniversaries: List<Pair<Contact, String>>,
-        val lastNameFirst: Boolean,
-    ) {
-        val isEmpty get() = birthdays.isEmpty() && soon.isEmpty() && anniversaries.isEmpty()
-
-        /** The one person this digest is about, if it is about exactly one. */
-        val single: Contact?
-            get() = (birthdays + soon + anniversaries.map { it.first }).distinctBy { it.id }.singleOrNull()
-    }
-
-    fun digest(ctx: Context, content: DigestContent) {
-        if (content.isEmpty) return
-        val name = { c: Contact -> Logic.displayName(c, content.lastNameFirst) }
-        val parts = buildList {
-            if (content.birthdays.isNotEmpty()) add(if (content.birthdays.size == 1) "1 Geburtstag" else "${content.birthdays.size} Geburtstage")
-            if (content.anniversaries.isNotEmpty()) add(if (content.anniversaries.size == 1) "1 Jahrestag" else "${content.anniversaries.size} Jahrestage")
-        }
-        val lines = buildList {
-            content.birthdays.forEach { c ->
-                val age = c.birthday?.let { Logic.turningAge(it) }
-                add(if (age != null) "🎂 ${name(c)} wird $age" else "🎂 ${name(c)} hat Geburtstag")
-            }
-            content.anniversaries.forEach { (c, label) -> add("✨ ${name(c)}: $label") }
-            content.soon.forEach { c ->
-                val ideas = c.gifts.filterNot { it.done }.joinToString(", ") { it.text }
-                add("🎁 In 7 Tagen: ${name(c)}" + if (ideas.isNotEmpty()) " · $ideas" else "")
-            }
-        }
-        val style = NotificationCompat.InboxStyle()
-        lines.take(7).forEach { style.addLine(it) }
-        if (lines.size > 7) style.setSummaryText("+${lines.size - 7} weitere")
-
-        val single = content.single
-        val title = if (parts.isNotEmpty()) "Heute: ${parts.joinToString(" · ")}"
-        else if (content.soon.size == 1) "In 7 Tagen: Geburtstag" else "In 7 Tagen: ${content.soon.size} Geburtstage"
-        val builder = base(ctx, CH_DIGEST)
-            .setContentTitle(title)
-            .setContentText(lines.firstOrNull())
-            .setStyle(style)
-            .setContentIntent(openContact(ctx, single?.id, ID_DIGEST))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        // Call button only for today's single person, not for a lead-time reminder.
-        val callable = single?.takeIf { s -> s.phones.isNotEmpty() && content.soon.none { it.id == s.id } }
-        if (callable != null) {
-            builder.addAction(0, "Anrufen", CallActionActivity.pendingIntent(ctx, callable.id))
-        }
-        post(ctx, ID_DIGEST, builder)
-    }
-
     /** A contact photo for a notification's large icon (a quarter of the stored size). */
     private fun photoOf(ctx: Context, name: String?): android.graphics.Bitmap? = name?.takeIf { it.isNotBlank() }?.let {
         runCatching {

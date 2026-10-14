@@ -207,51 +207,6 @@ fun RelationDialog(
     )
 }
 
-@Composable
-fun AnniversaryDialog(onDismiss: () -> Unit, allowBirthday: Boolean = false, onPick: (String, DayOfYear) -> Unit) {
-    val label = rememberTextFieldState()
-    var date by remember { mutableStateOf<DayOfYear?>(null) }
-    var pickDate by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Anlass") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    state = label,
-                    label = { Text("Bezeichnung") },
-                    lineLimits = TextFieldLineLimits.SingleLine,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (listOfNotNull("Geburtstag".takeIf { allowBirthday }) + listOf("Hochzeitstag", "Namenstag", "Jahrestag", "Kennenlerntag", "Gedenktag")).forEach { s ->
-                        AssistChip(onClick = {
-                            label.edit { replace(0, length, s) }
-                        }, label = { Text(s) })
-                    }
-                }
-                AssistChip(
-                    onClick = { pickDate = true },
-                    label = { Text(date?.let { Fmt.dayOfYear(it) } ?: "Datum wählen") },
-                    leadingIcon = { Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(18.dp)) },
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = date != null && label.text.isNotBlank(),
-                onClick = {
-                    date?.let { onPick(label.text.toString().trim(), it) }
-                    onDismiss()
-                },
-            ) { Text("Hinzufügen") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
-    )
-    if (pickDate) DayOfYearDialog(initial = date, onDismiss = { pickDate = false }, onPick = { date = it })
-}
-
 /** Pick one of several numbers / addresses; the star marks the default phone number. */
 @Composable
 fun ValueChooserDialog(

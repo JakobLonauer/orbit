@@ -3,6 +3,7 @@ package io.github.thelony97.orbit.ui.occasions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -182,11 +183,11 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 }
             }
             if (occGroups.isEmpty()) item(key = "occ-empty") {
-                Text(
-                    "Keine Anlässe",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Space.TextFaint,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                // W6: one way on – drop the quick filters if they emptied the list.
+                val filtered = shown == 2 && (within != null || round)
+                io.github.thelony97.orbit.ui.components.EmptyHint(
+                    "Keine Anlässe", "",
+                    action = if (filtered) "Alle zeigen" to { within = null; round = false } else null,
                 )
             }
             occGroups.forEach { g ->
@@ -201,7 +202,16 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 g.rows.forEach { u ->
                     val owner = byId[u.ownerId] ?: return@forEach
                     item(key = "o-${u.occasion.id}") {
-                        OccasionRow(u, owner, u.withId?.let { byId[it] }, idx, lastFirst, Modifier.animateItem()) { nav.open(Route.Detail(owner.id)) }
+                        OccasionRow(
+                            u, owner, u.withId?.let { byId[it] }, idx, lastFirst, Modifier.animateItem(),
+                            // Langdruck pinnt (PLAN 3.5); the occasion stays stored at its owner.
+                            onPin = {
+                                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                                io.github.thelony97.orbit.data.OrbitRepository.edit { d ->
+                                    io.github.thelony97.orbit.data.Mutations.upsertOccasion(d, owner.id, u.occasion.copy(pinned = !u.occasion.pinned))
+                                }
+                            },
+                        ) { nav.open(Route.Detail(owner.id)) }
                     }
                 }
             }
@@ -492,6 +502,7 @@ private fun OccasionRow(
     idx: Index,
     lastFirst: Boolean,
     modifier: Modifier = Modifier,
+    onPin: () -> Unit = {},
     onOpen: () -> Unit,
 ) {
     val today = u.daysUntil == 0L
@@ -500,7 +511,7 @@ private fun OccasionRow(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 1.dp)
             .clip(Corners.Row)
-            .clickable(onClick = onOpen)
+            .combinedClickable(onClick = onOpen, onLongClick = onPin)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

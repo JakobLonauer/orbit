@@ -212,7 +212,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var chooser by remember { mutableStateOf<Chooser?>(null) }
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
-    var anniversaryDialog by remember { mutableStateOf(false) }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
@@ -711,7 +710,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         InfoRow(
                             label = "Geburtstag · " + if (days == 0L) (age?.let { "wird heute $it" } ?: "heute") + " 🎂" else Fmt.until(days) + weekdayHint(days, b, todayDate) + (age?.let { " · wird $it" } ?: ""),
                             value = Fmt.dayOfYear(b),
-                            onClick = { birthdayDialog = true },
+                            // The full dialog: date, reminders, pin, note (PLAN 3.5).
+                            onClick = { occasionEdit = c.id to c.dates.firstOrNull { it.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY } },
                         )
                     }
                     // Geschenk-Historie (PLAN 3.5), only once something was given.
@@ -958,22 +958,6 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             lastFirst = data.settings.sortByLastName,
             onDismiss = { occasionEdit = null },
             onSave = { o -> OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.upsertOccasion(d, ownerId, o) } },
-        )
-    }
-
-    if (anniversaryDialog) {
-        AnniversaryDialog(
-            onDismiss = { anniversaryDialog = false },
-            allowBirthday = !c.isOrg && c.birthday == null,
-            onPick = { label, date ->
-                if (!c.isOrg && c.birthday == null && label.trim().equals("Geburtstag", ignoreCase = true)) {
-                    edit { it.withBirthday(date, ::newId) }
-                    return@AnniversaryDialog
-                }
-                val kind = MigrateV1.kindFor(label)
-                val occasion = Anniversary(newId(), kind, label = if (label.trim().equals(kind.label, ignoreCase = true)) "" else label.trim(), date = date)
-                edit { it.copy(dates = it.dates + occasion) }
-            },
         )
     }
 
