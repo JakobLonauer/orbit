@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.util.ErrorLogTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-14T11:15:56.394Z" hostname="runnervmmprz5" time="0.035">
+  <properties/>
+  <testcase name="staysBelowCap" classname="io.github.thelony97.orbit.util.ErrorLogTest" time="0.033"/>
+  <testcase name="logsWithStackAndClears" classname="io.github.thelony97.orbit.util.ErrorLogTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
