@@ -186,7 +186,7 @@ fun CallScreen(
     var keys by remember { mutableStateOf(false) }
     val color = callerColor(ui.card, ui.phoneUnlocked)
     val notice = ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) }
-    SpaceBackground(nebula = { color.copy(alpha = 1f) }) {
+    SpaceBackground(nebula = { color.copy(alpha = 1f) }, camera = rememberTiltCamera()) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -357,6 +357,43 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
         }
     }
     }
+}
+
+/**
+ * Sternenhimmel mit Neigung (PLAN 1.3): the stars drift a little as the phone tilts. Values go
+ * into the camera's draw-phase state only – no recomposition; off in power saving mode.
+ */
+@Composable
+private fun rememberTiltCamera(): io.github.thelony97.orbit.ui.components.SpaceCamera {
+    val camera = remember { io.github.thelony97.orbit.ui.components.SpaceCamera() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val sm = ctx.getSystemService(android.hardware.SensorManager::class.java)
+        val sensor = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        val saver = ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true
+        if (sm == null || sensor == null || saver) return@DisposableEffect onDispose { }
+        var fx = Float.NaN
+        var fy = Float.NaN
+        var bx = 0f
+        var by = 0f
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                if (fx.isNaN()) {
+                    fx = e.values[0]; fy = e.values[1]; bx = fx; by = fy
+                }
+                // Low-pass: calm drift, no jitter from the hand.
+                fx += (e.values[0] - fx) * 0.06f
+                fy += (e.values[1] - fy) * 0.06f
+                camera.pan = ((bx - fx) / 9.81f).coerceIn(-1f, 1f) * 0.25f
+                camera.scroll = ((fy - by) / 9.81f).coerceIn(-1f, 1f) * 160f
+            }
+
+            override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        sm.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm.unregisterListener(listener) }
+    }
+    return camera
 }
 
 private fun timer(sec: Long): String = "%d:%02d".format(sec / 60, sec % 60)
