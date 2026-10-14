@@ -304,6 +304,13 @@ class ScreensScreenshotTest {
         io.github.thelony97.orbit.ui.call.CallScreen(io.github.thelony97.orbit.ui.call.CallUi("+43 732 555 123", null, unknownLine = "3 Anrufe · zuletzt vor 2 Tagen"), noActions, now)
     }
 
+    @Test fun callWaiting() = shot("call_two") {
+        io.github.thelony97.orbit.ui.call.CallScreen(
+            io.github.thelony97.orbit.ui.call.CallUi("+43 660 1234567", callCard, active = true, elapsed = 312, phoneUnlocked = true, otherCall = "Tom Huber · gehalten", canMerge = true),
+            noActions, now,
+        )
+    }
+
     @Test fun callBluetoothAndBirthday() = shot("call_bluetooth") {
         io.github.thelony97.orbit.ui.call.CallScreen(
             io.github.thelony97.orbit.ui.call.CallUi(

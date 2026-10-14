@@ -145,6 +145,31 @@ object CallSession {
 
     fun ringing(): Call? = _calls.value.firstOrNull { stateOf(it) == Call.STATE_RINGING }
 
+    /** Anklopfen (PLAN 3.12): the second call next to the one on screen, if any. */
+    fun other(): Call? {
+        val p = primary() ?: return null
+        return _calls.value.firstOrNull { it !== p && stateOf(it) != Call.STATE_DISCONNECTED && stateOf(it) != Call.STATE_DISCONNECTING }
+    }
+
+    /** Switches to the held call; Telecom holds the current one. */
+    fun swap() = runCatching {
+        val o = other() ?: return@runCatching
+        if (stateOf(o) == Call.STATE_HOLDING) o.unhold()
+    }
+
+    fun canMerge(): Boolean = runCatching {
+        val p = primary() ?: return@runCatching false
+        val o = other() ?: return@runCatching false
+        o in p.conferenceableCalls
+    }.getOrDefault(false)
+
+    /** Konferenz: both calls into one. */
+    fun merge() = runCatching {
+        val p = primary() ?: return@runCatching
+        val o = other() ?: return@runCatching
+        if (o in p.conferenceableCalls) p.conference(o)
+    }
+
     // Each action is guarded: a failing call must never take the screen (or the call) with it.
     fun answer() = runCatching { ringing()?.answer(android.telecom.VideoProfile.STATE_AUDIO_ONLY) }
     fun decline() = runCatching { ringing()?.reject(false, null) }

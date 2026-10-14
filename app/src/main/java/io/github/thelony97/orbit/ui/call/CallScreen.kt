@@ -126,6 +126,9 @@ data class CallUi(
     val moreRoutes: Boolean = false,
     /** Orbit may block numbers (only as the phone app). */
     val canBlock: Boolean = false,
+    /** Anklopfen: the other call, „Tom Huber · gehalten“; [canMerge] when both can become one. */
+    val otherCall: String? = null,
+    val canMerge: Boolean = false,
 )
 
 enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
@@ -147,6 +150,9 @@ interface CallActions {
     fun pickAccount(index: Int) {}
     /** Nummer sperren (PLAN 3.12): into the system's block list, then decline. */
     fun block() {}
+    /** Two calls: switch to the held one, or merge them into a conference. */
+    fun swap() {}
+    fun merge() {}
     fun toggleTopic(topic: String) {}
     /** Archived caller (PLAN 3.11): back into the list with one tap. */
     fun unarchive() {}
@@ -210,6 +216,15 @@ fun CallScreen(
                 color = if (ui.active && !ui.ended) Space.Teal else Space.TextDim,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            // Anklopfen while ringing: who is waiting on the other line (held when answering).
+            if (!ui.active && ui.otherCall != null) {
+                Text(
+                    "Anklopfen · " + ui.otherCall,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Space.Teal,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
             // The templates take the details' place, so everything fits without scrolling.
             if (ui.phoneUnlocked && notice != null && !(templates && !ui.active) && !(keys && ui.active && !ui.ended)) {
@@ -221,6 +236,23 @@ fun CallScreen(
                 // The note needs a contact to land on, and an unlocked phone.
                 AfterCall(ui.phoneUnlocked && ui.card != null, actions)
             } else if (ui.active) {
+                ui.otherCall?.let { other ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Space.Panel.copy(alpha = 0.8f))
+                            .border(1.dp, Space.Line, RoundedCornerShape(16.dp))
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(other, style = MaterialTheme.typography.bodyMedium, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        if (ui.canMerge) GhostButton("Zusammen", actions::merge)
+                        GlowButton("Wechseln", actions::swap, color = Space.Teal)
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
                 if (ui.accounts.isNotEmpty()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ui.accounts.forEachIndexed { i, label -> GlowButton(label, { actions.pickAccount(i) }, color = Space.Teal) }

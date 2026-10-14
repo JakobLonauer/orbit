@@ -214,6 +214,16 @@ private fun CallRoute(onDone: () -> Unit) {
             },
             unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, now) else null,
             canBlock = canBlock && number.isNotBlank(),
+            otherCall = CallSession.other()?.let { o ->
+                val n = CallSession.numberOf(o)
+                val who = cards[n]?.name?.takeIf { it.isNotBlank() } ?: n.ifBlank { "Anruf" }
+                who + when (CallSession.stateOf(o)) {
+                    Call.STATE_HOLDING -> " · gehalten"
+                    Call.STATE_ACTIVE -> " · im Gespräch"
+                    else -> ""
+                }
+            },
+            canMerge = CallSession.canMerge(),
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),
@@ -260,6 +270,8 @@ private fun CallRoute(onDone: () -> Unit) {
         override fun toggleHold() { CallSession.toggleHold() }
         override fun dtmf(digit: Char) { CallSession.dtmf(digit) }
         override fun pickAccount(index: Int) { CallSession.pickAccount(ctx, index) }
+        override fun swap() { CallSession.swap() }
+        override fun merge() { CallSession.merge() }
         override fun block() {
             val c = CallSession.ringing() ?: return
             val number = CallSession.numberOf(c)
