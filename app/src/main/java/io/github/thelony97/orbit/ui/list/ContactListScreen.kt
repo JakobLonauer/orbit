@@ -167,6 +167,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
     val query = search.text.toString()
+    val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
+    val belongsTo = remember(query, data.contacts) {
+        if (query.count { it.isDigit() } < 6 || query.any { it.isLetter() }) null
+        else io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso).matchCall(query)
+            ?.takeIf { !it.archived && it.via != io.github.thelony97.orbit.core.domain.Matcher.Via.NUMBER }
+            ?.let { m -> data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived } }
+    }
     val todayDate = today()
     val sort = SortMode.of(data.settings.listSort)
     val reversed = data.settings.listSortReversed
@@ -356,6 +363,19 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner() }
+            // „gehört zu Arzt Müller“ (PLAN 1.3): a pasted Durchwahl or a number in an
+            // organisation's range – a hidden member shows only as the organisation.
+            belongsTo?.let { org ->
+                item(key = "belongs") {
+                    Banner(
+                        icon = Icons.Rounded.Business,
+                        color = Space.Blue,
+                        text = "gehört zu " + Logic.displayName(org, false),
+                        action = "Öffnen",
+                        onClick = { nav.open(Route.Detail(org.id)) },
+                    )
+                }
+            }
             if (suggestions > 0 && defaultView) {
                 item(key = "suggestions") {
                     Banner(

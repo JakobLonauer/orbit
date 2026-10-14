@@ -141,6 +141,7 @@ import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.Pill
 import io.github.thelony97.orbit.ui.components.glow
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloat
 import io.github.thelony97.orbit.ui.components.SectionCard
 import io.github.thelony97.orbit.ui.components.SectionTitle
 import io.github.thelony97.orbit.ui.components.SpaceBackground
