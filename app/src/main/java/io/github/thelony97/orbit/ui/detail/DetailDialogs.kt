@@ -116,14 +116,13 @@ fun MeetingDialog(name: String, onDismiss: () -> Unit, onPlan: (MeetingDraft) ->
 /** One choice in the relation dialog. [reversed] = the relation is stored from the other side. */
 data class RelationOption(val label: String, val kind: String, val reversed: Boolean, val toOrg: Boolean)
 
+/** Human relations only: organisations are Zuordnungen since R4 ([AssignDialog]). */
 fun relationOptions(contact: Contact): List<RelationOption> {
     val personKinds = Defaults.relationKinds.filter { !it.toOrg }
-    val orgKinds = Defaults.relationKinds.filter { it.toOrg }
-    if (contact.isOrg) return orgKinds.map { RelationOption(it.backward, it.key, reversed = true, toOrg = true) }
     return personKinds.flatMap { k ->
         listOf(RelationOption(k.forward, k.key, false, false)) +
             if (k.backward != k.forward) listOf(RelationOption(k.backward, k.key, true, false)) else emptyList()
-    } + orgKinds.map { RelationOption(it.forward, it.key, reversed = false, toOrg = true) }
+    }
 }
 
 @Composable
@@ -248,5 +247,90 @@ fun ValueChooserDialog(
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+    )
+}
+
+/**
+ * Zuordnung (PLAN 3.6): a person to an organisation with a role – from the person page it picks
+ * the organisation, from the organisation page the person. „Eigene“ takes a free name.
+ */
+@Composable
+fun AssignDialog(
+    contact: Contact,
+    candidates: List<Contact>,
+    idx: Index,
+    lastFirst: Boolean,
+    onDismiss: () -> Unit,
+    onPick: (otherId: String, role: String, label: String) -> Unit,
+) {
+    val roles = io.github.thelony97.orbit.core.model.AssignmentRoles.all
+    var role by remember { mutableStateOf(roles.first().key) }
+    val custom = rememberTextFieldState()
+    var other by remember { mutableStateOf<String?>(null) }
+    val search = rememberTextFieldState()
+    val q = search.text.toString()
+    val wantOrg = !contact.isOrg
+    val filtered = candidates.filter { it.id != contact.id && it.isOrg == wantOrg && Logic.matches(it, q, idx) }
+        .sortedWith(compareByDescending<Contact> { it.isMe }.thenBy { Logic.sortKey(it, lastFirst) })
+    val isCustom = role == io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = io.github.thelony97.orbit.ui.theme.Space.PanelHigh,
+        title = { Text(Logic.shortName(contact)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    roles.forEach { r ->
+                        io.github.thelony97.orbit.ui.components.SpaceChip(
+                            io.github.thelony97.orbit.core.domain.Assignments.label(r), role == r.key, { role = r.key },
+                            accent = io.github.thelony97.orbit.ui.theme.Space.Blue,
+                        )
+                    }
+                    io.github.thelony97.orbit.ui.components.SpaceChip(
+                        "Eigene", isCustom, { role = io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM },
+                        accent = io.github.thelony97.orbit.ui.theme.Space.Blue,
+                    )
+                }
+                if (isCustom) {
+                    OutlinedTextField(
+                        state = custom,
+                        placeholder = { Text("Bezeichnung") },
+                        lineLimits = TextFieldLineLimits.SingleLine,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                OutlinedTextField(
+                    state = search,
+                    placeholder = { Text(if (wantOrg) "Organisation" else "Person") },
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LazyColumn(Modifier.heightIn(max = 240.dp)) {
+                    items(filtered, key = { it.id }) { c ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { other = c.id }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            RadioButton(selected = other == c.id, onClick = { other = c.id })
+                            Avatar(c, contactColor(c, idx), 32.dp)
+                            Text(Logic.displayName(c, lastFirst))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = other != null && (!isCustom || custom.text.isNotBlank()), onClick = {
+                other?.let { onPick(it, role, if (isCustom) custom.text.toString().trim() else "") }
+                onDismiss()
+            }) { Text("Zuordnen") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }

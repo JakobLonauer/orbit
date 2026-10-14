@@ -14,10 +14,13 @@ import kotlinx.serialization.Transient
 
 const val SCHEMA_V2 = 2
 
+/** R4: person ↔ organisation relations live in [OrbitDoc.orgLinks] (Zuordnungen); see MigrateV2. */
+const val SCHEMA_V3 = 3
+
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class OrbitDoc(
-    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val schema: Int = SCHEMA_V2,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val schema: Int = SCHEMA_V3,
     val contacts: List<Contact> = emptyList(),
     val groups: List<Group> = emptyList(),
     val entryTypes: List<EntryType> = emptyList(),

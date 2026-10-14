@@ -43,7 +43,9 @@ class StoreUpgradeTest {
         assertEquals(1, r.entries)
         assertEquals(1, r.attachments)
         assertEquals(v1, File(dir, StoreUpgrade.BACKUP).readText())
-        assertEquals(2, MigrateV1.schemaOf(file.readText()))
+        assertEquals(3, MigrateV1.schemaOf(file.readText()))
+        // Straight from 1.0.7 to schema 3: the v1 copy is the only one needed.
+        assertFalse(File(dir, StoreUpgrade.BACKUP_V2).exists())
         val doc = DocJson.decode(file.readText())
         assertEquals("Anna", doc.contacts[1].firstName)
         assertEquals(1, doc.contacts[1].dates.size)
@@ -54,6 +56,27 @@ class StoreUpgradeTest {
         // Second start: nothing happens, backup untouched.
         assertFalse(StoreUpgrade.run(file, db, ids).migrated)
         assertEquals(v1, File(dir, StoreUpgrade.BACKUP).readText())
+    }
+
+    /** Schema 2 on disk (1.0.101, R2/R3 candidates): copy first, then the Zuordnungen. */
+    @Test fun schema2GetsZuordnungenAndKeepsACopy() {
+        val v2 = """
+            {"schema":2,"contacts":[{"id":"me","isMe":true,"firstName":"Ich"},{"id":"a","firstName":"Anna"},{"id":"o","kind":"ORG","company":"Arzt"}],
+             "relations":[{"id":"r","fromId":"a","toId":"o","kind":"patient"}],"settings":{"onboardingDone":true}}
+        """.trimIndent()
+        file.writeText(v2)
+        val r = StoreUpgrade.run(file, db, ids)
+        assertTrue(r.toV3)
+        assertFalse(r.migrated)
+        assertEquals(v2, File(dir, StoreUpgrade.BACKUP_V2).readText())
+        val doc = DocJson.decode(file.readText())
+        assertEquals(3, doc.schema)
+        assertTrue(doc.relations.isEmpty())
+        assertEquals("doctor", doc.orgLinks.single().role)
+        assertEquals("Anna", doc.contacts[1].firstName)
+        // Next start: nothing, the copy stays as it was.
+        assertFalse(StoreUpgrade.run(file, db, ids).toV3)
+        assertEquals(v2, File(dir, StoreUpgrade.BACKUP_V2).readText())
     }
 
     @Test fun rerunAfterCrashDoesNotDuplicate() {

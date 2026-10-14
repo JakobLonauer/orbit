@@ -146,6 +146,17 @@ class ScreensScreenshotTest {
     /** The whole contact page in PLAN 3.3 order: fields with copy, links, pinned note, organisations apart from people, add row. */
     @Config(qualifiers = "w411dp-h2400dp-xxhdpi")
     @Test fun fullDetail() {
+        val full = fullData()
+        shot("detail_full") { ContactDetailScreen("kathi", full, Index(full), nav) }
+    }
+
+    /** The organisation's side of the Zuordnungen: „Aus deinen Kontakten“ (PLAN 3.6). */
+    @Test fun orgDetail() {
+        val full = fullData()
+        shot("detail_org") { ContactDetailScreen("jku", full, Index(full), nav) }
+    }
+
+    private fun fullData(): io.github.thelony97.orbit.data.OrbitData {
         val kathi = Contact(
             "kathi", firstName = "Katharina", lastName = "Leitner", position = "Projektleitung", company = "JKU Linz",
             phones = listOf(LabeledValue("Mobil", "+43 676 5550123")),
@@ -160,11 +171,16 @@ class ScreensScreenshotTest {
         val full = data.copy(
             contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468"))),
             relations = listOf(
-                io.github.thelony97.orbit.data.Relation("r1", "kathi", "arzt", "patient"),
                 io.github.thelony97.orbit.data.Relation("r2", "kathi", "anna", "friend"),
             ),
+            // Zuordnungen (R4): Hausarzt and work, Anna also at the JKU.
+            orgLinks = listOf(
+                io.github.thelony97.orbit.core.model.OrgLink("l1", "kathi", "arzt", "gp"),
+                io.github.thelony97.orbit.core.model.OrgLink("l2", "kathi", "jku", "lead"),
+                io.github.thelony97.orbit.core.model.OrgLink("l3", "anna", "jku", "colleague"),
+            ),
         )
-        shot("detail_full") { ContactDetailScreen("kathi", full, Index(full), nav) }
+        return full
     }
 
     /** The shell: glass bar with the planet over the contact list (tab 0 – no map view). */

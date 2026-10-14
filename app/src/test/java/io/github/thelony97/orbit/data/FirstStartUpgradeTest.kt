@@ -64,7 +64,7 @@ class FirstStartUpgradeTest {
         assertEquals("name", d.settings.listSort)
         assertEquals(1, d.relations.size)
         assertEquals(v1, File(dir, StoreUpgrade.BACKUP).readText())
-        assertEquals(2, MigrateV1.schemaOf(File(dir, "orbit.json").readText()))
+        assertEquals(3, MigrateV1.schemaOf(File(dir, "orbit.json").readText()))
 
         // Add an entry and delete one, then save.
         OrbitRepository.update { s -> Mutations.addEntry(s, "papa", Entry(id = "e4", contactId = "", typeId = "meet", at = 1800000000000, note = "Kaffee")) }

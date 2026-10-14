@@ -33,10 +33,20 @@ data class Network(
  */
 object NetworkLayout {
 
+    private const val ORG_KIND = "org:"
+
+    /**
+     * Relations plus Zuordnungen (PLAN 3.6) as one list of links: a Zuordnung is drawn like a
+     * relation from the person to the organisation; [roleOf] reads its role from both sides.
+     */
+    fun links(data: OrbitData): List<Relation> =
+        data.relations + data.orgLinks.map { Relation(it.id, it.personId, it.orgId, ORG_KIND + it.role + ":" + it.label) }
+
     fun build(data: OrbitData, root: Contact, depth: Int, include: (Contact) -> Boolean, lastFirst: Boolean = false): Network {
         val contacts = Logic.active(data).filter { it.id == root.id || include(it) }.associateBy { it.id }
         val adjacency = HashMap<String, MutableList<Pair<String, Relation>>>()
-        data.relations.forEach { r ->
+        val links = links(data)
+        links.forEach { r ->
             if (r.fromId in contacts && r.toId in contacts && r.fromId != r.toId) {
                 adjacency.getOrPut(r.fromId) { mutableListOf() } += r.toId to r
                 adjacency.getOrPut(r.toId) { mutableListOf() } += r.fromId to r
@@ -95,16 +105,22 @@ object NetworkLayout {
             )
         }
         val treeRelations = parent.values.map { it.second.id }.toSet()
-        val edges = data.relations
+        val edges = links
             .filter { it.fromId in level && it.toId in level && it.fromId != it.toId }
             .map { NetEdge(it.fromId, it.toId, it, tree = it.id in treeRelations) }
-        val linked = data.relations.flatMap { listOf(it.fromId, it.toId) }.toSet()
+        val linked = links.flatMap { listOf(it.fromId, it.toId) }.toSet()
         val isolated = contacts.values.count { !it.isMe && it.id !in linked }
         return Network(root, nodes, edges, nodes.maxOfOrNull { it.level } ?: 0, isolated)
     }
 
     /** How [other] relates to [self] through [r] – e.g. "Partner:in", "Kind", "Arbeitgeber". */
     fun roleOf(other: String, r: Relation): String {
+        if (r.kind.startsWith(ORG_KIND)) {
+            val (role, label) = r.kind.removePrefix(ORG_KIND).split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+            val ar = io.github.thelony97.orbit.core.model.AssignmentRoles.of(io.github.thelony97.orbit.core.model.OrgLink(r.id, r.fromId, r.toId, role, label))
+            // The person stands on the „from“ side.
+            return if (r.fromId == other) ar.personSide else io.github.thelony97.orbit.core.domain.Assignments.label(ar)
+        }
         val kind = Defaults.relationKind(r.kind)
         return if (r.fromId == other) kind.forward else kind.backward
     }

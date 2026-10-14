@@ -415,7 +415,7 @@ private fun NodeCard(node: NetNode, path: String, color: Color, onOpen: () -> Un
 private fun RootPicker(data: OrbitData, idx: Index, onDismiss: () -> Unit) {
     val search = rememberTextFieldState()
     val q = search.text.toString()
-    val linked = remember(data) { data.relations.flatMap { listOf(it.fromId, it.toId) }.groupingBy { it }.eachCount() }
+    val linked = remember(data) { NetworkLayout.links(data).flatMap { listOf(it.fromId, it.toId) }.groupingBy { it }.eachCount() }
     val list = remember(data, q) {
         Logic.active(data)
             .filter { !it.archived && Logic.matches(it, q, idx) }

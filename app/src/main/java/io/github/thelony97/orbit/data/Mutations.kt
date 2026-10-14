@@ -100,10 +100,11 @@ object Mutations {
     fun unarchive(d: OrbitData, id: String): OrbitData =
         d.copy(contacts = d.contacts.map { if (it.id == id && it.archived) it.copy(archived = false, archivedAt = null) else it })
 
-    /** Removes a contact for good, together with relations and meetings that point at it. */
+    /** Removes a contact for good, together with relations, Zuordnungen and meetings that point at it. */
     fun purge(d: OrbitData, id: String): OrbitData = if (d.contacts.any { it.id == id && it.isMe }) d else d.copy(
         contacts = d.contacts.filterNot { it.id == id },
         relations = d.relations.filterNot { it.fromId == id || it.toId == id },
+        orgLinks = d.orgLinks.filterNot { it.personId == id || it.orgId == id },
         meetings = d.meetings.filterNot { it.contactId == id },
     )
 
@@ -146,6 +147,24 @@ object Mutations {
 
     fun removeRelation(d: OrbitData, relationId: String): OrbitData =
         d.copy(relations = d.relations.filterNot { it.id == relationId })
+
+    /**
+     * Zuordnung person → organisation (PLAN 3.6). The same role twice is one; a person may hold
+     * several roles at one organisation (Kolleg:in and Projektleitung).
+     */
+    fun addOrgLink(d: OrbitData, personId: String, orgId: String, role: String, label: String = ""): OrbitData {
+        val person = d.contacts.firstOrNull { it.id == personId }
+        val org = d.contacts.firstOrNull { it.id == orgId }
+        if (person == null || org == null || person.isOrg || !org.isOrg) return d
+        val custom = role == io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM
+        val text = if (custom) label.trim() else ""
+        if (custom && text.isEmpty()) return d
+        if (d.orgLinks.any { it.personId == personId && it.orgId == orgId && it.role == role && it.label == text }) return d
+        return d.copy(orgLinks = d.orgLinks + io.github.thelony97.orbit.core.model.OrgLink(newId(), personId, orgId, role, text))
+    }
+
+    fun removeOrgLink(d: OrbitData, linkId: String): OrbitData =
+        d.copy(orgLinks = d.orgLinks.filterNot { it.id == linkId })
 
     fun upsertGroup(d: OrbitData, g: Group): OrbitData {
         val exists = d.groups.any { it.id == g.id }

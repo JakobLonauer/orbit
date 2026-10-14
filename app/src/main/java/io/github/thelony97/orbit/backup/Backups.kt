@@ -160,10 +160,11 @@ object Backups {
     internal fun fromBackup(core: String, history: String?, attachments: String?): OrbitData {
         if (MigrateV1.schemaOf(core) < 2) {
             val r = MigrateV1.fromJson(core, ::newId)
-            return Store.assemble(r.doc, r.history, r.attachments)
+            return Store.assemble(io.github.thelony97.orbit.core.domain.migration.MigrateV2.upgrade(r.doc), r.history, r.attachments)
         }
         require(history != null) { "Sicherung unvollständig (history.json fehlt)." }
-        val doc = OrbitRepository.json.decodeFromString(OrbitData.serializer(), core)
+        // A schema-2 backup (before R4) gets its Zuordnungen like the stored file does.
+        val doc = io.github.thelony97.orbit.core.domain.migration.MigrateV2.upgrade(OrbitRepository.json.decodeFromString(OrbitData.serializer(), core))
         val h = history.let { OrbitRepository.json.decodeFromString(HISTORY, it) }.orEmpty()
         val a = attachments?.let { OrbitRepository.json.decodeFromString(ATTACHMENTS, it) }.orEmpty()
         return Store.assemble(doc, h, a)

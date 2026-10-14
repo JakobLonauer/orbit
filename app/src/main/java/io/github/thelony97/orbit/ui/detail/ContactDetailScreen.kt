@@ -48,6 +48,7 @@ import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.CardGiftcard
@@ -212,6 +213,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var chooser by remember { mutableStateOf<Chooser?>(null) }
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
+    var assignDialog by remember { mutableStateOf(false) }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
@@ -228,6 +230,15 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     val historySearch = rememberTextFieldState()
 
     fun edit(transform: (Contact) -> Contact) = OrbitRepository.editContact(c.id, transform)
+
+    /** Removes a Zuordnung with an undo that brings back exactly that one. */
+    fun removeAssignment(linkId: String, other: Contact) {
+        val original = data.orgLinks.firstOrNull { it.id == linkId } ?: return
+        OrbitRepository.edit { d -> Mutations.removeOrgLink(d, linkId) }
+        Undo.offer("${Logic.shortName(other)} entfernt") {
+            OrbitRepository.edit { d -> if (d.orgLinks.any { it.id == original.id }) d else d.copy(orgLinks = d.orgLinks + original) }
+        }
+    }
 
     /** Removes a relation with an undo that brings back exactly that one. */
     fun removeRelation(r: RelView) {
@@ -644,26 +655,43 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 val kind = Defaults.relationKind(r.kind)
                 RelView(r.id, other, if (outgoing) kind.backward else kind.forward)
             }
-            // Zuordnungen schlicht (PLAN 3.3): organisations as square tiles with a call button,
-            // kept apart from the human relations below. Full design comes with R4.
-            val orgRels = rels.filter { it.other.isOrg }
-            val humanRels = rels.filterNot { it.other.isOrg }
-            if (orgRels.isNotEmpty()) item(key = "orgs") {
-                SectionCard(title = "Organisationen", icon = Icons.Rounded.Business) {
-                    orgRels.forEach { r ->
+            // Zuordnungen (PLAN 3.6): the person's organisations („Hausarzt: Arzt Müller“, with a
+            // call button) or the organisation's people („Aus deinen Kontakten“), apart from the
+            // human relations below.
+            val alive = { o: Contact -> o.deletedAt == null && (c.archived || !o.archived) }
+            val assigned = if (c.isOrg) io.github.thelony97.orbit.core.domain.Assignments.ofOrg(data, c.id, alive)
+                else io.github.thelony97.orbit.core.domain.Assignments.ofPerson(data, c.id, alive)
+            val alsoThere = if (c.isOrg) emptyList() else io.github.thelony97.orbit.core.domain.Assignments.alsoThere(data, c.id, alive)
+            val humanRels = rels
+            if (assigned.isNotEmpty()) item(key = "orgs") {
+                SectionCard(
+                    title = if (c.isOrg) "Aus deinen Kontakten" else "Organisationen",
+                    icon = if (c.isOrg) Icons.Rounded.Groups else Icons.Rounded.Business,
+                    action = { SmallIconAction(Icons.Rounded.Add, "Zuordnen") { assignDialog = true } },
+                ) {
+                    assigned.forEach { a ->
+                        val other = idx.contacts[a.otherId] ?: return@forEach
                         RelationRow(
-                            r, idx, lastFirst,
-                            onOpen = { nav.open(Route.Detail(r.other.id)) },
+                            RelView(a.linkId, other, a.role), idx, lastFirst,
+                            onOpen = { nav.open(Route.Detail(other.id)) },
                             trailing = {
-                                if (ContactActions.defaultNumber(r.other) != null) {
-                                    SmallIconAction(Icons.Rounded.Call, "${Logic.shortName(r.other)} anrufen") {
-                                        ContactActions.call(ctx, r.other, null, data.settings)
+                                if (ContactActions.defaultNumber(other) != null) {
+                                    SmallIconAction(Icons.Rounded.Call, "${Logic.shortName(other)} anrufen") {
+                                        ContactActions.call(ctx, other, null, data.settings)
                                     }
                                 }
-                                SmallIconAction(Icons.Rounded.Close, "Entfernen") {
-                                    removeRelation(r)
-                                }
+                                SmallIconAction(Icons.Rounded.Close, "Entfernen") { removeAssignment(a.linkId, other) }
                             },
+                        )
+                    }
+                    // „Auch bei COOL Lab: Anna, Tom“ (PLAN 3.6).
+                    alsoThere.forEach { (orgId, people) ->
+                        val org = idx.contacts[orgId] ?: return@forEach
+                        Text(
+                            "Auch bei ${Logic.shortName(org)}: " + people.mapNotNull { idx.contacts[it]?.let { p -> Logic.shortName(p) } }.joinToString(", "),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Space.TextFaint,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -771,7 +799,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         if (c.gallery.isEmpty() && !gallery.importing) add(AddItem("Foto") { gallery.launch() })
                         if (c.notes.isBlank()) add(AddItem("Notiz") { noteDialog = NoteTarget.Notes })
                         if (!c.isMe && !c.archived && c.topics.isEmpty() && "topics" !in opened) add(AddItem("Thema") { opened = opened + "topics" })
-                        if (humanRels.isEmpty()) add(AddItem("Beziehung") { relationDialog = true })
+                        if (humanRels.isEmpty() && !c.isOrg) add(AddItem("Beziehung") { relationDialog = true })
+                        if (assigned.isEmpty() && !c.archived) add(AddItem(if (c.isOrg) "Person" else "Organisation") { assignDialog = true })
                         if (!c.isOrg && !c.isMe && !c.archived && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
                         add(AddItem("Feld") { fieldDialog = true })
                     },
@@ -937,6 +966,21 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                     ctx.startActivity(intent)
                 } catch (_: Exception) {
                     Toast.makeText(ctx, "Keine Kalender-App gefunden – Treffen ist trotzdem gespeichert", Toast.LENGTH_LONG).show()
+                }
+            },
+        )
+    }
+
+    if (assignDialog) {
+        AssignDialog(
+            contact = c,
+            candidates = Logic.active(data).filterNot { it.archived },
+            idx = idx,
+            lastFirst = lastFirst,
+            onDismiss = { assignDialog = false },
+            onPick = { otherId, role, label ->
+                OrbitRepository.edit { d ->
+                    if (c.isOrg) Mutations.addOrgLink(d, otherId, c.id, role, label) else Mutations.addOrgLink(d, c.id, otherId, role, label)
                 }
             },
         )
