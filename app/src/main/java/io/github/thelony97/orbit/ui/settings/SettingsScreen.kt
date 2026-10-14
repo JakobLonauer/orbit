@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Delete
@@ -568,6 +569,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(Icons.Rounded.Groups, "Gruppen", "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
                 Hairline()
                 SettingItem(Icons.Rounded.Category, "Eintragsarten", "${data.entryTypes.size} Arten", onClick = { nav.open(Route.EntryTypes) })
+                Hairline()
+                // PLAN 3.5: hides „Gratuliert“/„Geschenk“ in the Anlässe tab completely.
+                SettingItem(
+                    Icons.Rounded.CardGiftcard, "Gratuliert und Geschenke abhaken",
+                    trailing = { SpaceSwitch(s.giftTracking) { v -> OrbitRepository.editSettings { it.copy(giftTracking = v) } } },
+                )
                 Hairline()
                 SettingItem(Icons.Rounded.SortByAlpha, "Sortieren nach", trailing = {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
