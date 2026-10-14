@@ -184,6 +184,18 @@ object CallSession {
         accounts(ctx, c).getOrNull(index)?.let { c.phoneAccountSelected(it, false) }
     }
 
+    /** Whether this phone lets Orbit block numbers (the default phone app may). */
+    fun canBlock(ctx: android.content.Context): Boolean =
+        runCatching { android.provider.BlockedNumberContract.canCurrentUserBlockNumbers(ctx) }.getOrDefault(false)
+
+    /** Puts [number] on the system's block list (shared with the system phone app and SMS). */
+    fun block(ctx: android.content.Context, number: String): Boolean = runCatching {
+        val values = android.content.ContentValues().apply {
+            put(android.provider.BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER, number)
+        }
+        ctx.contentResolver.insert(android.provider.BlockedNumberContract.BlockedNumbers.CONTENT_URI, values) != null
+    }.getOrDefault(false)
+
     fun toggleMute() = runCatching { service?.setMuted(!audio.value.muted) }
 
     /**

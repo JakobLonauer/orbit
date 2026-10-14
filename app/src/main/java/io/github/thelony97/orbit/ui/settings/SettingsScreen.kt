@@ -48,6 +48,7 @@ import androidx.compose.material.icons.rounded.Email
 import io.github.thelony97.orbit.mail.MailAccounts
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Call
@@ -467,6 +468,15 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         }
                     },
                 )
+                if (held) {
+                    Hairline()
+                    // The block list belongs to the system (shared with SMS and the stock phone app).
+                    SettingItem(Icons.Rounded.Block, "Gesperrte Nummern", iconTint = Space.Teal, onClick = {
+                        runCatching {
+                            ctx.startActivity(ctx.getSystemService(android.telecom.TelecomManager::class.java).createManageBlockedNumbersIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }.onFailure { toast("Nicht möglich") }
+                    })
+                }
             }
         }
 

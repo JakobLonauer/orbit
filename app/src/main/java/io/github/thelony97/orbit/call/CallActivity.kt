@@ -167,6 +167,7 @@ private fun CallRoute(onDone: () -> Unit) {
     val ended by CallSession.ended.collectAsState()
     val cards by CallSession.cards.collectAsState()
     val doc by OrbitRepository.data.collectAsState()
+    val canBlock = remember { CallSession.canBlock(ctx) }
     var phoneUnlocked by remember { mutableStateOf(unlocked(ctx)) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Ticks survive rotation (they are saved at once, the screen must show them too).
@@ -212,6 +213,7 @@ private fun CallRoute(onDone: () -> Unit) {
                 it.endpointType == android.telecom.CallEndpoint.TYPE_BLUETOOTH || it.endpointType == android.telecom.CallEndpoint.TYPE_WIRED_HEADSET
             },
             unknownLine = if (cards[number] == null) unknownLine(doc, number, ctx, now) else null,
+            canBlock = canBlock && number.isNotBlank(),
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),
@@ -258,6 +260,15 @@ private fun CallRoute(onDone: () -> Unit) {
         override fun toggleHold() { CallSession.toggleHold() }
         override fun dtmf(digit: Char) { CallSession.dtmf(digit) }
         override fun pickAccount(index: Int) { CallSession.pickAccount(ctx, index) }
+        override fun block() {
+            val c = CallSession.ringing() ?: return
+            val number = CallSession.numberOf(c)
+            AppWork.launch {
+                val ok = withContext(Dispatchers.IO) { CallSession.block(ctx, number) }
+                Toast.makeText(ctx, if (ok) "Gesperrt" else "Sperren nicht möglich", Toast.LENGTH_SHORT).show()
+            }
+            CallSession.decline()
+        }
         override fun toggleTopic(topic: String) {
             val on = topic !in done
             done = if (on) done + topic else done - topic

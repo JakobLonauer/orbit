@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import io.github.thelony97.orbit.ui.components.GlowButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Headphones
@@ -123,6 +124,8 @@ data class CallUi(
     val routeName: String = "",
     /** More than earpiece and speaker to choose from (headset, Bluetooth). */
     val moreRoutes: Boolean = false,
+    /** Orbit may block numbers (only as the phone app). */
+    val canBlock: Boolean = false,
 )
 
 enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
@@ -142,6 +145,8 @@ interface CallActions {
     fun dtmf(digit: Char) {}
     /** Which SIM places this call. */
     fun pickAccount(index: Int) {}
+    /** Nummer sperren (PLAN 3.12): into the system's block list, then decline. */
+    fun block() {}
     fun toggleTopic(topic: String) {}
     /** Archived caller (PLAN 3.11): back into the list with one tap. */
     fun unarchive() {}
@@ -235,6 +240,13 @@ fun CallScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                     SmallAction(Icons.Rounded.Sms, "SMS", on = templates) { templates = !templates }
                     SmallAction(Icons.Rounded.Schedule, "Später", onClick = actions::remindLater)
+                    // Unknown numbers only: block and decline, with a second tap to be sure.
+                    if (ui.card == null && ui.canBlock) {
+                        var sure by remember { mutableStateOf(false) }
+                        SmallAction(Icons.Rounded.Block, if (sure) "Sicher?" else "Sperren", on = sure) {
+                            if (sure) actions.block() else sure = true
+                        }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 AnswerOrbit(color, onAnswer = actions::answer, onDecline = actions::decline)
