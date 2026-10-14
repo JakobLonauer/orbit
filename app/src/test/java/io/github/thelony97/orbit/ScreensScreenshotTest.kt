@@ -220,6 +220,26 @@ class ScreensScreenshotTest {
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_qr.png")
     }
 
+    /** Anlass bearbeiten (PLAN 3.5): a wedding day shared with Tom, pinned, two reminders. */
+    @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+    @Test fun occasionDialog() {
+        val wedding = io.github.thelony97.orbit.data.Anniversary(
+            "w", io.github.thelony97.orbit.core.model.OccasionKind.WEDDING, date = DayOfYear(16, 10, 2021),
+            pinned = true, reminders = listOf(0, 7), sharedWith = "tom", note = "Restaurant reservieren",
+        )
+        compose.setContent {
+            OrbitTheme {
+                Box(Modifier.fillMaxSize().background(Space.Void)) {
+                    io.github.thelony97.orbit.ui.detail.OccasionDialog(
+                        initial = wedding, people = data.contacts.filter { !it.isMe && !it.isOrg }, allowBirthday = false,
+                        lastFirst = false, onDismiss = {}, onSave = {},
+                    )
+                }
+            }
+        }
+        com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_occasion_dialog.png")
+    }
+
     /** Profilbild zuschneiden (PLAN 3.3): circle frame over a landscape picture. */
     @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
     @Test fun cropPhoto() {
