@@ -13,6 +13,23 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ## Stand
 
+### Nacht 15.10.2026 (00:00–05:00, Nachtsitzung, nur `dev`, nichts veröffentlicht)
+
+- **Erledigt (R6/R7-Abschluss + Feinschliff-Durchgang):**
+  - Speicher-Übersicht (Einstellungen › Sicherheit & Backup): Balken nach Fotos, Dokumenten, Verlauf, Kontakten, Sicherheitskopien; Größen de-AT („9,8 MB“); `StorageUsage` getestet.
+  - Mails klappen im Bündel weich auf (R5-Wow): Text lädt in Zeilen-Platzhalter, „Antworten“ und „Bilder“ direkt darunter.
+  - Karte offline: eine Zeile, was fehlt; Stil und Adressen werden nachgeladen, sobald Netz da ist (`rememberOnline`).
+  - Widgets: echte Vorschauen mit deinen Daten im Auswahlmenü (Android 15+, Glance generated previews, einmal täglich).
+  - „Dein Orbit füllt sich“ landet exakt auf den Zeilen der Kontaktliste (Ich-Karte, Buchstabenköpfe, 36-dp-Bilder), danach weiche Überblendung statt hartem Schnitt; keine Neukomposition pro Frame.
+  - Ich-Karte (Tagsitzung) verfeinert: QR abseits des Hauptthreads, Nummer/Mail lesbar, weicherer Schimmer, kein Dauer-Drift im Energiesparmodus.
+  - Feinschliff über alle Screens (zwei Wow-Review-Subagenten, 24 Funde): SMS/WhatsApp nur bei Mobilnummer (feste Regel `NumberKind`: AT/DE/CH-Festnetz), Einzahl überall, „Heute · 30. Geburtstag“, Sheets auf 16 dp, leere Liste/leerer Verlauf ohne Suche/Filter, kein „Verlauf · 0“, „Nur hier“ verkleinert statt abschneidet, „N Kontakte ohne Geburtstag“ als Chip, einheitliche Achtung-Zeilen, Erklär-Untertitel raus, Import-Zeilen ruhig („schon im Orbit“), 16-dp-Rinne im Erst-Start, Fotos-Scrubber mit Monatszahl.
+  - Zwei Code-Reviews (R6/R7 und Nacht-Diff): behoben u. a. Absturz beim Import vieler Kontakte (WorkManager-10-KB-Grenze), PDF-Namen mit `../` konnten Dateien überschreiben (`FileNames.safe`), Organisationen auf der Fotos-Seite, Erst-Start-Abschluss abbrechbar, offline beim Start nicht erkannt, Kartenstil doppelt geladen, SMS an Festnetz-Standardnummer.
+- **Wow-Gate R6/R7:** [x] berührte Screens gegen W1–W9 geprüft · [x] Screenshots angesehen + drei Wow-Review-Subagenten (R6/R7-Screens, Feinschliff aller Screens) · [x] bestätigte Funde behoben (Rest unten) · [x] keine schwere Arbeit in der Composition (QR, Fills, Festnetz-Regel) · [x] Leer/lang-Zustände (home_empty, verlauf_empty, detail_long, storage).
+- **Bewusst nicht übernommen (geprüft):** Kürzel „3 T/2 M“ bleiben (stehen so in PLAN 3.3) · Dialog-Knöpfe bleiben M3-Textknöpfe (alle 28 Dialoge einheitlich; Umbau wäre ein eigener Durchgang) · „Diesen Monat“/„Dieser Monat“ wie im PLAN 3.5 · verwaiste Fotodateien werden NICHT automatisch gelöscht (Datensicherheit vor Speicher) · QS-Kachel darf Organisationen öffnen (Notiz zum Anruf beim Hausarzt ist gewollt) · 3 Portal-Kacheln pro Reihe (PLAN 3.7), nur kompakter.
+- **Entscheidung:** Kein Release in dieser Nacht – Jakob hat am 14.10. „nichts veröffentlichen“ gesagt (gilt bis zu seiner Zusage), und R2 (Telefon-App) ist am Gerät noch nicht getestet.
+- **Parallelbetrieb:** Die Tagsitzung lief bis ~00:30 parallel auf `dev` (Ich-Karte, zweispaltig, Review-Fixes) und hat `dev` dann übergeben.
+
+
 - **13.10.2026 (Tagsitzung, ~1 h):** Test-Build abgeschlossen, alle riskanten Bausteine grün (CI-Run 8, erster Versuch): InCallService-Probe, Haze-Milchglas (Blur rendert sogar im Screenshot-Test), geteilte Übergänge, Roborazzi-Screenshots, SQLite FTS4 inkl. `snippet()` und umlaut-unabhängiger Suche, AGSL-Holo-Shader.
 - R1a begonnen – reine, getestete Bausteine in `:core:*` (noch nicht in der App verdrahtet):
   - Datenmodell v2 (`core/model`) und eingefrorenes Format 1.0.7 (`core/model/v1`).
@@ -98,8 +115,7 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 - **R6 Fotos & Dateien + R7 Komfort (14.10. abends bis 15.10. ~00:30, Tagsitzung, auf `dev`, nicht veröffentlicht):** Fotos-Seite mit Monaten und Scrubber (EXIF-Datum), Foto wächst aus der Kachel und fällt beim Runterwischen zurück, Teilen/ins Handy speichern/„Auch bei …“, PDFs im Ordner, Fotos an Einträgen. R7: „Diese Nummer gibt es schon“ beim Speichern und beim Import (gleiche normalisierte Nummer, sonst letzte neun Ziffern), App-Shortcuts (Neuer Kontakt, Verlauf, zwei Top-Favoriten; angepinnte Favoriten werden grau, wenn archiviert/gelöscht), Favoriten-Widget (Anrufen/WhatsApp mit einem Tipp), Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“ (zeigt nur die Uhrzeit), Mehrfach-Import aus dem Handy (Firma ohne Personennamen = Organisation, Rückgängig), Export Excel (Kontakte, Verlauf, Mitarbeiter; eigener Schreiber `Xlsx`) und vCard aller Kontakte, Erster Start in zwei Schritten (ICH → Handy-Kontakte) mit „Dein Orbit füllt sich“, Berechtigungen fragt jetzt der leere Verlauf, Karte: Kamerafahrt im Bogen, Cluster platzt auf seine Mitglieder, Marker ploppen, Ich-Karte mit Holo-Schimmer beim Neigen (nur unter dem Inhalt, QR bleibt scanbar), zweispaltig ab 840 dp (Liste | Kontakt). Code-Review-Subagent (sonnet) über R6/R7: Funde behoben (Datei-Namen, Rückgängig im Foto-Vollbild sichtbar, Kartenbreite in dp, Sensor nur im Vordergrund, Excel als Strom statt Riesen-String, Kachel lädt kalt, Rückweg im Erst-Start, Falten mit offener Bearbeitung). Teile davon hat die Nachtsitzung parallel gefixt (siehe Notizbuch).
 - **Entscheidung R7:** Der Hinweis „gibt es schon“ nennt auch archivierte Kontakte („(Archiv)“) – wie die Anrufer-Erkennung eine Nummernsuche, sonst entstünden doppelte Kontakte. Excel/vCard-Export enthalten das Archiv (markiert), nie den Papierkorb, nie Passwörter.
 - **R2 offen:** **Test der Telefon-App am Gerät** (Liste im Notizbuch) – davor kein Release-Kandidat; „Mitarbeiter zuordnen?“ bei unbekannter Durchwahl (braucht die Mitarbeiter-Oberfläche aus R4).
-- **Nächster Schritt:** Gerätetest R2 mit Jakob (Test-APK von `release-r2`, kein Release); R3 ist im Code fertig – als Nächstes R3-Kandidat (Test-APK von `dev`) und R4. Jakob 14.10. 9:34: „nichts veröffentlichen“. Offene Fragen an Jakob: Hotfix `release-hotfix` veröffentlichen? Backup-Verschlüsselung Pflicht oder überspringbar?
-- **Nächster Schritt:** R1b weiter (Hülle, PLAN 3.1–3.4, 3.11, 3.13). R1b erst nach Wow-Gate und Jakobs Zusage nach `main`.
+- **Nächster Schritt:** Alle Updates R2–R7 sind im Code fertig und auf `dev` grün. Jetzt: Gerätetest mit Jakob (Test-APK aus dem CI-Artefakt von `dev`, Liste im Notizbuch: Telefon-App, Benachrichtigungen, Mail-Abgleich, Erst-Start), danach ein gemeinsamer Release-Kandidat und – nach Jakobs Zusage – `dev` → `main`. Offene Fragen an Jakob: Hotfix `release-hotfix` veröffentlichen (oder gleich alles)? Backup-Verschlüsselung Pflicht oder überspringbar?
 - Letztes Release: **v1.0.101** (R1b). Davor v1.0.54 (R1a), v1.0.7.
 
 ## Entscheidungen
