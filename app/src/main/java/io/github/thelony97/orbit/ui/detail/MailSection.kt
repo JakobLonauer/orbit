@@ -216,7 +216,12 @@ internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String?
                         copying = true
                         scope.launch {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-                                val files = MailClient.images(h, ctx.cacheDir).getOrDefault(emptyList())
+                                val result = MailClient.images(h, ctx.cacheDir)
+                                val files = result.getOrDefault(emptyList())
+                                result.exceptionOrNull()?.let { e ->
+                                    android.widget.Toast.makeText(ctx, MailClient.describe(e), android.widget.Toast.LENGTH_LONG).show()
+                                    return@withContext
+                                }
                                 if (files.isNotEmpty()) {
                                     val added = GalleryStore.import(ctx.applicationContext, files.map { android.net.Uri.fromFile(it) })
                                     files.forEach { it.delete() }

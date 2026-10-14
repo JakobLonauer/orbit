@@ -184,6 +184,8 @@ object Backups {
             )
         }
         OrbitRepository.replaceAll(merged)
+        // The restored Verlauf is older than the mail sync state: fetch again (duplicates are skipped).
+        io.github.thelony97.orbit.mail.MailSync.reset(ctx)
     }
 
     /** Writes a dated backup into the chosen folder and prunes old ones. */

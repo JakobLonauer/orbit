@@ -76,6 +76,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MailAccountsScreen(nav: Nav) {
     val accounts by MailAccounts.accounts.collectAsState()
+    val screenCtx = androidx.compose.ui.platform.LocalContext.current
     var adding by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<MailAccount?>(null) }
     val scope = rememberCoroutineScope()
@@ -178,7 +179,12 @@ fun MailAccountsScreen(nav: Nav) {
             title = "Konto entfernen?",
             text = "${a.email} wird aus Orbit entfernt. Im Postfach selbst ändert sich nichts.",
             confirm = "Entfernen",
-            onConfirm = { scope.launch { MailAccounts.remove(a.id) } },
+            onConfirm = {
+                scope.launch {
+                    MailAccounts.remove(a.id)
+                    if (MailAccounts.accounts.value.isEmpty()) io.github.thelony97.orbit.mail.MailSync.cancelPeriodic(screenCtx)
+                }
+            },
             onDismiss = { removing = null },
         )
     }
@@ -244,7 +250,8 @@ private fun AddAccountSheet(onDismiss: () -> Unit) {
                 )
                 MailCache.clear()
                 // The first run: the last 12 months of every known address into the Verlauf.
-                io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx)
+                io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(ctx)
+                io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx, force = true)
                 busy = false
                 onDismiss()
             } else {

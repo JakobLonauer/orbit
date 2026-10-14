@@ -97,6 +97,7 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
     var newEntry by remember { mutableStateOf(false) }
     var openEntry by remember { mutableStateOf<io.github.thelony97.orbit.data.Entry?>(null) }
     var promote by remember { mutableStateOf(false) }
+    var mailEntry by remember { mutableStateOf<io.github.thelony97.orbit.data.Entry?>(null) }
     val talks = Members.talks(org, m.id)
     SpaceBackground {
         LazyColumn(
@@ -167,13 +168,16 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
                     talks.forEach { e ->
                         val type = idx.types[e.typeId]
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { openEntry = e }.padding(vertical = 6.dp),
+                            // Mails open as mails (PLAN 3.9), everything else in the entry sheet.
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { if (e.mails.isNotEmpty()) mailEntry = e else openEntry = e }.padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(entryIcon(type?.icon ?: "meet"), null, tint = Space.Violet, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text((type?.name ?: "Eintrag") + " · " + Fmt.dateTime(e.at), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+                                val title = if (e.mails.isNotEmpty()) io.github.thelony97.orbit.core.domain.MailBundle.title(e) else type?.name ?: "Eintrag"
+                                Text(title + " · " + Fmt.dateTime(e.at), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+                                e.mails.take(3).forEach { m -> Text("• " + m.subject, style = MaterialTheme.typography.bodySmall, color = Space.TextDim, maxLines = 1) }
                                 if (e.note.isNotBlank()) Text(e.note, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
                             }
                         }
@@ -219,6 +223,7 @@ fun MemberScreen(orgId: String, memberId: String, data: OrbitData, idx: Index, n
             }
         }
     }
+    mailEntry?.let { e -> MailEntryDialog(e, onDismiss = { mailEntry = null }) }
     if (editing) MemberEditDialog(m, onDismiss = { editing = false }) { changed ->
         OrbitRepository.edit { d -> Mutations.upsertMember(d, org.id, changed) }
     }

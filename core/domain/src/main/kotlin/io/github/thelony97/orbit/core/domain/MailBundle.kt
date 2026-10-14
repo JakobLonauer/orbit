@@ -56,10 +56,24 @@ object MailBundle {
      */
     fun merge(contact: Contact, refs: List<Pair<String?, MailRef>>, zone: ZoneId, newId: () -> String): List<HistoryEntry> {
         val known = contact.entries.flatMap { e -> e.mails.map { it.key } }.toHashSet()
+        // A known mail seen again in the same folder under a new UIDVALIDITY/uid: only its
+        // address on the server moves, so „öffnen“ finds the right mail again.
+        val where = HashMap<String, HistoryEntry>()
+        contact.entries.forEach { e -> e.mails.forEach { where[it.key] = e } }
+        val moved = LinkedHashMap<String, HistoryEntry>()
+        refs.forEach { (_, r) ->
+            val e = moved[where[r.key]?.id] ?: where[r.key] ?: return@forEach
+            val old = e.mails.firstOrNull { it.key == r.key } ?: return@forEach
+            if (old.account == r.account && old.folder == r.folder && (old.uidValidity != r.uidValidity || old.uid != r.uid)) {
+                moved[e.id] = e.copy(mails = e.mails.map { if (it.key == r.key) it.copy(uidValidity = r.uidValidity, uid = r.uid) else it })
+            }
+        }
         val fresh = refs.filter { (_, r) -> known.add(r.key) }
-        if (fresh.isEmpty()) return emptyList()
+        if (fresh.isEmpty()) return moved.values.toList()
         val byExt = contact.entries.filter { it.externalId != null }.associateBy { it.externalId }.toMutableMap()
+        moved.values.forEach { e -> e.externalId?.let { byExt[it] = e } }
         val changed = LinkedHashMap<String, HistoryEntry>()
+        moved.values.forEach { e -> e.externalId?.let { changed[it] = e } }
         for ((memberId, r) in fresh.sortedBy { it.second.at }) {
             val day = Instant.ofEpochMilli(r.at).atZone(zone).toLocalDate()
             val ext = externalId(day, r.incoming, memberId)

@@ -234,8 +234,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
     var osmDialog by remember { mutableStateOf(false) }
     var mailEntry by remember { mutableStateOf<Entry?>(null) }
     // E-Mail v2 (PLAN 3.9): the page shows the stored state at once, a sync runs behind it.
-    androidx.compose.runtime.LaunchedEffect(c.id) {
-        val addresses = c.emails.map { it.value } + c.emailDomains.map { "@" + it.trim().removePrefix("@") } + c.members.flatMap { m -> m.emails.map { it.value } }
+    val mailAddresses = remember(c.emails, c.emailDomains, c.members) {
+        if (c.isMe) emptyList() else c.emails.map { it.value } + c.emailDomains.map { "@" + it.trim().removePrefix("@") } + c.members.flatMap { m -> m.emails.map { it.value } }
+    }
+    // Also when an address is added while the page is open (PLAN 3.9: a new address is searched).
+    androidx.compose.runtime.LaunchedEffect(c.id, mailAddresses) {
+        val addresses = mailAddresses
         if (addresses.isNotEmpty()) {
             // Off the main thread: it reads the small sync state file.
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx, addresses) }

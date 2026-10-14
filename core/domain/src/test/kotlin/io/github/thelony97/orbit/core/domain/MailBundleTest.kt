@@ -66,3 +66,15 @@ class MailBundleTest {
         assertEquals(emptyList<MailRef>(), e.mails)
     }
 }
+
+class MailBundleRelocateTest {
+    @Test fun renumberedFolderMovesTheReference() {
+        val zone = ZoneId.of("Europe/Vienna")
+        val old = MailRef("acc", "INBOX", 7, 10, 5, true, "Hallo", "anna@x.at", "<1@x>")
+        val anna = Contact(id = "anna", entries = listOf(HistoryEntry("e", "anna", "email", 5, externalId = "mail:1970-01-01:in", mails = listOf(old), incoming = true)))
+        val changed = MailBundle.merge(anna, listOf(null to old.copy(uidValidity = 8, uid = 3)), zone) { "x" }
+        assertEquals(listOf(8L to 3L), changed.single().mails.map { it.uidValidity to it.uid })
+        // Same mail in another folder (Gmail label): left as it is.
+        assertEquals(emptyList<HistoryEntry>(), MailBundle.merge(anna, listOf(null to old.copy(folder = "Archiv", uid = 99)), zone) { "x" })
+    }
+}

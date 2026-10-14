@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.UnknownHostException
 import java.util.Properties
@@ -40,6 +41,8 @@ data class MailHeader(
     val fromAddress: String,
     val subject: String,
     val at: Long,
+    /** The folder's UIDVALIDITY when [uid] was read; -1 = unknown (then not checked). */
+    val uidValidity: Long = -1,
 )
 
 data class MailResult(val headers: List<MailHeader>, val errors: List<String>, val fetchedAt: Long)
@@ -95,10 +98,10 @@ object MailClient {
      * Folders to keep in sync: Gmail only „Alle Nachrichten“ (\All); otherwise the inbox, Sent
      * and Archive by SPECIAL-USE.
      */
-    fun syncFolders(store: Store): List<String> {
+    fun syncFolders(store: Store): List<String>? {
         val special = runCatching {
             store.defaultFolder.list("*").mapNotNull { f -> (f as? IMAPFolder)?.let { it.fullName to it.attributes.map { a -> a.lowercase() } } }
-        }.getOrDefault(emptyList())
+        }.getOrElse { return null }
         special.firstOrNull { "\\all" in it.second }?.let { return listOf(it.first) }
         return listOf("INBOX") + special.filter { "\\sent" in it.second || "\\archive" in it.second }.map { it.first }
     }
@@ -216,6 +219,10 @@ object MailClient {
      * at most [max] of them and 15 MB each, written to [dir]; returns the files.
      */
     suspend fun images(h: MailHeader, dir: java.io.File, max: Int = 20): Result<List<java.io.File>> = withContext(Dispatchers.IO) {
+        MailSync.lockFor(h.accountId).withLock { imagesLocked(h, dir, max) }
+    }
+
+    private fun imagesLocked(h: MailHeader, dir: java.io.File, max: Int): Result<List<java.io.File>> = run {
         runCatching {
             val a = MailAccounts.accounts.value.firstOrNull { it.id == h.accountId } ?: error("Konto wurde entfernt.")
             val password = MailAccounts.password(a) ?: error("Passwort nicht mehr lesbar.")
@@ -224,13 +231,16 @@ object MailClient {
                 val folder = store.getFolder(h.folder)
                 folder.open(Folder.READ_ONLY)
                 try {
+                    // The server renumbered the folder: this uid may be another mail now.
+                    if (h.uidValidity >= 0 && (folder as UIDFolder).uidValidity != h.uidValidity) error("Die Nachricht wurde auf dem Server verschoben.")
                     val m = (folder as UIDFolder).getMessageByUID(h.uid) ?: error("Die Nachricht gibt es nicht mehr.")
                     val out = ArrayList<java.io.File>()
                     fun walk(p: Part) {
                         if (out.size >= max) return
                         when {
                             p.isMimeType("multipart/*") -> (p.content as? Multipart)?.let { mp -> for (i in 0 until mp.count) walk(mp.getBodyPart(i)) }
-                            p.isMimeType("image/*") && (p.size < 0 || p.size <= 15 * 1024 * 1024) -> {
+                            // Signature logos and tracking pixels are no photos.
+                            p.isMimeType("image/*") && (p.size < 0 || p.size in 8 * 1024..15 * 1024 * 1024) -> {
                                 val f = java.io.File(dir, "mail-" + java.util.UUID.randomUUID() + ".img")
                                 p.inputStream.use { input -> f.outputStream().use { input.copyTo(it) } }
                                 out += f
@@ -250,6 +260,11 @@ object MailClient {
 
     /** Plain text of one message (HTML is flattened). */
     suspend fun body(h: MailHeader): Result<String> = withContext(Dispatchers.IO) {
+        // Never a second connection to the account while the sync holds one (PLAN 3.9).
+        MailSync.lockFor(h.accountId).withLock { bodyLocked(h) }
+    }
+
+    private fun bodyLocked(h: MailHeader): Result<String> = run {
         runCatching {
             val a = MailAccounts.accounts.value.firstOrNull { it.id == h.accountId } ?: error("Konto wurde entfernt.")
             val password = MailAccounts.password(a) ?: error("Passwort nicht mehr lesbar.")
@@ -258,6 +273,8 @@ object MailClient {
                 val folder = store.getFolder(h.folder)
                 folder.open(Folder.READ_ONLY)
                 try {
+                    // The server renumbered the folder: this uid may be another mail now.
+                    if (h.uidValidity >= 0 && (folder as UIDFolder).uidValidity != h.uidValidity) error("Die Nachricht wurde auf dem Server verschoben.")
                     val m = (folder as UIDFolder).getMessageByUID(h.uid) ?: error("Die Nachricht gibt es nicht mehr.")
                     (text(m) ?: "(Kein Text – vermutlich nur Anhänge.)").trim().take(20_000)
                 } finally {
