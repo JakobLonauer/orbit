@@ -61,6 +61,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -402,12 +404,45 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
     var shareTo by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.PhotoMonths.Item?>(null) }
     val scope = rememberCoroutineScope()
     val data by OrbitRepository.data.collectAsState()
+    // Foto wächst auf und fällt beim Runterwischen zurück, der Hintergrund blendet mit dem Finger aus (PLAN 1.3).
+    val drag = remember { androidx.compose.animation.core.Animatable(0f) }
+    val grow = remember { androidx.compose.animation.core.Animatable(0.82f) }
+    LaunchedEffect(Unit) { grow.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 500f)) }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        Box(Modifier.fillMaxSize().background(Color.Black)) {
-            HorizontalPager(pager, Modifier.fillMaxSize(), key = { items.getOrNull(it)?.photo?.id ?: it }) { page ->
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                val fade = (1f - kotlin.math.abs(drag.value) / (size.height * 0.45f)).coerceIn(0f, 1f)
+                drawRect(Color.Black.copy(alpha = fade * ((grow.value - 0.82f) / 0.18f).coerceIn(0f, 1f)))
+            },
+        ) {
+            HorizontalPager(
+                pager,
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = drag.value
+                        val shrink = 1f - (kotlin.math.abs(drag.value) / (size.height * 2f)).coerceIn(0f, 0.3f)
+                        scaleX = grow.value * shrink
+                        scaleY = grow.value * shrink
+                    }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, dy ->
+                                change.consume()
+                                scope.launch { drag.snapTo(drag.value + dy) }
+                            },
+                            onDragEnd = {
+                                if (kotlin.math.abs(drag.value) > size.height * 0.18f) onDismiss()
+                                else scope.launch { drag.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 600f)) }
+                            },
+                            onDragCancel = { scope.launch { drag.animateTo(0f) } },
+                        )
+                    },
+                key = { items.getOrNull(it)?.photo?.id ?: it },
+            ) { page ->
                 items.getOrNull(page)?.let { ZoomableImage(it.photo.file) }
             }
             val current = items.getOrNull(pager.currentPage)
