@@ -11,6 +11,10 @@ sealed interface Route : NavKey {
     @Serializable
     data class Detail(val id: String) : Route
 
+    /** A hidden member's own page inside its organisation (PLAN 3.6). */
+    @Serializable
+    data class MemberPage(val orgId: String, val memberId: String) : Route
+
     /** [id] = null creates a new contact; [prefill] is a JSON-encoded Contact (from the phone book or a suggestion). */
     @Serializable
     data class Edit(val id: String? = null, val prefill: String? = null) : Route

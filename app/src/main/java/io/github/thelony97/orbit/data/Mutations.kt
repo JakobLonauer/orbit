@@ -166,6 +166,27 @@ object Mutations {
     fun removeOrgLink(d: OrbitData, linkId: String): OrbitData =
         d.copy(orgLinks = d.orgLinks.filterNot { it.id == linkId })
 
+    /** Versteckter Mitarbeiter (PLAN 3.6): added or changed inside its organisation only. */
+    fun upsertMember(d: OrbitData, orgId: String, m: io.github.thelony97.orbit.core.model.Member): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != orgId || !c.isOrg) c
+            else if (c.members.any { it.id == m.id }) c.copy(members = c.members.map { if (it.id == m.id) m else it })
+            else c.copy(members = c.members + m.copy(createdAt = if (m.createdAt == 0L) now() else m.createdAt))
+        })
+
+    /**
+     * Removes a member; their conversations stay with the organisation (without the name), so
+     * nothing written is lost.
+     */
+    fun removeMember(d: OrbitData, orgId: String, memberId: String): OrbitData =
+        d.copy(contacts = d.contacts.map { c ->
+            if (c.id != orgId) c
+            else c.copy(
+                members = c.members.filterNot { it.id == memberId },
+                entries = if (c.entries.none { it.memberId == memberId }) c.entries else c.entries.map { if (it.memberId == memberId) it.copy(memberId = null) else it },
+            )
+        })
+
     fun upsertGroup(d: OrbitData, g: Group): OrbitData {
         val exists = d.groups.any { it.id == g.id }
         return d.copy(groups = if (exists) d.groups.map { if (it.id == g.id) g else it } else d.groups + g)

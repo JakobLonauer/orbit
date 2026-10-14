@@ -48,6 +48,8 @@ import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
@@ -671,6 +673,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                 else io.github.thelony97.orbit.core.domain.Assignments.ofPerson(data, c.id, alive)
             val alsoThere = if (c.isOrg) emptyList() else io.github.thelony97.orbit.core.domain.Assignments.alsoThere(data, c.id, alive)
             val humanRels = rels
+            // „Nur hier“ (PLAN 3.6): hidden members, only on their organisation's page.
+            if (c.isOrg && (c.members.isNotEmpty() || "members" in opened)) item(key = "members") {
+                MembersSection(c, nav, autoFocus = c.members.isEmpty())
+            }
             if (assigned.isNotEmpty()) item(key = "orgs") {
                 SectionCard(
                     title = if (c.isOrg) "Aus deinen Kontakten" else "Organisationen",
@@ -809,6 +815,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
                         if (!c.isMe && !c.archived && c.topics.isEmpty() && "topics" !in opened) add(AddItem("Thema") { opened = opened + "topics" })
                         if (humanRels.isEmpty() && !c.isOrg) add(AddItem("Beziehung") { relationDialog = true })
                         if (assigned.isEmpty() && !c.archived) add(AddItem(if (c.isOrg) "Person" else "Organisation") { assignDialog = true })
+                        if (c.isOrg && c.members.isEmpty() && "members" !in opened && !c.archived) add(AddItem("Mitarbeiter") { opened = opened + "members" })
                         if (!c.isOrg && !c.isMe && !c.archived && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
                         add(AddItem("Feld") { fieldDialog = true })
                     },
@@ -876,7 +883,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
                 // Each node draws in once per visit, not again when scrolling back up.
                 val first = drawnEntries.add(e.id)
-                EntryRow(e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) }, drawIn = first)
+                EntryRow(
+                    e, idx.types[e.typeId], last = i == visible.lastIndex, onClick = { entryTarget = EntryTarget.Existing(e) }, drawIn = first,
+                    member = e.memberId?.let { mid -> c.members.firstOrNull { it.id == mid }?.name },
+                )
             }
             if (visible.size < filtered.size) {
                 item(key = "history-more") {
@@ -904,11 +914,14 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav) {
             defaultType = target.typeId,
             onSave = { e -> OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) } },
             onDismiss = { entryTarget = null },
+            members = if (c.isOrg) c.members else emptyList(),
+            onNewMember = if (c.isOrg) ({ text -> addMemberFromText(c.id, text) }) else null,
         )
         is EntryTarget.Existing -> EntrySheet(
             title = "Eintrag bearbeiten",
             types = data.entryTypes,
             initial = target.entry,
+            members = if (c.isOrg) c.members else emptyList(),
             onSave = { e -> OrbitRepository.edit { d -> Mutations.updateEntry(d, c.id, e) } },
             onDelete = {
                 // Keep the live copy (sync may have merged new SMS into it since the sheet opened).
@@ -1184,5 +1197,63 @@ private fun OpenNow(week: io.github.thelony97.orbit.core.domain.OpeningHours.Wee
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp),
             )
         }
+    }
+}
+
+/**
+ * „Nur hier“: an organisation's hidden members with role and last conversation; one field adds
+ * one („Herr Mayer, Kundenberatung“), from [Members.SEARCH_FROM] on a search of its own.
+ */
+@Composable
+private fun MembersSection(org: Contact, nav: Nav, autoFocus: Boolean) {
+    val add = rememberTextFieldState()
+    val search = rememberTextFieldState()
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(autoFocus) {
+        if (autoFocus) {
+            androidx.compose.runtime.withFrameNanos { }
+            runCatching { focus.requestFocus() }
+        }
+    }
+    val ordered = io.github.thelony97.orbit.core.domain.Members.ordered(org)
+    val q = search.text.toString()
+    val shown = ordered.filter { io.github.thelony97.orbit.core.domain.Members.matches(it, q) }
+    val todayDate = io.github.thelony97.orbit.domain.today()
+    SectionCard(title = "Nur hier", icon = Icons.Rounded.Badge) {
+        if (ordered.size >= io.github.thelony97.orbit.core.domain.Members.SEARCH_FROM) {
+            SpaceSearchField(search, "In ${Logic.shortName(org)} suchen", Modifier.fillMaxWidth().padding(bottom = 6.dp), leading = Icons.Rounded.Search)
+        }
+        shown.forEach { m ->
+            val last = io.github.thelony97.orbit.core.domain.Members.lastTalk(org, m.id)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { nav.open(Route.MemberPage(org.id, m.id)) }
+                    .padding(vertical = 6.dp, horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(36.dp).clip(CircleShape).background(Space.Blue.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                    Text(m.name.trim().take(1).uppercase(), style = MaterialTheme.typography.titleSmall, color = Space.Blue)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(m.name, style = MaterialTheme.typography.bodyLarge, color = Space.Text)
+                    val sub = listOfNotNull(
+                        m.role.takeIf { it.isNotBlank() },
+                        last?.let { Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), todayDate)) },
+                    ).joinToString(" · ")
+                    if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+                }
+            }
+        }
+        SpaceSearchField(
+            add, "Mitarbeiter hinzufügen",
+            Modifier.fillMaxWidth().padding(top = 6.dp).focusRequester(focus),
+            leading = Icons.Rounded.Add,
+            onSubmit = {
+                if (addMemberFromText(org.id, add.text.toString()) != null) add.edit { replace(0, length, "") }
+            },
+        )
     }
 }

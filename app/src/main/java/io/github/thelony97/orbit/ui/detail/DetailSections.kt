@@ -260,7 +260,15 @@ fun InfoRow(
  * to the next one the first time the row scrolls into view (PLAN 3.3); read in the draw phase.
  */
 @Composable
-fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit, drawIn: Boolean = false) {
+fun EntryRow(
+    entry: Entry,
+    type: EntryType?,
+    last: Boolean,
+    onClick: () -> Unit,
+    drawIn: Boolean = false,
+    /** On an organisation's page: who the conversation was with („Anruf · Empfang“, PLAN 3.6). */
+    member: String? = null,
+) {
     var expanded by remember { mutableStateOf(false) }
     val drawn = remember { androidx.compose.animation.core.Animatable(if (drawIn) 0f else 1f) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -324,6 +332,7 @@ fun EntryRow(entry: Entry, type: EntryType?, last: Boolean, onClick: () -> Unit,
                     Text(
                         buildString {
                             append(type?.name ?: "Eintrag")
+                            member?.let { append(" · ").append(it) }
                             entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
                             if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
                         },

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
@@ -54,6 +55,11 @@ fun EntrySheet(
     onSave: (Entry) -> Unit,
     onDelete: (() -> Unit)? = null,
     onDismiss: () -> Unit,
+    /** An organisation's hidden members (PLAN 3.6): the chip says who the conversation was with. */
+    members: List<io.github.thelony97.orbit.core.model.Member> = emptyList(),
+    initialMember: String? = null,
+    /** „Mitarbeiter mit einem Feld anlegen“: creates one from the typed text, returns its id. */
+    onNewMember: ((String) -> String?)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val start = initial?.at?.let { Instant.ofEpochMilli(it).atZone(zone()).toLocalDateTime() }
@@ -62,6 +68,9 @@ fun EntrySheet(
     var date by remember { mutableStateOf(start.toLocalDate()) }
     var time by remember { mutableStateOf(start.toLocalTime()) }
     val note = rememberTextFieldState(initial?.note.orEmpty())
+    var member by remember { mutableStateOf(initial?.memberId ?: initialMember) }
+    var addingMember by remember { mutableStateOf(false) }
+    val newMember = rememberTextFieldState()
     var pickDate by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
     val fromSystem = initial != null && initial.source != EntrySource.MANUAL
@@ -97,6 +106,31 @@ fun EntrySheet(
                 Text(Fmt.dateTime(initial!!.at), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
             }
 
+            // Mit wem (hidden members only; tap again = the organisation itself).
+            if (members.isNotEmpty() || onNewMember != null) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    members.forEach { m ->
+                        SpaceChip(m.name, member == m.id, { member = if (member == m.id) null else m.id }, accent = Space.Blue)
+                    }
+                    if (onNewMember != null && !addingMember) {
+                        SpaceChip("Mitarbeiter", false, { addingMember = true }, leading = Icons.Rounded.Add, accent = Space.Blue)
+                    }
+                }
+                if (addingMember && onNewMember != null) {
+                    io.github.thelony97.orbit.ui.components.SpaceSearchField(
+                        state = newMember,
+                        placeholder = "Name, Rolle",
+                        leading = Icons.Rounded.Add,
+                        onSubmit = {
+                            onNewMember(newMember.text.toString())?.let { member = it }
+                            newMember.edit { replace(0, length, "") }
+                            addingMember = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
             SpaceField(note, "Notiz", singleLine = false, placeholder = "Worüber habt ihr gesprochen?")
 
             Row(
@@ -112,10 +146,10 @@ fun EntrySheet(
                     val at = LocalDateTime.of(date, time).atZone(zone()).toInstant().toEpochMilli()
                     val text = note.text.toString().trim()
                     val entry = if (initial != null) {
-                        initial.copy(typeId = typeId, at = if (fromSystem) initial.at else at, note = text)
+                        initial.copy(typeId = typeId, at = if (fromSystem) initial.at else at, note = text, memberId = member)
                     } else {
                         // contactId is set by Mutations.addEntry.
-                        Entry(id = newId(), contactId = "", typeId = typeId, at = at, note = text)
+                        Entry(id = newId(), contactId = "", typeId = typeId, at = at, note = text, memberId = member)
                     }
                     onSave(entry)
                     onDismiss()

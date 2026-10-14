@@ -170,6 +170,9 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.Detail> { key ->
                 ContactDetailScreen(id = key.id, data = data, idx = idx, nav = nav)
             }
+            entry<Route.MemberPage> { key ->
+                io.github.thelony97.orbit.ui.detail.MemberScreen(orgId = key.orgId, memberId = key.memberId, data = data, idx = idx, nav = nav)
+            }
             entry<Route.Edit> { key ->
                 ContactEditScreen(id = key.id, prefill = key.prefill, data = data, idx = idx, nav = nav)
             }

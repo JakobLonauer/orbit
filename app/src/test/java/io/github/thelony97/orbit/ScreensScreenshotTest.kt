@@ -156,6 +156,12 @@ class ScreensScreenshotTest {
         shot("detail_org") { ContactDetailScreen("jku", full, Index(full), nav) }
     }
 
+    /** A hidden member's own page (PLAN 3.6): role, Durchwahl, conversations. */
+    @Test fun memberPage() {
+        val full = fullData()
+        shot("member") { io.github.thelony97.orbit.ui.detail.MemberScreen("jku", "m1", full, Index(full), nav) }
+    }
+
     private fun fullData(): io.github.thelony97.orbit.data.OrbitData {
         val kathi = Contact(
             "kathi", firstName = "Katharina", lastName = "Leitner", position = "Projektleitung", company = "JKU Linz",
@@ -169,7 +175,13 @@ class ScreensScreenshotTest {
             entries = listOf(e("ka1", TypeIds.CALL, 1, sec = 300, incoming = true), e("ka2", TypeIds.MEET, 12, "Mittagessen Mensa")),
         ).withBirthday(inDays(40)) { "bd-kathi" }
         val full = data.copy(
-            contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468")), openingHours = "Mo-Fr 07:00-19:00; Sa 08:00-12:00"),
+            contacts = data.contacts + kathi + Contact("jku", kind = ContactKind.ORG, orgCategory = "work", company = "JKU Linz", phones = listOf(LabeledValue("Zentrale", "0732 2468")), openingHours = "Mo-Fr 07:00-19:00; Sa 08:00-12:00",
+                members = listOf(
+                    io.github.thelony97.orbit.core.model.Member("m1", "Herr Mayer", role = "Studienservice", phones = listOf(LabeledValue("Durchwahl", "0732 2468-1234"))),
+                    io.github.thelony97.orbit.core.model.Member("m2", "Frau Huber", role = "Prüfungsamt"),
+                ),
+                entries = listOf(io.github.thelony97.orbit.data.Entry("j1", "jku", TypeIds.CALL, at = now - 3 * 86_400_000L, note = "Anrechnung geklärt", memberId = "m1")),
+            ),
             relations = listOf(
                 io.github.thelony97.orbit.data.Relation("r2", "kathi", "anna", "friend"),
             ),
