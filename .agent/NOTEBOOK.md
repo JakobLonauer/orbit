@@ -22,6 +22,13 @@
   - detekt-Compose-Regeln: einziger Modifier-Parameter heißt `modifier` (weitere `xModifier` + zusätzlich `modifier`), Reihenfolge Pflicht → Modifier → optionale → Trailing-Lambda; öffentliche Composables brauchen `modifier`. Funktionen > 60 Zeilen / Komplexität > 14 aufteilen.
   - Wow-Review findet echte Dinge: zuerst nach Licht-Code (Teal nur „läuft“), Null-Text (keine Toasts, keine Erklärzeilen), Momente und Zuständen fragen – vor dem ersten Review selbst prüfen.
   - Screenshot-Tests: ModalBottomSheet/Popups nur mit `captureScreenRoboImage` (Helper `screen()` in ScreensV3ScreenshotTest), Zeit für Momente mit `mainClock.autoAdvance = false` + `advanceTimeBy`.
+- 3.0-B Lehren (15.10. spätabends):
+  - Telecom: eigenen Versuch NICHT über Nummernvergleich erkennen (Kurznummern, Formate) → „erster ausgehender Anruf nach placeCall“ + Watchdog. DTMF an den AKTIVEN Anruf (primary() liefert den klopfenden zuerst).
+  - CallScreeningService: Arbeit in Thread, respondToCall zuerst, Datei danach; „stumm“ im Prozess merken, damit der Anrufbildschirm nicht aufleuchtet.
+  - Zustand pro Anruf binden (Warteschleife → queueCall), nicht global.
+  - Screenshot-Tests: Schleifen mit withFrameMillis/System-Zeit → `moment()` (autoAdvance=false); Hintergrund-Berechnung → waitForIdle + sleep; Robolectric hat keine SIM → Locale de-AT setzen. `Int * Dp` braucht Import → `6.dp * n` schreiben.
+  - detekt: Datei mit genau einer Klasse + Funktionen → MatchingDeclarationName; LongMethod 60 Zeilen auch für Companion-Funktionen.
+  - PhoneBook-Card-Hash = toString → neues Feld ändert alle Hashes (alles neu schreiben) → leere Felder aus dem Hash-Text herausnehmen.
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.

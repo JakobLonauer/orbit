@@ -20,12 +20,24 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | Stufe | Status | Wer arbeitet daran |
 |---|---|---|
 | 3.0-A Telefonbuch (A0–A13) | **veröffentlicht als v1.0.232** (15.10. 19:35) | – |
-| 3.0-B Anruf-Autopilot (B1–B12) | in Arbeit | Tagsitzung 15.10. |
-| 3.0-C Heute & Live (C1–C5) | offen | – |
+| 3.0-B Anruf-Autopilot (B1–B12) | **veröffentlicht** (15.10. spätabends) | – |
+| 3.0-C Heute & Live (C1–C5) | in Arbeit | Tagsitzung 15.10. abends |
 | 3.0-D Akten & Meine Dienste (D1–D8) | offen | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 15.10.2026 spätabends (Tagsitzung) – 3.0-B fertig
+
+- **3.0-B Anruf-Autopilot komplett (B1–B12)** auf `dev`, CI grün (Lauf 238/239): Anrufer materialisiert (offline Ort/Art, Herold mit Scanlicht, Geist „Als Organisation anlegen“, auch in den Vorschlägen), Kostenwächter (orange, zweiter Tipp/Wisch), Rückruf-Stapel (Wischen, SIM des Anrufs, Kalender-Nachstupser), Hotline-Makros (Aufnahme, Tastenfeld spielt sich selbst, Bearbeiten als Chips, „Makro wählen“ auch in der System-Kontaktkarte = A3), Dranbleiben (Wecker-Karte, Wahlwiederholung 15 s/max. 30, Live-Chip, Ring, Angebot nach Besetzt), Warteschleife (dunkel, Wartezeit groß, ans Ohr zurück), Diktieren/Vorgangsnummern/Familie/Anrede im Gespräch, Anruf-Filter (nur stumm, Coral-Spur im Verlauf), Dual-SIM-Regeln (Gruppe → SIM, Farbrand), Wählregeln (#31#, +43 im Ausland), Anruf-Poster, Bewegungsgesten (einschaltbar).
+- **Prüfungen:** Code-Review-Subagent (20 Funde, 1 HIGH: Dranbleiben erkannte Kurznummern nicht – alle behoben), Wow-Prüfung selbst an 20 Screenshots `screen_v3b_*` (Rückruf-Stapel schien durch → deckend; Dialpad-Kosten-Shot ohne Region → Test korrigiert), detekt ohne neue Funde.
+- **Wow-Gate 3.0-B (PLAN 1.5):**
+  - [x] 1. Momente: Herold-Karte schärft sich mit Scanlicht + Haptik Materialisieren; Tastenfeld spielt sich selbst (Lichtspur, Funken für Felddaten, Segmentleiste, pulsierendes Weiter); Rückruf-Karte dehnt sich zum Anruf, nächste rückt nach; Dranbleiben-Ring zählt 15 s herunter (Takt in den letzten 3 s), Live-Chip „Versuch 7“; Anruf-Poster setzt sich aus leichtem Zoom; SIM-Farbrand.
+  - [x] 2. Berührte Screens gegen W1–W9: Anrufbildschirm (alle Zustände), Wählfeld, Rückruf-Stapel, Kontaktseite (Makros, Dranbleiben-Banner), Halten-auf-Anrufen-Sheet, Verlauf (Spuren), Einstellungen › Mitschreiben (Filter, Gesten), Gruppen-Dialog, Bearbeiten (Nummer unterdrücken), Vorschläge.
+  - [x] 3. Screenshots aller Zustände angesehen (20 Stück `screen_v3b_*`).
+  - [x] 4. Kein Ruckeln: Herold/Filter/Nummernkunde im Hintergrund, Schleifen nur während Pausen, Sensoren nur im Vordergrund bzw. während Anrufen, nie im Energiesparmodus.
+  - [x] 5. Etwa ein Drittel Feinschliff (Review-Runde + Korrekturen).
+- Bekannt, bewusst offen (KANN): Beleg-Flug der Rückruf-Karte in den Verlauf; Anruf-Poster ohne eigenen Screenshot (Bild aus dem Speicher).
 
 ### 15.10.2026 abends (Tagsitzung) – 3.0-A fertig
 
