@@ -221,7 +221,8 @@ internal fun MentionRow(text: androidx.compose.foundation.text.input.TextFieldSt
     val typed = io.github.thelony97.orbit.core.domain.Mentions.typing(text.text.toString()) ?: return
     val q = io.github.thelony97.orbit.core.domain.Fold.fold(typed)
     val live = data.contacts.filter { it.deletedAt == null && !it.isMe && !it.archived }
-    val hits = live.filter { io.github.thelony97.orbit.core.domain.Fold.fold(it.firstName + " " + it.lastName).startsWith(q) || io.github.thelony97.orbit.core.domain.Fold.fold(it.nickname).startsWith(q) }
+    fun fold(t: String) = io.github.thelony97.orbit.core.domain.Fold.fold(t)
+    val hits = live.filter { fold(it.firstName + " " + it.lastName).startsWith(q) || fold(it.nickname).startsWith(q) }
         .take(MENTION_HITS)
     if (hits.isEmpty()) return
     Row(
