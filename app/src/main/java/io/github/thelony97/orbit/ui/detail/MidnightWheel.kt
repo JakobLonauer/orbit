@@ -106,7 +106,7 @@ internal fun MidnightWheel(c: Contact, data: OrbitData, onPick: (LocalDateTime) 
                 }
             }
             Spacer(Modifier.height(16.dp))
-            GlowButton("Planen", { haptics.perform(Haptic.Confirm); onPick(pick.at) }, color = if (pick.magnet) Space.Orange else Space.Teal)
+            GlowButton("Planen", { haptics.perform(Haptic.Confirm); onPick(pick.at) }, color = if (pick.magnet) Space.Orange else Space.Violet)
         }
     }
 }
@@ -119,7 +119,8 @@ private fun angleAt(p: Offset, center: Offset): Float {
 
 private fun DrawScope.drawWheel(angle: Float, magnet: Boolean) {
     val r = size.minDimension / 2 - 18.dp.toPx()
-    val accent = if (magnet) Space.Orange else Space.Teal
+    // Licht-Code: a time is no running thing – Violet to pick, Orange on the magnet (Anlass).
+    val accent = if (magnet) Space.Orange else Space.Violet
     drawCircle(Space.TextFaint.copy(alpha = 0.18f), r, style = Stroke(10.dp.toPx()))
     for (h in 0 until HOURS) {
         val a = (h * 360f / HOURS - 90f) * PI.toFloat() / 180f
@@ -132,7 +133,7 @@ private fun DrawScope.drawWheel(angle: Float, magnet: Boolean) {
             if (long) 2.5.dp.toPx() else 1.5.dp.toPx(), cap = StrokeCap.Round,
         )
     }
-    drawArc(accent, -90f, angle.coerceAtLeast(0.5f), false, Offset(center.x - r, center.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2), style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
+    drawArc(accent.copy(alpha = 0.28f), -90f, angle.coerceAtLeast(0.5f), false, Offset(center.x - r, center.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2), style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
     val a = (angle - 90f) * PI.toFloat() / 180f
     drawCircle(accent, 14.dp.toPx(), Offset(center.x + r * cos(a), center.y + r * sin(a)))
     drawCircle(Space.Void, 5.dp.toPx(), Offset(center.x + r * cos(a), center.y + r * sin(a)))

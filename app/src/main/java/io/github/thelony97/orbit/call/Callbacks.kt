@@ -133,6 +133,7 @@ class CallbackNudgeWorker(ctx: Context, params: androidx.work.WorkerParameters) 
         if (ended <= before) return Result.success()
         io.github.thelony97.orbit.data.OrbitRepository.init(ctx)
         val data = io.github.thelony97.orbit.data.OrbitRepository.ensureLoaded()
+        if (!data.settings.callbackNudge) return Result.success()
         val items = Callbacks.load(ctx, data)
         runCatching { lastNudged(ctx).writeText(ended.toString()) }
         if (items.isNotEmpty()) {

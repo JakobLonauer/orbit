@@ -28,6 +28,9 @@ object Session {
     /** „Zurück mit Gedächtnis“ (PLAN 1.2): the row you opened glows once when you come back. */
     var lastOpened: String? = null
 
+    /** PLAN 9 E1 Enter-Moment: the row of the contact a capture just landed on lights up once. */
+    var flash by mutableStateOf<String?>(null)
+
     /** Start-Moment (PLAN 1.3) plays once per app start, not on every return to the home screen. */
     var startPlayed = false
 

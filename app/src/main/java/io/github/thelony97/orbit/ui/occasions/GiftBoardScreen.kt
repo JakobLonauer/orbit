@@ -110,12 +110,16 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(Spacing.M))
                 Text("Geschenke", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
             }
-            BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+            // The budget once per person: on their first card (board order Idee → Verschenkt).
+            val budgetOn = remember(cols) { cols.values.flatten().distinctBy { it.contact.id }.mapTo(HashSet()) { it.gift.id } }
+            // 12 + 4 per column = the 16-dp gutter outside, 8 dp between the columns.
+            if (cols.values.all { it.isEmpty() }) io.github.thelony97.orbit.ui.components.EmptyHint("Keine Geschenkideen", "")
+            else BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = Spacing.Gutter - Spacing.XS)) {
                 val colWidth = maxWidth / GiftBoard.Stage.entries.size
                 // One scroll for the board: a card pulled across is never cut off by its column.
                 Row(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     GiftBoard.Stage.entries.forEachIndexed { i, stage ->
-                        Column(Modifier.width(colWidth).zIndex(if (liftedColumn == i) 1f else 0f).padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.width(colWidth).zIndex(if (liftedColumn == i) 1f else 0f).padding(horizontal = Spacing.XS), verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
                             val list = cols.getValue(stage)
                             Text(
                                 stage.label + if (list.isNotEmpty()) " · ${list.size}" else "",
@@ -123,7 +127,7 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
                                 modifier = Modifier.padding(vertical = Spacing.S),
                             )
                             list.forEach { card ->
-                                key(card.contact.id + card.gift.id) { GiftCard(card, stage, i, colWidth.value, onEdit = { editing = card }, onLift = { up -> liftedColumn = if (up) i else -1 }) }
+                                key(card.contact.id + card.gift.id) { GiftCard(card, stage, i, colWidth.value, card.gift.id in budgetOn, onEdit = { editing = card }, onLift = { up -> liftedColumn = if (up) i else -1 }) }
                             }
                         }
                     }
@@ -161,7 +165,7 @@ private fun GiftEditDialog(card: GiftBoard.Card, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, colWidthDp: Float, onEdit: () -> Unit, onLift: (Boolean) -> Unit) {
+private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, colWidthDp: Float, showBudget: Boolean, onEdit: () -> Unit, onLift: (Boolean) -> Unit) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val drag = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
@@ -209,13 +213,14 @@ private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, 
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(c, fallbackColor(c.id), 20.dp)
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(Spacing.S))
             Text(Logic.shortName(c), style = MaterialTheme.typography.labelMedium, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(card.gift.text, style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 3, overflow = TextOverflow.Ellipsis)
         card.gift.priceCents?.let { Text(Jobs.format(it), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = stage.color()) }
-        GiftBoard.budgetLine(c)?.let { (line, over) ->
-            Text(line, style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"), color = if (over) Space.Orange else Space.TextFaint)
+        // Budget = Kosten (Licht-Code Orange): quiet while under, full once over.
+        if (showBudget) GiftBoard.budgetLine(c)?.let { (line, over) ->
+            Text(line, style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"), color = if (over) Space.Orange else Space.Orange.copy(alpha = 0.6f))
         }
     }
 }
