@@ -566,9 +566,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
                 // PLAN 9 A7: WhatsApp/Signal chat and calls through their own phone-book rows.
-                val messengers by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.actions.Messengers.Action>(), textNumber, data.settings.phoneBook) {
+                // null = still looking (a page opened again knows it at once from the last answer).
+                val found by androidx.compose.runtime.produceState(io.github.thelony97.orbit.actions.Messengers.cached(textNumber), textNumber, data.settings.phoneBook) {
                     value = io.github.thelony97.orbit.actions.Messengers.forNumber(ctx, textNumber)
                 }
+                val messengers = found.orEmpty()
                 var messengerMenu by remember { mutableStateOf(false) }
                 Row(
                     // 7 + (64 − 46) / 2 = 16: the first orb sits on the gutter.
@@ -593,11 +595,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         // permission Orbit cannot see that – then WhatsApp being installed decides.
                         val main = messengers.firstOrNull { it.kind == MessengerKind.WA_CHAT } ?: messengers.firstOrNull { it.kind == MessengerKind.SIGNAL_CHAT }
                         val blind = ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED
-                        val waInstalled = remember {
-                            listOf("com.whatsapp", "com.whatsapp.w4b").any { pkg -> runCatching { ctx.packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.PackageInfoFlags.of(0)) }.isSuccess }
-                        }
+                        val installed = remember { io.github.thelony97.orbit.actions.Messengers.installed(ctx) }
+                        // While still looking the slot is kept (nothing shifts when the answer is yes).
                         AnimatedVisibility(
-                            main != null || (blind && waInstalled),
+                            main != null || (installed && (blind || found == null)),
                             enter = fadeIn(tween(Motion.MEDIUM_MS)) + expandHorizontally(tween(Motion.MEDIUM_MS)),
                             exit = fadeOut(tween(Motion.FAST_MS)) + shrinkHorizontally(tween(Motion.FAST_MS)),
                         ) {
@@ -607,13 +608,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                             ActionOrb(
                                 if (signal) Icons.Rounded.ChatBubble else Icons.Rounded.Forum, if (signal) "Signal" else "WhatsApp", true,
                                 onClick = {
-                                    // The messenger's own row opens the chat directly; gone (uninstalled) → wa.me as before.
+                                    // The messenger's own row opens the chat directly; gone (uninstalled) → wa.me / the app.
                                     if (main == null || !io.github.thelony97.orbit.actions.Messengers.open(ctx, main, c.id)) {
-                                        if (!signal) ContactActions.whatsapp(ctx, c, textNumber)
+                                        if (signal) io.github.thelony97.orbit.actions.Messengers.openSignal(ctx) else ContactActions.whatsapp(ctx, c, textNumber)
                                     }
                                 },
-                                // Halten: Anruf, Video, the other messenger – else the number choice as before.
-                                onLongClick = { if (extra.isNotEmpty()) messengerMenu = true else chooser = Chooser.WhatsApp },
+                                // Halten: Anruf, Video, the other messenger – else (WhatsApp) the number choice as before.
+                                onLongClick = { if (extra.isNotEmpty()) messengerMenu = true else if (!signal) chooser = Chooser.WhatsApp },
                             )
                             DropdownMenu(
                                 expanded = messengerMenu,

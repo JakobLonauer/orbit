@@ -106,6 +106,10 @@ fun Ghost(
             haptics.perform(Haptic.Reject)
             leave.animateTo(1f, tween(Motion.FAST_MS, easing = Motion.Exit))
             done()
+            // Normally the card is gone by now (this coroutine with it). Still composed – the same
+            // card came back with new content – it shows again instead of staying invisible.
+            delay(Motion.MAX_MS * 2L)
+            leave.animateTo(0f, tween(Motion.MEDIUM_MS))
         }
     }
 

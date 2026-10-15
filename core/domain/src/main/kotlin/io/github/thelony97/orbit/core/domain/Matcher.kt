@@ -86,6 +86,17 @@ class Matcher(
 
     private fun Owner.toMatch(via: Via) = Match(contact.id, via, memberId, contact.archived, contact.isOrg)
 
+    /**
+     * The Durchwahl of [raw] in one of [prefixes] („0732 6596“ and „0732 6596 410“ → „410“), with
+     * the same padding rule as the range match; null when no prefix fits.
+     */
+    fun extension(raw: String?, prefixes: List<String>): String? {
+        val n = raw?.let(normalize) ?: return null
+        return prefixes.mapNotNull { prefixKey(it) }.sortedByDescending { it.length }
+            .firstOrNull { n.startsWith(it) && n.length > it.length }
+            ?.let { n.substring(it.length) }
+    }
+
     /** E.164 of a partial number: pad, normalise, cut the padding off again. */
     private fun prefixKey(p: String): String? {
         val digits = p.count { it.isDigit() }

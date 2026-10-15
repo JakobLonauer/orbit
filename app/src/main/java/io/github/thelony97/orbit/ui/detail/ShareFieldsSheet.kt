@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContactPage
 import androidx.compose.material.icons.rounded.QrCode2
@@ -86,13 +88,20 @@ private class Flight(val piece: Piece, val from: Rect) {
 private fun piecesOf(c: Contact): List<Piece> = buildList {
     if (!c.isOrg && c.nickname.isNotBlank()) add(Piece("n", "Rufname", c.nickname.trim()))
     val work = listOf(c.position, if (c.isOrg) "" else c.company).filter { it.isNotBlank() }.joinToString(" · ")
-    if (work.isNotBlank()) add(Piece("w", "Arbeit", work))
+    if (work.isNotBlank()) add(Piece("w", "Beruf", work))
     c.phones.forEachIndexed { i, p -> if (p.value.isNotBlank()) add(Piece("p$i", p.label.ifBlank { "Telefon" }, p.value.trim())) }
     c.emails.forEachIndexed { i, e -> if (e.value.isNotBlank()) add(Piece("e$i", "E-Mail", e.value.trim())) }
     c.addresses.forEachIndexed { i, a -> if (a.value.isNotBlank()) add(Piece("a$i", "Adresse", a.value.trim().replace("\n", ", "))) }
     if (!c.isOrg) c.birthday?.let { add(Piece("b", "Geburtstag", Fmt.dayOfYear(it))) }
     c.links.forEachIndexed { i, l -> if (l.url.isNotBlank()) add(Piece("l$i", l.title.ifBlank { "Link" }, l.url.trim())) }
     c.fields.forEachIndexed { i, f -> if (f.value.isNotBlank()) add(Piece("f$i", f.label.ifBlank { "Feld" }, f.value.trim())) }
+}
+
+/** Numbers by their last digits („Mobil · 4567“); two of a kind say which („E-Mail · anna.huber“). */
+private fun chipLabel(p: Piece, all: List<Piece>): String = when {
+    p.key.startsWith("p") -> p.label + " · " + p.value.filter(Char::isDigit).takeLast(4)
+    all.count { it.label == p.label } > 1 -> p.label + " · " + p.value.substringBefore('@').substringBefore(',').take(14)
+    else -> p.label
 }
 
 /** Only what is on the card goes out – as vCard or QR. */
@@ -151,6 +160,8 @@ fun ShareFieldsSheet(c: Contact, color: Color, onDismiss: () -> Unit, onQr: (Con
     var sendTo by remember { mutableStateOf(Offset.Zero) }
 
     fun toggle(p: Piece) {
+        // While the card turns into the share, what it shows is fixed.
+        if (send.isRunning || send.value > 0f) return
         haptics.perform(Haptic.Tick)
         if (p.key in picked) {
             picked = picked - p.key
@@ -200,11 +211,15 @@ fun ShareFieldsSheet(c: Contact, color: Color, onDismiss: () -> Unit, onQr: (Con
                 Modifier.fillMaxWidth().padding(horizontal = Spacing.L).navigationBarsPadding().padding(bottom = Spacing.L),
                 verticalArrangement = Arrangement.spacedBy(Spacing.M),
             ) {
+                // Chips and card scroll when there is a lot to hand on; the buttons stay put (W6).
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.M),
+                ) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.S), verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     pieces.forEach { p ->
                         SpaceChip(
-                            // Numbers by their last digits („Mobil · 4567“), everything else by its name.
-                            if (p.key.startsWith("p")) p.label + " · " + p.value.filter(Char::isDigit).takeLast(4) else p.label,
+                            chipLabel(p, pieces),
                             p.key in picked,
                             { toggle(p) },
                             modifier = Modifier.onGloballyPositioned { chipAt[p.key] = it.boundsInRoot() },
@@ -230,13 +245,16 @@ fun ShareFieldsSheet(c: Contact, color: Color, onDismiss: () -> Unit, onQr: (Con
                             alpha = 1f - t
                         },
                 )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     GlowButton(
                         "Text",
                         {
+                            // What the card shows at the tap is what goes out.
+                            val payload = text()
                             send("text") {
                                 AppLock.allowExternal()
-                                val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text())
+                                val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, payload)
                                 runCatching { ctx.startActivity(Intent.createChooser(intent, null)) }
                             }
                         },
@@ -245,7 +263,10 @@ fun ShareFieldsSheet(c: Contact, color: Color, onDismiss: () -> Unit, onQr: (Con
                     )
                     GhostButton(
                         "vCard",
-                        { send("vcard") { ShareContact.vcard(ctx, handedOn(c, picked), withFields = true) } },
+                        {
+                            val part = handedOn(c, picked)
+                            send("vcard") { ShareContact.vcard(ctx, part, withFields = true) }
+                        },
                         modifier = Modifier.onGloballyPositioned { buttonAt["vcard"] = it.boundsInRoot().center },
                         icon = Icons.Rounded.ContactPage,
                     )

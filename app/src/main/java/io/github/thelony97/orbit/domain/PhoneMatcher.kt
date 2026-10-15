@@ -65,4 +65,7 @@ class PhoneMatcher(private val contacts: List<Contact>, private val iso: String)
     private val machine by lazy { io.github.thelony97.orbit.core.domain.Matcher(contacts) { Phones.normalize(it, iso) } }
 
     fun matchCall(raw: String?): io.github.thelony97.orbit.core.domain.Matcher.Match? = machine.matchNumber(raw)
+
+    /** The Durchwahl of [raw] in [prefixes] (same rule as the range match). */
+    fun extension(raw: String?, prefixes: List<String>): String? = machine.extension(raw, prefixes)
 }

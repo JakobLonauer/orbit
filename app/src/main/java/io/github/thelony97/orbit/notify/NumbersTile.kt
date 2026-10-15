@@ -321,9 +321,16 @@ private fun GroupHead(owner: String?) {
 }
 
 @Composable
-private fun NumberRow(item: MyNumbers.Item, copied: Boolean, onCopy: () -> Unit, onDictate: () -> Unit, valueModifier: Modifier) {
+private fun NumberRow(
+    item: MyNumbers.Item,
+    copied: Boolean,
+    onCopy: () -> Unit,
+    onDictate: () -> Unit,
+    modifier: Modifier = Modifier,
+    valueModifier: Modifier = Modifier,
+) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.S)
             .clip(Corners.Row)

@@ -27,6 +27,6 @@ sealed interface TodayCard {
     }
 
     companion object {
-        const val OFFER_KEY = "phonebook-offer"
+        const val OFFER_KEY = io.github.thelony97.orbit.phonebook.PhoneBookSync.OFFER_KEY
     }
 }

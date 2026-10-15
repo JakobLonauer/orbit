@@ -76,8 +76,8 @@ fun PhoneImportScreen(
     initialSelection: Set<Long> = emptySet(),
     /** PLAN 9 A1: show only these phone-book contacts (the ones other apps just added). */
     only: Set<Long>? = null,
-    /** After several were taken over: the ones left out were looked at, too. */
-    onTakenOver: () -> Unit = {},
+    /** After several were taken over: the ones left out were looked at, too; returns its undo. */
+    onTakenOver: () -> (() -> Unit) = { {} },
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -107,9 +107,11 @@ fun PhoneImportScreen(
             val contacts = takeOverAll(ctx, picked)
             val ids = contacts.map { it.id }.toSet()
             haptics.perform(Haptic.Confirm)
-            if (contacts.isNotEmpty()) onTakenOver()
+            val unmark = if (contacts.isNotEmpty()) onTakenOver() else null
             Undo.offer(if (contacts.size == 1) "1 Kontakt übernommen" else "${contacts.size} Kontakte übernommen") {
                 OrbitRepository.edit { d -> ids.fold(d) { acc, id -> Mutations.purge(acc, id) } }
+                // Taken back: „Neu im Telefonbuch“ comes back, too.
+                unmark?.invoke()
                 contacts.mapNotNull { it.photo }.forEach { OrbitRepository.photoFile(it).delete() }
             }
             busy = false
@@ -247,7 +249,7 @@ private fun ImportRow(item: PhoneImport.Item, selected: Boolean, already: String
  * already in Orbit are shown as such and not pre-selected; one undo for the whole take-over.
  */
 @Composable
-fun CardImportScreen(data: OrbitData, nav: Nav, drafts: List<Contact>) {
+fun CardImportScreen(data: OrbitData, nav: Nav, drafts: List<Contact>, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val haptics = rememberHaptics()
     val iso = remember { Phones.countryIso(ctx) }
@@ -271,24 +273,26 @@ fun CardImportScreen(data: OrbitData, nav: Nav, drafts: List<Contact>) {
         nav.back()
     }
 
-    ManageScaffold(
-        "vCard übernehmen", nav,
-        fabLabel = if (selected.isEmpty()) null else "Übernehmen (${selected.size})",
-        onFab = ::takeOver,
-    ) { padding ->
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 120.dp)) {
-            items(rows, key = { it.id }) { item ->
-                val owner = hits[item.id]?.let { h -> data.contacts.firstOrNull { it.id == h.contactId } }
-                ImportRow(
-                    item = item,
-                    selected = item.id in selected,
-                    already = owner?.let { Logic.displayName(it, data.settings.sortByLastName) + if (it.archived) " (Archiv)" else "" },
-                    onToggle = {
-                        haptics.perform(Haptic.Tick)
-                        selected = if (item.id in selected) selected - item.id else selected + item.id
-                    },
-                    modifier = Modifier.animateItem(),
-                )
+    Box(modifier) {
+        ManageScaffold(
+            "vCard übernehmen", nav,
+            fabLabel = if (selected.isEmpty()) null else "Übernehmen (${selected.size})",
+            onFab = ::takeOver,
+        ) { padding ->
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 120.dp)) {
+                items(rows, key = { it.id }) { item ->
+                    val owner = hits[item.id]?.let { h -> data.contacts.firstOrNull { it.id == h.contactId } }
+                    ImportRow(
+                        item = item,
+                        selected = item.id in selected,
+                        already = owner?.let { Logic.displayName(it, data.settings.sortByLastName) + if (it.archived) " (Archiv)" else "" },
+                        onToggle = {
+                            haptics.perform(Haptic.Tick)
+                            selected = if (item.id in selected) selected - item.id else selected + item.id
+                        },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
     }

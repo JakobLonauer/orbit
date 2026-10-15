@@ -55,6 +55,11 @@ object PhoneBookSync {
 
     private val mutex = Mutex()
     private var pending: Job? = null
+    /** The visible first fill after switching on; cancelled when switched off again. */
+    private var filling: Job? = null
+
+    /** Key of the one-time offer in the Heute row (PLAN 9 A1 „einmalig als Geist“). */
+    const val OFFER_KEY = "phonebook-offer"
 
     /** How many Orbit contacts are in the phone book right now (status line), null = unknown. */
     private val _count = MutableStateFlow<Int?>(null)
@@ -73,8 +78,12 @@ object PhoneBookSync {
     fun turnOn(ctx: Context) {
         val app = ctx.applicationContext
         _live.value = Live(0, 0, done = false)
-        AppWork.launch {
-            OrbitRepository.update { d -> d.copy(settings = d.settings.copy(phoneBook = true)) }
+        synchronized(this) { filling?.cancel() }
+        val job = AppWork.launch {
+            // On, and the offer has done its job: it never comes back, even after switching off.
+            OrbitRepository.update { d ->
+                d.copy(settings = d.settings.copy(phoneBook = true, dismissedGhosts = (d.settings.dismissedGhosts + OFFER_KEY).distinct()))
+            }
             PhoneBookFresh.start(app)
             val result = writeNow(app, counted = true)
             val now = _live.value
@@ -88,6 +97,7 @@ object PhoneBookSync {
             delay(2_400)
             _live.value = null
         }
+        synchronized(this) { filling = job }
     }
 
     fun canWrite(ctx: Context): Boolean =
@@ -149,8 +159,12 @@ object PhoneBookSync {
      * uses it ([keepAccount]). Other accounts' rows are never touched.
      */
     suspend fun remove(ctx: Context, keepAccount: Boolean) {
-        // A write waiting or running must not bring the rows back.
-        synchronized(this) { pending?.cancel() }
+        // A write waiting or running must not bring the rows back; the live card goes at once.
+        synchronized(this) {
+            pending?.cancel()
+            filling?.cancel()
+        }
+        _live.value = null
         withContext(Dispatchers.IO) { mutex.withLock {
             runCatching {
                 ctx.contentResolver.delete(

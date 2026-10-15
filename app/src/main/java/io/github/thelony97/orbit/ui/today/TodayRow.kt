@@ -15,6 +15,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -94,9 +96,10 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         buildList {
             val l = live
             // Offer and live share one key: the taken ghost becomes the live card in place.
+            val offer = !s.phoneBook && TodayCard.OFFER_KEY !in s.dismissedGhosts
             if (l != null) {
                 add(TodayCard.PhoneBookLive(l.count, l.total, l.done))
-            } else if (!s.phoneBook && TodayCard.OFFER_KEY !in s.dismissedGhosts && s.onboardingDone && exportable > 0) {
+            } else if (offer && s.onboardingDone && exportable > 0) {
                 add(TodayCard.PhoneBookOffer(exportable))
             }
             if (fresh.isNotEmpty()) add(TodayCard.PhoneBookNew(fresh))
@@ -107,7 +110,9 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
 private fun dismiss(key: String) =
     OrbitRepository.editSettings { it.copy(dismissedGhosts = (it.dismissedGhosts + key).distinct().takeLast(400)) }
 
+/** Cards keep one size where they can; a longer title widens the card up to [CardMaxWidth] (W6). */
 private val CardWidth = 236.dp
+private val CardMaxWidth = 296.dp
 
 /**
  * Heute (PLAN 9 C1): a row of cards at the top of the contact list – only what applies today.
@@ -126,16 +131,17 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(Spacing.S),
     ) {
         items(cards, key = { it.key }) { card ->
-            Box(Modifier.animateItem().width(CardWidth)) {
+            Box(Modifier.animateItem().widthIn(min = CardWidth, max = CardMaxWidth), propagateMinConstraints = true) {
                 // The offer and its live card are one surface: the content cross-fades, the card stays.
                 AnimatedContent(
-                    card is TodayCard.PhoneBookLive,
+                    card,
                     transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
+                    contentKey = { it is TodayCard.PhoneBookLive },
                     label = "todaySlot",
-                ) { isLive ->
-                    when {
-                        isLive && card is TodayCard.PhoneBookLive -> LiveCard(card)
-                        card is TodayCard.PhoneBookOffer -> Ghost(
+                ) { c ->
+                    when (c) {
+                        is TodayCard.PhoneBookLive -> LiveCard(c, onOpen = { nav.open(Route.SettingsArea("contacts")) })
+                        is TodayCard.PhoneBookOffer -> Ghost(
                             source = "Orbits Kontakte als eigenes Konto im Handy – mit Namen und Fotos in WhatsApp, Signal und Gmail",
                             onAccept = {
                                 val need = listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS)
@@ -143,17 +149,15 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                                 if (need.isEmpty()) PhoneBookSync.turnOn(ctx) else permissions.launch(need.toTypedArray())
                             },
                             onDismiss = { dismiss(TodayCard.OFFER_KEY) },
-                            modifier = Modifier.fillMaxWidth(),
                             dismissAxis = null,
                         ) {
                             CardBody(
                                 planet = { Planet(Icons.Rounded.Contacts, Space.Violet) },
                                 title = "Orbit ins Telefonbuch",
-                                line = if (card.count == 1) "1 Kontakt" else "${card.count} Kontakte",
+                                line = if (c.count == 1) "1 Kontakt" else "${c.count} Kontakte",
                             )
                         }
-                        card is TodayCard.PhoneBookNew -> NewInPhoneBook(card, nav)
-                        else -> Unit
+                        is TodayCard.PhoneBookNew -> NewInPhoneBook(c, nav)
                     }
                 }
             }
@@ -174,7 +178,6 @@ private fun NewInPhoneBook(card: TodayCard.PhoneBookNew, nav: Nav) {
             PhoneBookFresh.markSeen(ctx, last)
             dismiss("pb:$last")
         },
-        modifier = Modifier.fillMaxWidth(),
         dismissAxis = null,
     ) {
         CardBody(
@@ -190,7 +193,7 @@ private fun NewInPhoneBook(card: TodayCard.PhoneBookNew, nav: Nav) {
  * ring fills; when it is done the planet turns into a tick (Bestätigen) and the card goes.
  */
 @Composable
-private fun LiveCard(card: TodayCard.PhoneBookLive) {
+private fun LiveCard(card: TodayCard.PhoneBookLive, onOpen: () -> Unit) {
     val haptics = rememberHaptics()
     val shown by animateIntAsState(card.count, tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized), label = "liveCount")
     val ring by animateFloatAsState(
@@ -199,7 +202,7 @@ private fun LiveCard(card: TodayCard.PhoneBookLive) {
         label = "liveRing",
     )
     androidx.compose.runtime.LaunchedEffect(card.done) { if (card.done) haptics.perform(Haptic.Confirm) }
-    Box(Modifier.fillMaxWidth().glass(Corners.Card, tint = Space.Panel, border = Space.Teal.copy(alpha = 0.45f))) {
+    Box(Modifier.glass(Corners.Card, tint = Space.Panel, border = Space.Teal.copy(alpha = 0.45f)).clickable(onClick = onOpen)) {
         CardBody(
             planet = {
                 Box(
@@ -234,17 +237,23 @@ private fun Planet(icon: ImageVector, color: Color) {
     }
 }
 
-/** Up to three people as overlapping initials planets. */
+/** Up to three people as overlapping planets, one letter each (the next planet covers the rest). */
 @Composable
 private fun People(people: List<Pair<String, String>>) {
-    Box(Modifier.size(width = 28.dp + 14.dp * (people.size - 1).coerceAtLeast(0), height = 36.dp), contentAlignment = Alignment.CenterStart) {
+    val step = 16.dp
+    Box(Modifier.size(width = 28.dp + step * (people.size - 1).coerceAtLeast(0), height = 36.dp), contentAlignment = Alignment.CenterStart) {
         people.forEachIndexed { i, (name, id) ->
             val color = fallbackColor(id)
             val words = name.split(' ').filter { it.isNotBlank() }
-            val initials = (listOfNotNull(words.firstOrNull(), words.drop(1).lastOrNull()).joinToString("") { it.take(1) }).uppercase().ifEmpty { "?" }
+            // Alone: both initials; in a stack only the first letter shows anyway.
+            val initials = if (people.size == 1) {
+                listOfNotNull(words.firstOrNull(), words.drop(1).lastOrNull()).joinToString("") { it.take(1) }.uppercase().ifEmpty { "?" }
+            } else {
+                words.firstOrNull()?.take(1)?.uppercase() ?: "?"
+            }
             Box(
                 Modifier
-                    .offset(x = 14.dp * i)
+                    .offset(x = step * i)
                     .size(28.dp)
                     .background(Space.Panel, CircleShape)
                     .background(color.copy(alpha = 0.35f), CircleShape)
@@ -263,7 +272,8 @@ private fun CardBody(planet: @Composable () -> Unit, title: String, line: String
     Row(Modifier.padding(Spacing.M), verticalAlignment = Alignment.CenterVertically) {
         planet()
         Spacer(Modifier.width(Spacing.M))
-        Column(Modifier.weight(1f)) {
+        // No weight: the card is as wide as its title needs (within the row's bounds).
+        Column {
             Text(
                 title,
                 style = MaterialTheme.typography.titleSmallEmphasized.let { if (numeric) it.copy(fontFeatureSettings = "tnum") else it },

@@ -287,7 +287,7 @@ private fun MainNavigation(data: OrbitData) {
                 val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
                 io.github.thelony97.orbit.ui.list.PhoneImportScreen(
                     data = data, nav = nav, initialSelection = key.contactIds.toSet(), only = key.contactIds.toSet(),
-                    onTakenOver = { if (key.seenUpTo > 0) io.github.thelony97.orbit.phonebook.PhoneBookFresh.markSeen(appCtx, key.seenUpTo) },
+                    onTakenOver = { if (key.seenUpTo > 0) io.github.thelony97.orbit.phonebook.PhoneBookFresh.markSeen(appCtx, key.seenUpTo) else ({}) },
                 )
             }
             entry<Route.Photos> { key ->

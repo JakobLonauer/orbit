@@ -58,7 +58,7 @@ import io.github.thelony97.orbit.ui.theme.Space
  * the caller morph its row into the blocks (shared bounds).
  */
 @Composable
-fun DictationView(label: String, value: String, onClose: () -> Unit, blocksModifier: Modifier = Modifier) {
+fun DictationView(label: String, value: String, onClose: () -> Unit, modifier: Modifier = Modifier, blocksModifier: Modifier = Modifier) {
     val view = LocalView.current
     val haptics = rememberHaptics()
     // Full brightness and screen on while it shows; back to normal afterwards.
@@ -81,7 +81,7 @@ fun DictationView(label: String, value: String, onClose: () -> Unit, blocksModif
     var at by remember(value) { mutableIntStateOf(0) }
     val blockStyle = MaterialTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum, zero", fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
     Box(
-        Modifier
+        modifier
             .fillMaxSize()
             .background(Space.Void)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
@@ -109,6 +109,11 @@ fun DictationView(label: String, value: String, onClose: () -> Unit, blocksModif
                     val color by animateColorAsState(if (i < at) Space.TextFaint else Space.Text, tween(Motion.FAST_MS), label = "block")
                     val marker by animateFloatAsState(if (i == at) 1f else 0f, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized), label = "marker")
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The sign rides with the block after it: a wrapped line starts „– 3“, never ends in „–“.
+                        blocks.getOrNull(i - 1)?.after?.let { sign ->
+                            Text(if (sign == '-') "–" else sign.toString(), style = blockStyle, color = Space.TextFaint)
+                            Spacer(Modifier.width(Spacing.S))
+                        }
                         Text(
                             b.text,
                             style = blockStyle,
@@ -127,10 +132,6 @@ fun DictationView(label: String, value: String, onClose: () -> Unit, blocksModif
                                 }
                             },
                         )
-                        b.after?.let { sign ->
-                            Spacer(Modifier.width(Spacing.S))
-                            Text(if (sign == '-') "–" else sign.toString(), style = blockStyle, color = Space.TextFaint)
-                        }
                     }
                 }
             }

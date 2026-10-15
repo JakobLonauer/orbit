@@ -132,8 +132,8 @@ class ScreensV3ScreenshotTest {
         val json = OrbitRepository.json.encodeToString(Contact.serializer(), draft)
         compose.mainClock.autoAdvance = false
         compose.setContent { OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { ContactEditScreen(id, json, data, idx, nav) } } }
-        // Mid-moment: the first fields lit, the later ones on their way.
-        compose.mainClock.advanceTimeBy(560)
+        // Mid-moment: the first fields lit, the later ones on their way (a merge lights only what joined).
+        compose.mainClock.advanceTimeBy(if (id == null) 560 else 760)
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_$name.png")
     }
 

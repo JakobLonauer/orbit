@@ -1,7 +1,6 @@
 package io.github.thelony97.orbit.ui.sheets
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.thelony97.orbit.core.domain.Matcher
 import io.github.thelony97.orbit.core.domain.ShareIn
 import io.github.thelony97.orbit.core.model.CheckItem
 import io.github.thelony97.orbit.core.model.ContactKind
@@ -98,9 +98,8 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
     // PLAN 9 A4: a marked number or address – who has it already (organisation ranges included).
     val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
-    val match = remember(item, data.contacts) {
-        (item as? ShareIn.Item.Number)?.let { io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso).matchCall(it.number) }
-    }
+    val matcher = remember(data.contacts) { io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso) }
+    val match = remember(item, matcher) { (item as? ShareIn.Item.Number)?.let { matcher.matchCall(it.number) } }
     val owner: Contact? = remember(item, data.contacts, match) {
         when (item) {
             is ShareIn.Item.Number -> match?.let { m -> data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived } }
@@ -114,21 +113,28 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
     }
     // PLAN 9 A4/B2: a number in an organisation's range – its Durchwahl can be kept there.
     val extension: String? = remember(item, owner, match) {
-        val n = (item as? ShareIn.Item.Number)?.let { io.github.thelony97.orbit.domain.Phones.normalize(it.number, iso) }
-        if (owner == null || n == null || match?.via != io.github.thelony97.orbit.core.domain.Matcher.Via.PREFIX) null
-        else owner.numberPrefixes.firstNotNullOfOrNull { p ->
-            io.github.thelony97.orbit.domain.Phones.normalize(p, iso)?.takeIf { n.startsWith(it) && n.length > it.length }?.let { n.substring(it.length) }
-        }
+        if (owner == null || item !is ShareIn.Item.Number || match?.via != io.github.thelony97.orbit.core.domain.Matcher.Via.PREFIX) null
+        else matcher.extension(item.number, owner.numberPrefixes)
+    }
+    val valueShare = (item is ShareIn.Item.Number || item is ShareIn.Item.Email) && share.images.isEmpty()
+    // The owner already has exactly this value: shown once, in the banner. Anything else (a
+    // range or domain match, a card to merge) keeps the owner as a target.
+    val ownerHasIt = owner != null && valueShare && share.draft == null && when (item) {
+        is ShareIn.Item.Number -> owner.phones.any { Matcher.tail(it.value) == Matcher.tail(item.number) }
+        is ShareIn.Item.Email -> owner.emails.any { it.value.trim().equals(item.address.trim(), ignoreCase = true) }
+        else -> false
     }
     val targets = Logic.active(data)
-        // The owner is already shown above – once is enough.
-        .filter { !it.archived && !it.isMe && it.id != owner?.id && Logic.matches(it, q, idx) }
+        .filter { !it.archived && !it.isMe && !(ownerHasIt && it.id == owner?.id) && Logic.matches(it, q, idx) }
         // A place most likely belongs to an organisation: those first.
-        .sortedWith(compareByDescending<Contact> { wantsOrg && it.isOrg }.thenBy { Logic.sortKey(it, data.settings.sortByLastName) })
+        .sortedWith(
+            compareByDescending<Contact> { it.id == owner?.id }
+                .thenByDescending { wantsOrg && it.isOrg }
+                .thenBy { Logic.sortKey(it, data.settings.sortByLastName) },
+        )
         .take(40)
 
     fun apply(target: Contact) {
-        val name = Logic.shortName(target)
         // INSERT_OR_EDIT (PLAN 9 A2): everything the other app handed over joins this contact on its edit page.
         share.draft?.let { draft ->
             onDone()
@@ -165,7 +171,8 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                 addMail(target, item.address)
             }
         }
-        if (item !is ShareIn.Item.Number && item !is ShareIn.Item.Email) Toast.makeText(ctx, "Bei $name gespeichert", Toast.LENGTH_SHORT).show()
+        // Confirmed at the place it went (PLAN 9.2, no toast): the contact's page opens.
+        if (item !is ShareIn.Item.Number && item !is ShareIn.Item.Email) haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
         onDone()
         nav.open(Route.Detail(target.id))
     }
@@ -180,7 +187,7 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
     ModalBottomSheet(onDismissRequest = onDone, sheetState = state, containerColor = Space.PanelHigh) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val (title, sub) = when {
                 share.images.isNotEmpty() && share.documents -> (if (share.images.size == 1) "1 PDF" else "${share.images.size} PDFs") to ""
@@ -212,8 +219,9 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                         icon = if (owner.isOrg) Icons.Rounded.Business else Icons.Rounded.Person,
                         color = if (owner.isOrg) Space.Blue else contactColor(owner, idx),
                         text = "gehört zu " + Logic.displayName(owner, data.settings.sortByLastName),
-                        onClick = { onDone(); nav.open(Route.Detail(owner.id)) },
-                        action = "Öffnen",
+                        // A card handed over to complete someone („Zu bestehendem“) goes into the owner.
+                        onClick = { if (share.draft != null) apply(owner) else { onDone(); nav.open(Route.Detail(owner.id)) } },
+                        action = if (share.draft != null) "Ergänzen" else "Öffnen",
                         edge = 0.dp,
                     )
                     if (extension != null && item is ShareIn.Item.Number) {
@@ -252,15 +260,15 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
             }
             if (item is ShareIn.Item.Text && share.images.isEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SpaceChip("Notiz", !asTopic, { asTopic = false })
-                    SpaceChip("Thema", asTopic, { asTopic = true })
+                    SpaceChip("Notiz", !asTopic, { haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick); asTopic = false })
+                    SpaceChip("Thema", asTopic, { haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick); asTopic = true })
                 }
             }
             SpaceSearchField(search, "Kontakt", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
             LazyColumn(Modifier.heightIn(max = 320.dp)) {
                 items(targets, key = { it.id }) { c ->
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { apply(c) }.padding(vertical = 6.dp),
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { apply(c) }.padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Avatar(c, contactColor(c, idx), 34.dp)

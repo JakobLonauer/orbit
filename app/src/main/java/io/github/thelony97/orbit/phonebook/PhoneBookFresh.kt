@@ -33,9 +33,11 @@ object PhoneBookFresh {
 
     private fun seen(ctx: Context): Long = runCatching { file(ctx).readText().trim().toLong() }.getOrDefault(-1L)
 
-    /** Everything up to [rawId] counts as known from now on. */
-    fun markSeen(ctx: Context, rawId: Long) {
-        if (rawId > seen(ctx)) runCatching { file(ctx).writeText(rawId.toString()) }
+    /** Everything up to [rawId] counts as known from now on; returns how to take that back (Rückgängig). */
+    fun markSeen(ctx: Context, rawId: Long): () -> Unit {
+        val before = seen(ctx)
+        if (rawId > before) runCatching { file(ctx).writeText(rawId.toString()) }
+        return { if (before >= 0) runCatching { file(ctx).writeText(before.toString()) } }
     }
 
     private fun canRead(ctx: Context) =

@@ -205,31 +205,11 @@ object VCardReader {
     private fun contact(props: List<Prop>, newId: () -> String): Contact? {
         val d = Draft()
         props.forEach { p -> if (!takeName(d, p)) takeReach(d, p, newId) }
-        val nameless = d.first.isBlank() && d.last.isBlank()
-        // Only a full name: the last word is the family name (unless it is just the company).
-        if (nameless && d.full.isNotBlank() && d.full != d.company) {
-            val words = d.full.split(Regex("\\s+"))
-            d.first = words.dropLast(1).joinToString(" ").ifBlank { words.last() }
-            d.last = if (words.size > 1) words.last() else ""
-        }
+        fillNameFromFull(d)
         val hasName = d.first.isNotBlank() || d.last.isNotBlank()
         val isOrg = d.companyKind || (!hasName && d.company.isNotBlank())
         if (!isOrg && !hasName && d.company.isBlank()) return null
-        val c = Contact(
-            id = newId(),
-            kind = if (isOrg) ContactKind.ORG else ContactKind.PERSON,
-            firstName = if (isOrg) "" else d.first,
-            lastName = if (isOrg) "" else d.last,
-            title = if (isOrg) "" else d.prefix,
-            nickname = if (isOrg) "" else d.nickname,
-            company = d.company.ifBlank { if (isOrg) d.full else "" },
-            position = d.position,
-            notes = d.notes,
-            phones = d.phones,
-            emails = d.emails,
-            addresses = d.addresses,
-            links = d.links,
-        )
+        val c = if (isOrg) org(d, newId) else person(d, newId)
         val birthday = d.birthday
         return if (birthday != null && !isOrg) {
             c.copy(dates = listOf(Occasion(newId(), OccasionKind.BIRTHDAY, date = birthday, reminders = Occasion.BIRTHDAY_REMINDERS)))
@@ -237,6 +217,43 @@ object VCardReader {
             c
         }
     }
+
+    /** Only a full name: the last word is the family name (unless it is just the company). */
+    private fun fillNameFromFull(d: Draft) {
+        val nameless = d.first.isBlank() && d.last.isBlank()
+        if (!nameless || d.full.isBlank() || d.full == d.company) return
+        val words = d.full.split(Regex("\\s+"))
+        d.first = words.dropLast(1).joinToString(" ").ifBlank { words.last() }
+        d.last = if (words.size > 1) words.last() else ""
+    }
+
+    private fun org(d: Draft, newId: () -> String) = Contact(
+        id = newId(),
+        kind = ContactKind.ORG,
+        company = d.company.ifBlank { d.full },
+        position = d.position,
+        notes = d.notes,
+        phones = d.phones,
+        emails = d.emails,
+        addresses = d.addresses,
+        links = d.links,
+    )
+
+    private fun person(d: Draft, newId: () -> String) = Contact(
+        id = newId(),
+        kind = ContactKind.PERSON,
+        firstName = d.first,
+        lastName = d.last,
+        title = d.prefix,
+        nickname = d.nickname,
+        company = d.company,
+        position = d.position,
+        notes = d.notes,
+        phones = d.phones,
+        emails = d.emails,
+        addresses = d.addresses,
+        links = d.links,
+    )
 
     /** "1990-05-17", "19900517", "--05-17", "--0517", "1990-05-17T00:00:00Z". */
     fun day(raw: String): CalendarDay? {

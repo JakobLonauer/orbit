@@ -235,10 +235,10 @@ private fun CheckRow(
 fun InfoRow(
     label: String,
     value: String,
-    onClick: (() -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
     /** For a shared transition on the value (Datumskachel → Anlass, PLAN W3). */
     valueModifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
     /** Halten (PLAN 9.2 Bediensprache): e.g. the Diktier-Ansicht of an own field. */
     onLongClick: (() -> Unit)? = null,
 ) {

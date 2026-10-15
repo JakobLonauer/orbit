@@ -637,7 +637,6 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 SettingItem(
                     Icons.Rounded.Contacts, "Im Telefonbuch des Handys",
                     subtitle = if (s.phoneBook && count != null) { if (shown == 1) "1 Kontakt" else "$shown Kontakte" } else null,
-                    iconTint = Space.Teal,
                     trailing = {
                         SpaceSwitch(s.phoneBook) { on ->
                             if (on) {
@@ -655,7 +654,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 if (s.phoneBook) {
                     Hairline()
                     SettingItem(
-                        Icons.Rounded.Business, "Auch Organisationen", iconTint = Space.Teal,
+                        Icons.Rounded.Business, "Auch Organisationen",
                         trailing = {
                             SpaceSwitch(s.phoneBookOrgs) { v ->
                                 OrbitRepository.editSettings { it.copy(phoneBookOrgs = v) }
@@ -665,7 +664,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     )
                     Hairline()
                     // Favourites are „markiert“ in the phone book; the system lets them through.
-                    SettingItem(Icons.Rounded.DoNotDisturbOn, "Favoriten bei Nicht stören", iconTint = Space.Teal, onClick = {
+                    SettingItem(Icons.Rounded.DoNotDisturbOn, "Favoriten bei Nicht stören", onClick = {
                         AppLock.allowExternal()
                         val tries = listOf("android.settings.ZEN_MODE_PRIORITY_SETTINGS", "android.settings.ZEN_MODE_SETTINGS", android.provider.Settings.ACTION_SOUND_SETTINGS)
                         tries.firstOrNull { action -> runCatching { ctx.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess }

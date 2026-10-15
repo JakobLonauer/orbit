@@ -34,6 +34,22 @@ object Messengers {
 
     data class Action(val kind: Kind, val dataId: Long)
 
+    /** The last answer per number: a page opened again shows its buttons at once (W2). */
+    private val known = java.util.concurrent.ConcurrentHashMap<String, List<Action>>()
+
+    fun cached(number: String?): List<Action>? = number?.let { known[it] }
+
+    /** WhatsApp or Signal is on the phone at all (package visibility via <queries>). */
+    fun installed(ctx: Context): Boolean =
+        listOf("com.whatsapp", "com.whatsapp.w4b", "org.thoughtcrime.securesms").any { pkg ->
+            runCatching { ctx.packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.PackageInfoFlags.of(0)) }.isSuccess
+        }
+
+    /** Signal itself, when its row for a number cannot be opened. */
+    fun openSignal(ctx: Context): Boolean =
+        ctx.packageManager.getLaunchIntentForPackage("org.thoughtcrime.securesms")
+            ?.let { runCatching { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess } == true
+
     /** The messenger buttons that exist for [number], at most one per kind. */
     suspend fun forNumber(ctx: Context, number: String?): List<Action> = withContext(Dispatchers.IO) {
         if (number.isNullOrBlank() || ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
@@ -61,7 +77,7 @@ object Messengers {
                     if (kind !in found) found[kind] = Action(kind, c.getLong(0))
                 }
             }
-            Kind.entries.mapNotNull { found[it] }
+            Kind.entries.mapNotNull { found[it] }.also { known[number] = it }
         }.getOrDefault(emptyList())
     }
 
