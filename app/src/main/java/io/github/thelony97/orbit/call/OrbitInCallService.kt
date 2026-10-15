@@ -97,6 +97,8 @@ class OrbitInCallService : InCallService() {
 
     override fun onCallRemoved(call: Call) = safe {
         call.unregisterCallback(callback)
+        // PLAN 9 E17: missed during a busy appointment → the SMS with the time Jakob calls back.
+        runCatching { BusyReply.onRemoved(this, call, CallSession.cards.value[CallSession.numberOf(call)]) }
         // PLAN 9 B5: a try that leads to the next one has no after-call screen.
         val retry = runCatching { Persist.onRemoved(this, call) }.getOrDefault(false)
         CallSession.remove(call, CallSession.cards.value[CallSession.numberOf(call)], quiet = retry)

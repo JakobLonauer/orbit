@@ -39,7 +39,10 @@ class OrbitScreeningService : CallScreeningService() {
             }.getOrDefault(allow)
             runCatching { respondToCall(details, response) }
             // The trace after the answer – the phone does not wait for the file.
-            silenced?.let { (n, r) -> runCatching { Silenced.add(app, n, r) } }
+            silenced?.let { (n, r) ->
+                runCatching { Silenced.add(app, n, r) }
+                io.github.thelony97.orbit.live.AutoCount.bump(app, io.github.thelony97.orbit.live.AutoCount.SCREEN)
+            }
         }.start()
     }
 

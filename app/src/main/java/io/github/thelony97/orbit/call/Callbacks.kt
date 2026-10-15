@@ -135,7 +135,10 @@ class CallbackNudgeWorker(ctx: Context, params: androidx.work.WorkerParameters) 
         val data = io.github.thelony97.orbit.data.OrbitRepository.ensureLoaded()
         val items = Callbacks.load(ctx, data)
         runCatching { lastNudged(ctx).writeText(ended.toString()) }
-        if (items.isNotEmpty()) io.github.thelony97.orbit.notify.Notifications.callbacks(ctx, items.size, items.take(2).map { it.title })
+        if (items.isNotEmpty()) {
+            io.github.thelony97.orbit.notify.Notifications.callbacks(ctx, items.size, items.take(2).map { it.title })
+            io.github.thelony97.orbit.live.AutoCount.bump(ctx, io.github.thelony97.orbit.live.AutoCount.NUDGE)
+        }
         return Result.success()
     }
 

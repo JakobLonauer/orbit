@@ -462,6 +462,10 @@ data class Settings(
     val arrive: Boolean = false,
     /** PLAN 9 E6: Textbausteine with {Platzhaltern}; „/“ in a text line offers them. */
     val snippets: List<Snippet> = DEFAULT_SNIPPETS,
+    /** PLAN 9 E17: a missed call during a busy appointment gets an SMS with the time Jakob calls back. */
+    val autoBusySms: Boolean = false,
+    /** PLAN 9 E17: only callers in these groups; empty = everyone in Orbit. */
+    val autoBusyGroups: List<String> = emptyList(),
 ) {
     companion object {
         val DEFAULT_SNIPPETS = listOf(

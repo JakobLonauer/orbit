@@ -106,6 +106,7 @@ import androidx.compose.material.icons.rounded.Euro
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.AutoMode
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.ui.graphics.Brush
@@ -230,7 +231,7 @@ fun Hairline() {
 }
 
 @Composable
-private fun SpaceSwitch(checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+internal fun SpaceSwitch(checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     // PLAN 1.3 Einstellungen: switches morph (thumb grows a check) and answer with haptics.
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     Switch(
@@ -391,6 +392,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     val backupLine = s.lastBackupAt?.let { "Backup " + Fmt.ago(ChronoUnit.DAYS.between(it.toLocalDate(), today())) } ?: "noch kein Backup"
     val areas = listOf(
         SettingsArea("capture", "Mitschreiben", Icons.Rounded.Timer, Space.Teal, "Anrufe ab ${s.minCallSeconds} s" + when (mailAccounts.size) { 0 -> ""; 1 -> " · 1 Mail-Konto"; else -> " · ${mailAccounts.size} Mail-Konten" }),
+        SettingsArea("auto", "Automatiken", Icons.Rounded.AutoMode, Space.Teal, activeAutomations(data).let { if (it == 1) "1 an" else "$it an" }),
         SettingsArea("notify", "Benachrichtigungen", Icons.Rounded.Notifications, Space.Violet, "Anlässe um %d:%02d".format(s.digestHour, s.digestMinute)),
         SettingsArea("contacts", "Kontakte", Icons.Rounded.Groups, Space.Orange, "${data.groups.size} Gruppen · ${if (s.sortByLastName) "Nachname" else "Vorname"} zuerst"),
         SettingsArea(
@@ -652,6 +654,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 )
             }
         }
+
+        // PLAN 9 E17: Automatiken.
+        if (area == "auto") item(key = "automations") { AutomationsPage(data, onGroups = { nav.open(io.github.thelony97.orbit.ui.Route.SettingsArea("contacts")) }) }
 
         if (area == "notify") item(key = "reminders") {
             SettingsGroup("") {
