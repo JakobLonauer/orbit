@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.BeachAccess
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -245,6 +246,11 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val notes = remember { TextFieldState(original.notes) }
     val pinnedNote = remember { TextFieldState(original.pinnedNote) }
     val hours = remember { TextFieldState(original.openingHours) }
+    // PLAN 9 D2: Telefonzeiten and „Urlaub bis …“ with Vertretung.
+    val phoneHoursField = remember { TextFieldState(original.phoneHours) }
+    var vacationUntil by remember { mutableStateOf(original.vacationUntil?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }) }
+    var vacationSubstitute by remember { mutableStateOf(original.vacationSubstitute) }
+    var vacationDialog by remember { mutableStateOf(false) }
     val prefixes = remember { TextFieldState(original.numberPrefixes.joinToString(", ")) }
     val domains = remember { TextFieldState(original.emailDomains.joinToString(", ")) }
     val links = remember { mutableStateListOf<PairRow>().apply { original.links.forEach { add(PairRow(it.id, it.title, it.url)) } } }
@@ -303,6 +309,9 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             notes = notes.text.toString().trim(),
             pinnedNote = pinnedNote.text.toString().trim(),
             openingHours = if (kind == ContactKind.ORG) hours.text.toString().trim() else original.openingHours,
+            phoneHours = if (kind == ContactKind.ORG) phoneHoursField.text.toString().trim() else original.phoneHours,
+            vacationUntil = if (kind == ContactKind.ORG) vacationUntil?.toString() else original.vacationUntil,
+            vacationSubstitute = if (kind == ContactKind.ORG && vacationUntil != null) vacationSubstitute else null,
             // Regeln (PLAN 3.6): numbers and mail addresses that belong to the organisation.
             numberPrefixes = if (kind == ContactKind.ORG) splitList(prefixes.text.toString()) else original.numberPrefixes,
             emailDomains = if (kind == ContactKind.ORG) splitList(domains.text.toString()).map { it.lowercase().removePrefix("@") } else original.emailDomains,
@@ -680,6 +689,45 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                             modifier = Modifier.padding(start = 4.dp, top = 6.dp),
                         )
                     }
+                    // PLAN 9 D2: phone hours (same writing), holidays count by themselves.
+                    Spacer(Modifier.size(8.dp))
+                    SpaceField(phoneHoursField, "Telefon", placeholder = "Mo-Fr 07:30-11:00")
+                    Spacer(Modifier.size(8.dp))
+                    // „Urlaub bis …“ with the one who stands in.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SpaceChip(
+                            vacationUntil?.let { "Urlaub bis ${it.dayOfMonth}.${it.monthValue}." } ?: "Urlaub",
+                            vacationUntil != null,
+                            { vacationDialog = true },
+                            leading = Icons.Rounded.BeachAccess,
+                            accent = Space.Orange,
+                        )
+                        if (vacationUntil != null) ClearButton { vacationUntil = null }
+                    }
+                    if (vacationUntil != null) {
+                        val others = data.contacts.filter { it.isOrg && it.id != original.id && it.deletedAt == null && !it.archived && it.orgCategory == orgCategory }.take(8)
+                        if (others.isNotEmpty()) {
+                            Spacer(Modifier.size(8.dp))
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                others.forEach { o ->
+                                    SpaceChip(
+                                        "→ " + io.github.thelony97.orbit.domain.Logic.displayName(o, false),
+                                        vacationSubstitute == o.id,
+                                        { vacationSubstitute = if (vacationSubstitute == o.id) null else o.id },
+                                        accent = Space.Orange,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (vacationDialog) {
+                    io.github.thelony97.orbit.ui.sheets.DateDialog(
+                        initial = vacationUntil ?: java.time.LocalDate.now().plusDays(7),
+                        onDismiss = { vacationDialog = false },
+                        onPick = { vacationUntil = it },
+                        minDate = java.time.LocalDate.now(),
+                    )
                 }
 
                 GlassCard {

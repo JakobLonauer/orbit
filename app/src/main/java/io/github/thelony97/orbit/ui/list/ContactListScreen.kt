@@ -389,9 +389,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         }
         // Index of each letter's header: must follow the item order below exactly.
         val showToday = todayCards.isNotEmpty() && defaultView && selection == null
-        val letterIndex = remember(sections, suggestions, defaultView, me, audience, showToday) {
+        // PLAN 9 D1: Meine Dienste under Heute.
+        val services = remember(data) { io.github.thelony97.orbit.ui.services.myServices(data) }
+        val showServices = services.isNotEmpty() && defaultView && selection == null
+        val letterIndex = remember(sections, suggestions, defaultView, me, audience, showToday, showServices) {
             var i = 1 // update banner
             if (showToday) i++
+            if (showServices) i++
             if (suggestions > 0 && defaultView) i++
             if (me != null && defaultView && audience != Audience.ORGS) i++
             if (sections.all { it.contacts.isEmpty() }) i++
@@ -428,6 +432,9 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             // Every item moves when something above it comes or goes – nothing snaps (W2).
             if (showToday) item(key = "today") {
                 io.github.thelony97.orbit.ui.today.TodayRow(todayCards, nav, Modifier.animateItem().padding(bottom = io.github.thelony97.orbit.core.designsystem.Spacing.XS))
+            }
+            if (showServices) item(key = "services") {
+                io.github.thelony97.orbit.ui.services.MyServicesRow(services, data, nav, Modifier.animateItem().padding(bottom = io.github.thelony97.orbit.core.designsystem.Spacing.XS))
             }
             // „gehört zu Arzt Müller“ (PLAN 1.3): a pasted Durchwahl or a number in an
             // organisation's range – a hidden member shows only as the organisation.

@@ -287,6 +287,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var qrDialog by remember { mutableStateOf(false) }
     var shareSheet by remember { mutableStateOf(false) }
     var dictate by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var idCard by remember { mutableStateOf<Pair<String, String>?>(null) }
     var macroEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Macro?>(null) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
@@ -515,6 +516,28 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 if (c.isOrg) Pill("Organisation · ${Defaults.orgCategory(c.orgCategory).label}", Space.Blue)
                                 if (c.isMe) Pill("Das bist du", Space.Orange)
                                 groups.forEach { g -> Pill(g.name, Color(g.color)) }
+                            }
+                        }
+                        // PLAN 9 D2: Urlaub, Feiertag and Telefonzeit come before the opening hours.
+                        if (c.isOrg) {
+                            val substitute = c.vacationSubstitute?.let { idx.contacts[it] }?.let { Logic.displayName(it, false) }
+                            val special = remember(c, substitute) {
+                                io.github.thelony97.orbit.core.domain.ServiceStatus.of(c, java.time.LocalDateTime.now(zone()), substitute)
+                                    ?.takeIf { it.tone == io.github.thelony97.orbit.core.domain.ServiceStatus.Tone.AWAY || c.phoneHours.isNotBlank() || it.text == "Feiertag · zu" }
+                            }
+                            special?.let { line ->
+                                Text(
+                                    line.text,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = when (line.tone) {
+                                        io.github.thelony97.orbit.core.domain.ServiceStatus.Tone.OPEN -> Space.Teal
+                                        io.github.thelony97.orbit.core.domain.ServiceStatus.Tone.AWAY -> Space.Orange
+                                        io.github.thelony97.orbit.core.domain.ServiceStatus.Tone.CLOSED -> Space.TextDim
+                                    },
+                                    modifier = Modifier.padding(top = 6.dp).then(
+                                        c.vacationSubstitute?.let { id -> Modifier.clickable { nav.open(Route.Detail(id)) } } ?: Modifier,
+                                    ),
+                                )
                             }
                         }
                         // Live-Öffnungszeiten (PLAN 3.6): understood → live line, otherwise the text as typed.
@@ -764,8 +787,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 // PLAN 9 B7: Halten = Diktier-Ansicht (big blocks, spelled letters).
                                 onLongClick = {
                                     haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold)
-                                    // Whose number it is, in the dictation's head: „Raiffeisen Linz · Kundennummer“.
-                                    dictate = (Logic.shortName(c) + " · " + label) to f.value
+                                    // PLAN 9 D4: a customer/member number becomes the card (Ausweis); any other
+                                    // field the Diktier-Ansicht with whose number it is in the head.
+                                    if (io.github.thelony97.orbit.core.domain.CallerIndex.isIdLabel(label)) idCard = label to f.value
+                                    else dictate = (Logic.shortName(c) + " · " + label) to f.value
                                 },
                             )
                         }
@@ -1288,6 +1313,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }, withFields = true) }
     if (shareSheet) ShareFieldsSheet(c, color, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
     macroEdit?.let { m -> MacroEditSheet(c, data, m, onDismiss = { macroEdit = null }) }
+    idCard?.let { (label, value) ->
+        io.github.thelony97.orbit.ui.components.IdCard(
+            Logic.displayName(c, false), label, value, color,
+            onDictate = {
+                idCard = null
+                dictate = (Logic.shortName(c) + " · " + label) to value
+            },
+            onClose = { idCard = null },
+        )
+    }
     dictate?.let { (label, value) ->
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { dictate = null },

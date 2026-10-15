@@ -215,6 +215,12 @@ data class Contact(
     val mapsUrl: String? = null,
     /** OSM opening_hours syntax, e.g. "Mo-Fr 08:00-12:00". */
     val openingHours: String = "",
+    /** PLAN 9 D2: Telefonzeiten, same syntax as [openingHours] („Mo-Fr 07:30-11:00“). */
+    val phoneHours: String = "",
+    /** PLAN 9 D2: „Urlaub bis …“ (ISO day) – overlays opening and phone hours. */
+    val vacationUntil: String? = null,
+    /** PLAN 9 D2: who stands in during the holiday („→ Dr. Mayr“), a contact id. */
+    val vacationSubstitute: String? = null,
     /** PLAN 9 B4: Hotline-Makros – keys, pauses, „Warten auf Weiter“ and own fields, played in a call. */
     val macros: List<Macro> = emptyList(),
     /**

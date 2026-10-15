@@ -209,9 +209,13 @@ data class CallerIndex(
             return listOf(c.position, c.company).filter { it.isNotBlank() }.joinToString(" · ")
         }
 
-        private fun customerNo(c: Contact): String =
-            c.fields.firstOrNull { f -> CUSTOMER_LABELS.any { it in f.label.lowercase() } }?.value.orEmpty()
+        private fun customerNo(c: Contact): String = idField(c)?.value.orEmpty()
 
-        private val CUSTOMER_LABELS = listOf("kunden", "kd.-nr", "kdnr", "versicherungsn", "mitglieds", "patienten")
+        private val CUSTOMER_LABELS = listOf("kunden", "kd.-nr", "kdnr", "versicherungsn", "mitglieds", "patienten", "karte", "ausweis", "polizz", "vertrag")
+
+        /** PLAN 9 D4: the field that works as a card (Kunden-, Mitglieds-, Patientennummer …). */
+        fun isIdLabel(label: String): Boolean = CUSTOMER_LABELS.any { it in label.lowercase() }
+
+        fun idField(c: Contact): io.github.thelony97.orbit.core.model.CustomField? = c.fields.firstOrNull { f -> f.value.isNotBlank() && isIdLabel(f.label) }
     }
 }
