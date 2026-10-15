@@ -33,6 +33,7 @@ class OrbitApp : Application() {
             io.github.thelony97.orbit.widget.LinksWidget.refresh(ctx)
             io.github.thelony97.orbit.widget.FavoritesWidget.refresh(ctx)
             io.github.thelony97.orbit.widget.TodayWidget.refresh(ctx)
+            io.github.thelony97.orbit.widget.PersonWidget.refresh(ctx)
             OrbitRepository.data.value?.let {
                 io.github.thelony97.orbit.actions.AppShortcuts.update(ctx, it)
                 // PLAN 9 A1: the phone book follows every save (debounced, only Orbit's own rows).

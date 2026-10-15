@@ -419,6 +419,26 @@
                 android:resource="@xml/today_widget_info" />
         </receiver>
 
+        <!-- Person-Widget (PLAN 9 E18). -->
+        <receiver
+            android:name=".widget.PersonWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_person_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/person_widget_info" />
+        </receiver>
+        <activity
+            android:name=".widget.PersonWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Orbit">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <!-- Favoriten (PLAN 3.14). -->
         <receiver
             android:name=".widget.FavoritesWidgetReceiver"

@@ -8,6 +8,8 @@
     <string name="widget_today_label">Orbit – Heute</string>
     <string name="widget_today_description">Was heute ansteht: Rückrufe, Treffen, Anlässe, Themen</string>
     <string name="widget_favorites_label">Orbit – Favoriten</string>
+    <string name="widget_person_label">Orbit – Person</string>
+    <string name="widget_person_description">Ein Mensch: anrufen, schreiben, nächster Anlass</string>
     <string name="widget_favorites_description">Favoriten anrufen oder schreiben mit einem Tipp</string>
     <string name="tile_last_call">Notiz zum Anruf</string>
     <string name="tile_numbers">Nummern</string>
