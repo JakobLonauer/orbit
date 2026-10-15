@@ -361,7 +361,7 @@ private fun DocRow(contactId: String, d: GalleryPhoto) {
                 menu = false
                 scope.launch {
                     val ok = io.github.thelony97.orbit.actions.PhotoActions.saveToPhone(ctx, d.file, d.mime, d.name)
-                    android.widget.Toast.makeText(ctx, if (ok) "In „Download/Orbit“ gespeichert" else "Speichern nicht möglich", android.widget.Toast.LENGTH_SHORT).show()
+                    io.github.thelony97.orbit.ui.components.Undo.note(ctx, if (ok) "In „Download/Orbit“ gespeichert" else "Speichern nicht möglich", ok = ok)
                 }
             })
             androidx.compose.material3.DropdownMenuItem(text = { Text("Entfernen", color = Space.Coral) }, onClick = {
@@ -501,7 +501,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                         current?.let { cur ->
                             scope.launch {
                                 val ok = io.github.thelony97.orbit.actions.PhotoActions.saveToPhone(ctx, cur.photo.file)
-                                android.widget.Toast.makeText(ctx, if (ok) "In „Bilder/Orbit“ gespeichert" else "Speichern nicht möglich", android.widget.Toast.LENGTH_SHORT).show()
+                                io.github.thelony97.orbit.ui.components.Undo.note(ctx, if (ok) "In „Bilder/Orbit“ gespeichert" else "Speichern nicht möglich", ok = ok)
                             }
                         }
                     }, size = 40.dp)
@@ -537,7 +537,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                 onDismiss = { shareTo = null },
             ) { toId ->
                 OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.shareAttachment(d, item.photo, toId) }
-                android.widget.Toast.makeText(ctx, "Auch im Ordner von " + (data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) } ?: ""), android.widget.Toast.LENGTH_SHORT).show()
+                io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Auch im Ordner von " + (data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) } ?: ""))
             }
         }
     }

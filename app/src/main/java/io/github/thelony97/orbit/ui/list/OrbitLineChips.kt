@@ -28,6 +28,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.unit.dp
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
@@ -82,7 +83,23 @@ fun OrbitLineChips(
     val drop = remember { Animatable(0f) }
     LaunchedEffect(landing) { if (landing) drop.animateTo(1f, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) else drop.snapTo(0f) }
     Row(
-        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.Gutter).padding(top = Spacing.S)
+        modifier.fillMaxWidth()
+            // Chips running past the edge fade out instead of being cut („Wohnu…“).
+            .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                if (size.width <= FADE_DP * density) return@drawWithContent
+                val fade = (FADE_DP * density) / size.width
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        0f to androidx.compose.ui.graphics.Color.Black,
+                        (1f - fade) to androidx.compose.ui.graphics.Color.Black,
+                        1f to androidx.compose.ui.graphics.Color.Black.copy(alpha = 0f),
+                    ),
+                    blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                )
+            }
+            .horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.Gutter).padding(top = Spacing.S)
             .graphicsLayer {
                 // Enter: the chips fall into the row below and dissolve.
                 translationY = drop.value * 56.dp.toPx()
@@ -124,6 +141,7 @@ private fun LooseChip(chip: OrbitLine.Chip, delayMs: Long, color: androidx.compo
 }
 
 private const val STAGGER_MS = 60L
+private const val FADE_DP = 24f
 
 /**
  * Enter on a captured line: a time ahead → a planned meeting; otherwise an entry (default kind

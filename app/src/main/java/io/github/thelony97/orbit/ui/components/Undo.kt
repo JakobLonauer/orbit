@@ -46,13 +46,32 @@ import kotlinx.coroutines.flow.asStateFlow
 object Undo {
     const val SHOW_MS = 5_000
 
-    class Offer(val text: String, val undo: () -> Unit, val id: Long = System.nanoTime())
+    const val NOTE_MS = 2_500
+
+    /** [undo] null = a plain note (Null-Text replacement for system toasts): no action, shorter, [ok] colours the mark. */
+    class Offer(val text: String, val undo: (() -> Unit)?, val id: Long = System.nanoTime(), val ok: Boolean = true)
+
+    /** True while the main window shows the bar (resumed) – then notes appear in Orbit, not as system toasts. */
+    @Volatile var hosted = false
 
     private val _current = MutableStateFlow<Offer?>(null)
     val current: StateFlow<Offer?> = _current.asStateFlow()
 
     fun offer(text: String, undo: () -> Unit) {
         _current.value = Offer(text, undo)
+    }
+
+    /**
+     * A short note in Orbit's own pill instead of a system toast; outside the main window (call
+     * screen, notification actions) it falls back to the system toast.
+     */
+    fun note(ctx: android.content.Context, text: String, ok: Boolean = true) {
+        if (hosted) {
+            // Never replace a pending Rückgängig with a mere note.
+            if (_current.value?.undo == null) _current.value = Offer(text, null, ok = ok)
+        } else {
+            android.widget.Toast.makeText(ctx.applicationContext, text, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Drops any pending offer, e.g. when the edit page opens with a copy that would undo the undo. */
@@ -69,6 +88,10 @@ object Undo {
 fun UndoBar(modifier: Modifier = Modifier) {
     val offer by Undo.current.collectAsState()
     val haptics = rememberHaptics()
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        Undo.hosted = true
+        onPauseOrDispose { Undo.hosted = false }
+    }
     AnimatedVisibility(
         visible = offer != null,
         modifier = modifier,
@@ -78,7 +101,8 @@ fun UndoBar(modifier: Modifier = Modifier) {
         val o = offer ?: return@AnimatedVisibility
         val ring = remember(o.id) { Animatable(1f) }
         LaunchedEffect(o.id) {
-            ring.animateTo(0f, tween(Undo.SHOW_MS, easing = LinearEasing))
+            if (o.undo == null) haptics.perform(if (o.ok) Haptic.Confirm else Haptic.Reject)
+            ring.animateTo(0f, tween(if (o.undo == null) Undo.NOTE_MS else Undo.SHOW_MS, easing = LinearEasing))
             Undo.dismiss(o)
         }
         val pill = RoundedCornerShape(50)
@@ -91,28 +115,39 @@ fun UndoBar(modifier: Modifier = Modifier) {
                 .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(o.text, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
-            Spacer(Modifier.width(12.dp))
-            Row(
-                Modifier
-                    .clip(pill)
-                    .clickable {
-                        haptics.perform(Haptic.Confirm)
-                        o.undo()
-                        Undo.dismiss(o)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(18.dp)) {
-                    Canvas(Modifier.size(18.dp)) {
-                        val w = 2.dp.toPx()
-                        drawArc(Space.Line, 0f, 360f, false, style = Stroke(w))
-                        drawArc(Space.Violet, -90f, 360f * ring.value, false, style = Stroke(w, cap = StrokeCap.Round))
-                    }
-                }
+            val action = o.undo
+            if (action == null) {
+                // A note: its mark and the text, nothing to press.
+                androidx.compose.material3.Icon(
+                    if (o.ok) androidx.compose.material.icons.Icons.Rounded.Check else androidx.compose.material.icons.Icons.Rounded.PriorityHigh,
+                    null, tint = if (o.ok) Space.Violet else Space.Coral, modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(8.dp))
-                Text("Rückgängig", style = MaterialTheme.typography.labelLarge, color = Space.Violet)
+                Text(o.text, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.padding(end = 10.dp, top = 6.dp, bottom = 6.dp))
+            } else {
+                Text(o.text, style = MaterialTheme.typography.bodyMedium, color = Space.Text)
+                Spacer(Modifier.width(12.dp))
+                Row(
+                    Modifier
+                        .clip(pill)
+                        .clickable {
+                            haptics.perform(Haptic.Confirm)
+                            action()
+                            Undo.dismiss(o)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(18.dp)) {
+                        Canvas(Modifier.size(18.dp)) {
+                            val w = 2.dp.toPx()
+                            drawArc(Space.Line, 0f, 360f, false, style = Stroke(w))
+                            drawArc(Space.Violet, -90f, 360f * ring.value, false, style = Stroke(w, cap = StrokeCap.Round))
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text("Rückgängig", style = MaterialTheme.typography.labelLarge, color = Space.Violet)
+                }
             }
         }
     }

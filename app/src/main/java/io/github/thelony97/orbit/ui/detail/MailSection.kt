@@ -221,7 +221,7 @@ internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String?
                                 val result = MailClient.images(h, ctx.cacheDir)
                                 val files = result.getOrDefault(emptyList())
                                 result.exceptionOrNull()?.let { e ->
-                                    android.widget.Toast.makeText(ctx, MailClient.describe(e), android.widget.Toast.LENGTH_LONG).show()
+                                    io.github.thelony97.orbit.ui.components.Undo.note(ctx, MailClient.describe(e), ok = false)
                                     return@withContext
                                 }
                                 if (files.isNotEmpty()) {
@@ -229,7 +229,7 @@ internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String?
                                     files.forEach { it.delete() }
                                     io.github.thelony97.orbit.data.OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
                                 }
-                                android.widget.Toast.makeText(ctx, if (files.isEmpty()) "Keine Bilder in dieser Mail" else "${files.size} Bilder im Ordner", android.widget.Toast.LENGTH_SHORT).show()
+                                io.github.thelony97.orbit.ui.components.Undo.note(ctx, if (files.isEmpty()) "Keine Bilder in dieser Mail" else "${files.size} Bilder im Ordner")
                             }
                             copying = false
                         }
@@ -348,7 +348,7 @@ private fun MailBody(h: MailHeader, contactId: String?) {
                             val result = MailClient.images(h, ctx.cacheDir)
                             val files = result.getOrDefault(emptyList())
                             result.exceptionOrNull()?.let { e ->
-                                android.widget.Toast.makeText(ctx, MailClient.describe(e), android.widget.Toast.LENGTH_LONG).show()
+                                io.github.thelony97.orbit.ui.components.Undo.note(ctx, MailClient.describe(e), ok = false)
                                 return@withContext
                             }
                             if (files.isNotEmpty()) {
@@ -356,15 +356,11 @@ private fun MailBody(h: MailHeader, contactId: String?) {
                                 files.forEach { it.delete() }
                                 io.github.thelony97.orbit.data.OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -> a.copy(contactId = contactId) } + it.gallery) }
                             }
-                            android.widget.Toast.makeText(
-                                ctx,
-                                when (files.size) {
+                            io.github.thelony97.orbit.ui.components.Undo.note(ctx, when (files.size) {
                                     0 -> "Keine Bilder in dieser Mail"
                                     1 -> "1 Bild im Ordner"
                                     else -> "${files.size} Bilder im Ordner"
-                                },
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
+                                })
                         }
                         copying = false
                     }

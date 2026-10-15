@@ -1,6 +1,5 @@
 package io.github.thelony97.orbit.ui.edit
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -282,7 +281,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             if (bitmap != null) {
                 cropSource = bitmap
             } else {
-                Toast.makeText(ctx, "Bild konnte nicht gelesen werden", Toast.LENGTH_SHORT).show()
+                io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Bild konnte nicht gelesen werden", ok = false)
             }
         }
     }
@@ -351,7 +350,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     fun save(): Boolean {
         val contact = build()
         if ((contact.isOrg && contact.company.isBlank()) || (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank())) {
-            Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
+            io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Bitte einen Namen eingeben", ok = false)
             return false
         }
         // Compared with what is stored – merged-in numbers (PLAN 9 A2) count as new.

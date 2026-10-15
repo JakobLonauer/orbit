@@ -3,7 +3,6 @@ package io.github.thelony97.orbit.actions
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -38,7 +37,7 @@ object ShareContact {
             AppLock.allowExternal()
             ctx.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
         } catch (e: Exception) {
-            Toast.makeText(ctx, "Teilen nicht möglich", Toast.LENGTH_SHORT).show()
+            io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Teilen nicht möglich", ok = false)
         }
     }
 

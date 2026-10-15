@@ -23,7 +23,6 @@ import io.github.thelony97.orbit.OrbitApp
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -280,13 +279,13 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         onPauseOrDispose { }
     }
 
-    fun toast(text: String) = Toast.makeText(ctx, text, Toast.LENGTH_SHORT).show()
+    fun toast(text: String, ok: Boolean = true) = io.github.thelony97.orbit.ui.components.Undo.note(ctx, text, ok)
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         permissionTick++
         if (result.values.any { granted -> !granted }) {
             permissionDenied = true
-            toast("Nicht alles erlaubt – siehe Hinweis")
+            toast("Nicht alles erlaubt – siehe Hinweis", ok = false)
         } else {
             Sync.requestNow(ctx)
         }
@@ -319,7 +318,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
         permissionTick++
-        if (io.github.thelony97.orbit.call.PhoneRole.held(ctx)) Toast.makeText(ctx, "Orbit ist jetzt die Telefon-App", Toast.LENGTH_SHORT).show()
+        if (io.github.thelony97.orbit.call.PhoneRole.held(ctx)) io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Orbit ist jetzt die Telefon-App")
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -339,7 +338,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 // A saved file is a full backup too: the attention card must calm down.
                 OrbitRepository.editSettings { it.copy(lastBackupAt = now()) }
                 toast("Backup gespeichert")
-            }.onFailure { toast("Export fehlgeschlagen: ${it.message}") }
+            }.onFailure { toast("Export fehlgeschlagen: ${it.message}", ok = false) }
         }
     }
     // Export Excel (PLAN 3.14): Kontakte and Verlauf as one .xlsx.
@@ -351,7 +350,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     ctx.contentResolver.openOutputStream(uri)?.use { io.github.thelony97.orbit.backup.ExcelExport.write(it, snapshot) } ?: error("Datei nicht beschreibbar")
                 }
             }.onSuccess { toast("Excel gespeichert") }
-                .onFailure { toast("Export fehlgeschlagen: ${it.message}") }
+                .onFailure { toast("Export fehlgeschlagen: ${it.message}", ok = false) }
         }
     }
     fun readBackup(uri: Uri, password: CharArray?) {
@@ -364,8 +363,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             }.onFailure { e ->
                 when (e) {
                     is Backups.NeedsPassword -> passwordFor = uri
-                    is BackupCrypto.WrongPassword -> toast("Passwort falsch")
-                    else -> toast(e.message ?: "Kein gültiges Backup")
+                    is BackupCrypto.WrongPassword -> toast("Passwort falsch", ok = false)
+                    else -> toast(e.message ?: "Kein gültiges Backup", ok = false)
                 }
             }
         }
@@ -385,7 +384,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             scope.launch {
                 Backups.backupToFolder(ctx)
                     .onSuccess { toast("Backup gespeichert: $it") }
-                    .onFailure { toast("Fehlgeschlagen: ${it.message}") }
+                    .onFailure { toast("Fehlgeschlagen: ${it.message}", ok = false) }
             }
         } else {
             AppLock.allowExternal()
@@ -547,7 +546,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     SettingItem(Icons.Rounded.Block, "Gesperrte Nummern", iconTint = Space.Teal, onClick = {
                         runCatching {
                             ctx.startActivity(ctx.getSystemService(android.telecom.TelecomManager::class.java).createManageBlockedNumbersIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }.onFailure { toast("Nicht möglich") }
+                        }.onFailure { toast("Nicht möglich", ok = false) }
                     })
                 }
             }
@@ -965,7 +964,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                             encrypted = true
                             toast("Backups werden verschlüsselt")
                         }
-                        .onFailure { toast("Schlüssel konnte nicht gespeichert werden: ${it.message}") }
+                        .onFailure { toast("Schlüssel konnte nicht gespeichert werden: ${it.message}", ok = false) }
                 }
             },
             extra = if (encrypted) {
@@ -1045,8 +1044,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     val request = io.github.thelony97.orbit.call.PhoneRole.requestIntent(ctx)
                     if (request != null) runCatching { phoneRoleLauncher.launch(request) }.onFailure {
                         io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
-                        toast("Nicht möglich")
-                    } else toast("Nicht möglich")
+                        toast("Nicht möglich", ok = false)
+                    } else toast("Nicht möglich", ok = false)
                 }) { Text("Einschalten") }
             },
             dismissButton = { TextButton(onClick = { phoneDialog = false }) { Text("Abbrechen") } },

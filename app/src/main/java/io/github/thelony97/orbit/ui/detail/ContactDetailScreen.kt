@@ -19,7 +19,6 @@ import io.github.thelony97.orbit.ui.components.SpaceSearchField
 import io.github.thelony97.orbit.ui.components.entryIcon
 import android.content.Intent
 import android.provider.CalendarContract
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1302,7 +1301,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     AppLock.allowExternal()
                     ctx.startActivity(intent)
                 } catch (_: Exception) {
-                    Toast.makeText(ctx, "Keine Kalender-App gefunden – Treffen ist trotzdem gespeichert", Toast.LENGTH_LONG).show()
+                    io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App gefunden – Treffen ist trotzdem gespeichert", ok = false)
                 }
             },
         )
@@ -1377,7 +1376,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         AppLock.allowExternal()
                         ctx.startActivity(intent)
                     } catch (_: Exception) {
-                        Toast.makeText(ctx, "Keine Kalender-App gefunden", Toast.LENGTH_LONG).show()
+                        io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App gefunden", ok = false)
                     }
                 }
             },

@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.widget.Toast
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.Entry
 import io.github.thelony97.orbit.data.EntrySource
@@ -236,6 +235,6 @@ object ContactActions {
     }
 
     private fun toast(ctx: Context, text: String) {
-        Toast.makeText(ctx, text, Toast.LENGTH_SHORT).show()
+        io.github.thelony97.orbit.ui.components.Undo.note(ctx, text, ok = false)
     }
 }

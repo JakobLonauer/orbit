@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.provider.MediaStore
-import android.widget.Toast
 import androidx.core.content.FileProvider
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.security.AppLock
@@ -28,7 +27,7 @@ object PhotoActions {
     suspend fun share(ctx: Context, file: String, mime: String = "image/jpeg", name: String = "") {
         val copy = withContext(Dispatchers.IO) {
             runCatching { shareCopy(ctx, file, name.ifBlank { "Orbit-" + file.substringBeforeLast('.') + if (mime == "application/pdf") ".pdf" else ".jpg" }) }.getOrNull()
-        } ?: return Toast.makeText(ctx, "Teilen nicht möglich", Toast.LENGTH_SHORT).show()
+        } ?: return io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Teilen nicht möglich", ok = false)
         val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".share", copy)
         val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         AppLock.allowExternal()
@@ -38,11 +37,11 @@ object PhotoActions {
     /** Opens a document (PDF) in the phone's viewer. */
     suspend fun open(ctx: Context, file: String, mime: String, name: String) {
         val copy = withContext(Dispatchers.IO) { runCatching { shareCopy(ctx, file, name.ifBlank { file }) }.getOrNull() }
-            ?: return Toast.makeText(ctx, "Öffnen nicht möglich", Toast.LENGTH_SHORT).show()
+            ?: return io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Öffnen nicht möglich", ok = false)
         val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".share", copy)
         AppLock.allowExternal()
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
-            .onFailure { Toast.makeText(ctx, "Keine App zum Öffnen", Toast.LENGTH_SHORT).show() }
+            .onFailure { io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine App zum Öffnen", ok = false) }
     }
 
     /** „Ins Handy speichern“: into Pictures/Orbit (Downloads for documents); no permission needed. */

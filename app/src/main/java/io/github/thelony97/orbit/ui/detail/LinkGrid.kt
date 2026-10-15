@@ -189,7 +189,7 @@ private fun pinToHome(ctx: android.content.Context, l: Link) {
         .setIntent(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
         .build()
     if (!androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(ctx, info, null)) {
-        android.widget.Toast.makeText(ctx, "Der Startbildschirm nimmt keine Verknüpfungen an", android.widget.Toast.LENGTH_SHORT).show()
+        io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Der Startbildschirm nimmt keine Verknüpfungen an", ok = false)
     }
 }
 
