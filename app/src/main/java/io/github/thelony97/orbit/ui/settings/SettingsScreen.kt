@@ -1160,7 +1160,7 @@ private fun BackupPasswordDialog(
 
 /** The one „Was ist neu“ line (PLAN 3.13), kept with the release that brings it. */
 internal const val WHATS_NEW =
-    "Anlässe mit Jahresrad · Orbit als Telefon-App · Organisationen mit Portalen · E-Mails im Verlauf · Fotos-Seite · Ich-Karte"
+    "Orbit-Zeile · Antwortzeile mit Mitternachts-Rad · Doppelsterne · Geschenke-Board · Automatiken · Sprachnotiz · Scan · Person-Widget"
 
 /**
  * PLAN 9 B8: the filter's lists. Countries: the usual ping-call origins as chips, any other by its

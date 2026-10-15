@@ -23,9 +23,35 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-B Anruf-Autopilot (B1–B12) | **veröffentlicht** (15.10. spätabends) | – |
 | 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
-| 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | in Arbeit | Tagsitzung 15.10. nachts |
+| 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **fertig, Release folgt** | Tagsitzung 15./16.10. nachts |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 16.10.2026 nachts (Tagsitzung, Teil 3) – 3.0-D veröffentlicht, 3.0-E fertig
+
+- **3.0-D veröffentlicht als v1.0.256** (Zertifikat geprüft, Jakob informiert).
+- **3.0-E (E1–E24)** auf `dev`, CI grün, detekt sauber:
+  - E1 Orbit-Zeile: Person · Art · Zeit · +Notiz · #Gruppe als Chips (in Tipp-Reihenfolge, Tick je Chip), Enter legt Eintrag bzw. geplantes Treffen an (Rückgängig); Operatoren `#` `ist:` `hat:` `ort:`. Parser tabellengetestet (`core/domain/OrbitLine`).
+  - E2 Faden: Antwortzeile unter dem Verlauf (SMS direkt / WhatsApp / Mail / Notiz), neue Anrufe und SMS werden live nachgelesen (ContentObserver).
+  - E3 Geister aus SMS: neue Nummer, Mail, Adresse gestrichelt in der Akte (Halten = Quelle).
+  - E4 Mitternachts-Rad: Senden halten → Rad (5-Min-Raster, Magnet auf 00:00 des nächsten Anlasses); SMS geht selbst, WhatsApp als Benachrichtigung mit fertigem Text; geplante als Uhr-Chips über der Zeile (Zurückholen).
+  - E5 Doppelstern: gleiche Nummer/Mail/Name+Geburtstag; Zusammenführen mit Feldwahl, Zähler „142 + 37 → 179“, alles wandert mit, der andere in den Papierkorb, Rückgängig.
+  - E6 Textbausteine mit Platzhaltern („/“ in der Zeile), Serien-Nachricht aus der Mehrfachauswahl.
+  - E7 Geschenke-Board (Idee → gekauft → verschenkt, Preis, Budget, Ziehen zwischen den Spalten, Geschenk-Eintrag).
+  - E8 Themen-Stapel (Verlauf-Banner) und „Besprochen: …“ für im Anruf abgehakte Themen. Treffen: offen.
+  - E9 Kalender-Brücke: beendete Termine mit Teilnehmer-Mail bzw. Name im Titel als Geist „Treffen mit Anna“. Fotos aus dem Zeitfenster: offen.
+  - E10 Namens-Pins auf Gruppenfotos (Gesicht wird Profilbild, Foto auch in deren Ordner), Neue Gesichter als Lernkarten (Heute-Karte ab 3).
+  - E11 Dokument-Scan (vier Ecken, entzerrtes A4-PDF). E12 Sprachnotiz (Halten in der Antwortzeile, Wellenform). E13 @-Erwähnungen mit Rückverweis „Erwähnt“. E14 Tote Nummern nach fehlgeschlagener SMS orange (Mails: offen).
+  - E15 Smart-Gruppen („Merken“ an der Orbit-Zeile, Chips neben den Gruppen). E16 Echte Bilder (Gravatar, Webseiten-Symbol ≥ 192 px) als Geist.
+  - E17 Automatiken (Einstellungen › Automatiken, Zähler; neu: verpasst im Termin → SMS mit Rückrufzeit). E18 Person-Widget. E19 Kneifen im Verlauf (Tag → Woche → Monat → Jahr).
+  - E20 Foto/PDF aus anderer App auf eine Kontaktzeile ziehen (Kontakt auf Gruppen-Chip: offen). E21 Predictive Back über Navigation3-Standard (Schrumpfen zur Zeile: offen). E22 Handbuch (Einstellungen › Über Orbit). E23 Änderungsprotokoll 30 Tage. E24 Event-Modus.
+- **Prüfungen:** paralleles Code-Review (Funde zu Zusammenführen, Änderungsprotokoll, geplanten Nachrichten, Geschenke-Ziehen, Archiv, Drehen – alle behoben), eigene Durchsicht, Screenshots `screen_v3e_*` angesehen (Chips jetzt in Tipp-Reihenfolge).
+- **Wow-Gate 3.0-E (PLAN 1.5):**
+  - [x] 1. Momente: Chips lösen sich aus dem Text, Mitternachts-Rad mit Magnet, Verschmelzen der Planeten, Karten ziehen (Board), Lernkarten drehen, Wellenform wächst beim Sprechen.
+  - [x] 2. Berührte Screens gegen W1–W9: Kontaktliste, Akte (Antwortzeile, Erwähnt, Änderungen, Geister), Verlauf (Kneifen, Themen), Anlässe (Geschenke), Einstellungen (Automatiken, Textbausteine, Handbuch, Smart-Gruppen).
+  - [x] 3. Screenshots angesehen.
+  - [x] 4. Kein Ruckeln: Erwähnungen/Geister/Doppelsterne abseits des Hauptthreads, Änderungsprotokoll im Speicher-Thread.
+  - [x] 5. Feinschliff (Review-Runde, detekt).
 
 ### 15.10.2026 nachts (Tagsitzung, Teil 2) – 3.0-C veröffentlicht, 3.0-D fertig
 

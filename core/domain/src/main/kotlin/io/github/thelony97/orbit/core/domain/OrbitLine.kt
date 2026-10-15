@@ -104,7 +104,9 @@ object OrbitLine {
         if (note.isNotBlank()) chips += Chip(Kind.NOTE, note)
         val rest = toks.filterNot { it.used }.joinToString(" ") { it.raw }
         val fullNote = listOfNotNull(typeWord, rest.ifBlank { null }, note.ifBlank { null }).joinToString(" · ")
-        return Line(person, typeId, at, fullNote, filters, plain.trim(), chips, plusNote = note.isNotBlank())
+        // The chips in the order they were typed („Anna · Kaffee · morgen 15 Uhr“).
+        val ordered = chips.sortedBy { ch -> text.indexOf(ch.text.substringBefore(' ')).let { if (it < 0) Int.MAX_VALUE else it } }
+        return Line(person, typeId, at, fullNote, filters, plain.trim(), ordered, plusNote = note.isNotBlank())
     }
 
     private fun filtersOf(toks: List<Tok>, chips: MutableList<Chip>): Filters {
