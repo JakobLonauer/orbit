@@ -22,6 +22,17 @@ class ScreeningTest {
         assertNull(Screening.rule(rules.copy(night = false), "+43732555123", NumberInfo.of("0732 555123", "AT"), known = false, hour = 23))
     }
 
+    @Test fun seriesTypedNationally() {
+        // „0720“ typed in Austria matches +43 720 …; the rules keep what Jakob typed.
+        val typed = Screening.Rules(night = false, premium = false, series = listOf("0720", "0044 7"))
+        assertEquals(Screening.SERIES, Screening.rule(typed, "+43720123456", null, known = false, hour = 12, home = "AT"))
+        assertEquals(Screening.SERIES, Screening.rule(typed, "+447700900123", null, known = false, hour = 12, home = "AT"))
+        assertNull(Screening.rule(typed, "+43732555123", null, known = false, hour = 12, home = "AT"))
+        assertEquals("+43720", Screening.prefix("0720", "at"))
+        assertEquals("+447", Screening.prefix("+44 7", "AT"))
+        assertNull(Screening.prefix("07", "AT"))
+    }
+
     @Test fun typedListsAreCleaned() {
         assertEquals(listOf("NG", "CI", "SN"), Screening.countriesOf("ng, CI ; sn, nigeria, NG"))
         assertEquals(listOf("0900", "+43 720"), Screening.seriesOf("0900, +43 720; 08, 0900"))

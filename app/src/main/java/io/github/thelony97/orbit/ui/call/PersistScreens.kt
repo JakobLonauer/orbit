@@ -281,9 +281,10 @@ fun PersistPause(p: PersistUi, onNow: () -> Unit, onStop: () -> Unit, modifier: 
 @Composable
 fun BusyOffer(name: String, onPersist: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = rememberHaptics()
+    val close by androidx.compose.runtime.rememberUpdatedState(onClose)
     LaunchedEffect(Unit) {
         delay(BUSY_OFFER_MS)
-        onClose()
+        close()
     }
     SpaceBackground(modifier) {
         Column(

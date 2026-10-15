@@ -576,9 +576,10 @@ private fun SimEdge(sim: SimTag) {
                 // A soft glow inside, then the sharp line.
                 drawRoundRect(color.copy(alpha = 0.22f), cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(10.dp.toPx()))
                 drawRoundRect(color, cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
-            },
-    )
-    Box(Modifier.fillMaxWidth().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
+            }
+            .statusBarsPadding(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
         Text(
             sim.label,
             style = MaterialTheme.typography.labelMedium,
@@ -606,20 +607,32 @@ private fun QueueOverlay(since: Long, name: String, onExit: () -> Unit, onEar: (
         val before = window?.attributes?.screenBrightness
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window?.attributes = window?.attributes?.apply { screenBrightness = 0.02f }
-        val sensors = ctx.getSystemService(android.hardware.SensorManager::class.java)
-        val proximity = sensors?.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY)
-        val listener = object : android.hardware.SensorEventListener {
-            override fun onSensorChanged(event: android.hardware.SensorEvent) {
-                if (event.values.firstOrNull()?.let { it < (proximity?.maximumRange ?: 1f) } == true) ear()
-            }
-            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) = Unit
-        }
-        if (proximity != null) sensors.registerListener(listener, proximity, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
         onDispose {
-            sensors?.unregisterListener(listener)
             window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             window?.attributes = window?.attributes?.apply { screenBrightness = before ?: android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
         }
+    }
+    // „Ans Ohr“ only while the screen is in front and the phone stands upright – face down on the
+    // table or in a pocket is not an ear.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        val sensors = ctx.getSystemService(android.hardware.SensorManager::class.java)
+        val proximity = sensors?.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY)
+        val gravity = sensors?.getDefaultSensor(android.hardware.Sensor.TYPE_GRAVITY)
+        var upright = false
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                when (event.sensor.type) {
+                    android.hardware.Sensor.TYPE_GRAVITY -> upright = event.values[1] > 5f
+                    else -> if (upright && event.values[0] < event.sensor.maximumRange) ear()
+                }
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) = Unit
+        }
+        if (sensors != null && proximity != null && gravity != null) {
+            sensors.registerListener(listener, gravity, android.hardware.SensorManager.SENSOR_DELAY_UI)
+            sensors.registerListener(listener, proximity, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        }
+        onPauseOrDispose { sensors?.unregisterListener(listener) }
     }
     var now by remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(since) {

@@ -132,8 +132,16 @@ internal fun MacroEditSheet(org: Contact, data: OrbitData, macro: Macro, onDismi
     }
 
     fun save(newSteps: List<MacroStep>?) {
+        val title = name.text.toString().trim()
         OrbitRepository.editContact(org.id) { c ->
-            c.copy(macros = if (newSteps == null) c.macros.filter { it.id != macro.id } else c.macros.map { if (it.id == macro.id) it.copy(name = name.text.toString().trim(), steps = newSteps) else it })
+            val kept = if (newSteps == null) c.macros.filter { it.id != macro.id } else c.macros.map { if (it.id == macro.id) it.copy(name = title, steps = newSteps) else it }
+            c.copy(macros = kept)
+        }
+        // Deleting is taken back with Rückgängig (PLAN 1.2), not asked first.
+        if (newSteps == null) {
+            io.github.thelony97.orbit.ui.components.Undo.offer("Makro gelöscht") {
+                OrbitRepository.editContact(org.id) { c -> if (c.macros.any { it.id == macro.id }) c else c.copy(macros = c.macros + macro) }
+            }
         }
         haptics.perform(Haptic.Confirm)
         onDismiss()

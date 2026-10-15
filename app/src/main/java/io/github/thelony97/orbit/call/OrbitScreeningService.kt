@@ -19,28 +19,42 @@ import java.io.File
  */
 class OrbitScreeningService : CallScreeningService() {
 
+    /** Off the main thread; any error lets the call ring as usual. */
     override fun onScreenCall(details: Call.Details) {
-        val allow = CallResponse.Builder().build()
-        val response = runCatching {
-            if (details.callDirection != Call.Details.DIRECTION_INCOMING) return@runCatching allow
-            val number = details.handle?.schemeSpecificPart.orEmpty()
-            val iso = Phones.countryIso(this)
-            val index = CallerIndexFile.read(this)
-            val rules = index?.screening ?: return@runCatching allow
-            val normalize: (String) -> String? = { Phones.normalize(it, iso) }
-            val known = number.isNotBlank() && index.lookup(number, normalize) != null
-            val info = if (number.isBlank()) null else NumberInfo.of(number, iso)
-            val hour = java.time.LocalTime.now().hour
-            val rule = Screening.rule(rules, info?.e164 ?: normalize(number), info, known, hour) ?: return@runCatching allow
-            Silenced.add(this, number.ifBlank { "Unterdrückt" }, rule)
-            CallResponse.Builder()
-                .setDisallowCall(false)
-                .setSilenceCall(true)
-                .setSkipCallLog(false)
-                .setSkipNotification(false)
-                .build()
-        }.getOrDefault(allow)
-        runCatching { respondToCall(details, response) }
+        val app = applicationContext
+        Thread {
+            val allow = CallResponse.Builder().build()
+            var silenced: Pair<String, String>? = null
+            val response = runCatching {
+                if (details.callDirection != Call.Details.DIRECTION_INCOMING) return@runCatching allow
+                val number = details.handle?.schemeSpecificPart.orEmpty()
+                val rule = ruleFor(app, number) ?: return@runCatching allow
+                silenced = number.ifBlank { "Unterdrückt" } to rule
+                CallResponse.Builder()
+                    .setDisallowCall(false)
+                    .setSilenceCall(true)
+                    .setSkipCallLog(false)
+                    .setSkipNotification(false)
+                    .build()
+            }.getOrDefault(allow)
+            runCatching { respondToCall(details, response) }
+            // The trace after the answer – the phone does not wait for the file.
+            silenced?.let { (n, r) -> runCatching { Silenced.add(app, n, r) } }
+        }.start()
+    }
+
+    private fun ruleFor(ctx: Context, number: String): String? {
+        val iso = Phones.countryIso(ctx)
+        val index = CallerIndexFile.read(ctx)
+        val rules = index?.screening ?: return null
+        val normalize: (String) -> String? = { Phones.normalize(it, iso) }
+        val known = number.isNotBlank() && index.lookup(number, normalize) != null
+        val info = if (number.isBlank()) null else NumberInfo.of(number, iso)
+        val hour = java.time.LocalTime.now().hour
+        val rule = Screening.rule(rules, info?.e164 ?: normalize(number), info, known, hour, iso) ?: return null
+        // Remembered for a moment: the call screen does not light up for a silenced call.
+        Silenced.mark(number)
+        return rule
     }
 }
 
@@ -61,5 +75,17 @@ object Silenced {
     fun add(ctx: Context, number: String, rule: String) {
         val rows = (all(ctx) + Row(number, System.currentTimeMillis(), rule)).takeLast(300)
         runCatching { file(ctx).writeText(json.encodeToString(serializer, rows)) }
+    }
+
+    @Volatile private var last: Pair<String, Long>? = null
+
+    /** The filter just silenced [number] (same process, a few seconds). */
+    fun mark(number: String) {
+        last = number to System.currentTimeMillis()
+    }
+
+    fun justNow(number: String): Boolean {
+        val l = last ?: return false
+        return l.first == number && System.currentTimeMillis() - l.second < 10_000L
     }
 }

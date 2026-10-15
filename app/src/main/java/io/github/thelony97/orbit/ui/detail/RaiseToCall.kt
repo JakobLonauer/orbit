@@ -58,10 +58,12 @@ internal fun RaiseToCall(enabled: Boolean, onRaise: () -> Unit) {
                             pending?.cancel()
                             fired = false
                         } else if (!fired && upright && now - liftAt <= LIFT_WINDOW_MS) {
+                            if (pending?.isActive == true) return
                             pending = scope.launch {
                                 delay(SETTLE_MS)
                                 fired = true
-                                raise()
+                                // Never a second call over a running one (a hotline on speaker).
+                                if (!inCall(ctx)) raise()
                             }
                         }
                     }
@@ -79,3 +81,9 @@ internal fun RaiseToCall(enabled: Boolean, onRaise: () -> Unit) {
         }
     }
 }
+
+/** A call is running (Orbit's own or the phone's). */
+@android.annotation.SuppressLint("MissingPermission")
+private fun inCall(ctx: android.content.Context): Boolean =
+    io.github.thelony97.orbit.call.CallSession.calls.value.isNotEmpty() ||
+        runCatching { ctx.getSystemService(android.telecom.TelecomManager::class.java)?.isInCall == true }.getOrDefault(true)

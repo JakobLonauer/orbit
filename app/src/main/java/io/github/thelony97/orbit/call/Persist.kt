@@ -15,7 +15,6 @@ import android.telecom.TelecomManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.thelony97.orbit.R
-import io.github.thelony97.orbit.core.domain.Herold
 import io.github.thelony97.orbit.core.domain.Redial
 import io.github.thelony97.orbit.data.OrbitRepository
 import io.github.thelony97.orbit.data.newId
@@ -45,8 +44,11 @@ object Persist {
     const val CH_ALARM = "persist-alarm"
     const val CH_LIVE = "persist-live"
     private const val ID_LIVE = 1008
-    private const val ID_ALARM = 1009
     private const val ID_GAVE_UP = 1010
+    /** One alarm notification per plan (two plans at 7:30 must not replace each other). */
+    private const val ID_ALARM_BASE = 11_000
+    /** A placed try that Telecom never hands over is given up after this long. */
+    private const val DIAL_TIMEOUT_MS = 20_000L
     private const val TEAL = 0xFF5EE6CF.toInt()
 
     /** A call Jakob wants to make at [at]. */
@@ -94,6 +96,18 @@ object Persist {
     /** The try being placed now (identity: Telecom hands over the same object). */
     private var current: Call? = null
     private var timer: Job? = null
+    private var watchdog: Job? = null
+
+    private fun alarmId(plan: Plan) = ID_ALARM_BASE + (plan.id.hashCode() and 0x0FFF)
+
+    /** Same number, loosely: the last digits (up to eight) agree; short numbers in full. */
+    internal fun sameDigits(a: String, b: String): Boolean {
+        val x = a.filter(Char::isDigit)
+        val y = b.filter(Char::isDigit)
+        if (x.length < 3 || y.length < 3) return false
+        val n = minOf(8, x.length, y.length)
+        return x.takeLast(n) == y.takeLast(n)
+    }
 
     // ---------------------------------------------------------------- planned calls
 
@@ -115,6 +129,7 @@ object Persist {
     fun decode(text: String?): Plan? = text?.let { runCatching { json.decodeFromString(Plan.serializer(), it) }.getOrNull() }
 
     /** Reads the plans and sets their alarms again (app start, boot, time change). */
+    @Synchronized
     fun restore(ctx: Context) {
         val now = System.currentTimeMillis()
         // Missed by more than an hour (phone off): gone, nothing rings late.
@@ -124,16 +139,19 @@ object Persist {
     }
 
     /** „um 7:30 anrufen“: kept on the phone, an exact alarm at [at]. */
+    @Synchronized
     fun plan(ctx: Context, number: String, name: String, contactId: String?, at: Long): Plan {
         val plan = Plan(newId(), number, name, contactId, at)
         // One plan per contact and number: a new time replaces the old one.
-        val old = read(ctx).filter { it.number == number && it.contactId == contactId }
+        val all = read(ctx)
+        val old = all.filter { it.number == number && it.contactId == contactId }
         old.forEach { disarm(ctx, it) }
-        write(ctx, read(ctx) - old.toSet() + plan)
+        write(ctx, all - old.toSet() + plan)
         arm(ctx, plan)
         return plan
     }
 
+    @Synchronized
     fun cancel(ctx: Context, id: String) {
         val plans = read(ctx)
         plans.filter { it.id == id }.forEach { disarm(ctx, it) }
@@ -166,19 +184,20 @@ object Persist {
 
     /** The alarm went off: the plan leaves the list, the card comes up. */
     fun due(ctx: Context, id: String) {
-        val plans = read(ctx)
-        val plan = plans.firstOrNull { it.id == id } ?: return
-        write(ctx, plans.filter { it.id != id })
+        val plan = synchronized(this) {
+            val plans = read(ctx)
+            plans.firstOrNull { it.id == id }?.also { write(ctx, plans.filter { p -> p.id != id }) }
+        } ?: return
         alarm(ctx, plan)
     }
 
     /** „10 Min später“ on the card. */
     fun snooze(ctx: Context, plan: Plan, minutes: Int) {
-        dismissAlarm(ctx)
+        dismissAlarm(ctx, plan)
         plan(ctx, plan.number, plan.name, plan.contactId, System.currentTimeMillis() + minutes * 60_000L)
     }
 
-    fun dismissAlarm(ctx: Context) = NotificationManagerCompat.from(ctx).cancel(ID_ALARM)
+    fun dismissAlarm(ctx: Context, plan: Plan) = NotificationManagerCompat.from(ctx).cancel(alarmId(plan))
 
     // ---------------------------------------------------------------- notifications
 
@@ -218,9 +237,10 @@ object Persist {
     }
 
     private fun alarm(ctx: Context, plan: Plan) {
-        val open = PendingIntent.getActivity(ctx, ID_ALARM, PersistActivity.intent(ctx, plan), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val id = alarmId(plan)
+        val open = PendingIntent.getActivity(ctx, id, PersistActivity.intent(ctx, plan), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val call = PendingIntent.getActivity(
-            ctx, ID_ALARM + 1, PersistActivity.intent(ctx, plan).setAction(PersistActivity.ACTION_CALL),
+            ctx, id + 0x1000, PersistActivity.intent(ctx, plan).setAction(PersistActivity.ACTION_CALL),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val builder = NotificationCompat.Builder(ctx, CH_ALARM)
@@ -233,10 +253,10 @@ object Persist {
             .setContentIntent(open)
             .setFullScreenIntent(open, true)
             .addAction(0, "Anrufen", call)
-            .addAction(0, "Abbrechen", PersistReceiver.pending(ctx, PersistReceiver.ACTION_DISMISS))
+            .addAction(0, "Abbrechen", PersistReceiver.dismiss(ctx, plan, id))
             .setAutoCancel(true)
             .setTimeoutAfter(30 * 60_000L)
-        post(ctx, ID_ALARM, builder)
+        post(ctx, id, builder)
     }
 
     /** „Versuch 7 · 07:31“ as a live chip; in the pause the 15 s count down. */
@@ -276,11 +296,15 @@ object Persist {
     /** „Anrufen“ on the card (or „Dranbleiben“ after busy): the first try. */
     fun start(ctx: Context, plan: Plan) {
         val app = ctx.applicationContext
-        dismissAlarm(app)
+        dismissAlarm(app, plan)
         _offer.value = null
         if (!PhoneRole.held(app)) {
-            // Without the phone role Orbit cannot see the line: one ordinary call.
-            io.github.thelony97.orbit.actions.ContactActions.callNumber(ctx, plan.number)
+            // Without the phone role Orbit cannot see the line: one ordinary call – with the
+            // contact's own rules (SIM, „Nummer unterdrücken“).
+            val doc = OrbitRepository.data.value
+            val contact = plan.contactId?.let { id -> doc?.contacts?.firstOrNull { it.id == id } }
+            if (contact != null && doc != null) io.github.thelony97.orbit.actions.ContactActions.call(ctx, contact, plan.number, doc.settings)
+            else io.github.thelony97.orbit.actions.ContactActions.callNumber(ctx, plan.number)
             return
         }
         timer?.cancel()
@@ -304,6 +328,8 @@ object Persist {
     fun stop(ctx: Context) {
         timer?.cancel()
         timer = null
+        watchdog?.cancel()
+        watchdog = null
         current = null
         _run.value = null
         live(ctx.applicationContext)
@@ -327,6 +353,12 @@ object Persist {
         _run.value = r.copy(tries = r.tries + 1, phase = Phase.DIALING, nextAt = 0L)
         current = null
         live(ctx)
+        // Telecom hands the try over within moments; if it never does, the run ends.
+        watchdog?.cancel()
+        watchdog = scope.launch {
+            delay(DIAL_TIMEOUT_MS)
+            if (_run.value?.phase == Phase.DIALING && current == null) stop(ctx)
+        }
         val placed = runCatching {
             check(ctx.checkSelfPermission(android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED)
             val extras = Bundle()
@@ -342,16 +374,25 @@ object Persist {
         if (!placed) stop(ctx)
     }
 
-    /** Telecom handed over a call: ours when it is the outgoing try to the planned number. */
-    fun onCallAdded(call: Call) {
+    /**
+     * Telecom handed over a call. While a try is being placed the first outgoing call is it (the
+     * number can come back in another form); the planned number calling in ends the run – they
+     * called back.
+     */
+    fun onCallAdded(ctx: Context, call: Call) {
         val r = _run.value
         if (r == null) {
             _offer.value = null
             return
         }
-        if (r.phase != Phase.DIALING || current != null) return
         val outgoing = runCatching { call.details.callDirection == Call.Details.DIRECTION_OUTGOING }.getOrDefault(false)
-        if (outgoing && Herold.sameNumber(r.plan.number, CallSession.numberOf(call))) current = call
+        when {
+            !outgoing && sameDigits(r.plan.number, CallSession.numberOf(call)) -> stop(ctx)
+            outgoing && r.phase == Phase.DIALING && current == null -> {
+                current = call
+                watchdog?.cancel()
+            }
+        }
     }
 
     /** Someone answered: the phone tells Jakob, the call screen comes to the front. */
@@ -448,11 +489,20 @@ class PersistReceiver : BroadcastReceiver() {
         const val ACTION_STOP = "io.github.thelony97.orbit.PERSIST_STOP"
         const val ACTION_DISMISS = "io.github.thelony97.orbit.PERSIST_DISMISS"
         const val EXTRA_ID = "id"
+        private const val EXTRA_PLAN = "plan"
 
         fun pending(ctx: Context, action: String): PendingIntent = PendingIntent.getBroadcast(
             ctx,
             action.hashCode(),
             Intent(ctx, PersistReceiver::class.java).setAction(action),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+        /** „Abbrechen“ on one plan's alarm. */
+        fun dismiss(ctx: Context, plan: Persist.Plan, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(
+            ctx,
+            requestCode,
+            Intent(ctx, PersistReceiver::class.java).setAction(ACTION_DISMISS).putExtra(EXTRA_PLAN, Persist.encode(plan)),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
@@ -461,7 +511,7 @@ class PersistReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_DUE -> intent.getStringExtra(EXTRA_ID)?.let { Persist.due(context, it) }
             ACTION_STOP -> Persist.stop(context)
-            ACTION_DISMISS -> Persist.dismissAlarm(context)
+            ACTION_DISMISS -> Persist.decode(intent.getStringExtra(EXTRA_PLAN))?.let { Persist.dismissAlarm(context, it) }
         }
     }
 }

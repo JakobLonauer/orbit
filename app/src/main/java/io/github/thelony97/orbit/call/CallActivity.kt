@@ -344,7 +344,8 @@ private fun CallRoute(onDone: () -> Unit) {
             },
             playing = macroState?.let { playingUi(it) },
             dictation = dictationOf(doc, cards[number]),
-            queueSince = queue,
+            // The queue belongs to its call; another call answered meanwhile is not in it.
+            queueSince = queue?.takeIf { call === CallSession.queueCall },
             sim = simTag,
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }

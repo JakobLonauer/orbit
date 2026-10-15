@@ -85,7 +85,13 @@ internal fun sourceLine(card: CallbackStack.Card, now: Long = System.currentTime
 
 /** Marks a card done (swiped left) – with Rückgängig (PLAN 1.2). */
 internal fun markDone(card: CallbackStack.Card) {
-    OrbitRepository.editSettings { it.copy(dismissedGhosts = (it.dismissedGhosts + card.key).distinct().takeLast(400)) }
+    // Callback keys only live as long as the stack looks back – they never push out a ghost
+    // Jakob dismissed for good (the list is capped).
+    val since = System.currentTimeMillis() - (CallbackStack.DAYS + 1) * 86_400_000L
+    OrbitRepository.editSettings { s ->
+        val kept = s.dismissedGhosts.filterNot { k -> k.startsWith("cb:") && (k.substringAfterLast(':').toLongOrNull() ?: 0L) < since }
+        s.copy(dismissedGhosts = (kept + card.key).distinct().takeLast(400))
+    }
     Undo.offer("Erledigt") {
         OrbitRepository.editSettings { it.copy(dismissedGhosts = it.dismissedGhosts - card.key) }
     }

@@ -41,7 +41,8 @@ class CallerNotificationTest {
         val big = n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
         assertTrue(big.contains("Geheime Notiz") && big.contains("Wohnung") && big.contains("KD-1"))
         assertFalse(pub.extras.toString().contains("Geheime"))
-        assertEquals(listOf("In 15 Min erinnern", "In 1 Std erinnern"), n.actions.map { it.title.toString() })
+        // PLAN 9 B7: a customer number to read out comes first (at most three buttons).
+        assertEquals(listOf("Diktieren", "In 15 Min erinnern", "In 1 Std erinnern"), n.actions.map { it.title.toString() })
     }
 
     @Test fun callbackReminderHasCallButton() {

@@ -37,12 +37,14 @@ class OrbitInCallService : InCallService() {
             CallNotification.update(this@OrbitInCallService)
             // PLAN 9 B5 Dranbleiben: through – vibration, the call screen in front.
             if (state == Call.STATE_ACTIVE) Persist.onActive(this@OrbitInCallService, call)
-            // PLAN 9 B4 „Makro wählen“: answered – the hotline gets a moment, then the keys.
+            // PLAN 9 B4 „Makro wählen“: Jakob's own call answered – the hotline gets a moment, then the keys.
             val p = MacroPlayer.pending
-            if (state == Call.STATE_ACTIVE && p != null && io.github.thelony97.orbit.core.domain.Herold.sameNumber(p.number, CallSession.numberOf(call))) {
+            if (state == Call.STATE_ACTIVE && p != null && MacroPlayer.matches(p, call)) {
                 MacroPlayer.pending = null
                 MacroPlayer.start(p.macro, p.org, p.me, delayFirst = 1_500)
             }
+            // PLAN 9 B6: the queue belongs to its call – held, it ends.
+            if (state == Call.STATE_HOLDING && call === CallSession.queueCall) CallSession.leaveQueue(ear = false)
         }
 
         override fun onDetailsChanged(call: Call, details: Call.Details) = safe { CallSession.changed() }
@@ -72,7 +74,8 @@ class OrbitInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) = safe {
         call.registerCallback(callback)
-        Persist.onCallAdded(call)
+        // Never in the way of the call itself: whatever Dranbleiben thinks, the call is added.
+        runCatching { Persist.onCallAdded(this, call) }
         CallSession.add(call)
         lookup(call)
         // PLAN 9 B12: motion gestures while a call exists, if Jakob switched them on.
@@ -86,7 +89,7 @@ class OrbitInCallService : InCallService() {
         // A call Do Not Disturb silenced stays silent – the screen does not light up for it.
         val silenced = runCatching {
             call.details.extras?.getBoolean("android.telecom.extra.IS_SUPPRESSED_BY_DO_NOT_DISTURB", false) == true
-        }.getOrDefault(false)
+        }.getOrDefault(false) || Silenced.justNow(CallSession.numberOf(call))
         if (!silenced && (CallSession.stateOf(call) != Call.STATE_RINGING || !CallNotification.headsUpCertain(this))) {
             startActivity(CallActivity.intent(this))
         }
@@ -97,7 +100,11 @@ class OrbitInCallService : InCallService() {
         // PLAN 9 B5: a try that leads to the next one has no after-call screen.
         val retry = runCatching { Persist.onRemoved(this, call) }.getOrDefault(false)
         CallSession.remove(call, CallSession.cards.value[CallSession.numberOf(call)], quiet = retry)
-        if (CallSession.calls.value.isEmpty()) CallGestures.stop()
+        if (CallSession.calls.value.isEmpty()) {
+            CallGestures.stop()
+            // A „Makro wählen“ that never got through is forgotten (no keys into a later call).
+            MacroPlayer.pending = null
+        }
         CallNotification.update(this)
     }
 
@@ -238,7 +245,7 @@ object CallNotification {
             NotificationCompat.CallStyle.forOngoingCall(person, CallActionReceiver.pending(ctx, CallActionReceiver.HANG_UP))
         }
         // PLAN 9 B6: in a hotline's queue the chip counts the waiting time.
-        val queueSince = CallSession.queue.value?.takeIf { state == Call.STATE_ACTIVE }
+        val queueSince = CallSession.queue.value?.takeIf { state == Call.STATE_ACTIVE && call === CallSession.queueCall }
         val line = when {
             state == Call.STATE_RINGING -> card?.role ?: listOfNotNull(unknown?.hit?.category, unknown?.info?.line).filter { it.isNotBlank() }.joinToString(" · ")
             state == Call.STATE_HOLDING -> "Gehalten"

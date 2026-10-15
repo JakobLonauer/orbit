@@ -19,6 +19,12 @@ class DialRulesTest {
         assertEquals("112", DialRules.dial("112", "at", "de"))
     }
 
+    @Test fun shortNumbersAndMacroTailsStay() {
+        assertEquals("112", DialRules.dial("112", "at", "at", hide = true))
+        assertEquals("1450", DialRules.dial("1450", "at", "de", hide = true))
+        assertEquals("+43732555123,,1;", DialRules.dial("0732 555123,,1;", "at", "de"))
+    }
+
     @Test fun hiddenNumberGoesOutWith31() {
         assertEquals("#31#0664 1234567", DialRules.dial("0664 1234567", "at", "at", hide = true))
         assertEquals("#31#+436641234567", DialRules.dial("0664 1234567", "at", "de", hide = true))

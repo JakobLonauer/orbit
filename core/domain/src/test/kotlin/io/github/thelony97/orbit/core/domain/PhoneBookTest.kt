@@ -78,6 +78,21 @@ class PhoneBookTest {
         assertEquals(20, a.hash.length)
     }
 
+    @Test fun macrosOnlyForOrganisationsAndHashStaysWithout() {
+        val org = Contact(
+            "o", kind = ContactKind.ORG, company = "Raiffeisen",
+            macros = listOf(io.github.thelony97.orbit.core.model.Macro("m1", "Kundenservice", listOf(io.github.thelony97.orbit.core.model.MacroStep(io.github.thelony97.orbit.core.model.MacroStepKind.KEY, "1")))),
+        )
+        val withMacro = PhoneBook.card(org, emptyList())
+        assertEquals(listOf(PhoneBook.MacroRow("m1", "Kundenservice")), withMacro.macros)
+        assertNotEquals(withMacro.hash, PhoneBook.card(org.copy(macros = emptyList()), emptyList()).hash)
+        // A card without macros hashes the text it had before macros existed (no rewrite of every row).
+        val plain = PhoneBook.card(anna, groups)
+        val before = java.security.MessageDigest.getInstance("SHA-256").digest(plain.toString().replace(", macros=[])", ")").toByteArray())
+            .take(10).joinToString("") { "%02x".format(it) }
+        assertEquals(before, plain.hash)
+    }
+
     @Test fun planInsertsRewritesAndDeletes() {
         val a = PhoneBook.card(anna, groups)
         val b = PhoneBook.card(anna.copy(id = "b", firstName = "Bea"), groups)

@@ -138,12 +138,14 @@ object CallSession {
         _calls.value = _calls.value - call
         // The after-call screen only when the call screen is in front; otherwise the after-call
         // notification takes over (never a stale „Beendet“ screen for a later call).
-        if (_calls.value.isEmpty() && connectedAt > 0 && screenVisible && !quiet) {
+        val shown = screenVisible && !quiet
+        if (_calls.value.isEmpty() && connectedAt > 0 && shown) {
             keepDraft()
             ended.value = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis(), synchronized(typed) { typed.toList() })
         }
-        if (_calls.value.isEmpty()) {
-            MacroPlayer.stop()
+        if (_calls.value.isEmpty()) MacroPlayer.stop()
+        if (call === queueCall || _calls.value.isEmpty()) {
+            queueCall = null
             queue.value = null
         }
         changed()
@@ -223,7 +225,7 @@ object CallSession {
     init {
         toneScope.launch {
             for (d in tones) {
-                val c = primary() ?: continue
+                val c = talking() ?: continue
                 runCatching { c.playDtmfTone(d) }
                 delay(TONE_MS)
                 runCatching { c.stopDtmfTone() }
@@ -236,8 +238,11 @@ object CallSession {
     private val typed = ArrayList<Macros.Key>()
 
     /** A key Jakob typed: played in full and recorded for „Als Makro speichern“. */
+    /** The call that is talking (keys go there, not to a call waiting to be answered). */
+    private fun talking(): Call? = topLevel().firstOrNull { stateOf(it) == Call.STATE_ACTIVE }
+
     fun dtmf(digit: Char) {
-        val c = primary()
+        val c = talking()
         val connected = c?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: 0L
         if (connected > 0) synchronized(typed) { typed += Macros.Key(digit, System.currentTimeMillis() - connected) }
         tones.trySend(digit)
@@ -332,8 +337,12 @@ object CallSession {
     /** Since when Jakob waits in a hotline's queue (speaker on, screen dark); null = talking. */
     val queue = MutableStateFlow<Long?>(null)
 
+    /** The call the queue belongs to: another call (answered while waiting) is not in it. */
+    @Volatile var queueCall: Call? = null
+
     fun enterQueue() {
-        if (primary() == null) return
+        val c = primary() ?: return
+        queueCall = c
         queue.value = System.currentTimeMillis()
         routeTo(android.telecom.CallEndpoint.TYPE_SPEAKER)
         changed()
@@ -343,6 +352,7 @@ object CallSession {
     /** [ear]: lifted to the ear – the sound goes back to the handset. */
     fun leaveQueue(ear: Boolean) {
         if (queue.value == null) return
+        queueCall = null
         queue.value = null
         if (ear) routeTo(android.telecom.CallEndpoint.TYPE_EARPIECE)
         changed()

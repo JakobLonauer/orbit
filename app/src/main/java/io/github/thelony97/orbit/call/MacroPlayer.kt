@@ -87,7 +87,16 @@ object MacroPlayer {
      * PLAN 9 B4 from the contact page: the call is placed, the macro starts once it is answered.
      * Held until the call to [number] is active.
      */
-    data class Pending(val number: String, val macro: Macro, val org: Contact?, val me: Contact?)
+    data class Pending(val number: String, val macro: Macro, val org: Contact?, val me: Contact?, val at: Long = System.currentTimeMillis())
 
     @Volatile var pending: Pending? = null
+
+    /** The pending macro belongs to [call]: Jakob's own outgoing call to that number, placed just now. */
+    fun matches(p: Pending, call: android.telecom.Call): Boolean {
+        val outgoing = runCatching { call.details.callDirection == android.telecom.Call.Details.DIRECTION_OUTGOING }.getOrDefault(false)
+        val fresh = System.currentTimeMillis() - p.at < PENDING_MS
+        return outgoing && fresh && Persist.sameDigits(p.number, CallSession.numberOf(call))
+    }
+
+    private const val PENDING_MS = 3 * 60_000L
 }

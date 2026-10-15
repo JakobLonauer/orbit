@@ -64,9 +64,13 @@ object PhoneBook {
         /** PLAN 9 A3: an organisation's macros, one „Makro wählen“ row each. */
         val macros: List<MacroRow> = emptyList(),
     ) {
-        /** Changes whenever anything Orbit writes changes; stored with the row (SYNC1). */
+        /**
+         * Changes whenever anything Orbit writes changes; stored with the row (SYNC1). Without
+         * macros the text is the one from before they existed – no rewrite of every row.
+         */
         val hash: String by lazy {
-            MessageDigest.getInstance("SHA-256").digest(toString().toByteArray())
+            val text = toString().let { if (macros.isEmpty()) it.replace(", macros=[])", ")") else it }
+            MessageDigest.getInstance("SHA-256").digest(text.toByteArray())
                 .take(10).joinToString("") { "%02x".format(it) }
         }
     }

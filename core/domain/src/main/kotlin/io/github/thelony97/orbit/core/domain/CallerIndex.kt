@@ -146,18 +146,16 @@ data class CallerIndex(
             }
             prefixes.sortByDescending { it.prefix.length }
             val s = doc.settings
-            val rules = if (s.screening) {
-                Screening.Rules(
-                    night = s.screenNight,
-                    premium = s.screenPremium,
-                    countries = s.screenCountries.map { it.trim().uppercase() }.filter { it.length == 2 },
-                    series = s.screenSeries.mapNotNull { p -> p.takeIf { it.count(Char::isDigit) >= 3 }?.let { normalize(it.trim() + "0000")?.takeIf { n -> n.endsWith("0000") }?.dropLast(4) } },
-                )
-            } else {
-                null
-            }
-            return CallerIndex(s.callerInfo, exact, members, prefixes, rules, s.motionGestures)
+            return CallerIndex(s.callerInfo, exact, members, prefixes, rulesOf(s), s.motionGestures)
         }
+
+        /** PLAN 9 B8: the filter's rules while it is on; series kept as typed (see Screening.prefix). */
+        private fun rulesOf(s: io.github.thelony97.orbit.core.model.Settings): Screening.Rules? = if (!s.screening) null else Screening.Rules(
+            night = s.screenNight,
+            premium = s.screenPremium,
+            countries = s.screenCountries.map { it.trim().uppercase() }.filter { it.length == 2 },
+            series = s.screenSeries.map { it.trim() }.filter { p -> p.count(Char::isDigit) >= 3 },
+        )
 
         private val PARTNER_KINDS = setOf("partner", "spouse")
 

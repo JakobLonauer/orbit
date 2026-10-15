@@ -50,7 +50,8 @@ class DialerActivity : ComponentActivity() {
                 Dialpad(
                     data = doc,
                     idx = idx,
-                    onCall = { number -> place(Uri.fromParts("tel", io.github.thelony97.orbit.domain.Phones.dial(this, number), null)) },
+                    // Typed numbers go out as typed (abroad „06 …“ may be a local number there).
+                    onCall = { number -> place(Uri.fromParts("tel", number, null)) },
                     onClose = { finish() },
                     initial = initial,
                     onVoicemail = { place(Uri.fromParts("voicemail", "", null)) },

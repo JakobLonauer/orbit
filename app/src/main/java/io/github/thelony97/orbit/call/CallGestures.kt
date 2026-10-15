@@ -28,6 +28,8 @@ object CallGestures : SensorEventListener {
     private var leftEarAt = 0L
     private var downSince = 0L
     private var flatSince = 0L
+    /** Last moment the phone moved (linear acceleration above [STILL]). */
+    private var movedAt = 0L
     /** The ringing call seen face up (or held): only then is face down a turn. */
     private var armedFor: Call? = null
 
@@ -44,8 +46,10 @@ object CallGestures : SensorEventListener {
         leftEarAt = 0L
         downSince = 0L
         flatSince = 0L
+        movedAt = 0L
         sm.registerListener(this, gravity, SensorManager.SENSOR_DELAY_UI)
         sm.getDefaultSensor(Sensor.TYPE_PROXIMITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        sm.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     fun stop() {
@@ -60,9 +64,17 @@ object CallGestures : SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent) {
         runCatching {
+            val now = event.timestamp / 1_000_000L
             when (event.sensor.type) {
                 Sensor.TYPE_PROXIMITY -> proximity(event)
-                else -> gravity(event.values[2], event.timestamp / 1_000_000L)
+                Sensor.TYPE_LINEAR_ACCELERATION -> {
+                    val (x, y, z) = Triple(event.values[0], event.values[1], event.values[2])
+                    if (x * x + y * y + z * z > STILL * STILL) movedAt = now
+                }
+                else -> {
+                    val z = event.values[2]
+                    if (!turnedOver(z, now)) putDown(z, now)
+                }
             }
         }
     }
@@ -73,29 +85,32 @@ object CallGestures : SensorEventListener {
         near = nowNear
     }
 
-    /** [z]: gravity along the screen's normal (+9.8 face up, −9.8 face down). */
-    private fun gravity(z: Float, now: Long) {
-        val ringing = CallSession.ringing()
-        // Turned over: seen not face down while it rang, then face down for a moment.
-        if (ringing != null && z > -3f) armedFor = ringing
+    /** Ringing + turned over (seen face up while it rang, then face down for a moment) = silent. */
+    private fun turnedOver(z: Float, now: Long): Boolean {
+        val ringing = CallSession.ringing() ?: return false
+        if (z > -3f) armedFor = ringing
         downSince = if (z < FACE_DOWN) downSince.takeIf { it > 0 } ?: now else 0L
         val faceDown = downSince > 0 && now - downSince >= HOLD_MS
-        if (ringing != null && ringing === armedFor && faceDown) {
-            armedFor = null
-            runCatching { telecom?.silenceRinger() }
-            return
-        }
-        // From the ear onto the table: just left the ear, then flat and still for a moment.
+        if (ringing !== armedFor || !faceDown) return false
+        armedFor = null
+        runCatching { telecom?.silenceRinger() }
+        return true
+    }
+
+    /** Talking at the ear, then flat on the table and still for a moment = speaker. */
+    private fun putDown(z: Float, now: Long) {
         flatSince = if (z > FLAT) flatSince.takeIf { it > 0 } ?: now else 0L
         val talking = CallSession.primary()?.let { CallSession.stateOf(it) } == Call.STATE_ACTIVE
         val handset = talking && CallSession.audio.value.type == CallEndpoint.TYPE_EARPIECE
-        val putDown = !near && leftEarAt > 0 && now - leftEarAt < PUT_DOWN_MS
-        val flat = flatSince > 0 && now - flatSince >= HOLD_MS
-        if (handset && putDown && flat) {
+        val fromEar = !near && leftEarAt > 0 && now - leftEarAt < PUT_DOWN_MS
+        val lying = flatSince > 0 && now - flatSince >= LIE_MS && now - movedAt >= LIE_MS
+        if (handset && fromEar && lying) {
             leftEarAt = 0L
             CallSession.routeTo(CallEndpoint.TYPE_SPEAKER)
         }
     }
 
     private const val PUT_DOWN_MS = 4_000L
+    private const val LIE_MS = 700L
+    private const val STILL = 0.35f
 }

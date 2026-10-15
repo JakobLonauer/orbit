@@ -17,11 +17,19 @@ object DialRules {
      */
     fun dial(number: String, home: String, here: String?, hide: Boolean = false): String {
         val n = number.trim()
+        // Short numbers (emergency, services) are never touched.
+        if (n.count(Char::isDigit) <= SHORT) return n
+        // A macro's pauses and waits („,“ „;“) stay behind the number.
+        val cut = n.indexOfFirst { it == ',' || it == ';' }.takeIf { it >= 0 } ?: n.length
+        val head = n.substring(0, cut)
+        val tail = n.substring(cut)
         val abroad = !here.isNullOrBlank() && !here.equals(home, ignoreCase = true)
-        val national = n.startsWith("0") && !n.startsWith("00")
-        val out = if (abroad && national) international(n, home) ?: n else n
+        val national = head.startsWith("0") && !head.startsWith("00")
+        val out = (if (abroad && national) international(head, home) ?: head else head) + tail
         return if (hide && !out.startsWith(HIDE)) HIDE + out else out
     }
+
+    private const val SHORT = 5
 
     private fun international(n: String, home: String): String? = runCatching {
         val util = PhoneNumberUtil.getInstance()
