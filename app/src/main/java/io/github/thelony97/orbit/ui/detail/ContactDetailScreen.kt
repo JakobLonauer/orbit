@@ -1250,6 +1250,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             onNewMember = if (c.isOrg) ({ text -> addMemberFromText(c.id, text) }) else null,
             photos = c.gallery,
             onAddPhotos = { uris -> importPhotosFor(ctx, c.id, uris) },
+            topics = c.topics,
+            onDiscussed = { ids -> markDiscussed(c.id, ids) },
         )
         is EntryTarget.Existing -> EntrySheet(
             title = "Eintrag bearbeiten",
@@ -1747,3 +1749,7 @@ internal fun threadSpans(
             io.github.thelony97.orbit.core.domain.TimeZoom.summary(list.map { idx.types[it.typeId]?.name ?: "Eintrag" }),
         )
     }
+
+/** PLAN 9 E8: topics ticked while logging a Treffen/Anruf are done. */
+internal fun markDiscussed(contactId: String, ids: List<String>) =
+    OrbitRepository.editContact(contactId) { x -> x.copy(topics = x.topics.map { if (it.id in ids) it.copy(done = true) else it }) }

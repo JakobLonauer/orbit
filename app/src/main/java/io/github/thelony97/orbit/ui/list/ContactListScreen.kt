@@ -668,6 +668,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 Undo.offer("Eingetragen bei ${Logic.shortName(c)}") { OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, e.id) } }
             },
             onDismiss = { quickEntry = null },
+            topics = c.topics,
+            onDiscussed = { ids -> io.github.thelony97.orbit.ui.detail.markDiscussed(c.id, ids) },
         )
     }
     if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })

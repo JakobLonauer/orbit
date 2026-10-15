@@ -79,6 +79,9 @@ fun EntrySheet(
     photos: List<io.github.thelony97.orbit.data.GalleryPhoto> = emptyList(),
     /** New pictures from the phone: imported into the contact's folder, returned to attach. */
     onAddPhotos: (suspend (List<android.net.Uri>) -> List<io.github.thelony97.orbit.data.GalleryPhoto>)? = null,
+    /** PLAN 9 E8: the open topics – ticked in a Treffen or Anruf they become „Besprochen: …“ and are done. */
+    topics: List<io.github.thelony97.orbit.core.model.CheckItem> = emptyList(),
+    onDiscussed: (List<String>) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val start = initial?.at?.let { Instant.ofEpochMilli(it).atZone(zone()).toLocalDateTime() }
@@ -99,6 +102,7 @@ fun EntrySheet(
             attached = attached + added.map { it.id }
         }
     }
+    var discussed by remember { mutableStateOf(emptySet<String>()) }
     var addingMember by remember { mutableStateOf(false) }
     val newMember = rememberTextFieldState()
     // PLAN 9 D5 „Auftrag“: Betrag, Sterne, Rechnung.
@@ -174,6 +178,25 @@ fun EntrySheet(
 
             val job = typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.JOB
             SpaceField(note, if (job) "Was" else "Notiz", singleLine = false, placeholder = if (job) "Therme Service" else "Worüber habt ihr gesprochen?")
+            val talk = typeId == TypeIds.MEET || typeId == TypeIds.CALL || typeId == TypeIds.VIDEO
+            val open = topics.filter { !it.done }
+            if (initial == null && talk && open.isNotEmpty()) {
+                // Themen abhaken (PLAN 9 E8): each tick a Tick, the ticked ones lit.
+                val tick = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+                Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    open.forEach { t ->
+                        val on = t.id in discussed
+                        io.github.thelony97.orbit.ui.components.SpaceChip(
+                            t.text, on,
+                            {
+                                tick.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                discussed = if (on) discussed - t.id else discussed + t.id
+                            },
+                            leading = if (on) Icons.Rounded.Check else null,
+                        )
+                    }
+                }
+            }
             if (job) {
                 JobFields(
                     amount, stars, { stars = it },
@@ -226,7 +249,14 @@ fun EntrySheet(
                 Spacer(Modifier.weight(1f))
                 GlowButton("Speichern", {
                     val at = LocalDateTime.of(date, time).atZone(zone()).toInstant().toEpochMilli()
-                    val text = note.text.toString().trim()
+                    val talked = topics.filter { it.id in discussed && !it.done }
+                    val typed = note.text.toString().trim()
+                    val text = if (initial == null && talked.isNotEmpty()) {
+                        listOf(typed, "Besprochen: " + talked.joinToString(", ") { it.text }).filter { it.isNotEmpty() }.joinToString("\n")
+                    } else {
+                        typed
+                    }
+                    if (initial == null && talked.isNotEmpty()) onDiscussed(talked.map { it.id })
                     val isJob = typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.JOB
                     val cents = if (isJob) io.github.thelony97.orbit.core.domain.Jobs.parseAmount(amount.text.toString()) else null
                     val rated = if (isJob) stars.takeIf { it > 0 } else null
