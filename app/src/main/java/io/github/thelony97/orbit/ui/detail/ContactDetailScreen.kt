@@ -237,6 +237,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         ctx.getSystemService(android.telephony.TelephonyManager::class.java)?.simCountryIso?.takeIf { it.isNotBlank() }?.uppercase()
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
+    val fieldGhosts = remember(contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts) {
+        io.github.thelony97.orbit.core.domain.FieldGhosts.find(contact, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, data.settings.dismissedGhosts.toSet()).take(3)
+    }
     val landlines = remember(contact.phones, phoneIso) {
         contact.phones.associate { p ->
             p.value to io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(p.value, phoneIso))
@@ -810,6 +813,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 item(key = "macros") {
                     MacroSection(c, data, onEdit = { macroEdit = it })
                 }
+            }
+
+            // PLAN 9 E3: numbers, mails and addresses the contact wrote but that are not in the card.
+            if (!c.isMe && fieldGhosts.isNotEmpty()) {
+                item(key = "field-ghosts") { FieldGhostRow(c, fieldGhosts) }
             }
 
             // PLAN 9 D3: Verträge with their Laufzeit-Ring.
