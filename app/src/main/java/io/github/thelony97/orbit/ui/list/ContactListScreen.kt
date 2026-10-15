@@ -824,7 +824,8 @@ private fun ContactRow(
     val last = if (sort == SortMode.RECENT) ListQuery.lastEntry(contact) else null
     SwipeToDismissBox(
         state = state,
-        modifier = modifier,
+        // PLAN 9 E20: photos and PDFs from another app land in this contact's folder.
+        modifier = modifier.acceptFiles(contact.id),
         enableDismissFromStartToEnd = contact.phones.isNotEmpty(),
         // While selecting, a swipe must not call anyone or open a sheet.
         gesturesEnabled = !selecting,
