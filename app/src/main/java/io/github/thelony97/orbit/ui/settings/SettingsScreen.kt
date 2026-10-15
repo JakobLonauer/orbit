@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Contacts
@@ -287,6 +288,15 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     val phoneBookPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         permissionTick++
         if (result.values.all { it }) phoneBookOn() else permissionDenied = true
+    }
+    // PLAN 9 A13: Orbit-Kalender.
+    fun calendarOn() {
+        OrbitRepository.editSettings { it.copy(orbitCalendar = true) }
+        io.github.thelony97.orbit.phonebook.OrbitCalendar.request(ctx.applicationContext)
+    }
+    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        permissionTick++
+        if (result.values.all { it }) calendarOn() else permissionDenied = true
     }
     // Orbit als Telefon-App (PLAN 3.12): the system's own role dialog decides.
     val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -596,6 +606,24 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     Icons.Rounded.Event, "Treffen am Morgen",
                     trailing = { SpaceSwitch(s.meetingBrief) { v -> OrbitRepository.editSettings { it.copy(meetingBrief = v) } } },
                 )
+                Hairline()
+                // PLAN 9 A13: Orbit-Kalender – every occasion in the phone's calendar app.
+                SettingItem(
+                    Icons.Rounded.CalendarMonth, "Anlässe im Handy-Kalender",
+                    trailing = {
+                        SpaceSwitch(s.orbitCalendar) { on ->
+                            if (on) {
+                                val need = listOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR)
+                                    .filter { ctx.checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+                                if (need.isEmpty()) calendarOn() else calendarPermission.launch(need.toTypedArray())
+                            } else {
+                                OrbitRepository.editSettings { it.copy(orbitCalendar = false) }
+                                val keep = s.phoneBook
+                                io.github.thelony97.orbit.ui.components.AppWork.launch { io.github.thelony97.orbit.phonebook.OrbitCalendar.remove(ctx.applicationContext, keepAccount = keep) }
+                            }
+                        }
+                    },
+                )
             }
         }
 
@@ -616,7 +644,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                                 if (need.isEmpty()) phoneBookOn() else phoneBookPermission.launch(need.toTypedArray())
                             } else {
                                 OrbitRepository.editSettings { it.copy(phoneBook = false) }
-                                io.github.thelony97.orbit.phonebook.PhoneBookSync.remove(ctx)
+                                val keep = s.orbitCalendar
+                                io.github.thelony97.orbit.ui.components.AppWork.launch { io.github.thelony97.orbit.phonebook.PhoneBookSync.remove(ctx.applicationContext, keepAccount = keep) }
                             }
                         }
                     },

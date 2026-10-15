@@ -275,6 +275,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var linkDialog by remember { mutableStateOf(false) }
     var qrDialog by remember { mutableStateOf(false) }
     var shareSheet by remember { mutableStateOf(false) }
+    var dictate by remember { mutableStateOf<Pair<String, String>?>(null) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
@@ -713,6 +714,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 label = label,
                                 value = f.value,
                                 trailing = { CopyButton(f.value, label) },
+                                // PLAN 9 B7: Halten = Diktier-Ansicht (big blocks, spelled letters).
+                                onLongClick = { dictate = label to f.value },
                             )
                         }
                     }
@@ -1217,6 +1220,14 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
     qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }) }
     if (shareSheet) ShareFieldsSheet(c, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
+    dictate?.let { (label, value) ->
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { dictate = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            io.github.thelony97.orbit.ui.components.DictationView(label, value, onClose = { dictate = null })
+        }
+    }
 
     linkEdit?.let { l ->
         LinkEditDialog(l, onDismiss = { linkEdit = null }) { changed ->

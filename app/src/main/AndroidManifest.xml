@@ -22,6 +22,9 @@
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <!-- PLAN 9 A13: Orbit's own calendar with the occasions (asked when Jakob turns it on). -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- Haptik-Vokabular (PLAN 9.2): „Materialisieren“ is a composed vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
@@ -69,6 +72,10 @@
                 <data android:mimeType="image/*" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
+            <!-- PLAN 9 A5: people as direct share targets. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- PLAN 9 A2: „Kontakt hinzufügen“ from any app, vCard files and scanned vCard QRs. -->
@@ -148,6 +155,18 @@
                 android:resource="@xml/contacts" />
         </service>
 
+        <!-- PLAN 9 A13: calendar apps list an account's calendars with a sync adapter too. -->
+        <service
+            android:name=".phonebook.OrbitCalendarSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/sync_calendar" />
+        </service>
+
         <!-- PLAN 9 A3: „In Orbit öffnen“ / own-field rows in a system contact card. -->
         <activity
             android:name=".phonebook.PhoneBookRowActivity"
@@ -167,6 +186,18 @@
                 <data android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.field" />
             </intent-filter>
         </activity>
+
+        <!-- PLAN 9 A6: „Orbit“ in every file picker – a folder per person, read only. -->
+        <provider
+            android:name=".files.OrbitDocumentsProvider"
+            android:authorities="${applicationId}.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
 
         <!-- Shares a contact as .vcf from cache/share only (PLAN 3.3). -->
         <provider

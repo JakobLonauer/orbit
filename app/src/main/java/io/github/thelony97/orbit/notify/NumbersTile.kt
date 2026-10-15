@@ -110,12 +110,13 @@ class NumbersActivity : ComponentActivity() {
     }
 }
 
+/** [preview]: fixed numbers for screenshot tests instead of the stored ones. */
 @Composable
-private fun NumbersDrawer(onClose: () -> Unit) {
+internal fun NumbersDrawer(onClose: () -> Unit, preview: List<MyNumbers.Item>? = null) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
-    val items by produceState<List<MyNumbers.Item>?>(null) { value = MyNumbers.of(OrbitRepository.snapshot()) }
+    val items by produceState(preview) { if (preview == null) value = MyNumbers.of(OrbitRepository.snapshot()) }
     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
     var copied by remember { mutableStateOf<MyNumbers.Item?>(null) }
     var dictate by remember { mutableStateOf<MyNumbers.Item?>(null) }

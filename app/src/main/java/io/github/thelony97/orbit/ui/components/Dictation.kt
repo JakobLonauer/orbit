@@ -36,7 +36,7 @@ fun DictationView(label: String, value: String, onClose: () -> Unit) {
     val view = LocalView.current
     // Full brightness and screen on while it shows; back to normal afterwards.
     DisposableEffect(Unit) {
-        val window = (view.context as? android.app.Activity)?.window
+        val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window ?: view.context.findActivity()?.window
         val before = window?.attributes?.screenBrightness
         window?.let { w ->
             w.attributes = w.attributes.apply { screenBrightness = 1f }
@@ -88,4 +88,11 @@ fun DictationView(label: String, value: String, onClose: () -> Unit) {
             }
         }
     }
+}
+
+/** The activity behind a (wrapped) context, if any. */
+tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

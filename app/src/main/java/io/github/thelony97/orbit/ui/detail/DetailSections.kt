@@ -3,6 +3,7 @@ package io.github.thelony97.orbit.ui.detail
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -238,12 +239,20 @@ fun InfoRow(
     trailing: (@Composable () -> Unit)? = null,
     /** For a shared transition on the value (Datumskachel → Anlass, PLAN W3). */
     valueModifier: Modifier = Modifier,
+    /** Halten (PLAN 9.2 Bediensprache): e.g. the Diktier-Ansicht of an own field. */
+    onLongClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                when {
+                    onLongClick != null -> Modifier.combinedClickable(onClick = { onClick?.invoke() }, onLongClick = onLongClick)
+                    onClick != null -> Modifier.clickable(onClick = onClick)
+                    else -> Modifier
+                },
+            )
             .padding(vertical = 5.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

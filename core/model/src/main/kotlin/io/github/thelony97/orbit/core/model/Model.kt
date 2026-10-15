@@ -332,6 +332,8 @@ data class Settings(
     val phoneBook: Boolean = false,
     /** PLAN 9 A1: organisations go into the phone book too. */
     val phoneBookOrgs: Boolean = true,
+    /** PLAN 9 A13: every occasion in Orbit's own calendar on the phone. */
+    val orbitCalendar: Boolean = false,
     /** PLAN 9.2 Geist: stable keys of suggestions Jakob swiped away – they never come back. */
     val dismissedGhosts: List<String> = emptyList(),
 ) {

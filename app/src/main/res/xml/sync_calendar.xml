@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PLAN 9 A13: Orbit's calendar; Orbit writes on its own after every save. -->
+<sync-adapter xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentAuthority="com.android.calendar"
+    android:accountType="io.github.thelony97.orbit.account"
+    android:supportsUploading="false"
+    android:userVisible="false"
+    android:allowParallelSyncs="false"
+    android:isAlwaysSyncable="true" />

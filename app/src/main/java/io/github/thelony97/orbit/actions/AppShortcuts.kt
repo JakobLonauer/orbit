@@ -32,6 +32,10 @@ object AppShortcuts {
     const val ACTION_LAST_CALL = "io.github.thelony97.orbit.action.LAST_CALL_NOTE"
 
     private const val FAVORITES = 2
+
+    /** PLAN 9 A5: people straight in the system share sheet („Teilen“ → Anna). */
+    const val SHARE_CATEGORY = "io.github.thelony97.orbit.category.SHARE_TARGET"
+    private const val SHARE_PEOPLE = 4
     @Volatile private var shown: List<String>? = null
     @Volatile private var goneShown: Set<String>? = null
 
@@ -48,7 +52,16 @@ object AppShortcuts {
         }
         val favs = Shortcuts.topFavorites(data.contacts, now(), { Visibility.inLists(it, data.settings.showOrgs) }, { Logic.displayName(it, false) })
             .take(FAVORITES)
-        val key = favs.map { it.id + "|" + Logic.displayName(it, false) + "|" + it.photo + "|" + it.groupIds.firstOrNull() }
+        // The people Jakob is most in touch with (last 90 days) – fixed rule, no guessing.
+        val since = now() - 90L * 86_400_000L
+        val sharePeople = data.contacts
+            .filter { !it.isOrg && !it.isMe && it.deletedAt == null && !it.archived }
+            .map { it to it.entries.count { e -> e.at >= since && e.memberId == null } }
+            .filter { it.second > 0 }
+            .sortedWith(compareByDescending<Pair<Contact, Int>> { it.second }.thenBy { Logic.displayName(it.first, false) })
+            .take(SHARE_PEOPLE)
+            .map { it.first }
+        val key = (favs + sharePeople.map { it.copy(id = "share-" + it.id) }).map { it.id + "|" + Logic.displayName(it, false) + "|" + it.photo + "|" + it.groupIds.firstOrNull() }
         if (key == shown) return
         val main = { Intent(ctx, MainActivity::class.java) }
         val list = buildList {
@@ -83,8 +96,30 @@ object AppShortcuts {
                         .build(),
                 )
             }
+            sharePeople.forEachIndexed { i, c ->
+                val name = Logic.displayName(c, false)
+                add(
+                    ShortcutInfoCompat.Builder(ctx, "share-" + c.id)
+                        .setShortLabel(Logic.shortName(c).take(24))
+                        .setLongLabel(name.take(40))
+                        .setIcon(IconCompat.createWithAdaptiveBitmap(icon(c, data)))
+                        .setPerson(androidx.core.app.Person.Builder().setName(name).setKey(c.id).build())
+                        .setLongLived(true)
+                        .setCategories(setOf(SHARE_CATEGORY))
+                        .setIntent(
+                            main().setAction(Intent.ACTION_VIEW)
+                                .setData(Uri.parse("orbit://contact/${c.id}"))
+                                .putExtra(MainActivity.EXTRA_CONTACT, c.id),
+                        )
+                        // Behind the launcher's own shortcuts: these are for sharing.
+                        .setRank(10 + i)
+                        .build(),
+                )
+            }
         }
-        if (runCatching { ShortcutManagerCompat.setDynamicShortcuts(ctx, list) }.getOrDefault(false)) shown = key
+        // Never more than the launcher allows – its own shortcuts come first, sharing after.
+        val max = runCatching { ShortcutManagerCompat.getMaxShortcutCountPerActivity(ctx) }.getOrDefault(4).coerceAtLeast(1)
+        if (runCatching { ShortcutManagerCompat.setDynamicShortcuts(ctx, list.take(max)) }.getOrDefault(false)) shown = key
     }
 
     /** A favourite pinned to the home screen goes grey once the contact is archived or deleted. */

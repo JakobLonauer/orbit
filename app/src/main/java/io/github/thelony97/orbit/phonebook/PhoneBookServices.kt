@@ -90,3 +90,20 @@ class PhoneBookRowActivity : Activity() {
         finish()
     }
 }
+
+/** PLAN 9 A13: the same for the Orbit calendar – a sync the system asks for writes it once. */
+class OrbitCalendarSyncService : Service() {
+    override fun onBind(intent: Intent?): IBinder? = adapter(applicationContext).syncAdapterBinder
+
+    companion object {
+        @Volatile private var instance: CalendarSyncAdapter? = null
+        private fun adapter(ctx: Context): CalendarSyncAdapter =
+            instance ?: synchronized(this) { instance ?: CalendarSyncAdapter(ctx).also { instance = it } }
+    }
+}
+
+private class CalendarSyncAdapter(ctx: Context) : AbstractThreadedSyncAdapter(ctx, true) {
+    override fun onPerformSync(account: Account?, extras: Bundle?, authority: String?, provider: ContentProviderClient?, syncResult: SyncResult?) {
+        runBlocking { OrbitCalendar.writeNow(context) }
+    }
+}

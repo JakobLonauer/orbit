@@ -2,7 +2,6 @@ package io.github.thelony97.orbit.phonebook
 
 import android.Manifest
 import android.accounts.Account
-import android.accounts.AccountManager
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
 import android.content.ContentUris
@@ -102,19 +101,26 @@ object PhoneBookSync {
         }
     }
 
-    /** Switched off: the account goes, Android removes every row Orbit wrote with it. */
-    fun remove(ctx: Context) {
-        runCatching {
-            AccountManager.get(ctx).removeAccountExplicitly(account)
-            _count.value = 0
-        }.onFailure { Log.w(TAG, "remove account", it) }
+    /**
+     * Switched off: every row Orbit wrote goes; the account too unless the Orbit calendar still
+     * uses it ([keepAccount]). Other accounts' rows are never touched.
+     */
+    suspend fun remove(ctx: Context, keepAccount: Boolean) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            runCatching {
+                ctx.contentResolver.delete(
+                    sync(RawContacts.CONTENT_URI),
+                    "${RawContacts.ACCOUNT_TYPE} = ? AND ${RawContacts.ACCOUNT_NAME} = ?",
+                    arrayOf(ACCOUNT_TYPE, ACCOUNT_NAME),
+                )
+                _count.value = 0
+            }.onFailure { Log.w(TAG, "remove rows", it) }
+            if (!keepAccount) OrbitAccount.release(ctx)
+        }
     }
 
     private fun ensureAccount(ctx: Context) {
-        val am = AccountManager.get(ctx)
-        if (am.getAccountsByType(ACCOUNT_TYPE).none { it.name == ACCOUNT_NAME }) {
-            am.addAccountExplicitly(account, null, null)
-        }
+        OrbitAccount.ensure(ctx)
         runCatching {
             ContentResolver.setIsSyncable(account, ContactsContract.AUTHORITY, 1)
             ContentResolver.setSyncAutomatically(account, ContactsContract.AUTHORITY, false)
