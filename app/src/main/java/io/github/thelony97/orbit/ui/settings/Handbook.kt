@@ -54,13 +54,13 @@ internal fun inline(text: String): AnnotatedString = buildAnnotatedString {
 
 /** Einstellungen › Über Orbit › Handbuch (PLAN 9 E22): gestures, rules, automations – from the bundled HANDBUCH.md. */
 @Composable
-fun HandbookSheet(onDismiss: () -> Unit) {
+fun HandbookSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val lines = remember { runCatching { ctx.assets.open("HANDBUCH.md").bufferedReader().readLines() }.getOrDefault(emptyList()) }
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = Space.PanelHigh) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 24.dp),
+            modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             lines.filter { it.isNotBlank() }.forEach { l ->

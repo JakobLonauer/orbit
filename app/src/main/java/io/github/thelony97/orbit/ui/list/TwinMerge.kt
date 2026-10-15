@@ -78,7 +78,7 @@ fun TwinGhost(a: Contact, b: Contact, key: String, onDismiss: () -> Unit, modifi
  * into one (Moment), then merges; Rückgängig puts everything back.
  */
 @Composable
-fun MergeSheet(a: Contact, b: Contact, onDismiss: () -> Unit) {
+fun MergeSheet(a: Contact, b: Contact, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val (keep, gone) = if (a.entries.size >= b.entries.size) a to b else b to a
@@ -114,7 +114,7 @@ fun MergeSheet(a: Contact, b: Contact, onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = Space.PanelHigh) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.L).navigationBarsPadding().padding(bottom = Spacing.L),
+            modifier.fillMaxWidth().padding(horizontal = Spacing.L).navigationBarsPadding().padding(bottom = Spacing.L),
             verticalArrangement = Arrangement.spacedBy(Spacing.M),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

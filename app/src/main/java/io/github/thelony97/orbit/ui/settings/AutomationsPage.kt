@@ -46,10 +46,11 @@ fun activeAutomations(data: OrbitData): Int {
  * what it does in one line, how often it ran. Group rules are set at the group (Kontakte).
  */
 @Composable
-fun AutomationsPage(data: OrbitData, onGroups: () -> Unit) {
+fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val s = data.settings
     val counts = remember { listOf(AutoCount.SCREEN, AutoCount.NUDGE, AutoCount.BUSY_SMS).associateWith { AutoCount.get(ctx, it) } }
+    androidx.compose.foundation.layout.Column(modifier) {
     SettingsGroup("") {
         SettingItem(
             Icons.Rounded.EventBusy, "Verpasst im Termin → SMS",
@@ -94,5 +95,6 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit) {
         Hairline()
         val series = data.contacts.count { it.deletedAt == null && it.numberPrefixes.isNotEmpty() }
         SettingItem(Icons.Rounded.Numbers, "Nummernserie → Organisation", subtitle = if (series > 0) "$series Organisationen" else null, iconTint = Space.Blue)
+    }
     }
 }

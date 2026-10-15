@@ -52,7 +52,7 @@ import io.github.thelony97.orbit.ui.theme.Space
  * by one by themselves, WhatsApp opens person after person (each row ticks when opened).
  */
 @Composable
-fun SeriesSheet(data: OrbitData, ids: Set<String>, onDismiss: () -> Unit) {
+fun SeriesSheet(data: OrbitData, ids: Set<String>, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val haptics = rememberHaptics()
     val people = remember(ids) { data.contacts.filter { it.id in ids && it.phones.any { p -> p.value.isNotBlank() } } }
@@ -74,7 +74,7 @@ fun SeriesSheet(data: OrbitData, ids: Set<String>, onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = Space.PanelHigh) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.L).navigationBarsPadding().padding(bottom = Spacing.L),
+            modifier.fillMaxWidth().padding(horizontal = Spacing.L).navigationBarsPadding().padding(bottom = Spacing.L),
             verticalArrangement = Arrangement.spacedBy(Spacing.M),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
