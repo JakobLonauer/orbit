@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.ContactPage
 import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.automirrored.rounded.ShortText
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.font.FontFamily
@@ -605,6 +606,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
 
         // PLAN 9 D8: Ankommen – off until switched on; then location, then „immer“ (background).
         if (area == "capture") item(key = "arrive") { ArriveSetting(s.arrive) }
+        // PLAN 9 E6: Textbausteine („/“ in der Antwortzeile, Serien-Nachricht).
+        if (area == "capture") item(key = "snippets") { SnippetsSetting(s.snippets) }
 
         if (area == "capture") item(key = "calls") {
             SettingsGroup("") {
@@ -1213,4 +1216,47 @@ private fun ArriveSetting(on: Boolean) {
             },
         )
     }
+}
+
+private const val SNIPPET_SLOTS = 6
+
+@Composable
+private fun SnippetsSetting(snippets: List<io.github.thelony97.orbit.core.model.Snippet>) {
+    var open by remember { mutableStateOf(false) }
+    SettingsGroup("") {
+        SettingItem(
+            Icons.AutoMirrored.Rounded.ShortText, "Textbausteine",
+            subtitle = snippets.joinToString(" · ") { it.name }.ifBlank { null },
+            iconTint = Space.Violet, onClick = { open = true },
+        )
+    }
+    if (!open) return
+    val names = List(SNIPPET_SLOTS) { i -> androidx.compose.foundation.text.input.rememberTextFieldState(snippets.getOrNull(i)?.name.orEmpty()) }
+    val texts = List(SNIPPET_SLOTS) { i -> androidx.compose.foundation.text.input.rememberTextFieldState(snippets.getOrNull(i)?.text.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = { open = false },
+        containerColor = Space.PanelHigh,
+        title = { Text("Textbausteine") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(io.github.thelony97.orbit.core.domain.Snippets.PLACEHOLDERS.joinToString(" ") { "{$it}" }, style = MaterialTheme.typography.labelSmall, color = Space.TextDim)
+                for (i in 0 until SNIPPET_SLOTS) {
+                    io.github.thelony97.orbit.ui.components.SpaceField(names[i], "Name")
+                    io.github.thelony97.orbit.ui.components.SpaceField(texts[i], "Text", singleLine = false)
+                }
+            }
+        },
+        confirmButton = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
+                val list = (0 until SNIPPET_SLOTS).mapNotNull { i ->
+                    val n = names[i].text.toString().trim()
+                    val t = texts[i].text.toString().trim()
+                    if (n.isEmpty() || t.isEmpty()) null else io.github.thelony97.orbit.core.model.Snippet(snippets.getOrNull(i)?.id ?: io.github.thelony97.orbit.data.newId(), n, t)
+                }
+                OrbitRepository.editSettings { it.copy(snippets = list) }
+                open = false
+            }) { Text("Speichern") }
+        },
+        dismissButton = { TextButton(onClick = { open = false }) { Text("Abbrechen") } },
+    )
 }

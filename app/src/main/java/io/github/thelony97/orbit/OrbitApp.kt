@@ -67,6 +67,7 @@ class OrbitApp : Application() {
             io.github.thelony97.orbit.call.Persist.restore(this@OrbitApp)
             io.github.thelony97.orbit.live.MeetingLive.schedule(this@OrbitApp, OrbitRepository.snapshot())
             io.github.thelony97.orbit.live.Arrive.load(this@OrbitApp)
+            io.github.thelony97.orbit.live.Scheduled.all(this@OrbitApp)
             io.github.thelony97.orbit.live.Arrive.sync(this@OrbitApp, OrbitRepository.snapshot())
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only
             // with an account at all.

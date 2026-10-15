@@ -352,6 +352,10 @@ data class WifiNet(
     val security: String = "WPA",
 )
 
+/** PLAN 9 E6: a Textbaustein; {Vorname} {Rufname} {Anrede} {Kundennummer} {Vertragsnummer} {Datum} are filled per contact. */
+@Serializable
+data class Snippet(val id: String, val name: String, val text: String)
+
 /** Zuordnung person → organisation (PLAN 3.6), strictly separate from [Relation]. */
 @Serializable
 data class OrgLink(
@@ -450,8 +454,16 @@ data class Settings(
     val motionGestures: Boolean = false,
     /** PLAN 9 D8: Ankommen – geofences at places with content; off until Jakob switches it on. */
     val arrive: Boolean = false,
+    /** PLAN 9 E6: Textbausteine with {Platzhaltern}; „/“ in a text line offers them. */
+    val snippets: List<Snippet> = DEFAULT_SNIPPETS,
 ) {
     companion object {
+        val DEFAULT_SNIPPETS = listOf(
+            Snippet("geburtstag", "Geburtstag", "Alles Gute zum Geburtstag, {Rufname}!"),
+            Snippet("termin", "Termin", "{Anrede}, ich möchte gerne einen Termin vereinbaren. Meine Kundennummer: {Kundennummer}."),
+            Snippet("danke", "Danke", "Danke, {Rufname}!"),
+        )
+
         val DEFAULT_SMS_TEMPLATES = listOf(
             "Kann gerade nicht – ich rufe zurück.",
             "Bin im Termin, melde mich später.",

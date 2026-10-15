@@ -75,7 +75,13 @@ object ContactActions {
      * an SMS with it. Returns whether something opened.
      */
     fun congratulate(ctx: Context, c: Contact, text: String): Boolean {
-        val target = defaultNumber(c) ?: run { toast(ctx, "Keine Nummer hinterlegt"); return false }
+        val intent = prepared(ctx, c, text) ?: run { toast(ctx, "Keine Nummer hinterlegt"); return false }
+        return start(ctx, intent)
+    }
+
+    /** The chat prepared with [text]: WhatsApp when installed, else the SMS app; null without a number. */
+    fun prepared(ctx: Context, c: Contact, text: String): Intent? {
+        val target = defaultNumber(c) ?: return null
         val pm = ctx.packageManager
         val whatsapp = listOf("com.whatsapp", "com.whatsapp.w4b").any { runCatching { pm.getLaunchIntentForPackage(it) != null }.getOrDefault(false) }
         return if (whatsapp) {
@@ -87,9 +93,9 @@ object ContactActions {
                     else -> it
                 }
             }
-            start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits?text=" + Uri.encode(text))))
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits?text=" + Uri.encode(text)))
         } else {
-            start(ctx, Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", target, null)).putExtra("sms_body", text))
+            Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", target, null)).putExtra("sms_body", text)
         }
     }
 
@@ -102,8 +108,8 @@ object ContactActions {
     fun smsDirect(ctx: Context, c: Contact, text: String): Boolean {
         if (ctx.checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) return false
         val numbers = c.phones.filter { it.value.isNotBlank() }
-        val to = (numbers.firstOrNull { io.github.thelony97.orbit.core.domain.NumberInfo.of(it.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE } ?: numbers.firstOrNull())?.value
-            ?: return false
+        val mobile = numbers.firstOrNull { io.github.thelony97.orbit.core.domain.NumberInfo.of(it.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE }
+        val to = (mobile ?: numbers.firstOrNull())?.value ?: return false
         val sent = runCatching {
             val sms = ctx.getSystemService(android.telephony.SmsManager::class.java)
             sms.sendMultipartTextMessage(to, null, sms.divideMessage(text), null, null)

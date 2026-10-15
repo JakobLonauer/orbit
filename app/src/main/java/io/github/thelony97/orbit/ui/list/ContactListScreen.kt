@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -162,6 +163,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     // Mehrfachauswahl (PLAN 3.2): null = normal list, otherwise the selected contact ids.
     var selection by remember { mutableStateOf(initialSelection) }
     var groupDialog by remember { mutableStateOf(false) }
+    var seriesSheet by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
@@ -238,6 +240,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 onClose = { selection = null },
                 onAll = { selection = if (visible.all { it.id in sel }) emptySet() else visible.map { it.id }.toSet() },
                 onGroup = { if (sel.isNotEmpty()) groupDialog = true },
+                onMessage = { if (sel.isNotEmpty()) seriesSheet = true },
                 onArchive = {
                     val ids = chosen.filter { !it.isMe && !it.archived }.map { it.id }.toSet()
                     if (ids.isNotEmpty()) {
@@ -611,6 +614,9 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         )
     }
     if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })
+    if (seriesSheet) {
+        SeriesSheet(data, selection.orEmpty(), onDismiss = { seriesSheet = false })
+    }
     if (groupDialog) {
         GroupAssignDialog(
             data = data,
@@ -628,6 +634,7 @@ private fun SelectionBar(
     onClose: () -> Unit,
     onAll: () -> Unit,
     onGroup: () -> Unit,
+    onMessage: () -> Unit,
     onArchive: () -> Unit,
     onShare: () -> Unit,
 ) {
@@ -656,6 +663,8 @@ private fun SelectionBar(
         }
         SpaceChip("Alle", allSelected, onAll)
         OrbButton(Icons.AutoMirrored.Rounded.Label, "Gruppe", onGroup, size = 38.dp, enabled = count > 0)
+        // PLAN 9 E6: Serien-Nachricht.
+        OrbButton(Icons.Rounded.Sms, "Nachricht", onMessage, size = 38.dp, enabled = count > 0)
         OrbButton(Icons.Rounded.Archive, "Archivieren", onArchive, size = 38.dp, enabled = count > 0)
         OrbButton(Icons.Rounded.Share, "Exportieren", onShare, size = 38.dp, enabled = count > 0)
     }

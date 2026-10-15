@@ -317,6 +317,9 @@
         <receiver
             android:name=".live.ArriveReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".live.ScheduledReceiver"
+            android:exported="false" />
         <activity
             android:name=".live.LateActivity"
             android:exported="false"

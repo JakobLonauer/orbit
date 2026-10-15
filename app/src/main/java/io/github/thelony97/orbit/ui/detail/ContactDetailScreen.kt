@@ -1161,7 +1161,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 }
             }
         }
-        if (replying) ReplyBar(c, Modifier.align(Alignment.BottomCenter))
+        if (replying) ReplyBar(c, data, Modifier.align(Alignment.BottomCenter))
         if (replying) LiveThread()
     }
 
