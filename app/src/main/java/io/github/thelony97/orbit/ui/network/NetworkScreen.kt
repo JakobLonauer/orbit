@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Hub
@@ -108,7 +109,7 @@ private fun nodeSize(level: Int) = when (level) {
 }
 
 @Composable
-fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
+fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav, onBack: (() -> Unit)? = null) {
     val me = Logic.me(data)
     val root = Session.networkRoot?.let { idx.contacts[it] }?.takeIf { it.deletedAt == null && !it.archived } ?: me
     val depth = Session.networkDepth
@@ -130,6 +131,10 @@ fun NetworkScreen(data: OrbitData, idx: Index, nav: Nav) {
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 12.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (onBack != null) {
+                OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", onBack, size = 38.dp)
+                Spacer(Modifier.width(12.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text("Netz", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
                 Text(

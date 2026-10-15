@@ -16,6 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +30,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -97,10 +101,17 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data)
     }
     val exportable = remember(data.contacts, s.phoneBookOrgs) { data.contacts.count { PhoneBook.exported(it, s.phoneBookOrgs) } }
-    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable, callbacks) {
+    val planned by io.github.thelony97.orbit.call.Persist.planned.collectAsState()
+    // PLAN 9 C1: the day's items by fixed rules (read again on every return to the app).
+    val day = remember(data, tick) { planCards(data) }
+    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable, callbacks, planned, day) {
         buildList {
             // Waiting people first – the one thing that is about someone else's time.
             if (callbacks.isNotEmpty()) add(TodayCard.Callbacks(callbacks.size, callbacks.take(2).map { it.title }, callbacks.any { it.warn }))
+            val todayDate = io.github.thelony97.orbit.domain.today()
+            planned.filter { java.time.Instant.ofEpochMilli(it.at).atZone(io.github.thelony97.orbit.domain.zone()).toLocalDate() == todayDate }
+                .forEach { add(TodayCard.Persist(it)) }
+            addAll(day)
             val l = live
             // Offer and live share one key: the taken ghost becomes the live card in place.
             val offer = !s.phoneBook && TodayCard.OFFER_KEY !in s.dismissedGhosts
@@ -117,6 +128,25 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
 private fun dismiss(key: String) =
     OrbitRepository.editSettings { it.copy(dismissedGhosts = (it.dismissedGhosts + key).distinct().takeLast(400)) }
 
+/** PLAN 9 C1: meetings, occasions, topics and „Heute vor N Jahren“ as cards. */
+private fun planCards(data: OrbitData): List<TodayCard> {
+    val s = data.settings
+    val todayDate = io.github.thelony97.orbit.domain.today()
+    // „Erledigt“ of earlier days goes from the list by itself (the keys carry their day).
+    val done = s.dismissedGhosts.filterNot { io.github.thelony97.orbit.core.domain.TodayPlan.stale(it, todayDate) }.toSet()
+    val items = io.github.thelony97.orbit.core.domain.TodayPlan.build(
+        data.contacts, data.meetings, System.currentTimeMillis(), io.github.thelony97.orbit.domain.zone(), done,
+    ) { io.github.thelony97.orbit.core.domain.Visibility.inLists(it, s.showOrgs) }
+    val byId = data.contacts.associateBy { it.id }
+    val groupColor = data.groups.associate { it.id to it.color }
+    return items.mapNotNull { item ->
+        val c = byId[item.contactId] ?: return@mapNotNull null
+        val with = (item as? io.github.thelony97.orbit.core.domain.TodayPlan.Occasion)?.withId?.let { byId[it] }
+        val kind = (item as? io.github.thelony97.orbit.core.domain.TodayPlan.YearsAgo)?.let { y -> data.entryTypes.firstOrNull { it.id == y.typeId }?.name }.orEmpty()
+        TodayCard.Plan(item, c, with, kind, c.groupIds.firstNotNullOfOrNull { groupColor[it] })
+    }
+}
+
 /** Cards keep one size where they can; a longer title widens the card up to [CardMaxWidth] (W6). */
 private val CardWidth = 236.dp
 private val CardMaxWidth = 296.dp
@@ -132,13 +162,35 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result.values.all { it }) PhoneBookSync.turnOn(ctx)
     }
+    // Cards on their way out (stardust) – done for real once the dust has settled.
+    var leaving by remember { androidx.compose.runtime.mutableStateOf(emptySet<String>()) }
     LazyRow(
         modifier.fillMaxWidth().animateContentSize(),
         contentPadding = PaddingValues(horizontal = Spacing.Gutter),
         horizontalArrangement = Arrangement.spacedBy(Spacing.S),
     ) {
-        items(cards, key = { it.key }) { card ->
-            Box(Modifier.animateItem().widthIn(min = CardWidth, max = CardMaxWidth), propagateMinConstraints = true) {
+        itemsIndexed(cards, key = { _, c -> c.key }) { index, card ->
+            Box(
+                Modifier
+                    // „Die Reihe schließt federnd“ (PLAN 9 C1).
+                    .animateItem(placementSpec = androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                    .appear(index)
+                    .widthIn(min = CardWidth, max = CardMaxWidth),
+                propagateMinConstraints = true,
+            ) {
+                if (card is TodayCard.Plan || card is TodayCard.Persist) {
+                    Dust(leaving = card.key in leaving, seed = card.key.hashCode(), onGone = {
+                        finish(ctx, card)
+                        leaving = leaving - card.key
+                    }) {
+                        when (card) {
+                            is TodayCard.Plan -> PlanCard(card, onOpen = { nav.open(Route.Detail(card.contact.id)) }, onDone = { leaving = leaving + card.key })
+                            is TodayCard.Persist -> PersistCard(card, onOpen = { card.plan.contactId?.let { nav.open(Route.Detail(it)) } }, onDone = { leaving = leaving + card.key })
+                            else -> Unit
+                        }
+                    }
+                    return@Box
+                }
                 // The offer and its live card are one surface: the content cross-fades, the card stays.
                 AnimatedContent(
                     card,
@@ -166,6 +218,7 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                         }
                         is TodayCard.PhoneBookNew -> NewInPhoneBook(c, nav)
                         is TodayCard.Callbacks -> CallbacksCard(c, onOpen = { nav.open(Route.Callbacks) })
+                        is TodayCard.Plan, is TodayCard.Persist -> Unit
                     }
                 }
             }
@@ -306,5 +359,197 @@ private fun CardBody(planet: @Composable () -> Unit, title: String, line: String
                 Text(line, style = MaterialTheme.typography.labelMedium, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
+    }
+}
+
+/** „Erledigt“ for real, with Rückgängig: a topic is ticked, a Dranbleiben cancelled, the rest put away for today. */
+private fun finish(ctx: android.content.Context, card: TodayCard) {
+    when (card) {
+        is TodayCard.Persist -> {
+            val p = card.plan
+            io.github.thelony97.orbit.call.Persist.cancel(ctx, p.id)
+            io.github.thelony97.orbit.ui.components.Undo.offer("Dranbleiben abgebrochen") {
+                io.github.thelony97.orbit.call.Persist.plan(ctx, p.number, p.name, p.contactId, p.at)
+            }
+        }
+        is TodayCard.Plan -> {
+            val topic = card.item as? io.github.thelony97.orbit.core.domain.TodayPlan.Topic
+            if (topic != null) {
+                setTopicDone(card.contact.id, topic.topicId, true)
+                io.github.thelony97.orbit.ui.components.Undo.offer("Thema erledigt") { setTopicDone(card.contact.id, topic.topicId, false) }
+            } else {
+                dismiss(card.key)
+                io.github.thelony97.orbit.ui.components.Undo.offer("Erledigt") {
+                    OrbitRepository.editSettings { it.copy(dismissedGhosts = it.dismissedGhosts - card.key) }
+                }
+            }
+        }
+        else -> Unit
+    }
+}
+
+private fun setTopicDone(contactId: String, topicId: String, done: Boolean) =
+    OrbitRepository.editContact(contactId) { c -> c.copy(topics = c.topics.map { if (it.id == topicId) it.copy(done = done) else it }) }
+
+/** PLAN 9 C1 Moment: the cards glide in one after the other (40 ms apart). */
+@Composable
+private fun Modifier.appear(index: Int): Modifier {
+    val shown = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(STAGGER_MS * index.coerceAtMost(6))
+        shown.animateTo(1f, tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized))
+    }
+    return graphicsLayer {
+        alpha = shown.value
+        translationX = (1f - shown.value) * 32.dp.toPx()
+    }
+}
+
+private const val STAGGER_MS = 40L
+
+/**
+ * PLAN 9 C1 Moment: a card done falls apart into stardust (≤ 400 ms) – the content fades and
+ * shrinks while bright specks drift up and away; then [onGone].
+ */
+@Composable
+private fun Dust(leaving: Boolean, seed: Int, onGone: () -> Unit, content: @Composable () -> Unit) {
+    val haptics = rememberHaptics()
+    val p = remember { androidx.compose.animation.core.Animatable(0f) }
+    val gone by androidx.compose.runtime.rememberUpdatedState(onGone)
+    androidx.compose.runtime.LaunchedEffect(leaving) {
+        if (!leaving) return@LaunchedEffect
+        haptics.perform(Haptic.Confirm)
+        p.animateTo(1f, tween(Motion.MAX_MS, easing = Motion.Exit))
+        gone()
+    }
+    val specks = remember(seed) {
+        val r = java.util.Random(seed.toLong())
+        List(SPECKS) { floatArrayOf(r.nextFloat(), r.nextFloat(), r.nextFloat() - 0.5f, -0.3f - r.nextFloat() * 0.9f, 0.6f + r.nextFloat() * 1.6f, r.nextFloat()) }
+    }
+    Box(
+        Modifier.drawWithContent {
+            drawContent()
+            val t = p.value
+            if (t <= 0f) return@drawWithContent
+            specks.forEach { (x, y, vx, vy, rad, hue) ->
+                val color = when {
+                    hue < 0.5f -> Space.Text
+                    hue < 0.8f -> Space.Teal
+                    else -> Space.Violet
+                }
+                drawCircle(
+                    color.copy(alpha = (1f - t) * 0.9f),
+                    radius = rad.dp.toPx() * (1f - 0.4f * t),
+                    center = Offset((x + vx * t) * size.width, (y + vy * t) * size.height),
+                )
+            }
+        },
+    ) {
+        Box(
+            Modifier.graphicsLayer {
+                val t = p.value
+                alpha = (1f - t * 1.4f).coerceIn(0f, 1f)
+                scaleX = 1f - 0.08f * t
+                scaleY = 1f - 0.08f * t
+            },
+        ) { content() }
+    }
+}
+
+private const val SPECKS = 56
+
+private operator fun FloatArray.component6(): Float = this[5]
+
+/** Hold: „Erledigt“ in a small popup beside the card (inside the list, never a swipe). */
+@Composable
+private fun DoneMenu(open: Boolean, accent: Color, onClose: () -> Unit, onDone: () -> Unit) {
+    if (!open) return
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(4_000)
+        onClose()
+    }
+    val gap = with(androidx.compose.ui.platform.LocalDensity.current) { Spacing.S.roundToPx() }
+    androidx.compose.ui.window.Popup(
+        popupPositionProvider = remember(gap) { io.github.thelony97.orbit.ui.components.BesideAnchor(gap) },
+        onDismissRequest = onClose,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+    ) {
+        Text(
+            "Erledigt",
+            style = MaterialTheme.typography.labelLarge,
+            color = Space.Text,
+            modifier = Modifier
+                .glass(Corners.Row, tint = Space.PanelHighest, border = accent.copy(alpha = 0.5f))
+                .clickable {
+                    onClose()
+                    onDone()
+                }
+                .padding(horizontal = Spacing.M, vertical = Spacing.S),
+        )
+    }
+}
+
+/** The card of a day's item: the person's planet, what stands, one line; tap opens, hold → Erledigt. */
+@Composable
+private fun PlanCard(card: TodayCard.Plan, onOpen: () -> Unit, onDone: () -> Unit) {
+    val haptics = rememberHaptics()
+    var menu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val person = card.color?.let { Color(it) } ?: fallbackColor(card.contact.id)
+    val name = io.github.thelony97.orbit.domain.Logic.shortName(card.contact)
+    val (title, line, accent) = planText(card, name, person)
+    Box(
+        Modifier
+            .glass(Corners.Card, tint = Space.Panel, border = accent.copy(alpha = 0.4f))
+            .combinedClickable(onClick = onOpen, onLongClick = { haptics.perform(Haptic.Tick); menu = true }),
+    ) {
+        CardBody(
+            planet = { io.github.thelony97.orbit.ui.components.Avatar(card.contact, person, 36.dp) },
+            title = title,
+            line = line,
+            numeric = card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Meet,
+        )
+        DoneMenu(menu, accent, onClose = { menu = false }, onDone = onDone)
+    }
+}
+
+/** Title, line and border colour of a day's item (light code: orange = Anlass/Frist, person colour otherwise). */
+private fun planText(card: TodayCard.Plan, name: String, person: Color): Triple<String, String?, Color> {
+    return when (val item = card.item) {
+        is io.github.thelony97.orbit.core.domain.TodayPlan.Meet ->
+            Triple(io.github.thelony97.orbit.util.Fmt.time(item.start) + " · " + name, item.place.ifBlank { null }, person)
+        is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion -> {
+            val birthday = item.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY
+            val label = if (item.kind == io.github.thelony97.orbit.core.model.OccasionKind.CUSTOM) item.label.ifBlank { "Anlass" }
+            else io.github.thelony97.orbit.core.domain.ReminderPlan.label(item.kind)
+            val names = listOfNotNull(name, card.with?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) }).joinToString(" & ")
+            if (birthday) Triple("$name hat Geburtstag", item.turning?.takeIf { it > 0 }?.let { "wird $it" }, Space.Orange)
+            else Triple((item.turning?.takeIf { it > 0 }?.let { "$it. " } ?: "") + label, names, Space.Orange)
+        }
+        is io.github.thelony97.orbit.core.domain.TodayPlan.Topic -> Triple(item.text, name, person)
+        is io.github.thelony97.orbit.core.domain.TodayPlan.YearsAgo -> Triple(
+            if (item.years == 1) "Heute vor einem Jahr" else "Heute vor ${item.years} Jahren",
+            listOf(card.kindName, name, item.note).filter { it.isNotBlank() }.joinToString(" · "),
+            person,
+        )
+    }
+}
+
+/** A Dranbleiben planned for today (teal: it will run by itself). */
+@Composable
+private fun PersistCard(card: TodayCard.Persist, onOpen: () -> Unit, onDone: () -> Unit) {
+    val haptics = rememberHaptics()
+    var menu by remember { androidx.compose.runtime.mutableStateOf(false) }
+    Box(
+        Modifier
+            .glass(Corners.Card, tint = Space.Panel, border = Space.Teal.copy(alpha = 0.4f))
+            .combinedClickable(onClick = onOpen, onLongClick = { haptics.perform(Haptic.Tick); menu = true }),
+    ) {
+        CardBody(
+            planet = { Planet(androidx.compose.material.icons.Icons.Rounded.Repeat, Space.Teal) },
+            title = io.github.thelony97.orbit.util.Fmt.time(card.plan.at) + " · " + card.plan.name,
+            line = "Dranbleiben",
+            numeric = true,
+        )
+        DoneMenu(menu, Space.Teal, onClose = { menu = false }, onDone = onDone)
     }
 }

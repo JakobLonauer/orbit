@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material3.Icon
@@ -65,7 +64,6 @@ import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.list.ContactFabMenu
 import io.github.thelony97.orbit.ui.list.ContactListScreen
 import io.github.thelony97.orbit.ui.map.MapScreen
-import io.github.thelony97.orbit.ui.network.NetworkScreen
 import io.github.thelony97.orbit.ui.verlauf.VerlaufScreen
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlin.math.PI
@@ -84,14 +82,17 @@ object HomeTab {
     const val KARTE = 4
 }
 
-/** PLAN 3.1: Kontakte · Verlauf · Anlässe (ab R3) · Netz · Karte. Einstellungen hinter dem Zahnrad. */
+/**
+ * PLAN 9 C5: Kontakte · Verlauf · Anlässe · Karte – the net opens from a contact's relations and
+ * the ICH card (Route.Network). Einstellungen hinter dem Zahnrad. [ids] are the HomeTab numbers.
+ */
 private val tabs = listOf(
     Tab("Kontakte", Icons.Rounded.Contacts, Space.VioletDeep),
     Tab("Verlauf", Icons.Rounded.History, Space.Teal),
     Tab("Anlässe", Icons.Rounded.Cake, Space.Coral),
-    Tab("Netz", Icons.Rounded.Hub, Space.Blue),
     Tab("Karte", Icons.Rounded.Map, Space.Orange),
 )
+private val ids = listOf(HomeTab.CONTACTS, HomeTab.VERLAUF, HomeTab.ANLAESSE, HomeTab.KARTE)
 
 /** Space reserved at the bottom of scrolling content for the floating bar. */
 val BottomBarSpace = 104.dp
@@ -101,7 +102,8 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
     val glass = rememberGlassState()
     // Tabs keep their scroll position and saved state when you come back (PLAN 3.1).
     val saved = rememberSaveableStateHolder()
-    val current = tab.coerceIn(0, tabs.lastIndex)
+    // A tab number from before 3.0 (Netz) lands on Kontakte.
+    val current = ids.indexOf(tab).coerceAtLeast(0)
     // Living space (PLAN 1.2): scrolling drags the star layers (parallax), a tab change is a
     // short sideways camera move, every tab has its own nebula tint.
     val camera = remember { SpaceCamera().apply { pan = current.toFloat() } }
@@ -145,10 +147,9 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
                 modifier = Modifier.fillMaxSize(),
             ) { shown ->
                 saved.SaveableStateProvider(shown) {
-                    when (shown) {
+                    when (ids[shown]) {
                         HomeTab.VERLAUF -> VerlaufScreen(data, idx, nav)
                         HomeTab.ANLAESSE -> io.github.thelony97.orbit.ui.occasions.BirthdaysScreen(data, idx, nav)
-                        HomeTab.NETZ -> NetworkScreen(data, idx, nav)
                         HomeTab.KARTE -> MapScreen(data, idx, nav)
                         else -> ContactListScreen(data, idx, nav)
                     }
@@ -165,13 +166,13 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // On an empty Orbit the list's own „Kontakt anlegen“ is the one action (W6).
-            if (current == HomeTab.CONTACTS && data.contacts.any { !it.isMe && it.deletedAt == null }) {
+            if (ids[current] == HomeTab.CONTACTS && data.contacts.any { !it.isMe && it.deletedAt == null }) {
                 Box(Modifier.fillMaxWidth().padding(bottom = 10.dp), contentAlignment = Alignment.BottomEnd) {
                     ContactFabMenu(nav)
                 }
             }
             OrbitNavBar(
-                glass = glass, selected = current, onSelect = onTab,
+                glass = glass, selected = current, onSelect = { onTab(ids[it]) },
                 planetVisible = { intro.value >= 0.86f },
                 onPlanetAt = { planetTarget = it },
             )
@@ -237,8 +238,8 @@ private fun OrbitNavBar(
 ) {
     val haptics = rememberHaptics()
     val pill = RoundedCornerShape(50)
-    // Five tabs fit a 360-dp phone with the 16-dp gutter.
-    val slot = 60.dp
+    // Four tabs: a little more room each (PLAN 9 C5).
+    val slot = 68.dp
     val planet = remember { Animatable(selected.toFloat()) }
     var from by remember { mutableFloatStateOf(selected.toFloat()) }
     LaunchedEffect(selected) {

@@ -58,7 +58,7 @@ import kotlin.math.abs
 import kotlin.math.sign
 
 /** Under the anchor, centred and kept inside the window; above it when there is no room below. */
-private class BesideAnchor(private val gap: Int) : PopupPositionProvider {
+internal class BesideAnchor(private val gap: Int) : PopupPositionProvider {
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
         val x = (anchorBounds.center.x - popupContentSize.width / 2).coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
         val below = anchorBounds.bottom + gap

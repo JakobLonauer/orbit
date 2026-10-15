@@ -32,6 +32,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object Callbacks : Route
 
+    /** Netz (PLAN 9 C5): no longer a tab – opened from a contact's relations or the ICH card. */
+    @Serializable
+    data object Network : Route
+
     /** PLAN 9 A2: the cards of a .vcf file to pick from (held in [Session.cardDrafts]). */
     @Serializable
     data object CardImport : Route

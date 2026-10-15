@@ -912,7 +912,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         Row {
                             SmallIconAction(Icons.Rounded.Hub, "Im Netz zeigen") {
                                 Session.networkRoot = if (c.isMe) null else c.id
-                                nav.home(io.github.thelony97.orbit.ui.home.HomeTab.NETZ)
+                                nav.open(io.github.thelony97.orbit.ui.Route.Network)
                             }
                             SmallIconAction(Icons.Rounded.Add, "Beziehung hinzufügen") { relationDialog = true }
                         }

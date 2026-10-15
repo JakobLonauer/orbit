@@ -31,6 +31,24 @@ sealed interface TodayCard {
         override val key = "phonebook-new"
     }
 
+    /** PLAN 9 C1: a fixed-rule item of the day (meeting, occasion, topic, „Heute vor N Jahren“). */
+    data class Plan(
+        val item: io.github.thelony97.orbit.core.domain.TodayPlan.Item,
+        val contact: io.github.thelony97.orbit.data.Contact,
+        val with: io.github.thelony97.orbit.data.Contact? = null,
+        /** The entry type's name for „Heute vor N Jahren“ („Treffen“). */
+        val kindName: String = "",
+        /** First group colour (ARGB) – the same colour as in the list. */
+        val color: Long? = null,
+    ) : TodayCard {
+        override val key = item.key
+    }
+
+    /** PLAN 9 B5/C1: a Dranbleiben planned for today. */
+    data class Persist(val plan: io.github.thelony97.orbit.call.Persist.Plan) : TodayCard {
+        override val key = "persist:${plan.id}"
+    }
+
     companion object {
         const val OFFER_KEY = io.github.thelony97.orbit.phonebook.PhoneBookSync.OFFER_KEY
     }
