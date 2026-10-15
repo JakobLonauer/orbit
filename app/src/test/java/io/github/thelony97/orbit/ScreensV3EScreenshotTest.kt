@@ -126,4 +126,33 @@ class ScreensV3EScreenshotTest {
     @Test fun automations() = moment("v3e_auto", 400) {
         Column(Modifier.padding(top = 48.dp)) { io.github.thelony97.orbit.ui.settings.AutomationsPage(data, onGroups = {}) }
     }
+
+    /** E20: the long-press preview carries group chips – Anna is in „Familie“, the finger rests on „Uni“. */
+    @Test fun previewGroups() = screen("v3f_preview_groups") {
+        val groups = listOf(
+            io.github.thelony97.orbit.core.model.Group("fam", "Familie", 0xFFFF8FB1, pinned = true),
+            io.github.thelony97.orbit.core.model.Group("uni", "Uni", 0xFF6FB7FF),
+            io.github.thelony97.orbit.core.model.Group("work", "Arbeit", 0xFF9BE37A),
+        )
+        val withGroups = data.copy(groups = groups, contacts = data.contacts.map { if (it.id == "anna") it.copy(groupIds = listOf("fam")) else it })
+        val st = io.github.thelony97.orbit.ui.list.PreviewState(withGroups.contacts.first { it.id == "anna" })
+        io.github.thelony97.orbit.ui.list.PreviewCard(st, io.github.thelony97.orbit.domain.Index(withGroups), groups)
+    }
+
+    /** E8: logging a Treffen offers the open topics to tick. */
+    @Test fun entryTopics() = screen("v3f_entry_topics") {
+        io.github.thelony97.orbit.ui.sheets.EntrySheet(
+            title = "Kontakt mit Anna", types = data.entryTypes, initial = null, onSave = {}, onDismiss = {}, topics = anna.topics,
+        )
+    }
+
+    /** Null-Text: a note in Orbit's own bar instead of a system toast. */
+    @Test fun note() = screen("v3f_note") {
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            io.github.thelony97.orbit.ui.components.Undo.hosted = true
+            io.github.thelony97.orbit.ui.components.Undo.note(ctx, "In „Bilder/Orbit“ gespeichert")
+        }
+        Box(Modifier.fillMaxSize()) { io.github.thelony97.orbit.ui.components.UndoBar(Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 88.dp)) }
+    }
 }
