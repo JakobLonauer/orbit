@@ -46,6 +46,10 @@ data class CheckItem(
     val createdAt: Long = 0,
     /** PLAN 3.3 „Themen optional mit Datum“: ISO day (2026-10-20) the morning notification names it; null = none. */
     val remindOn: String? = null,
+    /** PLAN 9 E7 Geschenke-Board (gifts only): bought, waiting to be given. */
+    val bought: Boolean = false,
+    /** PLAN 9 E7: what it costs (cents). */
+    val priceCents: Long? = null,
 )
 
 @Serializable
@@ -227,6 +231,8 @@ data class Contact(
     val macros: List<Macro> = emptyList(),
     /** PLAN 9 D3: Verträge with this organisation (Handy, Strom, Versicherung …). */
     val contracts: List<Contract> = emptyList(),
+    /** PLAN 9 E7: what gifts for this person may cost in a year (cents); null = no budget. */
+    val giftBudgetCents: Long? = null,
     /** PLAN 9 D6: things lent or borrowed and money owed, either way. */
     val loans: List<Loan> = emptyList(),
     /** PLAN 9 D7: the WLAN of a place (an organisation's guest network). */

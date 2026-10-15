@@ -32,6 +32,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object Callbacks : Route
 
+    /** Geschenke-Board (PLAN 9 E7). */
+    @Serializable
+    data object Gifts : Route
+
     /** Themen-Stapel (PLAN 9 E8). */
     @Serializable
     data object Topics : Route

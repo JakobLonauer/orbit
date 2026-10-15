@@ -157,6 +157,13 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         item(key = "header") {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp).height(42.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Anlässe", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
+                // PLAN 9 E7: the Geschenke-Board, once there is a gift idea at all.
+                if (data.contacts.any { c -> c.deletedAt == null && c.gifts.isNotEmpty() }) {
+                    io.github.thelony97.orbit.ui.components.OrbButton(
+                        androidx.compose.material.icons.Icons.Rounded.CardGiftcard, "Geschenke", { nav.open(io.github.thelony97.orbit.ui.Route.Gifts) }, size = 38.dp,
+                    )
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+                }
                 // Only where it filters something (W5): the Geburtstage Reiter has no filter.
                 if (shown != 0) {
                     io.github.thelony97.orbit.ui.components.BadgeOrb(
