@@ -15,6 +15,8 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ### 15.10.2026 morgens (Tagsitzung)
 
+- **R1–R7 veröffentlicht als v1.0.226** (15.10. 09:38, Jakobs Zusage 09:32 „wenn du fertig bist … alles als offiziellen Release freigeben“): `main` fast-forward auf `dev` (0d52816), Release-Lauf 226 per workflow_dispatch (oberster Commit war [skip ci]), APK-Zertifikat geprüft (SHA-256 a549f16d…d81f wie erwartet). Beim ersten Start wird Schema 2 → 3 umgestellt, vorher automatische Kopie `orbit.v2.bak.json`. Telefon-App-Rolle bleibt aus, bis Jakob sie selbst einschaltet. Gerätetest-Checkliste gilt jetzt für 1.0.226.
+
 - **Hotfix veröffentlicht als v1.0.224** (15.10. 08:10, Jakobs Zusage „ja veröffentlichen“): `main` fast-forward auf `release-hotfix` (5b38c8d = R1b + Update-Download über `AppWork`), CI-Release grün, APK-Zertifikat geprüft (SHA-256 a549f16d…d81f wie erwartet). `dev` enthielt den Fix schon (Merge = no-op). R2–R7 bleiben unveröffentlicht bis Gerätetest + Zusage.
 - **!! Versionsfalle:** Der Hotfix (224) ist höher als die erste R7-Test-App (217) → Test-App neu gebaut als **1.0.225** (`release-r7` = `dev` 6cc771f). Eine Test-App mit R4+-Daten darf NIE das Update auf 224 bekommen (alter Code würde Zuordnungen/Mitarbeiter beim Speichern verwerfen). Jakob ist gewarnt. Künftig: Test-Builds immer erst NACH einem Release bauen bzw. neu bauen.
 - **Entscheidung (Jakob 15.10.):** Backup-Verschlüsselung ist **nicht Pflicht** – bleibt eine freiwillige Einstellung.
@@ -136,7 +138,7 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 ## Entscheidungen
 
 - 15.10.2026 (Jakob): Backup-Verschlüsselung bleibt freiwillig, kein Zwang beim ersten Backup.
-- 15.10.2026 (Jakob): Update-Fix allein veröffentlicht (v1.0.224); R2–R7 erst nach Gerätetest und ausdrücklicher Zusage.
+- 15.10.2026 (Jakob): Update-Fix veröffentlicht (v1.0.224); danach Zusage für alles Fertige → R1–R7 als v1.0.226. Weitere Releases nach Definition of Done ohne eigene Rückfrage.
 
 ## Offene Punkte für Jakob
 
