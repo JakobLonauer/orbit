@@ -1186,8 +1186,8 @@ private fun countryName(code: String): String =
 private fun ArriveSetting(on: Boolean) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     fun enable() {
+        // The fences follow with the save (OrbitApp.onSaved → Arrive.sync).
         OrbitRepository.editSettings { it.copy(arrive = true) }
-        io.github.thelony97.orbit.live.Arrive.sync(ctx, OrbitRepository.snapshot().let { d -> d.copy(settings = d.settings.copy(arrive = true)) }, force = true)
     }
     val background = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) enable()
@@ -1203,10 +1203,7 @@ private fun ArriveSetting(on: Boolean) {
             trailing = {
                 SpaceSwitch(on) { v ->
                     when {
-                        !v -> {
-                            OrbitRepository.editSettings { it.copy(arrive = false) }
-                            io.github.thelony97.orbit.live.Arrive.sync(ctx, OrbitRepository.snapshot().let { d -> d.copy(settings = d.settings.copy(arrive = false)) }, force = true)
-                        }
+                        !v -> OrbitRepository.editSettings { it.copy(arrive = false) }
                         io.github.thelony97.orbit.live.Arrive.allowed(ctx) -> enable()
                         ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ->
                             background.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
