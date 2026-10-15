@@ -77,4 +77,10 @@ class OrbitLineTest {
         assertFalse(OrbitLine.accepts(contacts[3], p("ist:person").filters, groups))
         assertNull(p("hat:geburtstag Tom").personId)
     }
+
+    @Test fun eventMode() {
+        assertEquals("Hochzeit Tom", p("Event Hochzeit Tom").event)
+        assertNull(p("Eventhalle").event)
+        assertFalse(p("Event Hochzeit Tom").capture)
+    }
 }

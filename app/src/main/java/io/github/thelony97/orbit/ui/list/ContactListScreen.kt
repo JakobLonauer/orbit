@@ -332,6 +332,12 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 leading = Icons.Rounded.Search,
                 modifier = Modifier.weight(1f),
                 onSubmit = {
+                    // PLAN 9 E24: „Event Hochzeit Tom“ starts the Event-Modus for today.
+                    line.event?.let { ev ->
+                        startEvent(ev)
+                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                        search.clearText()
+                    }
                     if (line.capture && commitLine(line, data) != null) {
                         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
                         search.clearText()
@@ -341,6 +347,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             BadgeOrb(Icons.Rounded.Tune, "Filter & Sortierung", activeCount, { filterSheet = true })
         }
 
+        activeEvent(data)?.let { ev -> EventBar(ev, data) }
         AnimatedVisibility(line.chips.isNotEmpty()) {
             OrbitLineChips(
                 line, onClick = {},

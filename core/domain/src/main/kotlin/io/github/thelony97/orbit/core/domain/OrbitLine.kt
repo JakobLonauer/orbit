@@ -43,6 +43,8 @@ object OrbitLine {
         val chips: List<Chip> = emptyList(),
         /** A „+Notiz“ was typed. */
         val plusNote: Boolean = false,
+        /** PLAN 9 E24: „Event Hochzeit Tom“ – Enter starts the Event-Modus for today. */
+        val event: String? = null,
     ) {
         /** Enter creates something: a person plus a kind, a time or a „+Notiz“. */
         val capture: Boolean get() = personId != null && (typeId != null || at != null || plusNote)
@@ -75,6 +77,7 @@ object OrbitLine {
     private val HOUR = Regex("^(\\d{1,2})(uhr)?$")
     private val DATE = Regex("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?$")
     private const val NOON = 12
+    private const val EVENT = "event "
 
     private class Tok(val raw: String) {
         val f = Fold.fold(raw).trimEnd(',')
@@ -82,6 +85,11 @@ object OrbitLine {
     }
 
     fun parse(text: String, contacts: List<Contact>, types: List<EntryType>, now: LocalDateTime): Line {
+        val trimmed = text.trim()
+        if (trimmed.length > EVENT.length && Fold.fold(trimmed).startsWith(EVENT)) {
+            val name = trimmed.drop(EVENT.length).trim()
+            return Line(rest = trimmed, event = name, chips = listOf(Chip(Kind.NOTE, "Event · $name")))
+        }
         val noteAt = text.indexOf(" +").let { if (it >= 0) it + 1 else if (text.startsWith("+")) 0 else -1 }
         val note = if (noteAt >= 0) text.substring(noteAt + 1).trim() else ""
         val toks = (if (noteAt >= 0) text.substring(0, noteAt) else text).split(' ').filter { it.isNotBlank() }.map(::Tok)

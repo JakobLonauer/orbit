@@ -474,6 +474,9 @@ data class Settings(
     val autoBusyGroups: List<String> = emptyList(),
     /** PLAN 9 E15: saved searches of the Orbit-Zeile, shown as chips next to the groups. */
     val smartGroups: List<SmartGroup> = emptyList(),
+    /** PLAN 9 E24 Event-Modus: the event of the day („Hochzeit Tom“) and its ISO day; off otherwise. */
+    val eventName: String? = null,
+    val eventDay: String? = null,
 ) {
     companion object {
         val DEFAULT_SNIPPETS = listOf(
