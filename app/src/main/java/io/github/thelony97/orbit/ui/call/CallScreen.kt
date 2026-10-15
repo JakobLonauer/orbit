@@ -639,7 +639,7 @@ private fun QueueOverlay(since: Long, name: String, onExit: () -> Unit, onEar: (
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.offset(x = ((shift % 2) * 2 - 1) * 6.dp, y = ((shift / 2) * 2 - 1) * 10.dp),
+            Modifier.offset(x = 6.dp * ((shift % 2) * 2 - 1), y = 10.dp * ((shift / 2) * 2 - 1)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("Warteschleife", style = MaterialTheme.typography.labelLarge, color = Space.Teal.copy(alpha = 0.55f))
