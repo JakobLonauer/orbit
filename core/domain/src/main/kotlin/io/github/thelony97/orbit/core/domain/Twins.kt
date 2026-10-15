@@ -108,7 +108,28 @@ object Twins {
     private fun photo(keep: Contact, gone: Contact, fromGone: Set<String>) =
         if ("photo" in fromGone || keep.photo == null) gone.photo ?: keep.photo else keep.photo
 
-    fun merged(keep: Contact, gone: Contact, fromGone: Set<String>, now: Long): Contact {
+    /** The organisation side and the rest of the small fields: keep's value, else gone's. */
+    private fun rest(m: Contact, keep: Contact, gone: Contact): Contact = m.copy(
+        orgCategory = keep.orgCategory ?: gone.orgCategory,
+        trade = keep.trade.ifBlank { gone.trade },
+        ringtone = keep.ringtone ?: gone.ringtone,
+        simId = keep.simId ?: gone.simId,
+        hideNumber = keep.hideNumber || gone.hideNumber,
+        poster = keep.poster ?: gone.poster,
+        numberPrefixes = (keep.numberPrefixes + gone.numberPrefixes).distinct(),
+        emailDomains = (keep.emailDomains + gone.emailDomains).distinct(),
+        mapsUrl = keep.mapsUrl ?: gone.mapsUrl,
+        openingHours = keep.openingHours.ifBlank { gone.openingHours },
+        phoneHours = keep.phoneHours.ifBlank { gone.phoneHours },
+        vacationUntil = keep.vacationUntil ?: gone.vacationUntil,
+        vacationSubstitute = (keep.vacationSubstitute ?: gone.vacationSubstitute)?.takeIf { it != keep.id && it != gone.id },
+        dead = (keep.dead + gone.dead).distinct(),
+        giftBudgetCents = keep.giftBudgetCents ?: gone.giftBudgetCents,
+    )
+
+    fun merged(keep: Contact, gone: Contact, fromGone: Set<String>, now: Long): Contact = rest(merge1(keep, gone, fromGone, now), keep, gone)
+
+    private fun merge1(keep: Contact, gone: Contact, fromGone: Set<String>, now: Long): Contact {
         return keep.copy(
             firstName = pick("firstName", keep.firstName, gone.firstName, fromGone),
             lastName = pick("lastName", keep.lastName, gone.lastName, fromGone),
@@ -139,21 +160,6 @@ object Twins {
             macros = join(keep.macros, gone.macros) { it.id },
             geo = keep.geo ?: gone.geo,
             greeting = keep.greeting ?: gone.greeting,
-            orgCategory = keep.orgCategory ?: gone.orgCategory,
-            trade = keep.trade.ifBlank { gone.trade },
-            ringtone = keep.ringtone ?: gone.ringtone,
-            simId = keep.simId ?: gone.simId,
-            hideNumber = keep.hideNumber || gone.hideNumber,
-            poster = keep.poster ?: gone.poster,
-            numberPrefixes = (keep.numberPrefixes + gone.numberPrefixes).distinct(),
-            emailDomains = (keep.emailDomains + gone.emailDomains).distinct(),
-            mapsUrl = keep.mapsUrl ?: gone.mapsUrl,
-            openingHours = keep.openingHours.ifBlank { gone.openingHours },
-            phoneHours = keep.phoneHours.ifBlank { gone.phoneHours },
-            vacationUntil = keep.vacationUntil ?: gone.vacationUntil,
-            vacationSubstitute = (keep.vacationSubstitute ?: gone.vacationSubstitute)?.takeIf { it != keep.id && it != gone.id },
-            dead = (keep.dead + gone.dead).distinct(),
-            giftBudgetCents = keep.giftBudgetCents ?: gone.giftBudgetCents,
             createdAt = listOf(keep.createdAt, gone.createdAt).filter { it > 0 }.minOrNull() ?: keep.createdAt,
             updatedAt = now,
             entries = join(keep.entries, gone.entries.map { it.copy(contactId = keep.id) }) { it.id }.sortedByDescending { it.at },

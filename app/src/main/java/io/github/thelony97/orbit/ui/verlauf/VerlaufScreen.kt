@@ -254,7 +254,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
         if (zoom != io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) {
             spans(rows, zoom, todayDate, idx).forEach { sp ->
                 item(key = "z-${sp.key}") {
-                    SpanRow(sp, Modifier.animateItem()) { zoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(zoom) }
+                    SpanRow(sp, onOpen = { zoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(zoom) }, modifier = Modifier.animateItem())
                 }
             }
             return@LazyColumn
@@ -406,7 +406,7 @@ internal fun spans(rows: List<VerlaufItem>, level: io.github.thelony97.orbit.cor
     }
 
 @Composable
-private fun SpanRow(sp: Span, modifier: Modifier = Modifier, onOpen: () -> Unit) {
+private fun SpanRow(sp: Span, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
