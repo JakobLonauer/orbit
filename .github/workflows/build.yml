@@ -74,15 +74,16 @@ jobs:
           DETEKT=2.0.0-alpha.6
           curl -fsSL -o detekt.jar "https://github.com/detekt/detekt/releases/download/v$DETEKT/detekt-cli-$DETEKT-all.jar" || echo "detekt download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
           curl -fsSL -o compose-rules.jar "https://repo1.maven.org/maven2/io/nlopez/compose/rules/detekt/0.6.6/detekt-0.6.6.jar" || echo "compose rules download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
+          INPUTS="--input app/src/main/java:core/model/src/main:core/domain/src/main:core/designsystem/src/main"
           if [ -f detekt.jar ]; then
             PLUG=""; [ -f compose-rules.jar ] && PLUG="--plugins compose-rules.jar"
             BASE=""; [ -f config/detekt/baseline.xml ] && BASE="--baseline config/detekt/baseline.xml"
-            java -jar detekt.jar --input app/src/main/java,core/model/src/main,core/domain/src/main,core/designsystem/src/main \
+            java -jar detekt.jar $INPUTS \
               --build-upon-default-config --config config/detekt/detekt.yml $PLUG $BASE \
               --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
               >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
             # A baseline of today's findings, to commit as config/detekt/baseline.xml (only new findings count afterwards).
-            [ -z "$BASE" ] && java -jar detekt.jar --input app/src/main/java,core/model/src/main,core/domain/src/main,core/designsystem/src/main \
+            [ -z "$BASE" ] && java -jar detekt.jar $INPUTS \
               --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
               --create-baseline --baseline "$RUNNER_TEMP/analysis/baseline.xml" >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
           fi

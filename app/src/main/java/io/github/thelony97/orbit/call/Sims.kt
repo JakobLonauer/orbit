@@ -8,6 +8,8 @@ import android.telecom.TelecomManager
 object Sims {
     data class Sim(val id: String, val label: String)
 
+    // Without READ_PHONE_STATE the SecurityException is caught (runCatching) and the list stays empty.
+    @android.annotation.SuppressLint("MissingPermission")
     private fun handles(ctx: Context): List<PhoneAccountHandle> =
         runCatching { ctx.getSystemService(TelecomManager::class.java)?.callCapablePhoneAccounts }.getOrNull().orEmpty()
 

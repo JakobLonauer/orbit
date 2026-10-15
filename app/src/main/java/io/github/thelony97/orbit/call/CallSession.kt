@@ -195,6 +195,8 @@ object CallSession {
      * Dual SIM set to „ask every time“: Telecom waits in SELECT_PHONE_ACCOUNT until the phone app
      * picks one – without this the outgoing call would hang forever.
      */
+    // Without READ_PHONE_STATE the SecurityException is caught (runCatching) and the list stays empty.
+    @android.annotation.SuppressLint("MissingPermission")
     fun accounts(ctx: android.content.Context, call: Call): List<android.telecom.PhoneAccountHandle> {
         val fromCall = runCatching {
             call.details.extras?.getParcelableArrayList(Call.AVAILABLE_PHONE_ACCOUNTS, android.telecom.PhoneAccountHandle::class.java)

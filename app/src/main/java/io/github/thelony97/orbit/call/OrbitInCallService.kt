@@ -182,6 +182,8 @@ object CallNotification {
             CallSession.calls.value.size <= 1
     }.getOrDefault(false)
 
+    // POST_NOTIFICATIONS is checked by Notifications.canPost right before notify (lint cannot see it).
+    @android.annotation.SuppressLint("MissingPermission")
     fun update(ctx: Context) {
         val call = CallSession.primary()
         if (call == null) {
