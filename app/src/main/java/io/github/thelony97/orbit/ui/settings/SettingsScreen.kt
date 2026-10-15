@@ -105,6 +105,7 @@ import androidx.compose.material.icons.rounded.Euro
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
@@ -586,6 +587,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         iconTint = Space.Coral, onClick = { screenListDialog = "series" },
                     )
                 }
+            }
+        }
+
+        // PLAN 9 B12: Bewegungsgesten – off until Jakob switches them on.
+        if (area == "capture") item(key = "gestures") {
+            SettingsGroup("") {
+                SettingItem(
+                    Icons.Rounded.ScreenRotation, "Bewegungsgesten",
+                    subtitle = if (s.motionGestures) "Ohr · Umdrehen · Hinlegen" else null,
+                    iconTint = Space.Teal,
+                    trailing = { SpaceSwitch(s.motionGestures) { v -> OrbitRepository.editSettings { it.copy(motionGestures = v) } } },
+                )
             }
         }
 

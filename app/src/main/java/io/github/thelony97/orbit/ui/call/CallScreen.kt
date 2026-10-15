@@ -17,6 +17,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +56,7 @@ import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Unarchive
@@ -72,6 +75,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -182,7 +187,14 @@ data class CallUi(
     val dictation: List<Pair<String, String>> = emptyList(),
     /** PLAN 9 B7 „Tastenfeld schreibt mit“: Vorgangsnummern typed in the call. */
     val cases: List<String> = emptyList(),
+    /** PLAN 9 B6: waiting in a hotline's queue since then (speaker on, screen dark). */
+    val queueSince: Long? = null,
+    /** PLAN 9 B9: the SIM it rings on – only with two SIMs. */
+    val sim: SimTag? = null,
 )
+
+/** PLAN 9 B9: a SIM's name and colour (ARGB). */
+data class SimTag(val label: String, val color: Int)
 
 enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
 
@@ -221,6 +233,8 @@ interface CallActions {
     fun macroNext() {}
     fun macroStop() {}
     fun saveMacro() {}
+    /** PLAN 9 B6: into the queue (speaker, dark screen) or out again; [ear] = lifted to the ear. */
+    fun queue(on: Boolean, ear: Boolean = false) {}
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
@@ -272,19 +286,33 @@ fun CallScreen(
     val top by androidx.compose.animation.core.animateDpAsState(if (ui.ended) 16.dp else 40.dp, tween(Motion.MEDIUM_MS), label = "top")
     // No tilt at the ear (the screen is dark there anyway) – saves the sensor for the whole call.
     val tilt = !(ui.active && !ui.ended && ui.route == AudioRoute.EARPIECE)
+    // PLAN 9 B11 Anruf-Poster: a person's picture full screen (their poster, else the profile photo).
+    val card = ui.card
+    val posterName = (card?.poster ?: card?.photo)?.takeIf { card?.org == false && !card.archived && !ui.ended }
+    val poster = rememberPoster(posterName)
     SpaceBackground(nebula = { color.copy(alpha = 1f) }, camera = rememberTiltCamera(tilt)) {
+        poster?.let { CallPoster(it, dim = ui.active) }
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(top))
-            CallerPortrait(ui.card, color, faded = ui.card?.archived == true && ui.phoneUnlocked, size = portrait)
-            Spacer(Modifier.height(16.dp))
-            // The name alone; the archive hint sits in the details with „Zurückholen“.
+            if (poster == null) {
+                CallerPortrait(ui.card, color, faded = ui.card?.archived == true && ui.phoneUnlocked, size = portrait)
+                Spacer(Modifier.height(16.dp))
+            }
+            // The name alone; the archive hint sits in the details with „Zurückholen“. On a poster
+            // it stands big in the person's own colour.
             Text(
                 notice?.publicTitle ?: ui.number,
-                style = MaterialTheme.typography.headlineMediumEmphasized,
-                color = Space.Text,
+                style = if (poster == null) {
+                    MaterialTheme.typography.headlineMediumEmphasized
+                } else {
+                    MaterialTheme.typography.displaySmallEmphasized.copy(
+                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.7f), androidx.compose.ui.geometry.Offset(0f, 2f), 16f),
+                    )
+                },
+                color = if (poster == null) Space.Text else color,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -397,12 +425,21 @@ fun CallScreen(
                 } else {
                     // Macros to play (B4) and numbers to read out (B7) – one row of chips.
                     val dictation = if (ui.phoneUnlocked) ui.dictation else emptyList()
-                    val chips = ui.macros.isNotEmpty() || dictation.isNotEmpty()
+                    // B6: hotlines (organisations, unknown numbers) once they answered – where queues are.
+                    val queue = !ui.dialing && !ui.onHold && ui.card?.org != false
+                    val chips = queue || ui.macros.isNotEmpty() || dictation.isNotEmpty()
                     if (chips && !ui.ended && !keys) {
                         androidx.compose.foundation.layout.FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            if (queue) {
+                                io.github.thelony97.orbit.ui.components.SpaceChip(
+                                    "Warteschleife", false, { actions.queue(true) },
+                                    leading = Icons.Rounded.HourglassTop,
+                                    accent = Space.Teal,
+                                )
+                            }
                             ui.macros.forEach { m ->
                                 io.github.thelony97.orbit.ui.components.SpaceChip(
                                     m.label, false, { actions.playMacro(m.id) },
@@ -447,6 +484,174 @@ fun CallScreen(
             }
             }
             Spacer(Modifier.height(16.dp))
+        }
+        // PLAN 9 B9: with two SIMs the ringing one draws its colour round the screen.
+        ui.sim?.takeIf { !ui.active && !ui.ended }?.let { SimEdge(it) }
+        // PLAN 9 B6: the queue – dark, the waiting time big; a tap or the ear brings the call back.
+        val since = ui.queueSince?.takeIf { ui.active && !ui.ended }
+        androidx.compose.animation.AnimatedVisibility(
+            since != null,
+            enter = fadeIn(tween(Motion.EMPHASIZED_MS)),
+            exit = fadeOut(tween(Motion.FAST_MS)),
+        ) {
+            QueueOverlay(
+                since = since ?: 0L,
+                name = notice?.publicTitle ?: ui.number,
+                onExit = { actions.queue(false) },
+                onEar = { actions.queue(false, ear = true) },
+            )
+        }
+    }
+}
+
+/** PLAN 9 B11: the poster picture, decoded for the screen (a gallery file can be large). */
+@Composable
+private fun rememberPoster(name: String?): androidx.compose.ui.graphics.ImageBitmap? {
+    val image by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, name) {
+        value = name?.let { n -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { decodePoster(n) } }
+    }
+    return image
+}
+
+private fun decodePoster(name: String): androidx.compose.ui.graphics.ImageBitmap? = runCatching {
+    val file = io.github.thelony97.orbit.data.OrbitRepository.photoFile(name)
+    if (!file.exists()) return@runCatching null
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeFile(file.absolutePath, bounds)
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= POSTER_EDGE) sample *= 2
+    android.graphics.BitmapFactory.decodeFile(file.absolutePath, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+}.getOrNull()
+
+private const val POSTER_EDGE = 1600
+
+/**
+ * PLAN 9 B11 Moment: the picture settles from a slight zoom (≤ 400 ms); dark at the top for the
+ * name and at the bottom for the buttons, darker once talking.
+ */
+@Composable
+private fun CallPoster(image: androidx.compose.ui.graphics.ImageBitmap, dim: Boolean) {
+    val veil by animateFloatAsState(if (dim) 0.78f else 0.42f, tween(Motion.EMPHASIZED_MS), label = "veil")
+    val zoom = remember { androidx.compose.animation.core.Animatable(1.06f) }
+    LaunchedEffect(Unit) { zoom.animateTo(1f, tween(Motion.MAX_MS, easing = Motion.Emphasized)) }
+    androidx.compose.foundation.Image(
+        image,
+        null,
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = zoom.value
+                scaleY = zoom.value
+            }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.6f),
+                        0.3f to Color.Black.copy(alpha = veil * 0.35f),
+                        0.55f to Color.Black.copy(alpha = veil * 0.7f),
+                        1f to Color.Black.copy(alpha = 0.95f),
+                    ),
+                )
+            },
+    )
+}
+
+/** PLAN 9 B9: the SIM's colour along the screen's own rounded edge, its name as a small tab on top. */
+@Composable
+private fun SimEdge(sim: SimTag) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val corner = remember(view) {
+        val px = runCatching { view.rootWindowInsets?.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT)?.radius }.getOrNull() ?: 0
+        with(density) { if (px > 0) px.toDp() else 28.dp }
+    }
+    val color = Color(sim.color)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .drawBehind {
+                val r = androidx.compose.ui.geometry.CornerRadius(corner.toPx())
+                // A soft glow inside, then the sharp line.
+                drawRoundRect(color.copy(alpha = 0.22f), cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(10.dp.toPx()))
+                drawRoundRect(color, cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+            },
+    )
+    Box(Modifier.fillMaxWidth().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
+        Text(
+            sim.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = Space.Void,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
+                .background(color)
+                .padding(horizontal = 12.dp, vertical = 3.dp),
+        )
+    }
+}
+
+/**
+ * PLAN 9 B6 Warteschleife: the screen goes dark and dim (window brightness at the bottom), only
+ * the waiting time stays, big and faint, moving a little each minute so nothing burns in. Lifted
+ * to the ear (proximity) it hands back to the handset.
+ */
+@Composable
+private fun QueueOverlay(since: Long, name: String, onExit: () -> Unit, onEar: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ear by androidx.compose.runtime.rememberUpdatedState(onEar)
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val window = (ctx as? android.app.Activity)?.window
+        val before = window?.attributes?.screenBrightness
+        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window?.attributes = window?.attributes?.apply { screenBrightness = 0.02f }
+        val sensors = ctx.getSystemService(android.hardware.SensorManager::class.java)
+        val proximity = sensors?.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY)
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                if (event.values.firstOrNull()?.let { it < (proximity?.maximumRange ?: 1f) } == true) ear()
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) = Unit
+        }
+        if (proximity != null) sensors.registerListener(listener, proximity, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        onDispose {
+            sensors?.unregisterListener(listener)
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            window?.attributes = window?.attributes?.apply { screenBrightness = before ?: android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+        }
+    }
+    var now by remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(since) {
+        while (true) {
+            now = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    val secs = ((now - since) / 1_000).coerceAtLeast(0)
+    // A few dp further each minute (burn-in).
+    val shift = (secs / 60 % 4).toInt()
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .clickable(interactionSource = null, indication = null, onClick = onExit),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.offset(x = ((shift % 2) * 2 - 1) * 6.dp, y = ((shift / 2) * 2 - 1) * 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Warteschleife", style = MaterialTheme.typography.labelLarge, color = Space.Teal.copy(alpha = 0.55f))
+            Text(
+                "%d:%02d".format(secs / 60, secs % 60),
+                fontFamily = Grotesk,
+                fontWeight = FontWeight.Light,
+                fontSize = 96.sp,
+                color = Space.Text.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+            )
+            Text(name, style = MaterialTheme.typography.bodyLarge, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

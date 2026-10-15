@@ -134,6 +134,8 @@ class BootReceiver : BroadcastReceiver() {
             DigestScheduler.schedule(context)
             Sync.schedulePeriodic(context)
             Backups.schedule(context)
+            // PLAN 9 B5: alarms do not survive a restart – the planned calls set theirs again.
+            io.github.thelony97.orbit.call.Persist.restore(context)
         }
     }
 }

@@ -180,6 +180,10 @@ data class Contact(
     val defaultPhone: Int = 0,
     /** PLAN 3.12 „Dual-SIM pro Kontakt“: the SIM (phone account id) Orbit calls this contact with; null = the phone decides. */
     val simId: String? = null,
+    /** PLAN 9 B10: calls to this contact go out with #31# – the own number stays hidden. */
+    val hideNumber: Boolean = false,
+    /** PLAN 9 B11 Anruf-Poster: a picture of the gallery shown full screen when they call; null = the profile photo. */
+    val poster: String? = null,
     /** PLAN 3.5 Gratulations-Vorlage: Du/Sie and language of the „Gratulieren“ text; null = Du, Deutsch. */
     val greeting: Greeting? = null,
     val emails: List<LabeledValue> = emptyList(),
@@ -264,6 +268,8 @@ data class Group(
     val pinned: Boolean = false,
     /** PLAN 9 A8: ringtone for every member without an own one (phone book). */
     val ringtone: String? = null,
+    /** PLAN 9 B9: the SIM members are called with when they have none of their own (two SIMs only). */
+    val simId: String? = null,
 )
 
 @Serializable
@@ -373,6 +379,11 @@ data class Settings(
     val screenCountries: List<String> = emptyList(),
     /** B8 rule „Nummernserie“: number beginnings („0720 99“, „+44 7“) that are silenced when unknown. */
     val screenSeries: List<String> = emptyList(),
+    /**
+     * PLAN 9 B12 Bewegungsgesten: contact open + to the ear = call; ringing + turned over = silent;
+     * from the ear onto the table = speaker. Off until Jakob switches it on; never in battery saver.
+     */
+    val motionGestures: Boolean = false,
 ) {
     companion object {
         val DEFAULT_SMS_TEMPLATES = listOf(

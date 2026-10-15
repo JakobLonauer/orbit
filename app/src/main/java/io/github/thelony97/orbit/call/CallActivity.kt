@@ -75,8 +75,10 @@ class CallActivity : ComponentActivity() {
         setContent {
             OrbitTheme {
                 CallRoute(onDone = {
-                    // A new call may have arrived in between: only close when nothing is left.
-                    if (CallSession.primary() == null && CallSession.ended.value == null) finish()
+                    // A new call may have arrived in between: only close when nothing is left –
+                    // no call, no after-call screen, no Dranbleiben pause or offer (PLAN 9 B5).
+                    val idle = CallSession.primary() == null && CallSession.ended.value == null
+                    if (idle && Persist.run.value == null && Persist.offer.value == null) finish()
                 })
             }
         }
@@ -131,6 +133,7 @@ class CallActivity : ComponentActivity() {
             CallSession.draft = ""
             if (e != null && text.isNotEmpty()) CallNoteWorker.enqueue(applicationContext, e, text)
             CallSession.ended.value = null
+            Persist.clearOffer()
         }
         super.onDestroy()
     }
@@ -229,6 +232,7 @@ private fun CallRoute(onDone: () -> Unit) {
     val cards by CallSession.cards.collectAsState()
     val unknowns by Materialize.unknown.collectAsState()
     val macroState by MacroPlayer.state.collectAsState()
+    val queue by CallSession.queue.collectAsState()
     // PLAN 9 B4: a recording kept once is not offered again.
     var macroSaved by remember { mutableStateOf(false) }
     val doc by OrbitRepository.data.collectAsState()
@@ -250,8 +254,38 @@ private fun CallRoute(onDone: () -> Unit) {
     }
     val call: Call? = remember(version) { CallSession.primary() }
     val after = ended
+    val persist by Persist.run.collectAsState()
+    val offer by Persist.offer.collectAsState()
     if (call == null && after == null) {
-        LaunchedEffect(Unit) { onDone() }
+        val p = persist
+        val o = offer
+        when {
+            // PLAN 9 B5: between two tries the screen stays – the ring counts down to the next.
+            p != null -> io.github.thelony97.orbit.ui.call.PersistPause(
+                io.github.thelony97.orbit.ui.call.PersistUi(
+                    name = p.plan.name,
+                    number = Phones.pretty(p.plan.number, Phones.countryIso(ctx)),
+                    tries = p.tries,
+                    nextAt = if (p.phase == Persist.Phase.PAUSE) p.nextAt else 0L,
+                    last = p.last,
+                ),
+                onNow = { Persist.now(ctx) },
+                onStop = {
+                    Persist.stop(ctx)
+                    onDone()
+                },
+            )
+            // Busy without a plan: one offer to stay on it.
+            o != null -> io.github.thelony97.orbit.ui.call.BusyOffer(
+                o.name,
+                onPersist = { Persist.startNow(ctx, o.number, o.name, o.contactId) },
+                onClose = {
+                    Persist.clearOffer()
+                    onDone()
+                },
+            )
+            else -> LaunchedEffect(Unit) { onDone() }
+        }
         return
     }
     // Rebuilt only when something changes – never by the second (W8); the timer reads [now] itself.
@@ -261,7 +295,11 @@ private fun CallRoute(onDone: () -> Unit) {
         call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: after?.connectedAt ?: 0L
     }
     val clock = remember(connectedAt) { { if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0L } }
-    val ui = remember(version, call, after, audio, cards, unknowns, macroState, macroSaved, doc, phoneUnlocked, done, canBlock) {
+    // PLAN 9 B9: the SIM it rings on (two SIMs only), once per call and state.
+    val simTag = remember(call, call?.let { CallSession.stateOf(it) }) {
+        call?.let { c -> Sims.tag(ctx, runCatching { c.details.accountHandle }.getOrNull()) }?.let { io.github.thelony97.orbit.ui.call.SimTag(it.label, it.color) }
+    }
+    val ui = remember(version, call, after, audio, cards, unknowns, macroState, macroSaved, queue, simTag, doc, phoneUnlocked, done, canBlock) {
     if (call != null) {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
@@ -306,6 +344,8 @@ private fun CallRoute(onDone: () -> Unit) {
             },
             playing = macroState?.let { playingUi(it) },
             dictation = dictationOf(doc, cards[number]),
+            queueSince = queue,
+            sim = simTag,
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),
@@ -434,6 +474,9 @@ private fun CallRoute(onDone: () -> Unit) {
             val org = orgOf(doc, ui.card) ?: return
             val macro = org.macros.firstOrNull { it.id == id } ?: return
             MacroPlayer.start(macro, org, doc?.contacts?.firstOrNull { it.isMe })
+        }
+        override fun queue(on: Boolean, ear: Boolean) {
+            if (on) CallSession.enterQueue() else CallSession.leaveQueue(ear)
         }
         override fun macroNext() = MacroPlayer.next()
         override fun macroStop() = MacroPlayer.stop()

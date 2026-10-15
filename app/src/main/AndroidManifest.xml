@@ -27,6 +27,10 @@
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- Haptik-Vokabular (PLAN 9.2): „Materialisieren“ is a composed vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- PLAN 9 B5 Dranbleiben: the planned call rings on the minute like an alarm clock. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- PLAN 9 B5: „Versuch 7 · 07:31“ as a live chip in the status bar (Android 16). -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 
     <!-- „Gratulieren“ opens WhatsApp only if it is installed (else SMS): Orbit must be allowed to see it. -->
     <queries>
@@ -278,6 +282,20 @@
 
         <receiver
             android:name=".call.CallActionReceiver"
+            android:exported="false" />
+
+        <!-- PLAN 9 B5 Dranbleiben: the card at the planned time, over the lock screen. -->
+        <activity
+            android:name=".call.PersistActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity="io.github.thelony97.orbit.persist" />
+
+        <receiver
+            android:name=".call.PersistReceiver"
             android:exported="false" />
 
         <activity

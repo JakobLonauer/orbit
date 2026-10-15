@@ -47,7 +47,7 @@ object Callbacks {
         val calls = SyncEngine.callsSince(ctx, since).mapNotNull { c ->
             val type = callType(c.type)
             val n = c.number?.takeIf { it.isNotBlank() && Phones.normalize(it, iso) !in spam }
-            if (type == null || n == null) null else CallbackStack.Call(n, c.date, type)
+            if (type == null || n == null) null else CallbackStack.Call(n, c.date, type, c.accountId)
         }
         val sms = if (SyncEngine.canReadSms(ctx)) {
             SyncEngine.smsSince(ctx, since).mapNotNull { s -> s.address?.let { CallbackStack.Sms(it, s.date, sent = !s.incoming, body = s.body) } }
@@ -69,7 +69,7 @@ object Callbacks {
     }
 
     /** Who the card is: the contact, else the Herold hit, else the number itself. */
-    private fun item(ctx: Context, data: OrbitData, card: CallbackStack.Card, matcher: PhoneMatcher, iso: String): Item {
+    private suspend fun item(ctx: Context, data: OrbitData, card: CallbackStack.Card, matcher: PhoneMatcher, iso: String): Item {
         val contact = matcher.match(card.number)?.let { id -> data.contacts.firstOrNull { it.id == id } }
         val info = runCatching { NumberInfo.of(card.number, iso) }.getOrNull()
         val hit = if (contact == null) info?.let { CallerLookup.known(ctx, it.e164)?.hit } else null

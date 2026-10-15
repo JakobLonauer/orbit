@@ -15,6 +15,19 @@ object Phones {
         return (iso ?: "AT").uppercase(Locale.ROOT)
     }
 
+    /** PLAN 9 B10: the SIM's country (home) and the network's right now (abroad when they differ). */
+    fun homeIso(context: Context): String {
+        val tm = context.getSystemService(TelephonyManager::class.java)
+        return (tm?.simCountryIso?.takeIf { it.isNotBlank() } ?: Locale.getDefault().country.ifBlank { "AT" }).uppercase(Locale.ROOT)
+    }
+
+    fun hereIso(context: Context): String? =
+        context.getSystemService(TelephonyManager::class.java)?.networkCountryIso?.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
+
+    /** The number as it is dialled (PLAN 9 B10 Wählregeln). */
+    fun dial(context: Context, number: String, hide: Boolean = false): String =
+        io.github.thelony97.orbit.core.domain.DialRules.dial(number, homeIso(context), hereIso(context), hide)
+
     /** E.164 if possible ("+436601234567"), otherwise the bare digits. */
     fun normalize(raw: String, iso: String): String? {
         val cleaned = raw.trim()

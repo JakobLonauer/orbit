@@ -28,14 +28,18 @@ object ContactActions {
         c.phones.getOrNull(c.defaultPhone)?.value?.takeIf { it.isNotBlank() }
             ?: c.phones.firstOrNull { it.value.isNotBlank() }?.value
 
-    fun call(ctx: Context, c: Contact, number: String?, settings: Settings) {
+    /** [sim]: a SIM that wins over the contact's rules (PLAN 9 B9: call back on the SIM it came in on). */
+    fun call(ctx: Context, c: Contact, number: String?, settings: Settings, sim: String? = null) {
         val target = number ?: defaultNumber(c) ?: return toast(ctx, "Keine Nummer hinterlegt")
         // As phone app the call screen lists the topics; otherwise the reminder notification.
         if (settings.topicsDuringCall && !io.github.thelony97.orbit.call.PhoneRole.held(ctx)) Notifications.topics(ctx, c)
         val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
-        val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", target, null))
-        // Dual-SIM pro Kontakt (PLAN 3.12): Telecom honours the account on ACTION_CALL.
-        io.github.thelony97.orbit.call.Sims.handle(ctx, c.simId)?.let { intent.putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
+        // Wählregeln (PLAN 9 B10): +43 abroad, #31# for „Nummer unterdrücken“.
+        val dial = io.github.thelony97.orbit.domain.Phones.dial(ctx, target, hide = c.hideNumber)
+        val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", dial, null))
+        // Dual-SIM pro Kontakt (PLAN 3.12), Person vor Gruppe (PLAN 9 B9): Telecom honours the account on ACTION_CALL.
+        val rule = sim ?: io.github.thelony97.orbit.call.Sims.forContact(c, OrbitRepository.data.value?.groups.orEmpty())
+        io.github.thelony97.orbit.call.Sims.handle(ctx, rule)?.let { intent.putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
         if (start(ctx, intent) && !SyncEngine.canReadCalls(ctx)) {
             log(c.id, TypeIds.CALL, "Anruf aus Orbit")
         }
@@ -140,9 +144,12 @@ object ContactActions {
     }
 
     /** Calls a bare number (Rückruf-Stapel, unknown callers) – straight away when allowed, else the dial pad. */
-    fun callNumber(ctx: Context, number: String) {
+    fun callNumber(ctx: Context, number: String, sim: String? = null) {
         val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
-        start(ctx, Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
+        val dial = io.github.thelony97.orbit.domain.Phones.dial(ctx, number)
+        val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", dial, null))
+        io.github.thelony97.orbit.call.Sims.handle(ctx, sim)?.let { intent.putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
+        start(ctx, intent)
     }
 
     fun dialNumber(ctx: Context, number: String) {

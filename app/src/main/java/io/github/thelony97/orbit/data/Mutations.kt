@@ -146,7 +146,7 @@ object Mutations {
     }
 
     /** All picture files that belong to a contact (profile photo and photo folder). */
-    fun files(c: Contact): List<String> = listOfNotNull(c.photo) + c.gallery.map { it.file } + c.links.mapNotNull { it.logo }
+    fun files(c: Contact): List<String> = listOfNotNull(c.photo, c.poster) + c.gallery.map { it.file } + c.links.mapNotNull { it.logo }
 
     fun addEntry(d: OrbitData, contactId: String, entry: Entry): OrbitData =
         d.copy(contacts = d.contacts.map { c ->

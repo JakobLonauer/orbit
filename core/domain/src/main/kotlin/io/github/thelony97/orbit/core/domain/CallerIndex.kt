@@ -31,6 +31,8 @@ data class CallerCard(
     val family: List<FamilyMember> = emptyList(),
     /** PLAN 9 B7: how to address them – „Sie · Frau Mag.a Huber“, „Du · Hansi“; empty when nothing special. */
     val anrede: String = "",
+    /** PLAN 9 B11: the Anruf-Poster's picture (a gallery file); null = the profile photo. */
+    val poster: String? = null,
 )
 
 /** PLAN 9 B7: a partner („partner“) or a child („child“) of the caller. */
@@ -53,6 +55,8 @@ data class CallerIndex(
     val prefixes: List<CallerPrefix> = emptyList(),
     /** PLAN 9 B8: the call filter's rules, copied here so screening needs no full load; null = off. */
     val screening: Screening.Rules? = null,
+    /** PLAN 9 B12: motion gestures during calls (turn over = silent, on the table = speaker). */
+    val gestures: Boolean = false,
 ) {
     fun lookup(raw: String, normalize: (String) -> String?): CallerCard? {
         val n = normalize(raw) ?: return null
@@ -108,6 +112,7 @@ data class CallerIndex(
                     color = c.groupIds.firstNotNullOfOrNull { groupColors[it] },
                     family = if (c.isOrg) emptyList() else familyOf(c, doc, byId),
                     anrede = if (c.isOrg) "" else anrede(c),
+                    poster = if (c.isOrg) null else c.poster,
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue
@@ -151,7 +156,7 @@ data class CallerIndex(
             } else {
                 null
             }
-            return CallerIndex(s.callerInfo, exact, members, prefixes, rules)
+            return CallerIndex(s.callerInfo, exact, members, prefixes, rules, s.motionGestures)
         }
 
         private val PARTNER_KINDS = setOf("partner", "spouse")

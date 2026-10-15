@@ -9,7 +9,8 @@ object CallbackStack {
 
     enum class CallType { MISSED, REJECTED, INCOMING, OUTGOING }
 
-    data class Call(val number: String, val at: Long, val type: CallType)
+    /** [account]: the SIM it came in on (PLAN 9 B9: the call back goes out on it). */
+    data class Call(val number: String, val at: Long, val type: CallType, val account: String? = null)
 
     data class Sms(val address: String, val at: Long, val sent: Boolean, val body: String)
 
@@ -26,6 +27,8 @@ object CallbackStack {
         /** How many missed calls (1 for the others). */
         val count: Int,
         val lastAt: Long,
+        /** The SIM the newest missed call came in on. */
+        val account: String? = null,
     )
 
     const val DAYS = 7
@@ -47,7 +50,7 @@ object CallbackStack {
         val open = Opens(since, lastTouch(calls, sms, key), key)
         // „Später“ first: such a card stays a „Später“ card even when more calls were missed.
         later.forEach { open.add(it.number, it.at, Source.LATER) }
-        calls.filter { it.type == CallType.MISSED }.sortedBy { it.at }.forEach { open.add(it.number, it.at, Source.MISSED) }
+        calls.filter { it.type == CallType.MISSED }.sortedBy { it.at }.forEach { open.add(it.number, it.at, Source.MISSED, it.account) }
         sms.filter { !it.sent }.forEach { s -> mailboxNumber(s.body)?.let { open.add(it, s.at, Source.MAILBOX) } }
         return open.cards().filter { it.key !in done }.sortedByDescending { it.lastAt }
     }
@@ -66,23 +69,24 @@ object CallbackStack {
 
     /** The cards being collected: one per number, events before the last contact don't count. */
     private class Opens(private val since: Long, private val touched: Map<String, Long>, private val key: (String) -> String?) {
-        private class Open(val number: String, val source: Source, var count: Int, var lastAt: Long)
+        private class Open(val number: String, val source: Source, var count: Int, var lastAt: Long, var account: String?)
 
         private val open = LinkedHashMap<String, Open>()
 
-        fun add(number: String, at: Long, source: Source) {
+        fun add(number: String, at: Long, source: Source, account: String? = null) {
             val k = key(number) ?: return
             if (at < since || at <= (touched[k] ?: Long.MIN_VALUE)) return
             val o = open[k]
             if (o == null) {
-                open[k] = Open(number, source, 1, at)
+                open[k] = Open(number, source, 1, at, account)
                 return
             }
             if (source == Source.MISSED && o.source == Source.MISSED) o.count++
             if (at > o.lastAt) o.lastAt = at
+            if (account != null) o.account = account
         }
 
-        fun cards(): List<Card> = open.map { (k, o) -> Card("cb:$k:${o.lastAt}", o.number, o.source, o.count, o.lastAt) }
+        fun cards(): List<Card> = open.map { (k, o) -> Card("cb:$k:${o.lastAt}", o.number, o.source, o.count, o.lastAt, o.account) }
     }
 
     private val mailboxWords = Regex("""(?i)\b(mobilbox|mailbox|sprachnachricht|sprachbox|voicemail|nachricht hinterlassen)""")

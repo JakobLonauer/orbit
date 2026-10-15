@@ -50,11 +50,14 @@ class DialerActivity : ComponentActivity() {
                 Dialpad(
                     data = doc,
                     idx = idx,
-                    onCall = { number -> place(Uri.fromParts("tel", number, null)) },
+                    onCall = { number -> place(Uri.fromParts("tel", io.github.thelony97.orbit.domain.Phones.dial(this, number), null)) },
                     onClose = { finish() },
                     initial = initial,
                     onVoicemail = { place(Uri.fromParts("voicemail", "", null)) },
-                    onCallContact = { c, number -> place(Uri.fromParts("tel", number, null), Sims.handle(this, c.simId)) },
+                    onCallContact = { c, number ->
+                        val dial = io.github.thelony97.orbit.domain.Phones.dial(this, number, hide = c.hideNumber)
+                        place(Uri.fromParts("tel", dial, null), Sims.handle(this, Sims.forContact(c, doc.groups)))
+                    },
                 )
             }
         }

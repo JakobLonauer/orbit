@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.rounded.PersonAddAlt
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
@@ -405,6 +406,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
     var shareTo by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.PhotoMonths.Item?>(null) }
     val scope = rememberCoroutineScope()
     val data by OrbitRepository.data.collectAsState()
+    val phoneApp = remember { io.github.thelony97.orbit.call.PhoneRole.held(ctx) }
     // Foto wächst auf und fällt beim Runterwischen zurück, der Hintergrund blendet mit dem Finger aus (PLAN 1.3).
     val drag = remember { androidx.compose.animation.core.Animatable(0f) }
     val grow = remember { androidx.compose.animation.core.Animatable(0.82f) }
@@ -478,6 +480,19 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                                 }
                             }
                         }, size = 40.dp)
+                    }
+                    // PLAN 9 B11: this picture full screen when they call (Orbit as the phone app only).
+                    if (owner != null && !owner.isOrg && phoneApp) {
+                        val isPoster = owner.poster != null && owner.poster == current?.photo?.file
+                        OrbButton(
+                            Icons.Rounded.Wallpaper, if (isPoster) "Anruf-Poster entfernen" else "Als Anruf-Poster",
+                            {
+                                val file = current?.photo?.file ?: return@OrbButton
+                                OrbitRepository.editContact(owner.id) { it.copy(poster = if (it.poster == file) null else file) }
+                            },
+                            size = 40.dp,
+                            tint = if (isPoster) Space.Teal else Space.Text,
+                        )
                     }
                     OrbButton(Icons.Rounded.Share, "Teilen", { current?.let { scope.launch { io.github.thelony97.orbit.actions.PhotoActions.share(ctx, it.photo.file) } } }, size = 40.dp)
                     OrbButton(Icons.Rounded.Download, "Ins Handy speichern", {

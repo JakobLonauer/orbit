@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -256,6 +257,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val emails = remember { mutableStateListOf<ValueRow>().apply { original.emails.forEach { add(ValueRow(it.label, it.value, it.value.trim() in freshValues)) } } }
     var defaultPhone by remember { mutableStateOf(original.defaultPhone) }
     var simId by remember { mutableStateOf(original.simId) }
+    // PLAN 9 B10: #31# for this contact.
+    var hideNumber by remember { mutableStateOf(original.hideNumber) }
     val sims = remember { io.github.thelony97.orbit.call.Sims.list(ctx) }
     var birthday by remember { mutableStateOf(original.birthday) }
     var groups by remember { mutableStateOf(original.groupIds.toSet()) }
@@ -317,6 +320,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             phones = phoneValues,
             defaultPhone = defaultPhone.coerceIn(0, (phoneValues.size - 1).coerceAtLeast(0)),
             simId = simId,
+            hideNumber = hideNumber,
             emails = emailValues,
             groupIds = data.groups.map { it.id }.filter { it in groups },
             favorite = favorite,
@@ -585,6 +589,15 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                             SpaceChip("Automatisch", simId == null || sims.none { it.id == simId }, { simId = null })
                             sims.forEach { sim -> SpaceChip(sim.label, simId == sim.id, { simId = sim.id }) }
                         }
+                    }
+                    // PLAN 9 B10 Wählregel: the own number stays hidden when calling this contact.
+                    if (!isMe) {
+                        Spacer(Modifier.size(8.dp))
+                        SpaceChip(
+                            "Nummer unterdrücken", hideNumber, { hideNumber = !hideNumber },
+                            leading = Icons.Rounded.VisibilityOff,
+                            accent = io.github.thelony97.orbit.ui.theme.Space.Coral,
+                        )
                     }
                     // Klingel-Signatur (PLAN 9 A8): lives in the phone book, so only with it (W5).
                     if (data.settings.phoneBook && !isMe) {

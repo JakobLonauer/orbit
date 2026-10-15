@@ -38,6 +38,8 @@ object SyncEngine {
         val duration: Long,
         val type: Int,
         val cachedName: String?,
+        /** PLAN 9 B9: the SIM (phone account id) the call went through. */
+        val accountId: String? = null,
     )
 
     data class SmsRec(
@@ -250,7 +252,7 @@ object SyncEngine {
         val out = ArrayList<CallRec>()
         val projection = arrayOf(
             CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.DATE,
-            CallLog.Calls.DURATION, CallLog.Calls.TYPE, CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.DURATION, CallLog.Calls.TYPE, CallLog.Calls.CACHED_NAME, CallLog.Calls.PHONE_ACCOUNT_ID,
         )
         try {
             ctx.contentResolver.query(
@@ -264,6 +266,7 @@ object SyncEngine {
                 val iDur = c.getColumnIndexOrThrow(CallLog.Calls.DURATION)
                 val iType = c.getColumnIndexOrThrow(CallLog.Calls.TYPE)
                 val iName = c.getColumnIndexOrThrow(CallLog.Calls.CACHED_NAME)
+                val iAccount = c.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_ID)
                 while (c.moveToNext()) {
                     out += CallRec(
                         id = c.getLong(iId),
@@ -272,6 +275,7 @@ object SyncEngine {
                         duration = c.getLong(iDur),
                         type = c.getInt(iType),
                         cachedName = c.getString(iName),
+                        accountId = if (iAccount >= 0) c.getString(iAccount) else null,
                     )
                 }
             }

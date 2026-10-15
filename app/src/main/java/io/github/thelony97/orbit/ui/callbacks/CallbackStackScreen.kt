@@ -162,7 +162,9 @@ private fun StackCard(item: Callbacks.Item, depth: Int, data: OrbitData, idx: In
             // The card stretches towards the call (Moment), then the call starts.
             leave.animateTo(1f, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized))
             val c = item.contact
-            if (c != null) ContactActions.call(ctx, c, number, data.settings) else ContactActions.callNumber(ctx, number)
+            // PLAN 9 B9: back on the SIM the call came in on.
+            val sim = item.card.account
+            if (c != null) ContactActions.call(ctx, c, number, data.settings, sim) else ContactActions.callNumber(ctx, number, sim)
             drag.snapTo(0f)
             leave.snapTo(0f)
         }

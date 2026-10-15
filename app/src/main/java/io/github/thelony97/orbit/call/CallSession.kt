@@ -132,16 +132,20 @@ object CallSession {
         changed()
     }
 
-    fun remove(call: Call, card: CallerCard?) {
+    /** [quiet]: a Dranbleiben try (PLAN 9 B5) – the next one follows, no after-call screen. */
+    fun remove(call: Call, card: CallerCard?, quiet: Boolean = false) {
         val connectedAt = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
         _calls.value = _calls.value - call
         // The after-call screen only when the call screen is in front; otherwise the after-call
         // notification takes over (never a stale „Beendet“ screen for a later call).
-        if (_calls.value.isEmpty() && connectedAt > 0 && screenVisible) {
+        if (_calls.value.isEmpty() && connectedAt > 0 && screenVisible && !quiet) {
             keepDraft()
             ended.value = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis(), synchronized(typed) { typed.toList() })
         }
-        if (_calls.value.isEmpty()) MacroPlayer.stop()
+        if (_calls.value.isEmpty()) {
+            MacroPlayer.stop()
+            queue.value = null
+        }
         changed()
     }
 
@@ -301,5 +305,47 @@ object CallSession {
             // No endpoint list from Telecom yet: the old way, speaker on/off.
             s.setAudioRoute(if (a.speaker) android.telecom.CallAudioState.ROUTE_WIRED_OR_EARPIECE else android.telecom.CallAudioState.ROUTE_SPEAKER)
         }
+    }
+
+    /** Sound one way directly (PLAN 9 B6: speaker for the queue, the handset again at the ear). */
+    @Suppress("DEPRECATION")
+    fun routeTo(type: Int) = runCatching {
+        val a = audio.value
+        if (a.type == type) return@runCatching
+        val s = service ?: return@runCatching
+        val target = a.available.firstOrNull { it.endpointType == type }
+        if (target != null) {
+            s.requestCallEndpointChange(target, java.util.concurrent.Executor { it.run() }, object : android.os.OutcomeReceiver<Void, android.telecom.CallEndpointException> {
+                override fun onResult(result: Void?) {}
+                override fun onError(error: android.telecom.CallEndpointException) {}
+            })
+        } else {
+            s.setAudioRoute(
+                if (type == android.telecom.CallEndpoint.TYPE_SPEAKER) android.telecom.CallAudioState.ROUTE_SPEAKER
+                else android.telecom.CallAudioState.ROUTE_WIRED_OR_EARPIECE,
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------- Warteschleife (PLAN 9 B6)
+
+    /** Since when Jakob waits in a hotline's queue (speaker on, screen dark); null = talking. */
+    val queue = MutableStateFlow<Long?>(null)
+
+    fun enterQueue() {
+        if (primary() == null) return
+        queue.value = System.currentTimeMillis()
+        routeTo(android.telecom.CallEndpoint.TYPE_SPEAKER)
+        changed()
+        service?.let { runCatching { CallNotification.update(it) } }
+    }
+
+    /** [ear]: lifted to the ear – the sound goes back to the handset. */
+    fun leaveQueue(ear: Boolean) {
+        if (queue.value == null) return
+        queue.value = null
+        if (ear) routeTo(android.telecom.CallEndpoint.TYPE_EARPIECE)
+        changed()
+        service?.let { runCatching { CallNotification.update(it) } }
     }
 }

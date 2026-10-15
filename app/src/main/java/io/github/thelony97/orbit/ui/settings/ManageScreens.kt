@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.SimCard
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.outlined.PushPin
@@ -180,7 +181,10 @@ private fun GroupDialog(
     val name = rememberTextFieldState(initial.name)
     var color by remember { mutableStateOf(initial.color) }
     var ringtone by remember { mutableStateOf(initial.ringtone) }
+    var simId by remember { mutableStateOf(initial.simId) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    // PLAN 9 B9: only with two SIMs.
+    val sims = remember { io.github.thelony97.orbit.call.Sims.list(ctx) }
     val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val picked = result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, android.net.Uri::class.java)
@@ -246,6 +250,14 @@ private fun GroupDialog(
                         if (ringtone != null) io.github.thelony97.orbit.ui.components.SpaceChip("entfernen", false, { ringtone = null })
                     }
                 }
+                if (sims.size > 1) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        io.github.thelony97.orbit.ui.components.SpaceChip("Automatisch", simId == null || sims.none { it.id == simId }, { simId = null }, accent = Color(color))
+                        sims.forEach { sim ->
+                            io.github.thelony97.orbit.ui.components.SpaceChip(sim.label, simId == sim.id, { simId = sim.id }, leading = Icons.Rounded.SimCard, accent = Color(color))
+                        }
+                    }
+                }
                 if (onDelete != null) {
                     TextButton(onClick = { confirmDelete = true }) { Text("Gruppe löschen", color = MaterialTheme.colorScheme.error) }
                 }
@@ -255,7 +267,7 @@ private fun GroupDialog(
             io.github.thelony97.orbit.ui.components.DialogConfirm(
                 enabled = name.text.isNotBlank(),
                 onClick = {
-                    onSave(initial.copy(name = name.text.toString().trim(), color = color, ringtone = ringtone))
+                    onSave(initial.copy(name = name.text.toString().trim(), color = color, ringtone = ringtone, simId = simId))
                     onDismiss()
                 },
             ) { Text("Speichern") }

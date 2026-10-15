@@ -35,6 +35,8 @@ class OrbitInCallService : InCallService() {
         override fun onStateChanged(call: Call, state: Int) = safe {
             CallSession.changed()
             CallNotification.update(this@OrbitInCallService)
+            // PLAN 9 B5 Dranbleiben: through – vibration, the call screen in front.
+            if (state == Call.STATE_ACTIVE) Persist.onActive(this@OrbitInCallService, call)
             // PLAN 9 B4 „Makro wählen“: answered – the hotline gets a moment, then the keys.
             val p = MacroPlayer.pending
             if (state == Call.STATE_ACTIVE && p != null && io.github.thelony97.orbit.core.domain.Herold.sameNumber(p.number, CallSession.numberOf(call))) {
@@ -70,8 +72,14 @@ class OrbitInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) = safe {
         call.registerCallback(callback)
+        Persist.onCallAdded(call)
         CallSession.add(call)
         lookup(call)
+        // PLAN 9 B12: motion gestures while a call exists, if Jakob switched them on.
+        scope.launch {
+            val on = withContext(Dispatchers.IO) { runCatching { CallerIndexFile.read(this@OrbitInCallService)?.gestures == true }.getOrDefault(false) }
+            if (on && CallSession.calls.value.isNotEmpty()) safe { CallGestures.start(this@OrbitInCallService) }
+        }
         CallNotification.update(this)
         // A call must never go unseen: open the screen directly unless a heads-up notification
         // will certainly appear (unlocked, screen on, channel loud enough, nothing filtered).
@@ -86,7 +94,10 @@ class OrbitInCallService : InCallService() {
 
     override fun onCallRemoved(call: Call) = safe {
         call.unregisterCallback(callback)
-        CallSession.remove(call, CallSession.cards.value[CallSession.numberOf(call)])
+        // PLAN 9 B5: a try that leads to the next one has no after-call screen.
+        val retry = runCatching { Persist.onRemoved(this, call) }.getOrDefault(false)
+        CallSession.remove(call, CallSession.cards.value[CallSession.numberOf(call)], quiet = retry)
+        if (CallSession.calls.value.isEmpty()) CallGestures.stop()
         CallNotification.update(this)
     }
 
@@ -226,10 +237,13 @@ object CallNotification {
         } else {
             NotificationCompat.CallStyle.forOngoingCall(person, CallActionReceiver.pending(ctx, CallActionReceiver.HANG_UP))
         }
-        val line = when (state) {
-            Call.STATE_RINGING -> card?.role ?: listOfNotNull(unknown?.hit?.category, unknown?.info?.line).filter { it.isNotBlank() }.joinToString(" · ")
-            Call.STATE_HOLDING -> "Gehalten"
-            Call.STATE_ACTIVE -> "Im Gespräch"
+        // PLAN 9 B6: in a hotline's queue the chip counts the waiting time.
+        val queueSince = CallSession.queue.value?.takeIf { state == Call.STATE_ACTIVE }
+        val line = when {
+            state == Call.STATE_RINGING -> card?.role ?: listOfNotNull(unknown?.hit?.category, unknown?.info?.line).filter { it.isNotBlank() }.joinToString(" · ")
+            state == Call.STATE_HOLDING -> "Gehalten"
+            queueSince != null -> "Warteschleife"
+            state == Call.STATE_ACTIVE -> "Im Gespräch"
             else -> "Wählt …"
         }
         // Lock screen: name and role only (PLAN 3.12), whatever the user's lock-screen setting says –
@@ -260,7 +274,8 @@ object CallNotification {
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(public.build())
         val connectedAt = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
-        if (state == Call.STATE_ACTIVE && connectedAt > 0) builder.setUsesChronometer(true).setWhen(connectedAt).setShowWhen(true)
+        val since = queueSince ?: connectedAt
+        if (state == Call.STATE_ACTIVE && since > 0) builder.setUsesChronometer(true).setWhen(since).setShowWhen(true)
         if (!Notifications.canPost(ctx)) return
         try {
             ensureChannel(ctx)

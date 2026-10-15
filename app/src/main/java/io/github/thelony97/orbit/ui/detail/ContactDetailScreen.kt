@@ -55,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.ChatBubble
@@ -251,6 +252,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var menu by remember { mutableStateOf(false) }
     var entryTarget by remember { mutableStateOf<EntryTarget?>(null) }
     var chooser by remember { mutableStateOf<Chooser?>(null) }
+    val planned by io.github.thelony97.orbit.call.Persist.planned.collectAsState()
     var meetingDialog by remember { mutableStateOf(false) }
     var relationDialog by remember { mutableStateOf(false) }
     var assignDialog by remember { mutableStateOf(false) }
@@ -661,6 +663,23 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     if (c.address.isNotBlank()) {
                         ActionOrb(Icons.Rounded.Map, "Karte", true, onClick = { ContactActions.maps(ctx, c.address) })
                     }
+                }
+            }
+
+            // PLAN 9 B5: a planned Dranbleiben – a tap takes it back (Rückgängig).
+            planned.filter { it.contactId == c.id }.forEach { p ->
+                item(key = "persist-${p.id}") {
+                    val at = java.time.Instant.ofEpochMilli(p.at).atZone(zone()).toLocalDateTime()
+                    io.github.thelony97.orbit.ui.components.Banner(
+                        icon = Icons.Rounded.Repeat,
+                        color = Space.Teal,
+                        text = "Dranbleiben · " + persistLabel(at, java.time.LocalDateTime.now(zone())),
+                        onClick = {
+                            io.github.thelony97.orbit.call.Persist.cancel(ctx, p.id)
+                            Undo.offer("Abgebrochen") { io.github.thelony97.orbit.call.Persist.plan(ctx, p.number, p.name, p.contactId, p.at) }
+                        },
+                        action = "Abbrechen",
+                    )
                 }
             }
 
@@ -1130,7 +1149,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         null -> Unit
     }
 
-    chooser?.let { which ->
+    // PLAN 9 B12: contact open + phone to the ear = call (einschaltbar).
+    if (!c.isMe && ContactActions.defaultNumber(c) != null) {
+        RaiseToCall(data.settings.motionGestures) { ContactActions.call(ctx, c, null, data.settings) }
+    }
+
+    // PLAN 9 B5: holding „Anrufen“ – which number, and Dranbleiben.
+    if (chooser == Chooser.Call) {
+        CallHoldSheet(c, data, onDismiss = { chooser = null }, onSetDefault = { i -> edit { it.copy(defaultPhone = i) } })
+    }
+    chooser?.takeIf { it != Chooser.Call }?.let { which ->
         val values = if (which == Chooser.Mail) c.emails else c.phones
         ValueChooserDialog(
             title = when (which) {
