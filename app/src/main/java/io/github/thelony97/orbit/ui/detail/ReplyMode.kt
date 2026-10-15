@@ -48,6 +48,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,7 +113,7 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     // The window as it is now, minus the keyboard – the whole wheel stays visible above it.
     val root = androidx.compose.ui.platform.LocalView.current.rootView
-    val imeBottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+    val imeBottom = androidx.compose.foundation.layout.WindowInsets.Companion.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
     val windowSize = androidx.compose.ui.unit.IntSize(root.width, (root.height - imeBottom).coerceAtLeast(1))
     var recording by remember { mutableStateOf<VoiceRecorder?>(null) }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
