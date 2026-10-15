@@ -50,6 +50,7 @@ object PhoneBookSync {
     /** Orbit rows in a system contact card (PLAN 9 A3): „In Orbit öffnen“ and own fields. */
     const val MIME_PROFILE = "vnd.android.cursor.item/vnd.io.github.thelony97.orbit.profile"
     const val MIME_FIELD = "vnd.android.cursor.item/vnd.io.github.thelony97.orbit.field"
+    const val MIME_MACRO = "vnd.android.cursor.item/vnd.io.github.thelony97.orbit.macro"
 
     val account: Account get() = Account(ACCOUNT_NAME, ACCOUNT_TYPE)
 
@@ -375,6 +376,17 @@ object PhoneBookSync {
         card.fields.forEach { f ->
             add(row(MIME_FIELD).withValue(Data.DATA1, card.sourceId).withValue(Data.DATA2, f.label).withValue(Data.DATA3, f.value).build())
         }
+        // „Makro wählen“: calls the organisation and plays the macro (PLAN 9 B4).
+        card.macros.forEach { m ->
+            add(
+                row(MIME_MACRO)
+                    .withValue(Data.DATA1, card.sourceId)
+                    .withValue(Data.DATA2, "Makro wählen")
+                    .withValue(Data.DATA3, m.name)
+                    .withValue(Data.DATA4, m.id)
+                    .build(),
+            )
+        }
     }
 
     /** The profile picture at most 480 px – enough for every contact card, small for the batch. */
@@ -394,6 +406,13 @@ object PhoneBookSync {
     fun contactIdOf(ctx: Context, dataUri: Uri): String? = runCatching {
         ctx.contentResolver.query(dataUri, arrayOf(Data.DATA1, Data.MIMETYPE), null, null, null)?.use { c ->
             if (c.moveToFirst() && (c.getString(1) == MIME_PROFILE || c.getString(1) == MIME_FIELD)) c.getString(0) else null
+        }
+    }.getOrNull()
+
+    /** The organisation and macro behind a „Makro wählen“ row (PLAN 9 A3); null for other rows. */
+    fun macroOf(ctx: Context, dataUri: Uri): Pair<String, String>? = runCatching {
+        ctx.contentResolver.query(dataUri, arrayOf(Data.DATA1, Data.DATA4, Data.MIMETYPE), null, null, null)?.use { c ->
+            if (c.moveToFirst() && c.getString(2) == MIME_MACRO) c.getString(0) to c.getString(1) else null
         }
     }.getOrNull()
 

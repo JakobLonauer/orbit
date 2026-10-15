@@ -11,4 +11,10 @@
         android:icon="@mipmap/ic_launcher"
         android:summaryColumn="data2"
         android:detailColumn="data3" />
+    <!-- PLAN 9 A3/B4: „Makro wählen“ for organisations with a Hotline-Makro. -->
+    <ContactsDataKind
+        android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.macro"
+        android:icon="@mipmap/ic_launcher"
+        android:summaryColumn="data2"
+        android:detailColumn="data3" />
 </ContactsAccountType>

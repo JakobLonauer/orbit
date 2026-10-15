@@ -190,6 +190,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.field" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.macro" />
+            </intent-filter>
         </activity>
 
         <!-- PLAN 9 A6: „Orbit“ in every file picker – a folder per person, read only. -->

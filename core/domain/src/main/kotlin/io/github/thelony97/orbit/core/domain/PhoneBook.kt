@@ -35,6 +35,9 @@ object PhoneBook {
     data class Mail(val value: String, val type: Int, val label: String?)
     data class Field(val label: String, val value: String)
 
+    /** PLAN 9 A3/B4: „Makro wählen“ in an organisation's contact card. */
+    data class MacroRow(val id: String, val name: String)
+
     data class Card(
         val sourceId: String,
         val isOrg: Boolean,
@@ -58,6 +61,8 @@ object PhoneBook {
         val website: String?,
         /** Orbit rows in the system contact card (PLAN 9 A3): own fields worth having at hand. */
         val fields: List<Field>,
+        /** PLAN 9 A3: an organisation's macros, one „Makro wählen“ row each. */
+        val macros: List<MacroRow> = emptyList(),
     ) {
         /** Changes whenever anything Orbit writes changes; stored with the row (SYNC1). */
         val hash: String by lazy {
@@ -108,6 +113,7 @@ object PhoneBook {
             ringtone = ringtone,
             website = c.links.firstOrNull()?.url?.takeIf { it.isNotBlank() },
             fields = c.fields.filter { it.value.isNotBlank() }.take(4).map { Field(it.label.ifBlank { "Feld" }, it.value.trim()) },
+            macros = if (c.isOrg) c.macros.filter { it.steps.isNotEmpty() }.take(3).map { MacroRow(it.id, it.name.ifBlank { "Makro" }) } else emptyList(),
         )
     }
 

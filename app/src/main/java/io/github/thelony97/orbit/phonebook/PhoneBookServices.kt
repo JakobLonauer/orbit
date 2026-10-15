@@ -14,6 +14,7 @@ import android.content.SyncResult
 import android.os.Bundle
 import android.os.IBinder
 import io.github.thelony97.orbit.MainActivity
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -81,6 +82,22 @@ private class SyncAdapter(ctx: Context) : AbstractThreadedSyncAdapter(ctx, true)
 class PhoneBookRowActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // PLAN 9 A3/B4: „Makro wählen“ right from the system's contact card.
+        val macro = intent?.data?.let { PhoneBookSync.macroOf(this, it) }
+        if (macro != null) {
+            val activity = this
+            kotlinx.coroutines.MainScope().launch {
+                runCatching {
+                    io.github.thelony97.orbit.data.OrbitRepository.init(applicationContext)
+                    val data = io.github.thelony97.orbit.data.OrbitRepository.ensureLoaded()
+                    val org = data.contacts.firstOrNull { it.id == macro.first && it.deletedAt == null }
+                    val m = org?.macros?.firstOrNull { it.id == macro.second }
+                    if (org != null && m != null) io.github.thelony97.orbit.ui.detail.dialMacro(activity, org, m, data)
+                }
+                activity.finish()
+            }
+            return
+        }
         val id = intent?.data?.let { PhoneBookSync.contactIdOf(this, it) }
         startActivity(
             Intent(this, MainActivity::class.java)
