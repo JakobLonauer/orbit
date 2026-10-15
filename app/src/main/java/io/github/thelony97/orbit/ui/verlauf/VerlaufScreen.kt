@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CallMade
 import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -138,6 +139,10 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     }
     // Entries newer than the moment this tab opened glide in with a short glow (signature moment).
     val openedAt = remember { System.currentTimeMillis() - 60_000 }
+    // PLAN 9 B3: the Rückruf-Stapel, at the top of the Verlauf while someone waits.
+    val callbacks by androidx.compose.runtime.produceState(0, permissionTick, data.settings.dismissedGhosts) {
+        value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data).size
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -153,6 +158,19 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                 if (rows.isNotEmpty() || query.isNotEmpty() || typeFilter != null) {
                     Spacer(Modifier.height(10.dp))
                     SpaceSearchField(search, "Im Verlauf suchen", Modifier.fillMaxWidth(), leading = Icons.Rounded.Search)
+                }
+            }
+        }
+        if (callbacks > 0 && query.isEmpty()) {
+            item(key = "callbacks") {
+                Box(Modifier.animateItem().padding(top = 8.dp)) {
+                    io.github.thelony97.orbit.ui.components.Banner(
+                        icon = Icons.Rounded.Call,
+                        color = Space.Violet,
+                        text = if (callbacks == 1) "1 Rückruf" else "$callbacks Rückrufe",
+                        onClick = { nav.open(io.github.thelony97.orbit.ui.Route.Callbacks) },
+                        action = "Öffnen",
+                    )
                 }
             }
         }

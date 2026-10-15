@@ -336,6 +336,8 @@ data class Settings(
     val orbitCalendar: Boolean = false,
     /** PLAN 9.2 Geist: stable keys of suggestions Jakob swiped away – they never come back. */
     val dismissedGhosts: List<String> = emptyList(),
+    /** PLAN 9 B1: unknown Austrian callers looked up on the Herold website (once per number and week). */
+    val callerLookup: Boolean = true,
 ) {
     companion object {
         val DEFAULT_SMS_TEMPLATES = listOf(

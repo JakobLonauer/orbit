@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material3.Icon
@@ -91,9 +92,15 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         value = PhoneBookFresh.list(ctx, data)
     }
     val live by PhoneBookSync.live.collectAsState()
+    // PLAN 9 B3: the Rückruf-Stapel, read again whenever Orbit comes to the front.
+    val callbacks by produceState(emptyList<io.github.thelony97.orbit.call.Callbacks.Item>(), tick, s.dismissedGhosts) {
+        value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data)
+    }
     val exportable = remember(data.contacts, s.phoneBookOrgs) { data.contacts.count { PhoneBook.exported(it, s.phoneBookOrgs) } }
-    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable) {
+    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable, callbacks) {
         buildList {
+            // Waiting people first – the one thing that is about someone else's time.
+            if (callbacks.isNotEmpty()) add(TodayCard.Callbacks(callbacks.size, callbacks.take(2).map { it.title }, callbacks.any { it.warn }))
             val l = live
             // Offer and live share one key: the taken ghost becomes the live card in place.
             val offer = !s.phoneBook && TodayCard.OFFER_KEY !in s.dismissedGhosts
@@ -158,6 +165,7 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                             )
                         }
                         is TodayCard.PhoneBookNew -> NewInPhoneBook(c, nav)
+                        is TodayCard.Callbacks -> CallbacksCard(c, onOpen = { nav.open(Route.Callbacks) })
                     }
                 }
             }
@@ -225,6 +233,19 @@ private fun LiveCard(card: TodayCard.PhoneBookLive, onOpen: () -> Unit) {
             title = "$shown im Telefonbuch",
             line = null,
             numeric = true,
+        )
+    }
+}
+
+/** „3 Rückrufe“: the stack in short; a tap opens it (PLAN 9 B3). */
+@Composable
+private fun CallbacksCard(card: TodayCard.Callbacks, onOpen: () -> Unit) {
+    val accent = if (card.warn) Space.Orange else Space.Violet
+    Box(Modifier.glass(Corners.Card, tint = Space.Panel, border = accent.copy(alpha = 0.4f)).clickable(onClick = onOpen)) {
+        CardBody(
+            planet = { Planet(Icons.Rounded.Call, accent) },
+            title = if (card.count == 1) "1 Rückruf" else "${card.count} Rückrufe",
+            line = card.names.joinToString(" · ") + if (card.count > 2) " …" else "",
         )
     }
 }

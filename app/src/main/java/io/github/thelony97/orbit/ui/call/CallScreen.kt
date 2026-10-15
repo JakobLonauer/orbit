@@ -70,6 +70,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -101,6 +103,21 @@ import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.hypot
+
+/**
+ * PLAN 9 B1/B2: an unknown caller as far as Orbit knows it – the number's own line („Linz ·
+ * Festnetz“, „0900 · teuer“), whether it costs, and the Herold card (looking / found).
+ */
+data class UnknownCaller(
+    val line: String = "",
+    val costs: Boolean = false,
+    val searching: Boolean = false,
+    val name: String = "",
+    val trade: String = "",
+    val address: String = "",
+) {
+    val found: Boolean get() = name.isNotBlank()
+}
 
 /** What the call screen shows (PLAN 3.12). Built from the caller index; no telecom types here. */
 data class CallUi(
@@ -138,6 +155,10 @@ data class CallUi(
     /** Anklopfen: the other call, „Tom Huber · gehalten“; [canMerge] when both can become one. */
     val otherCall: String? = null,
     val canMerge: Boolean = false,
+    /** PLAN 9 B1: nobody Orbit knows – what the number and Herold tell. */
+    val unknown: UnknownCaller? = null,
+    /** PLAN 9 B2: an organisation reached through its number range – „Durchwahl 410“. */
+    val extension: String? = null,
 )
 
 enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
@@ -236,9 +257,12 @@ fun CallScreen(
                 ui.accounts.isNotEmpty() -> ui.number
                 ui.dialing -> "Wählt …"
                 ui.active -> null
-                notice != null -> notice.publicLine.ifBlank { ui.number }
-                else -> ui.unknownLine ?: "Unbekannt"
+                notice != null -> listOfNotNull(ui.extension?.let { "Durchwahl $it" }, notice.publicLine.takeIf { it.isNotBlank() })
+                    .joinToString(" · ").ifBlank { ui.number }
+                else -> listOfNotNull(ui.unknown?.line, ui.unknownLine).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "Unbekannt" }
             }
+            // B2: a number that costs (or a possible ping call) is orange from the first moment.
+            val costly = ui.card == null && ui.unknown?.costs == true
             androidx.compose.animation.Crossfade(sub == null, animationSpec = tween(Motion.MEDIUM_MS), label = "sub") { live ->
                 if (live) {
                     CallTimer(clock ?: { ui.elapsed }, ui.onHold)
@@ -246,7 +270,11 @@ fun CallScreen(
                     Text(
                         sub.orEmpty(),
                         style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-                        color = if (ui.dialing) Space.Teal else Space.TextDim,
+                        color = when {
+                            costly -> Space.Orange
+                            ui.dialing -> Space.Teal
+                            else -> Space.TextDim
+                        },
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -259,6 +287,12 @@ fun CallScreen(
                     color = Space.Teal,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+            }
+            // PLAN 9 B1: who an unknown number belongs to – the card is there at once, the hit sharpens in.
+            val u = ui.unknown
+            if (ui.card == null && u != null && (u.searching || u.found) && !ui.ended && !(templates && !ui.active) && !(keys && ui.active)) {
+                Spacer(Modifier.height(16.dp))
+                HeroldCard(u)
             }
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
             // The templates take the details' place, so everything fits without scrolling.
@@ -279,7 +313,7 @@ fun CallScreen(
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (m == CallMode.ENDED) {
                 // The note needs a contact to land on, and an unlocked phone.
-                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked, initial = ui.draft)
+                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked, initial = ui.draft, found = ui.unknown?.takeIf { it.found })
             } else if (m == CallMode.ACTIVE) {
                 ui.otherCall?.let { other ->
                     Row(
@@ -336,6 +370,70 @@ fun CallScreen(
     }
 }
 
+/**
+ * PLAN 9 B1 Moment: the caller's card stands in its final shape at once; while Herold is asked a
+ * light scans across it, then name and trade sharpen in (blur → sharp, Materialisieren).
+ */
+@Composable
+private fun HeroldCard(u: UnknownCaller) {
+    val haptics = rememberHaptics()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val sharp by androidx.compose.animation.core.animateFloatAsState(
+        if (u.found) 1f else 0f,
+        tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized),
+        label = "sharp",
+    )
+    LaunchedEffect(u.found) { if (u.found) haptics.perform(Haptic.Materialize) }
+    val saver = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+    val scan = if (u.found || saver) null else rememberInfiniteTransition(label = "scan").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(1_100, easing = LinearEasing)), label = "scanX",
+    )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(io.github.thelony97.orbit.core.designsystem.Corners.Card)
+            .background(Space.Panel.copy(alpha = 0.85f))
+            .border(1.dp, Space.Blue.copy(alpha = 0.35f), io.github.thelony97.orbit.core.designsystem.Corners.Card)
+            .drawWithContent {
+                drawContent()
+                val x = scan?.value ?: return@drawWithContent
+                val w = size.width * 0.35f
+                val center = -w + (size.width + 2 * w) * x
+                drawRect(
+                    Brush.horizontalGradient(
+                        listOf(Color.Transparent, Space.Blue.copy(alpha = 0.16f), Color.Transparent),
+                        startX = center - w,
+                        endX = center + w,
+                    ),
+                )
+            }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(40.dp).background(Space.Blue.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Business, null, tint = Space.Blue, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            if (u.found) {
+                val blur = (1f - sharp) * 8f
+                Column(Modifier.graphicsLayer { alpha = 0.35f + 0.65f * sharp }.blur(blur.dp)) {
+                    Text(u.name, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val second = listOf(u.trade, u.address).filter { it.isNotBlank() }.joinToString(" · ")
+                    if (second.isNotBlank()) {
+                        Text(second, style = MaterialTheme.typography.labelMedium, color = Space.TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            } else {
+                // The final shape in placeholder bars (PLAN 1.2: no spinners).
+                Box(Modifier.fillMaxWidth(0.62f).height(14.dp).clip(RoundedCornerShape(50)).background(Space.PanelHighest))
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.fillMaxWidth(0.4f).height(10.dp).clip(RoundedCornerShape(50)).background(Space.PanelHighest))
+            }
+        }
+    }
+}
+
 /** The running time; only this text recomposes every second. */
 @Composable
 private fun CallTimer(clock: () -> Long, onHold: Boolean) {
@@ -373,7 +471,14 @@ private fun SmsTemplates(templates: List<String>, onPick: (String) -> Unit) {
  * outside the call stay behind the phone's lock (PLAN 3.12).
  */
 @Composable
-private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean = true, unknown: Boolean = false, initial: String = "") {
+private fun AfterCall(
+    unlocked: Boolean,
+    actions: CallActions,
+    slideIn: Boolean = true,
+    unknown: Boolean = false,
+    initial: String = "",
+    found: UnknownCaller? = null,
+) {
     val note = rememberTextFieldState(initial)
     LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
     // PLAN 1.3: after hanging up the note line glides up with the keyboard already open.
@@ -407,7 +512,37 @@ private fun AfterCall(unlocked: Boolean, actions: CallActions, slideIn: Boolean 
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         }
-        if (unknown) {
+        if (unknown && found != null) {
+            // PLAN 9 B1: Herold knew the number – a ghost with everything, ready to keep.
+            io.github.thelony97.orbit.ui.components.Ghost(
+                source = "Herold · " + found.name,
+                onAccept = { actions.createContact(true) },
+                onDismiss = null,
+                modifier = Modifier.fillMaxWidth(),
+                accent = Space.Blue,
+                dismissAxis = null,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(36.dp).background(Space.Blue.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Business, null, tint = Space.Blue, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Als Organisation anlegen", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
+                        Text(
+                            listOf(found.name, found.trade).filter { it.isNotBlank() }.joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Space.TextDim,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton("Als Kontakt anlegen", { actions.createContact(false) }, icon = Icons.Rounded.PersonAdd)
+            }
+        } else if (unknown) {
             // Talked to an unknown number: keep it (PLAN 3.12 „Danach“).
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GhostButton("Als Kontakt anlegen", { actions.createContact(false) }, icon = Icons.Rounded.PersonAdd)

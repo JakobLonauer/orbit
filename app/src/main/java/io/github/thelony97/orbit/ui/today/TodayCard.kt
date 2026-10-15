@@ -21,6 +21,11 @@ sealed interface TodayCard {
         override val key = OFFER_KEY
     }
 
+    /** PLAN 9 B3: who waits for a call back (the stack opens on a tap). */
+    data class Callbacks(val count: Int, val names: List<String>, val warn: Boolean) : TodayCard {
+        override val key = "callbacks"
+    }
+
     /** PLAN 9 A1 Rückweg: people other apps added since. */
     data class PhoneBookNew(val items: List<PhoneBookFresh.Item>) : TodayCard {
         override val key = "phonebook-new"

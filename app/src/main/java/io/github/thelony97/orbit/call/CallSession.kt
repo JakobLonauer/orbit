@@ -77,6 +77,9 @@ object CallSession {
     /** Caller cards per number, looked up once when the call arrives. */
     val cards = MutableStateFlow<Map<String, CallerCard?>>(emptyMap())
 
+    /** PLAN 9 B2: numbers known only through an organisation's range → their Durchwahl. */
+    val extensions = MutableStateFlow<Map<String, String>>(emptyMap())
+
     /** Contact whose note the call screen took (Save/Close) and when. */
     @Volatile var noteHandled: Pair<String, Long>? = null
 

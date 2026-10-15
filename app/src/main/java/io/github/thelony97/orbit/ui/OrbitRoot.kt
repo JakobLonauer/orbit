@@ -163,13 +163,15 @@ private fun MainNavigation(data: OrbitData) {
     }
 
     val pendingNew by MainActivity.pendingNew.collectAsStateWithLifecycle()
+    val newCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
     LaunchedEffect(pendingNew) {
         val (number, org) = pendingNew ?: return@LaunchedEffect
-        val draft = io.github.thelony97.orbit.data.Contact(
-            id = io.github.thelony97.orbit.data.newId(),
-            kind = if (org) io.github.thelony97.orbit.data.ContactKind.ORG else io.github.thelony97.orbit.data.ContactKind.PERSON,
-            phones = listOf(io.github.thelony97.orbit.data.LabeledValue(if (org) "Zentrale" else "Mobil", number)),
-        )
+        // PLAN 9 B1: what Herold knew about the number comes along (name, address, trade).
+        val hit = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            io.github.thelony97.orbit.call.Materialize.info(newCtx, number)
+                ?.let { io.github.thelony97.orbit.call.CallerLookup.known(newCtx, it.e164)?.hit }
+        }
+        val draft = io.github.thelony97.orbit.call.HeroldDraft.of(number, org, hit)
         // An open edit page with unsaved input stays underneath (it has its own discard prompt).
         if (backStack.none { it is Route.Edit }) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
         backStack.add(Route.Edit(prefill = io.github.thelony97.orbit.data.OrbitRepository.json.encodeToString(io.github.thelony97.orbit.data.Contact.serializer(), draft)))
@@ -216,6 +218,7 @@ private fun MainNavigation(data: OrbitData) {
         } else null
         val target: Route? = when {
             action == io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW -> Route.Edit()
+            action == io.github.thelony97.orbit.actions.AppShortcuts.ACTION_CALLBACKS -> Route.Callbacks
             last != null -> Route.Detail(last.contactId, last.id)
             else -> null
         }
@@ -306,6 +309,7 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.Settings> { SpaceBackground { SettingsScreen(data = data, nav = nav) } }
             entry<Route.SettingsArea> { key -> SpaceBackground { SettingsScreen(data = data, nav = nav, area = key.key) } }
             entry<Route.Suggestions> { SuggestionsScreen(data = data, nav = nav) }
+            entry<Route.Callbacks> { io.github.thelony97.orbit.ui.callbacks.CallbackStackScreen(data = data, idx = idx, nav = nav) }
             entry<Route.MailAccounts> { MailAccountsScreen(nav = nav) }
         },
     )

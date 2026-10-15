@@ -588,6 +588,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     trailing = { SpaceSwitch(s.callerInfo) { v -> OrbitRepository.editSettings { it.copy(callerInfo = v) } } },
                 )
                 Hairline()
+                // PLAN 9 B1: unknown Austrian numbers looked up on herold.at (once per number and week).
+                SettingItem(
+                    Icons.Rounded.Business, "Unbekannte im Herold nachschlagen",
+                    trailing = { SpaceSwitch(s.callerLookup) { v -> OrbitRepository.editSettings { it.copy(callerLookup = v) } } },
+                )
+                Hairline()
                 SettingItem(
                     Icons.Rounded.Checklist, "Themen während Anrufen",
                     trailing = { SpaceSwitch(s.topicsDuringCall) { v -> OrbitRepository.editSettings { it.copy(topicsDuringCall = v) } } },

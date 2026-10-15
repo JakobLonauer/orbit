@@ -29,6 +29,8 @@ object AppShortcuts {
 
     const val ACTION_NEW = "io.github.thelony97.orbit.action.NEW_CONTACT"
     const val ACTION_VERLAUF = "io.github.thelony97.orbit.action.VERLAUF"
+    /** PLAN 9 B3: the Rückruf-Stapel (notification „3 Rückrufe“). */
+    const val ACTION_CALLBACKS = "io.github.thelony97.orbit.action.CALLBACKS"
     const val ACTION_LAST_CALL = "io.github.thelony97.orbit.action.LAST_CALL_NOTE"
 
     private const val FAVORITES = 2

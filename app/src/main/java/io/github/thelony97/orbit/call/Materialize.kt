@@ -1,0 +1,77 @@
+package io.github.thelony97.orbit.call
+
+import android.content.Context
+import io.github.thelony97.orbit.core.domain.Herold
+import io.github.thelony97.orbit.core.domain.NumberInfo
+import io.github.thelony97.orbit.domain.Phones
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Anrufer materialisiert (PLAN 9 B1): what Orbit knows about an unknown number – offline at once
+ * (place, kind, cost), the Herold answer when it comes. One shared state for the call screen, the
+ * call notification and the screen after the call.
+ */
+object Materialize {
+
+    sealed interface Lookup {
+        /** Not asked: abroad, switched off, or no network last time. */
+        data object Off : Lookup
+        data object Searching : Lookup
+        data class Found(val hit: Herold.Hit) : Lookup
+        /** Asked, Herold knows nobody with this number. */
+        data object None : Lookup
+    }
+
+    data class Unknown(val info: NumberInfo.Info?, val lookup: Lookup) {
+        val hit: Herold.Hit? get() = (lookup as? Lookup.Found)?.hit
+    }
+
+    private val _unknown = MutableStateFlow<Map<String, Unknown>>(emptyMap())
+    val unknown: StateFlow<Map<String, Unknown>> = _unknown.asStateFlow()
+
+    private fun put(number: String, u: Unknown) {
+        // A handful of numbers is plenty (calls of the last minutes).
+        _unknown.value = (_unknown.value - number).entries.toList().takeLast(7).associate { it.key to it.value } + (number to u)
+    }
+
+    /** Offline facts only, synchronous and cheap after the first call (tables are loaded once). */
+    fun info(ctx: Context, number: String): NumberInfo.Info? =
+        runCatching { NumberInfo.of(number, Phones.countryIso(ctx)) }.getOrNull()
+
+    /**
+     * Starts for [number] (once per number while it is remembered): the offline line at once, then
+     * Herold in the background; [onChange] runs after each step.
+     */
+    fun start(ctx: Context, number: String, scope: CoroutineScope, onChange: () -> Unit) {
+        if (number.isBlank() || number in _unknown.value) return
+        val app = ctx.applicationContext
+        // Taken at once, so a second start for the same call does nothing.
+        put(number, Unknown(null, Lookup.Off))
+        scope.launch {
+            val info = withContext(Dispatchers.Default) { info(app, number) }
+            val austrian = info?.region == "AT"
+            val cached = info?.let { CallerLookup.known(app, it.e164) }
+            val first = when {
+                info == null || !austrian -> Lookup.Off
+                cached != null -> cached.hit?.let { Lookup.Found(it) } ?: Lookup.None
+                !CallerLookup.enabled() -> Lookup.Off
+                else -> Lookup.Searching
+            }
+            put(number, Unknown(info, first))
+            onChange()
+            if (first == Lookup.Searching && info != null) {
+                val hit = CallerLookup.lookup(app, info.e164)
+                put(number, Unknown(info, hit?.let { Lookup.Found(it) } ?: Lookup.None))
+                onChange()
+            }
+        }
+    }
+
+    fun of(number: String?): Unknown? = number?.let { _unknown.value[it] }
+}

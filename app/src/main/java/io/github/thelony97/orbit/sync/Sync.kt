@@ -124,7 +124,10 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                         val key = number?.let(normalize)
                         val dismissed = data.unknownNumbers.any { it.key == key && it.dismissed }
                         if (!number.isNullOrBlank() && !known && !dismissed) {
-                            Notifications.unknownAfterCall(applicationContext, number, call.duration, call.cachedName)
+                            // PLAN 9 B1: Herold's name, when it knew the number (only what is already known).
+                            val herold = io.github.thelony97.orbit.call.Materialize.info(applicationContext, number)
+                                ?.let { io.github.thelony97.orbit.call.CallerLookup.known(applicationContext, it.e164)?.hit?.name }
+                            Notifications.unknownAfterCall(applicationContext, number, call.duration, herold ?: call.cachedName)
                         }
                     }
                 }
@@ -223,11 +226,19 @@ class PhoneStateReceiver : BroadcastReceiver() {
                             if (contact != null && !contact.archived && contact.deletedAt == null && data.settings.topicsDuringCall && stillRinging()) {
                                 Notifications.topics(context, contact)
                             }
-                            // Unknown number that called before (PLAN 3.12: „3 Anrufe …“).
+                            // Unknown number (PLAN 3.12 „3 Anrufe …“; PLAN 9 B1: place, kind, Herold).
                             if (contact == null && data.settings.callerInfo) {
                                 val key = io.github.thelony97.orbit.domain.Phones.normalize(number, io.github.thelony97.orbit.domain.Phones.countryIso(context))
-                                data.unknownNumbers.firstOrNull { it.key == key && !it.dismissed && it.calls > 0 }
-                                    ?.let { if (stillRinging()) Notifications.unknownCaller(context, it, number) }
+                                val history = data.unknownNumbers.firstOrNull { it.key == key && !it.dismissed && it.calls > 0 }
+                                val info = io.github.thelony97.orbit.call.Materialize.info(context, number)
+                                if (stillRinging()) Notifications.unknownCaller(context, history, number, info)
+                                // Herold while it still rings; the card sharpens when the answer comes.
+                                if (info?.region == "AT") {
+                                    val hit = kotlinx.coroutines.withTimeoutOrNull(6_000) {
+                                        io.github.thelony97.orbit.call.CallerLookup.lookup(context, info.e164)
+                                    }
+                                    if (hit != null && stillRinging()) Notifications.unknownCaller(context, history, number, info, hit)
+                                }
                             }
                         }
                     } finally {

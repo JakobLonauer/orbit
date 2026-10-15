@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -94,9 +95,16 @@ fun Dialpad(
             limit = 4,
         ).mapNotNull { h -> data.contacts.firstOrNull { it.id == h.contactId }?.let { DialRow(h, it, contactColor(it, idx)) } }
     }
+    // PLAN 9 B1/B2: what the typed number is – „Linz · Festnetz“, „0900 · teuer“ (fixed tables).
+    val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
+    val info by androidx.compose.runtime.produceState<io.github.thelony97.orbit.core.domain.NumberInfo.Info?>(null, digits) {
+        value = if (digits.count(Char::isDigit) < 4) null
+        else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { io.github.thelony97.orbit.core.domain.NumberInfo.of(digits, iso) }
+    }
     DialpadContent(
         digits = digits,
         rows = rows,
+        info = info,
         onKey = { digits += it },
         onDelete = { digits = digits.dropLast(1) },
         onClear = { digits = "" },
@@ -118,8 +126,18 @@ fun DialpadContent(
     onClose: () -> Unit,
     onVoicemail: () -> Unit = {},
     onCallContact: ((Contact, String) -> Unit)? = null,
+    /** PLAN 9 B1/B2: the typed number's kind and place; costs ask for a second tap. */
+    info: io.github.thelony97.orbit.core.domain.NumberInfo.Info? = null,
 ) {
     val haptics = rememberHaptics()
+    // B2 Kostenwächter: the first tap on a number that costs only arms the button (3 s).
+    var armed by remember(digits) { mutableStateOf(false) }
+    if (armed) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(3_000)
+            armed = false
+        }
+    }
     SpaceBackground {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp),
@@ -169,26 +187,51 @@ fun DialpadContent(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            // What the number is, while no contact matches (W5): „Linz · Festnetz“, „0900 · teuer“.
+            val line = info?.line?.takeIf { it.isNotBlank() && rows.isEmpty() }
+            Box(Modifier.height(20.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.animation.AnimatedContent(
+                    line,
+                    transitionSpec = {
+                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS)) togetherWith
+                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS))
+                    },
+                    label = "numberLine",
+                ) { l ->
+                    if (l != null) {
+                        Text(l, style = MaterialTheme.typography.labelLarge, color = if (info?.costs == true) Space.Orange else Space.TextDim, maxLines = 1)
+                    }
+                }
+            }
             Keypad(onKey, onVoicemail)
             Spacer(Modifier.height(16.dp))
             val number = digits.takeIf { it.any(Char::isDigit) }
+            val costs = number != null && info?.costs == true
+            val tint = if (costs) Space.Orange else Space.Teal
             Box(
                 Modifier
                     // Same size as the hang-up button that takes its place (W3).
                     .size(72.dp)
-                    .then(if (number != null) Modifier.glow(Space.Teal, 20.dp, CircleShape, 0.5f) else Modifier)
+                    .then(if (number != null) Modifier.glow(tint, 20.dp, CircleShape, 0.5f) else Modifier)
                     .clip(CircleShape)
-                    .background(if (number != null) Space.Teal else Space.PanelHigh)
+                    .background(if (number != null) tint else Space.PanelHigh)
                     .clickable(enabled = number != null) {
-                        haptics.perform(Haptic.Confirm)
-                        number?.let(onCall)
+                        if (costs && !armed) {
+                            // First tap: armed, the button says why (Schwelle).
+                            haptics.perform(Haptic.Threshold)
+                            armed = true
+                        } else {
+                            haptics.perform(Haptic.Confirm)
+                            number?.let(onCall)
+                        }
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Rounded.Call, "Anrufen", tint = if (number != null) Space.Void else Space.TextFaint, modifier = Modifier.size(30.dp))
             }
-            Spacer(Modifier.height(16.dp))
+            Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) {
+                if (armed) Text("Nochmal tippen · " + (info?.line ?: "kostet"), style = MaterialTheme.typography.labelMedium, color = Space.Orange)
+            }
         }
     }
 }

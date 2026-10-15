@@ -56,6 +56,8 @@ class OrbitApp : Application() {
             if (OrbitRepository.snapshot().settings.orbitCalendar) io.github.thelony97.orbit.phonebook.OrbitCalendar.request(this@OrbitApp)
             DigestScheduler.schedule(this@OrbitApp)
             Sync.schedulePeriodic(this@OrbitApp)
+            // PLAN 9 B3: „3 Rückrufe“ after a busy appointment.
+            io.github.thelony97.orbit.call.CallbackNudgeWorker.schedule(this@OrbitApp)
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only
             // with an account at all.
             if (io.github.thelony97.orbit.mail.MailAccounts.accounts.value.isNotEmpty()) io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(this@OrbitApp)

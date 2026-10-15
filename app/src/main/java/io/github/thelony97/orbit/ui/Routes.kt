@@ -28,6 +28,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object PhoneImport : Route
 
+    /** Rückruf-Stapel (PLAN 9 B3). */
+    @Serializable
+    data object Callbacks : Route
+
     /** PLAN 9 A2: the cards of a .vcf file to pick from (held in [Session.cardDrafts]). */
     @Serializable
     data object CardImport : Route

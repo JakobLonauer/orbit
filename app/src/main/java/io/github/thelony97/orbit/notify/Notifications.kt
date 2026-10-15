@@ -36,6 +36,8 @@ object Notifications {
     /** 1004 is the call itself (call/CallNotification). */
     const val ID_PHONE_FALLBACK = 1005
     const val ID_TOPICS_DAY = 1006
+    /** PLAN 9 B3: „3 Rückrufe“ after a busy calendar event. */
+    const val ID_CALLBACKS = 1007
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
@@ -241,25 +243,45 @@ object Notifications {
         if (stillValid()) post(ctx, ID_CALLER, builder)
     }
 
-    /** Unknown number that called before: how often and when, plus the reminder actions. */
-    fun unknownCaller(ctx: Context, unknown: io.github.thelony97.orbit.data.UnknownNumber, number: String) {
-        val days = java.time.temporal.ChronoUnit.DAYS.between(
-            java.time.Instant.ofEpochMilli(unknown.lastAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
-            java.time.LocalDate.now(),
-        )
-        val title = unknown.cachedName?.takeIf { it.isNotBlank() } ?: unknown.display
-        val times = when (unknown.calls) {
+    /**
+     * Unknown number ringing (PLAN 3.12 without the phone role): what the number itself says
+     * (PLAN 9 B1 „Linz · Festnetz“, „0900 · teuer“), Herold's name once it is known, how often it
+     * called before, plus the reminder actions.
+     */
+    fun unknownCaller(
+        ctx: Context,
+        unknown: io.github.thelony97.orbit.data.UnknownNumber?,
+        number: String,
+        info: io.github.thelony97.orbit.core.domain.NumberInfo.Info? = null,
+        hit: io.github.thelony97.orbit.core.domain.Herold.Hit? = null,
+    ) {
+        val days = unknown?.let {
+            java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.Instant.ofEpochMilli(it.lastAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
+                java.time.LocalDate.now(),
+            )
+        }
+        val title = hit?.name ?: unknown?.cachedName?.takeIf { it.isNotBlank() } ?: unknown?.display ?: number
+        val times = when (unknown?.calls ?: 0) {
             0 -> null
             1 -> "1 Anruf"
-            else -> "${unknown.calls} Anrufe"
+            else -> "${unknown?.calls} Anrufe"
         }
-        val line = listOfNotNull("Unbekannt", times, unknown.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
+        val last = unknown?.lastAt?.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days ?: 0) }
+        val line = listOfNotNull(
+            hit?.category?.takeIf { it.isNotBlank() },
+            info?.line?.takeIf { it.isNotBlank() } ?: "Unbekannt",
+            times,
+            last,
+        ).joinToString(" · ")
         val builder = base(ctx, CH_CALLER)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(base(ctx, CH_CALLER).setContentTitle("Anruf").setContentText("Unbekannt").build())
             .setContentTitle(title)
             .setContentText(line)
             .setOngoing(true)
+            // The Herold answer updates the same card without a second sound.
+            .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setContentIntent(openContact(ctx, null, ID_CALLER))
@@ -318,6 +340,25 @@ object Notifications {
             .addAction(0, "Als Organisation anlegen", create(true))
             .setTimeoutAfter(12 * 60 * 60 * 1000L)
         post(ctx, id, builder)
+    }
+
+    /** PLAN 9 B3: „3 Rückrufe“ – a calendar appointment just ended and people are waiting. */
+    fun callbacks(ctx: Context, count: Int, names: List<String>) {
+        val open = PendingIntent.getActivity(
+            ctx, ID_CALLBACKS,
+            Intent(ctx, MainActivity::class.java)
+                .setAction(io.github.thelony97.orbit.actions.AppShortcuts.ACTION_CALLBACKS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val builder = base(ctx, CH_CALL)
+            .setContentTitle(if (count == 1) "1 Rückruf" else "$count Rückrufe")
+            .setContentText(names.joinToString(" · ") + if (count > names.size) " …" else "")
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setTimeoutAfter(2 * 60 * 60 * 1000L)
+        post(ctx, ID_CALLBACKS, builder)
     }
 
     /** The reminder itself: "Zurückrufen: Anna" with a call button. */

@@ -36,3 +36,7 @@
 -dontwarn myjava.awt.datatransfer.**
 -dontwarn org.apache.harmony.**
 -dontwarn sun.security.**
+
+# PLAN 9 B1: libphonenumber + geocoder read their tables as resources next to their classes.
+-keep class com.google.i18n.phonenumbers.** { *; }
+-dontwarn com.google.i18n.phonenumbers.**

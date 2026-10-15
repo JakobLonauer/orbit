@@ -139,6 +139,12 @@ object ContactActions {
         if (!opened) start(ctx, Intent(Intent.ACTION_VIEW, uri))
     }
 
+    /** Calls a bare number (Rückruf-Stapel, unknown callers) – straight away when allowed, else the dial pad. */
+    fun callNumber(ctx: Context, number: String) {
+        val canCall = ctx.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        start(ctx, Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
+    }
+
     fun dialNumber(ctx: Context, number: String) {
         start(ctx, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
     }

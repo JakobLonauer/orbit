@@ -17,5 +17,7 @@ kotlin {
 dependencies {
     api(project(":core:model"))
     implementation(libs.kotlinx.serialization.json)
+    // PLAN 9 B1: number kind and place offline (brings libphonenumber with it).
+    implementation(libs.libphonenumber.geocoder)
     testImplementation(libs.junit)
 }

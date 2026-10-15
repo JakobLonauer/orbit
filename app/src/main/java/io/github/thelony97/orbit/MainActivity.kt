@@ -131,6 +131,7 @@ class MainActivity : FragmentActivity() {
         when (intent?.action) {
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW,
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_VERLAUF,
+            io.github.thelony97.orbit.actions.AppShortcuts.ACTION_CALLBACKS,
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_LAST_CALL -> {
                 when (intent.action) {
                     io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW -> io.github.thelony97.orbit.actions.AppShortcuts.used(this, "new")

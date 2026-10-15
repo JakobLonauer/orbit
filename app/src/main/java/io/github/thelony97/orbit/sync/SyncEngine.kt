@@ -233,6 +233,12 @@ object SyncEngine {
         return d.copy(contacts = contacts, unknownNumbers = unknownList)
     }
 
+    /** PLAN 9 B3: the call log since [since] (empty without permission). */
+    fun callsSince(ctx: Context, since: Long): List<CallRec> = if (canReadCalls(ctx)) readCalls(ctx, since) else emptyList()
+
+    /** PLAN 9 B3: SMS since [since], inbox and sent (empty without permission). */
+    fun smsSince(ctx: Context, since: Long): List<SmsRec> = if (canReadSms(ctx)) readSms(ctx, since) else emptyList()
+
     /** The newest call-log row since [since] (used after a call from an unknown number). */
     fun lastCall(ctx: Context, since: Long): CallRec? =
         if (canReadCalls(ctx)) readCalls(ctx, since).maxByOrNull { it.date } else null

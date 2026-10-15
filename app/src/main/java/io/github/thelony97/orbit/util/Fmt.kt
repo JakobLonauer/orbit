@@ -51,4 +51,17 @@ object Fmt {
     fun monthName(month: Int): String = AtFormat.month(month)
     /** „Mo“ … „So“. */
     fun weekdayShort(d: java.time.DayOfWeek): String = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")[d.value - 1]
+
+    /** „14:32“ today, „gestern 18:10“, „Mo 09:12“ within the week, else „12. Okt.“ (W7). */
+    fun whenShort(millis: Long, now: Long = System.currentTimeMillis()): String {
+        val d = Instant.ofEpochMilli(millis).atZone(zone()).toLocalDate()
+        val today = Instant.ofEpochMilli(now).atZone(zone()).toLocalDate()
+        val days = java.time.temporal.ChronoUnit.DAYS.between(d, today)
+        return when {
+            days == 0L -> time(millis)
+            days == 1L -> "gestern " + time(millis)
+            days in 2..6 -> weekdayShort(d.dayOfWeek) + " " + time(millis)
+            else -> shortDate(d)
+        }
+    }
 }

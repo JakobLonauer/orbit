@@ -66,6 +66,13 @@ class CallerIndexTest {
         assertNull(r.memberId)
     }
 
+    @Test fun durchwahlOnlyForRanges() {
+        // PLAN 9 B2: „Zentrale · Durchwahl 99“ – a member's or an exact number is no Durchwahl.
+        assertEquals("99", idx.extension("0732 2468 99", at))
+        assertNull(idx.extension("0732 246812", at))
+        assertNull(idx.extension("0664 2", at))
+    }
+
     @Test fun fallbackRoleAndMeExcluded() {
         assertEquals("Lehrerin", idx.lookup("0664 2", at)!!.role)
         assertNull(idx.lookup("0650 3", at))

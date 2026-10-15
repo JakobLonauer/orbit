@@ -54,6 +54,18 @@ data class CallerIndex(
         return prefixes.firstOrNull { n.startsWith(it.prefix) && n.length > it.prefix.length }?.card
     }
 
+    /**
+     * PLAN 9 B2: the Durchwahl when [raw] is known only through an organisation's number range
+     * („Zentrale · Durchwahl 410“); null for exact numbers and members.
+     */
+    fun extension(raw: String, normalize: (String) -> String?): String? {
+        val n = normalize(raw) ?: return null
+        if (exact.containsKey(n) || members.containsKey(n)) return null
+        val t = Matcher.tail(n)
+        if (t.length >= 6 && exact.keys.any { Matcher.tail(it) == t }) return null
+        return prefixes.firstOrNull { n.startsWith(it.prefix) && n.length > it.prefix.length }?.let { n.substring(it.prefix.length) }
+    }
+
     companion object {
         private const val NOTE_CHARS = 120
         private const val TOPICS = 5

@@ -19,7 +19,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 
 | Stufe | Status | Wer arbeitet daran |
 |---|---|---|
-| 3.0-A Telefonbuch (A0–A13) | fertig, Release 15.10. abends (siehe unten) | – |
+| 3.0-A Telefonbuch (A0–A13) | **veröffentlicht als v1.0.232** (15.10. 19:35) | – |
 | 3.0-B Anruf-Autopilot (B1–B12) | in Arbeit | Tagsitzung 15.10. |
 | 3.0-C Heute & Live (C1–C5) | offen | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | offen | – |
@@ -28,6 +28,8 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
 ### 15.10.2026 abends (Tagsitzung) – 3.0-A fertig
+
+- **Veröffentlicht als v1.0.232** (15.10. 19:35, stehende Zusage 09:32): `main` fast-forward auf `dev` 5a71edb, Release-Lauf 232 per workflow_dispatch (oberster Commit [skip ci]), APK-Zertifikat geprüft (SHA-256 a549f16d…d81f wie erwartet), Jakob informiert.
 
 - **3.0-A Telefonbuch komplett (A0–A13)** auf `dev`, CI grün: Geist-Bauteil, Telefonbuch-Konto „Orbit“ mit Differenz-Abgleich, „Neu im Telefonbuch“, Klingelton pro Person/Gruppe, WhatsApp/Signal direkt, Kontakt-Übergabe aus anderen Apps (INSERT/INSERT_OR_EDIT, vCard-Dateien, QR), Markieren → Orbit, Nummern-Schublade (Schnelleinstellung), Feldwahl beim Weitergeben, Personen im Teilen-Menü, Orbit-Zeilen in der System-Kontaktkarte, Ordner im Datei-Dialog, Orbit-Kalender, Titel/Anrede/Rufname, Kölner Phonetik.
 - **Prüfungen:** Code-Review-Subagent (9 Funde, alle behoben), Wow-Review-Subagent 2 Durchgänge (1.: 15 Funde inkl. 5 MUSS – behoben; 2.: 0 MUSS, SOLL-Funde behoben), zweiter Code-Review (0 HIGH, MEDIUM/LOW behoben), detekt ohne neue Funde.

@@ -332,6 +332,8 @@ class CallbackWorker(ctx: Context, params: androidx.work.WorkerParameters) : and
         private const val KEY_CONTACT = "contact"
 
         fun schedule(ctx: Context, name: String, number: String, contactId: String?, minutes: Int) {
+            // PLAN 9 B3: it waits in the Rückruf-Stapel too, until called or swiped away.
+            io.github.thelony97.orbit.call.LaterCalls.add(ctx, number)
             val data = androidx.work.Data.Builder()
                 .putString(KEY_NAME, name)
                 .putString(KEY_NUMBER, number)

@@ -156,6 +156,20 @@ private fun unknownLine(doc: io.github.thelony97.orbit.data.OrbitData?, number: 
     return listOfNotNull(times, u.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
 }
 
+/** PLAN 9 B1/B2: the call screen's view of an unknown number. */
+private fun unknownUi(u: Materialize.Unknown?): io.github.thelony97.orbit.ui.call.UnknownCaller? {
+    if (u == null) return null
+    val hit = u.hit
+    return io.github.thelony97.orbit.ui.call.UnknownCaller(
+        line = u.info?.line.orEmpty(),
+        costs = u.info?.costs == true,
+        searching = u.lookup == Materialize.Lookup.Searching,
+        name = hit?.name.orEmpty(),
+        trade = hit?.category.orEmpty(),
+        address = hit?.address.orEmpty(),
+    )
+}
+
 private fun unlocked(ctx: Context): Boolean =
     ctx.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked != true
 
@@ -166,6 +180,7 @@ private fun CallRoute(onDone: () -> Unit) {
     val audio by CallSession.audio.collectAsState()
     val ended by CallSession.ended.collectAsState()
     val cards by CallSession.cards.collectAsState()
+    val unknowns by Materialize.unknown.collectAsState()
     val doc by OrbitRepository.data.collectAsState()
     // A system call: worked out off the main thread, the button appears once it is known.
     var canBlock by remember { mutableStateOf(false) }
@@ -196,7 +211,7 @@ private fun CallRoute(onDone: () -> Unit) {
         call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: after?.connectedAt ?: 0L
     }
     val clock = remember(connectedAt) { { if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0L } }
-    val ui = remember(version, call, after, audio, cards, doc, phoneUnlocked, done, canBlock) {
+    val ui = remember(version, call, after, audio, cards, unknowns, doc, phoneUnlocked, done, canBlock) {
     if (call != null) {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
@@ -234,6 +249,8 @@ private fun CallRoute(onDone: () -> Unit) {
                 }
             },
             canMerge = CallSession.canMerge(),
+            unknown = if (cards[number] == null) unknownUi(unknowns[number]) else null,
+            extension = CallSession.extensions.value[number],
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),
@@ -249,6 +266,7 @@ private fun CallRoute(onDone: () -> Unit) {
             phoneUnlocked = phoneUnlocked,
             doneTopics = done,
             draft = CallSession.draft,
+            unknown = if (after.card == null) unknownUi(unknowns[after.number]) else null,
         )
     }
     }

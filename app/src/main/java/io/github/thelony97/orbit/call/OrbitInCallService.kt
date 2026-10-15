@@ -106,15 +106,26 @@ class OrbitInCallService : InCallService() {
         val number = CallSession.numberOf(call)
         if (number.isBlank()) return
         scope.launch {
+            var extension: String? = null
             val card = withContext(Dispatchers.IO) {
                 runCatching {
                     val iso = Phones.countryIso(this@OrbitInCallService)
-                    CallerIndexFile.read(this@OrbitInCallService)?.lookup(number) { Phones.normalize(it, iso) }
+                    val index = CallerIndexFile.read(this@OrbitInCallService)
+                    val normalize: (String) -> String? = { Phones.normalize(it, iso) }
+                    index?.lookup(number, normalize)?.also { extension = index.extension(number, normalize) }
                 }.getOrNull()?.also { CallNotification.preload(this@OrbitInCallService, it.photo) }
             }
+            extension?.let { CallSession.extensions.value = CallSession.extensions.value + (number to it) }
             CallSession.cards.value = CallSession.cards.value + (number to card)
             CallSession.changed()
             safe { CallNotification.update(this@OrbitInCallService) }
+            // PLAN 9 B1: nobody Orbit knows – place and kind at once, Herold in the background.
+            if (card == null) {
+                Materialize.start(this@OrbitInCallService, number, scope) {
+                    CallSession.changed()
+                    safe { CallNotification.update(this@OrbitInCallService) }
+                }
+            }
         }
     }
 
@@ -195,7 +206,9 @@ object CallNotification {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
         val card = CallSession.cards.value[number]
-        val name = card?.name?.takeIf { it.isNotBlank() } ?: number.ifBlank { "Unbekannt" }
+        // PLAN 9 B1: an unknown number shows what Herold or the number itself tells.
+        val unknown = if (card == null) Materialize.of(number) else null
+        val name = card?.name?.takeIf { it.isNotBlank() } ?: unknown?.hit?.name ?: number.ifBlank { "Unbekannt" }
         // The tel: URI lets Do Not Disturb recognise starred contacts like the system dialer does.
         val person = Person.Builder().setName(name).setImportant(card != null)
             .apply { if (number.isNotBlank()) setUri("tel:$number") }
@@ -208,7 +221,7 @@ object CallNotification {
             NotificationCompat.CallStyle.forOngoingCall(person, CallActionReceiver.pending(ctx, CallActionReceiver.HANG_UP))
         }
         val line = when (state) {
-            Call.STATE_RINGING -> card?.role.orEmpty()
+            Call.STATE_RINGING -> card?.role ?: listOfNotNull(unknown?.hit?.category, unknown?.info?.line).filter { it.isNotBlank() }.joinToString(" · ")
             Call.STATE_HOLDING -> "Gehalten"
             Call.STATE_ACTIVE -> "Im Gespräch"
             else -> "Wählt …"
