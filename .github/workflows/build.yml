@@ -77,33 +77,33 @@ jobs:
           CR=0.6.6; CRBASE=https://repo1.maven.org/maven2/io/nlopez/compose/rules
           PLUGS=""
           if curl -fsSL -o cr.pom "$CRBASE/detekt/$CR/detekt-$CR.pom"; then
-            for a in detekt $(python3 -c "import re,sys; t=open('cr.pom').read(); print(' '.join(sorted({m for g,m in re.findall(r'<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>', t) if g=='io.nlopez.compose.rules'})))"); do
+            for a in detekt $(python3 -c "import re,sys; t=open('cr.pom').read(); print(' '.join(sorted({m for g,m in re.findall(r'<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>', t) if g=='io.nlopez.compose.rules' and m!='detekt'})))"); do
               curl -fsSL -o "cr-$a.jar" "$CRBASE/$a/$CR/$a-$CR.jar" && PLUGS="$PLUGS:cr-$a.jar" || echo "compose rules: $a missing" >> "$RUNNER_TEMP/analysis/detekt.log"
             done
           else
             echo "compose rules download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
           fi
           INPUTS="--input app/src/main/java:core/model/src/main:core/domain/src/main:core/designsystem/src/main"
+          A="$RUNNER_TEMP/analysis"
           if [ -f detekt.jar ]; then
             PLUG=""; [ -n "$PLUGS" ] && PLUG="--plugins ${PLUGS#:}"
             BASE=""; [ -f config/detekt/baseline.xml ] && BASE="--baseline config/detekt/baseline.xml"
-            java -jar detekt.jar $INPUTS \
-              --build-upon-default-config --config config/detekt/detekt.yml $PLUG $BASE \
-              --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
-              >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+            java -jar detekt.jar $INPUTS --build-upon-default-config --config config/detekt/detekt.yml $PLUG $BASE \
+              --report checkstyle:"$A/detekt.xml" > "$A/detekt-run.log" 2>&1 || true
             # Compose rules not loadable: the plain rules still give a report.
-            if [ ! -s "$RUNNER_TEMP/analysis/detekt.md" ] && [ -n "$PLUG" ]; then
-              echo "retry without compose rules" >> "$RUNNER_TEMP/analysis/detekt.log"; PLUG=""
+            if [ ! -s "$A/detekt.xml" ] && [ -n "$PLUG" ]; then
+              echo "retry without compose rules" >> "$A/detekt.log"; PLUG=""
               java -jar detekt.jar $INPUTS --build-upon-default-config --config config/detekt/detekt.yml $BASE \
-                --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
-                >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+                --report checkstyle:"$A/detekt.xml" > "$A/detekt-run.log" 2>&1 || true
             fi
+            # Findings per rule, the quick overview.
+            grep -oE 'source="detekt\.[A-Za-z0-9]+' "$A/detekt.xml" 2>/dev/null | sed 's/source="detekt\.//' | sort | uniq -c | sort -rn > "$A/detekt-summary.txt" || true
             # A baseline of today's findings, to commit as config/detekt/baseline.xml (only new findings count afterwards).
-            [ -z "$BASE" ] && java -jar detekt.jar $INPUTS \
-              --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
-              --create-baseline --baseline "$RUNNER_TEMP/analysis/baseline.xml" >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+            [ -z "$BASE" ] && java -jar detekt.jar $INPUTS --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
+              --create-baseline --baseline "$A/baseline.xml" >> "$A/detekt.log" 2>&1 || true
+            cat "$A/detekt-run.log" >> "$A/detekt.log"
           fi
-          { echo "plugins: ${PLUGS#:}"; ls -l cr-*.jar 2>/dev/null; grep -n "retry\|compose rules\|NoClassDefFoundError\|Exception" "$RUNNER_TEMP/analysis/detekt.log" | head -20; } > "$RUNNER_TEMP/analysis/detekt-setup.txt" 2>&1 || true
+          { echo "plugins: ${PLUGS#:}"; ls -l cr-*.jar 2>/dev/null; grep -n "retry\|compose rules\|NoClassDefFoundError\|Exception in\|Error:" "$RUNNER_TEMP/analysis/detekt.log" | head -20; } > "$RUNNER_TEMP/analysis/detekt-setup.txt" 2>&1 || true
           tail -c 20000 "$RUNNER_TEMP/analysis/detekt.log" > "$RUNNER_TEMP/analysis/detekt.log.tail" 2>/dev/null || true
 
       - name: Publish build log to ci-log branch
@@ -120,9 +120,10 @@ jobs:
           find "$GITHUB_WORKSPACE" -path "*/build/test-results/*" -name "TEST-*.xml" -exec cp {} tests/ \; 2>/dev/null || true
           grep -l "<failure" tests/*.xml > tests/failed.txt 2>/dev/null || true
           mkdir -p analysis
-          cp "$RUNNER_TEMP"/analysis/lint.txt "$RUNNER_TEMP"/analysis/detekt.md "$RUNNER_TEMP"/analysis/detekt.xml "$RUNNER_TEMP"/analysis/baseline.xml analysis/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/analysis/lint.txt "$RUNNER_TEMP"/analysis/detekt.xml "$RUNNER_TEMP"/analysis/baseline.xml analysis/ 2>/dev/null || true
           cp "$RUNNER_TEMP"/analysis/detekt.log.tail analysis/detekt.log 2>/dev/null || true
-          cp "$RUNNER_TEMP"/analysis/detekt-setup.txt analysis/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/analysis/detekt-setup.txt "$RUNNER_TEMP"/analysis/detekt-summary.txt analysis/ 2>/dev/null || true
+          head -c 20000 "$RUNNER_TEMP"/analysis/detekt-run.log > analysis/detekt-run.log 2>/dev/null || true
           tail -c 20000 "$RUNNER_TEMP"/analysis/lint.log > analysis/lint.log 2>/dev/null || true
           echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
           if [ "$GITHUB_REF_NAME" = "main" ]; then LOGBRANCH=ci-log; else LOGBRANCH="ci-log-$GITHUB_REF_NAME"; fi
