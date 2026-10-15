@@ -75,50 +75,6 @@ import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** What the island shows – one source at a time, by PLAN 9.2's order (Anruf > Dranbleiben > Treffen). */
-sealed interface Live {
-    val key: String
-
-    data class Call(val name: String, val since: Long) : Live {
-        override val key = "call"
-    }
-
-    data class Redial(val name: String, val tries: Int, val nextAt: Long) : Live {
-        override val key = "persist"
-    }
-
-    data class Meeting(val phase: LiveMeeting.Phase, val contact: Contact) : Live {
-        override val key = "meet:" + phase.meeting.id
-    }
-}
-
-/** The one live thing right now, or null. */
-@Composable
-fun rememberLive(data: OrbitData): Live? {
-    val calls by CallSession.calls.collectAsState()
-    val cards by CallSession.cards.collectAsState()
-    val run by Persist.run.collectAsState()
-    // A slow clock for the meeting minutes (the island never ticks faster than it shows).
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(TICK_MS)
-            now = System.currentTimeMillis()
-        }
-    }
-    val call = calls.firstOrNull()
-    if (call != null) {
-        val number = CallSession.numberOf(call)
-        val since = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
-        return Live.Call(cards[number]?.name?.takeIf { it.isNotBlank() } ?: number.ifBlank { "Anruf" }, since)
-    }
-    run?.let { r -> return Live.Redial(r.plan.name, r.tries, if (r.phase == Persist.Phase.PAUSE) r.nextAt else 0L) }
-    val byId = remember(data.contacts) { data.contacts.associateBy { it.id } }
-    val phase = LiveMeeting.now(data.meetings, now) { id -> byId[id]?.let { it.deletedAt == null && !it.archived } == true } ?: return null
-    return byId[phase.meeting.contactId]?.let { Live.Meeting(phase, it) }
-}
-
-private const val TICK_MS = 20_000L
 private const val UNDO_MS = 5_000L
 
 /**
@@ -169,10 +125,9 @@ private fun Capsule(color: Color, onClick: () -> Unit, modifier: Modifier = Modi
 
 @Composable
 private fun Dot(icon: ImageVector, color: Color) {
-    Box(Modifier.size(22.dp).background(color.copy(alpha = 0.22f), CircleShape), contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(end = 8.dp).size(22.dp).background(color.copy(alpha = 0.22f), CircleShape), contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = color, modifier = Modifier.size(13.dp))
     }
-    Spacer(Modifier.width(8.dp))
 }
 
 @Composable

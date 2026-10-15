@@ -99,7 +99,9 @@ object ContactActions {
      */
     @android.annotation.SuppressLint("MissingPermission")
     fun late(ctx: Context, c: Contact, text: String): Boolean {
-        val mobile = c.phones.firstOrNull { it.value.isNotBlank() && io.github.thelony97.orbit.core.domain.NumberInfo.of(it.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE }?.value
+        val mobile = c.phones.firstOrNull { p ->
+            p.value.isNotBlank() && io.github.thelony97.orbit.core.domain.NumberInfo.of(p.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE
+        }?.value
         val canSend = ctx.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
         if (canSend && mobile != null) {
             val sent = runCatching {

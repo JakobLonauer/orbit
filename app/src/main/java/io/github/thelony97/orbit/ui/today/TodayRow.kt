@@ -426,8 +426,10 @@ private fun Dust(leaving: Boolean, seed: Int, onVanish: () -> Unit, content: @Co
         val r = java.util.Random(seed.toLong())
         List(SPECKS) { floatArrayOf(r.nextFloat(), r.nextFloat(), r.nextFloat() - 0.5f, -0.3f - r.nextFloat() * 0.9f, 0.6f + r.nextFloat() * 1.6f, r.nextFloat()) }
     }
+    // The row's minimum width reaches the card through both boxes.
     Box(
-        Modifier.drawWithContent {
+        propagateMinConstraints = true,
+        modifier = Modifier.drawWithContent {
             drawContent()
             val t = p.value
             if (t <= 0f) return@drawWithContent
@@ -458,6 +460,7 @@ private fun Dust(leaving: Boolean, seed: Int, onVanish: () -> Unit, content: @Co
                 scaleX = 1f - 0.08f * t
                 scaleY = 1f - 0.08f * t
             },
+            propagateMinConstraints = true,
         ) { content() }
     }
 }
