@@ -78,13 +78,21 @@ enum class PreviewAction(val label: String, val icon: ImageVector) {
 class PreviewState(val contact: Contact) {
     var pointer by mutableStateOf(Offset.Unspecified)
     val actionBounds = mutableStateMapOf<PreviewAction, Rect>()
+    /** PLAN 9 E20: group chips the contact can be dropped on (id → screen bounds). */
+    val groupBounds = mutableStateMapOf<String, Rect>()
 
     fun hovered(): PreviewAction? =
         if (pointer == Offset.Unspecified) null else actionBounds.entries.firstOrNull { it.value.contains(pointer) }?.key
+
+    fun hoveredGroup(): String? =
+        if (pointer == Offset.Unspecified) null else groupBounds.entries.firstOrNull { it.value.contains(pointer) }?.key
 }
 
+/** At most this many group targets – pinned first, then the rest in their order. */
+private const val GROUP_TARGETS = 4
+
 @Composable
-fun PreviewCard(state: PreviewState, idx: Index) {
+fun PreviewCard(state: PreviewState, idx: Index, groups: List<io.github.thelony97.orbit.core.model.Group> = emptyList()) {
     val c = state.contact
     val haptics = rememberHaptics()
     val appear = remember { Animatable(0f) }
@@ -94,6 +102,9 @@ fun PreviewCard(state: PreviewState, idx: Index) {
     }
     val hovered = state.hovered()
     LaunchedEffect(hovered) { if (hovered != null) haptics.perform(Haptic.Tick) }
+    val hoveredGroup = state.hoveredGroup()
+    LaunchedEffect(hoveredGroup) { if (hoveredGroup != null) haptics.perform(Haptic.Threshold) }
+    val targets = remember(groups) { (groups.filter { it.pinned } + groups.filterNot { it.pinned }).take(GROUP_TARGETS) }
     val color = contactColor(c, idx)
     val actions = buildList {
         if (c.phones.isNotEmpty()) { add(PreviewAction.CALL); add(PreviewAction.SMS) }
@@ -154,6 +165,10 @@ fun PreviewCard(state: PreviewState, idx: Index) {
                 if (c.entries.isEmpty()) {
                     Text("Noch kein Eintrag", style = MaterialTheme.typography.bodySmall, color = Space.TextFaint)
                 }
+                if (targets.isNotEmpty()) {
+                    Spacer(Modifier.height(14.dp))
+                    GroupTargets(state, c, targets, hoveredGroup)
+                }
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth()) {
                     actions.forEach { a ->
@@ -186,6 +201,43 @@ fun PreviewCard(state: PreviewState, idx: Index) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * PLAN 9 E20: the contact rides on the finger – sliding onto a group chip and letting go puts
+ * them in (or takes them out). Members show filled; the hovered chip lights in its colour.
+ */
+@Composable
+private fun GroupTargets(state: PreviewState, c: Contact, targets: List<io.github.thelony97.orbit.core.model.Group>, hovered: String?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        targets.forEach { g ->
+            val color = androidx.compose.ui.graphics.Color(g.color)
+            val member = g.id in c.groupIds
+            val on = hovered == g.id
+            val grow = remember(g.id) { Animatable(1f) }
+            LaunchedEffect(on) { grow.animateTo(if (on) 1.12f else 1f, tween(Motion.FAST_MS, easing = Motion.Emphasized)) }
+            Row(
+                Modifier
+                    .weight(1f)
+                    .onGloballyPositioned {
+                        val o = it.positionOnScreen()
+                        state.groupBounds[g.id] = Rect(o, androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
+                    }
+                    .graphicsLayer { scaleX = grow.value; scaleY = grow.value }
+                    .height(34.dp)
+                    .then(if (on) Modifier.glow(color, 12.dp, RoundedCornerShape(50), 0.5f) else Modifier)
+                    .background(if (member || on) color.copy(alpha = if (on) 0.35f else 0.18f) else Space.Panel, RoundedCornerShape(50))
+                    .border(1.dp, if (member || on) color.copy(alpha = 0.8f) else Space.Line, RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Box(Modifier.size(7.dp).background(color, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text(g.name, style = MaterialTheme.typography.labelMedium, color = if (member || on) Space.Text else Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

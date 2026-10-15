@@ -608,7 +608,12 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         onPreview = { pc -> PreviewState(pc).also { preview = it } },
                         onPreviewEnd = { st, released ->
                             val action = if (released) st.hovered() else null
+                            val group = if (released) st.hoveredGroup() else null
                             preview = null
+                            if (group != null) dropOnGroup(st.contact.id, group, data)?.let { line ->
+                                haptics.perform(Haptic.Confirm)
+                                Undo.offer(line) { OrbitRepository.editContact(st.contact.id) { it.copy(groupIds = st.contact.groupIds) } }
+                            }
                             when (action) {
                                 PreviewAction.CALL -> ContactActions.call(ctx, st.contact, null, data.settings)
                                 PreviewAction.SMS -> ContactActions.sms(ctx, st.contact, null)
@@ -649,7 +654,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         }
     }
 
-    preview?.let { PreviewCard(it, idx) }
+    preview?.let { PreviewCard(it, idx, if (selection == null) data.groups else emptyList()) }
 
     quickEntry?.let { c ->
         EntrySheet(
@@ -1096,4 +1101,13 @@ fun ContactFabMenu(nav: Nav) {
             contentColor = Space.Text,
         )
     }
+}
+
+/** PLAN 9 E20: dropped on a group chip – in when not a member, out when one; the Rückgängig text. */
+private fun dropOnGroup(contactId: String, groupId: String, data: OrbitData): String? {
+    val g = data.groups.firstOrNull { it.id == groupId } ?: return null
+    val c = data.contacts.firstOrNull { it.id == contactId } ?: return null
+    val member = groupId in c.groupIds
+    OrbitRepository.editContact(contactId) { x -> x.copy(groupIds = if (member) x.groupIds - groupId else (x.groupIds + groupId).distinct()) }
+    return if (member) "Aus „${g.name}“" else "In „${g.name}“"
 }
