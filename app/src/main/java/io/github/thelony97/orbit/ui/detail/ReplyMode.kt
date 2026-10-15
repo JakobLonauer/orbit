@@ -42,6 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateOf
@@ -101,7 +106,12 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     var mode by remember(modes) { mutableStateOf(modes.first()) }
     val text = rememberTextFieldState()
     var pending by remember { mutableStateOf<String?>(null) }
-    var wheel by remember { mutableStateOf(false) }
+    // Mitternachts-Rad: the thumb's window position while Senden is held (null = closed).
+    var wheelThumb by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+    var wheelFinger by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    val windowSize = androidx.compose.ui.unit.IntSize((config.screenWidthDp * density).toInt(), (config.screenHeightDp * density).toInt())
     var recording by remember { mutableStateOf<VoiceRecorder?>(null) }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     // A planned SMS goes out by itself only with SEND_SMS – asked when it is planned, not at its time.
@@ -124,6 +134,15 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
                 permission.launch(android.Manifest.permission.SEND_SMS)
             }
         }
+    }
+
+    fun planAt(at: java.time.LocalDateTime) {
+        haptics.perform(Haptic.Confirm)
+        val ms = at.atZone(io.github.thelony97.orbit.domain.zone()).toInstant().toEpochMilli()
+        io.github.thelony97.orbit.live.Scheduled.plan(ctx, io.github.thelony97.orbit.live.Scheduled.Plan(newId(), c.id, text.text.toString().trim(), ms, sms = mode == ReplyMode.SMS))
+        text.clearText()
+        val granted = ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (mode == ReplyMode.SMS && !granted) smsLater.launch(android.Manifest.permission.SEND_SMS)
     }
 
     Column(modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = io.github.thelony97.orbit.core.designsystem.Spacing.Gutter, vertical = 8.dp)) {
@@ -169,21 +188,30 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
             ) else SendOrb(
                 ready = text.text.isNotBlank(), color = mode.color,
                 onSend = { send() },
-                onHold = if (mode == ReplyMode.SMS || mode == ReplyMode.CHAT) {
-                    { if (text.text.isNotBlank()) { haptics.perform(Haptic.Threshold); wheel = true } }
+                hold = if ((mode == ReplyMode.SMS || mode == ReplyMode.CHAT) && text.text.isNotBlank()) {
+                    WheelHold(
+                        onStart = { at -> haptics.perform(Haptic.Threshold); wheelThumb = at; wheelFinger = at },
+                        onMove = { at -> wheelFinger = at },
+                        onEnd = {
+                            val thumb = wheelThumb
+                            wheelThumb = null
+                            if (thumb != null) {
+                                val size = androidx.compose.ui.geometry.Size(windowSize.width.toFloat(), windowSize.height.toFloat())
+                                val center = wheelCenter(thumb, size, density)
+                                val now = java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone())
+                                wheelPick(c, data, now, center, wheelFinger, density)?.let { p -> planAt(p.at) }
+                            }
+                        },
+                    )
                 } else null,
             )
         }
     }
-    if (wheel) {
-        MidnightWheel(c, data, onPick = { at ->
-            wheel = false
-            val ms = at.atZone(io.github.thelony97.orbit.domain.zone()).toInstant().toEpochMilli()
-            io.github.thelony97.orbit.live.Scheduled.plan(ctx, io.github.thelony97.orbit.live.Scheduled.Plan(newId(), c.id, text.text.toString().trim(), ms, sms = mode == ReplyMode.SMS))
-            text.clearText()
-            val granted = ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (mode == ReplyMode.SMS && !granted) smsLater.launch(android.Manifest.permission.SEND_SMS)
-        }, onDismiss = { wheel = false })
+    wheelThumb?.let { thumb ->
+        val size = androidx.compose.ui.geometry.Size(windowSize.width.toFloat(), windowSize.height.toFloat())
+        androidx.compose.ui.window.Popup(popupPositionProvider = WindowOrigin) {
+            MidnightWheelOverlay(c, data, wheelCenter(thumb, size, density), wheelFinger)
+        }
     }
 }
 
@@ -236,15 +264,58 @@ private fun MicOrb(onDown: () -> Boolean, onUp: () -> Unit) {
 }
 
 @Composable
-private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, onHold: (() -> Unit)?) {
+private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, hold: WheelHold?) {
     val fill by androidx.compose.animation.animateColorAsState(if (ready) color else color.copy(alpha = 0f), label = "sendFill")
+    var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val currentHold by androidx.compose.runtime.rememberUpdatedState(hold)
+    val currentSend by androidx.compose.runtime.rememberUpdatedState(onSend)
     Box(
         Modifier.size(36.dp).clip(CircleShape).background(fill)
-            .combinedClickable(onClick = onSend, onLongClick = onHold),
+            .onGloballyPositioned { origin = it.positionInWindow() }
+            .pointerInput(Unit) {
+                // One gesture: a tap sends; holding opens the wheel and the same finger turns it and lets go.
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var released = false
+                    val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        waitForUpOrCancellation().also { released = true }
+                    }
+                    if (released) {
+                        if (up != null) currentSend()
+                        return@awaitEachGesture
+                    }
+                    val h = currentHold
+                    if (h == null) {
+                        waitForUpOrCancellation()?.let { currentSend() }
+                        return@awaitEachGesture
+                    }
+                    h.onStart(origin + down.position)
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        change.consume()
+                        h.onMove(origin + change.position)
+                    }
+                    h.onEnd()
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.AutoMirrored.Rounded.Send, "Senden", tint = if (ready) Space.Void else Space.TextFaint, modifier = Modifier.size(18.dp))
     }
+}
+
+/** The send orb's hold: the wheel opens at the thumb, follows it and plans on letting go. */
+internal class WheelHold(val onStart: (androidx.compose.ui.geometry.Offset) -> Unit, val onMove: (androidx.compose.ui.geometry.Offset) -> Unit, val onEnd: () -> Unit)
+
+/** A popup at the window's origin – the wheel draws in window coordinates. */
+private object WindowOrigin : androidx.compose.ui.window.PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: androidx.compose.ui.unit.IntRect,
+        windowSize: androidx.compose.ui.unit.IntSize,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        popupContentSize: androidx.compose.ui.unit.IntSize,
+    ): androidx.compose.ui.unit.IntOffset = androidx.compose.ui.unit.IntOffset.Zero
 }
 
 /** E4 Moment: what waits for its time sits as a little clock above the line; tap = Zurückholen. */

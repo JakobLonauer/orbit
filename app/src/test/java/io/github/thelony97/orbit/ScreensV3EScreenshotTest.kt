@@ -99,7 +99,17 @@ class ScreensV3EScreenshotTest {
 
     /** E4: the Mitternachts-Rad, pulled to the birthday's midnight. */
     @Test fun midnightWheel() = screen("v3e_wheel") {
-        io.github.thelony97.orbit.ui.detail.MidnightWheel(anna, data, onPick = {}, onDismiss = {})
+        // Thumb straight above the centre → the birthday's midnight magnet.
+        io.github.thelony97.orbit.ui.detail.MidnightWheelOverlay(
+            anna, data, center = androidx.compose.ui.geometry.Offset(540f, 1500f), finger = androidx.compose.ui.geometry.Offset(540f, 1180f),
+        )
+    }
+
+    /** E4: the wheel turned to an ordinary time (no magnet). */
+    @Test fun midnightWheelTime() = screen("v3e_wheel_time") {
+        io.github.thelony97.orbit.ui.detail.MidnightWheelOverlay(
+            anna, data, center = androidx.compose.ui.geometry.Offset(540f, 1500f), finger = androidx.compose.ui.geometry.Offset(820f, 1620f),
+        )
     }
 
     /** E8: the Themen-Stapel. */
