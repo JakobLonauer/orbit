@@ -237,6 +237,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         ctx.getSystemService(android.telephony.TelephonyManager::class.java)?.simCountryIso?.takeIf { it.isNotBlank() }?.uppercase()
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
+    val mentions = remember(data.contacts) { io.github.thelony97.orbit.core.domain.Mentions.backlinks(contact.id, data.contacts).take(8) }
     val fieldGhosts = remember(contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts) {
         io.github.thelony97.orbit.core.domain.FieldGhosts.find(contact, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, data.settings.dismissedGhosts.toSet()).take(3)
     }
@@ -766,10 +767,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 trailing = if (landline(p.value)) null else {
                                     { SmallIconAction(Icons.Rounded.Sms, "SMS") { ContactActions.sms(ctx, c, p.value) } }
                                 },
+                                dead = p.value in c.dead,
                             )
                         }
                         c.emails.forEach { e ->
-                            InfoRow(label = e.label, value = e.value, onClick = { ContactActions.email(ctx, c, e.value) })
+                            InfoRow(label = e.label, value = e.value, onClick = { ContactActions.email(ctx, c, e.value) }, dead = e.value in c.dead)
                         }
                         if (c.address.isNotBlank()) {
                             val mePoint = if (c.isMe) null else Logic.me(data)?.let { Geo.point(it) }
@@ -818,6 +820,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             // PLAN 9 E3: numbers, mails and addresses the contact wrote but that are not in the card.
             if (!c.isMe && fieldGhosts.isNotEmpty()) {
                 item(key = "field-ghosts") { FieldGhostRow(c, fieldGhosts) }
+            }
+
+            // PLAN 9 E13: where others' notes mention this contact.
+            if (mentions.isNotEmpty()) {
+                item(key = "mentions") { MentionsSection(mentions, data, nav) }
             }
 
             // PLAN 9 D3: Verträge with their Laufzeit-Ring.

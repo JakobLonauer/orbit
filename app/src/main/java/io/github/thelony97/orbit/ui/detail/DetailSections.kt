@@ -241,6 +241,8 @@ fun InfoRow(
     trailing: (@Composable () -> Unit)? = null,
     /** Halten (PLAN 9.2 Bediensprache): e.g. the Diktier-Ansicht of an own field. */
     onLongClick: (() -> Unit)? = null,
+    /** PLAN 9 E14: an SMS or mail did not get through – orange (Frist/Kosten-Farbe = Achtung). */
+    dead: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -257,8 +259,9 @@ fun InfoRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = valueModifier)
-            if (label.isNotEmpty()) Text(label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = if (dead) Space.Orange else Space.Text, modifier = valueModifier)
+            val tag = if (dead) listOf(label, "nicht erreicht").filter { it.isNotEmpty() }.joinToString(" · ") else label
+            if (tag.isNotEmpty()) Text(tag, style = MaterialTheme.typography.labelMedium, color = if (dead) Space.Orange.copy(alpha = 0.8f) else Space.TextFaint)
         }
         trailing?.invoke()
     }

@@ -231,6 +231,8 @@ data class Contact(
     val macros: List<Macro> = emptyList(),
     /** PLAN 9 D3: Verträge with this organisation (Handy, Strom, Versicherung …). */
     val contracts: List<Contract> = emptyList(),
+    /** PLAN 9 E14 Tote Daten: numbers/addresses an SMS or mail could not reach (shown orange). */
+    val dead: List<String> = emptyList(),
     /** PLAN 9 E7: what gifts for this person may cost in a year (cents); null = no budget. */
     val giftBudgetCents: Long? = null,
     /** PLAN 9 D6: things lent or borrowed and money owed, either way. */

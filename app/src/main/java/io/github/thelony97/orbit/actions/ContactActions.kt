@@ -112,7 +112,10 @@ object ContactActions {
         val to = (mobile ?: numbers.firstOrNull())?.value ?: return false
         val sent = runCatching {
             val sms = ctx.getSystemService(android.telephony.SmsManager::class.java)
-            sms.sendMultipartTextMessage(to, null, sms.divideMessage(text), null, null)
+            val parts = sms.divideMessage(text)
+            // PLAN 9 E14: the network's answer marks a number that cannot be reached.
+            val report = io.github.thelony97.orbit.notify.SmsSentReceiver.pending(ctx, c.id, to)
+            sms.sendMultipartTextMessage(to, null, parts, ArrayList(List(parts.size) { report }), null)
         }.isSuccess
         if (sent) log(c.id, TypeIds.MESSAGE, text)
         return sent

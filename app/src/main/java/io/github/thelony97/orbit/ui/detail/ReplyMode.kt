@@ -116,6 +116,7 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     Column(modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
         PlannedRow(c)
         SnippetRow(text, c, data.settings.snippets)
+        MentionRow(text, data)
         Row(
             Modifier
                 .fillMaxWidth()
@@ -212,6 +213,30 @@ private fun PlannedRow(c: Contact) {
 }
 
 private const val PREVIEW_CHARS = 28
+private const val MENTION_HITS = 5
+
+/** E13: „@An“ offers the matching people; a tap writes the @handle. */
+@Composable
+internal fun MentionRow(text: androidx.compose.foundation.text.input.TextFieldState, data: OrbitData) {
+    val typed = io.github.thelony97.orbit.core.domain.Mentions.typing(text.text.toString()) ?: return
+    val q = io.github.thelony97.orbit.core.domain.Fold.fold(typed)
+    val live = data.contacts.filter { it.deletedAt == null && !it.isMe && !it.archived }
+    val hits = live.filter { io.github.thelony97.orbit.core.domain.Fold.fold(it.firstName + " " + it.lastName).startsWith(q) || io.github.thelony97.orbit.core.domain.Fold.fold(it.nickname).startsWith(q) }
+        .take(MENTION_HITS)
+    if (hits.isEmpty()) return
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        hits.forEach { h ->
+            val unique = live.count { io.github.thelony97.orbit.core.domain.Fold.fold(it.firstName) == io.github.thelony97.orbit.core.domain.Fold.fold(h.firstName) } == 1
+            io.github.thelony97.orbit.ui.components.SpaceChip(io.github.thelony97.orbit.domain.Logic.displayName(h, false), false, {
+                val done = io.github.thelony97.orbit.core.domain.Mentions.complete(text.text.toString(), h, unique)
+                text.edit { replace(0, length, done) }
+            }, accent = Space.Violet)
+        }
+    }
+}
 
 /** E6: „/“ at the start offers the Textbausteine, filled for this contact; a tap puts it in the line. */
 @Composable

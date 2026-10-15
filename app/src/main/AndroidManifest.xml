@@ -320,6 +320,9 @@
         <receiver
             android:name=".live.ScheduledReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".notify.SmsSentReceiver"
+            android:exported="false" />
         <activity
             android:name=".live.LateActivity"
             android:exported="false"
