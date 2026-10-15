@@ -419,7 +419,7 @@ private fun SpanRow(sp: Span, onOpen: () -> Unit, modifier: Modifier = Modifier)
 }
 
 /** Two fingers closer = [onOut], apart = [onIn]; once per gesture, one finger is left to the list. */
-private fun Modifier.pinch(onOut: () -> Unit, onIn: () -> Unit): Modifier = pointerInput(Unit) {
+internal fun Modifier.pinch(onOut: () -> Unit, onIn: () -> Unit): Modifier = pointerInput(Unit) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false)
         var start = 0f

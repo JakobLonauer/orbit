@@ -126,6 +126,7 @@ import io.github.thelony97.orbit.domain.Logic
 import io.github.thelony97.orbit.domain.toLocalDate
 import io.github.thelony97.orbit.domain.today
 import io.github.thelony97.orbit.domain.zone
+import io.github.thelony97.orbit.ui.verlauf.pinch
 import io.github.thelony97.orbit.security.AppLock
 import io.github.thelony97.orbit.ui.Nav
 import io.github.thelony97.orbit.ui.Route
@@ -304,6 +305,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var occasionEdit by remember { mutableStateOf<Pair<String, io.github.thelony97.orbit.data.Anniversary?>?>(null) }
     var birthdayDialog by remember { mutableStateOf(false) }
     var showAllHistory by remember { mutableStateOf(false) }
+    // PLAN 9 E19: the Faden zooms like the Verlauf – Tag → Woche → Monat → Jahr.
+    var threadZoom by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) }
     var linkDialog by remember { mutableStateOf(false) }
     var qrDialog by remember { mutableStateOf(false) }
     var shareSheet by remember { mutableStateOf(false) }
@@ -410,7 +413,20 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         }
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(
+                if (c.entries.size < 2) Modifier else Modifier.pinch(
+                        onOut = {
+                            val z = io.github.thelony97.orbit.core.domain.TimeZoom.zoomOut(threadZoom)
+                            if (z != threadZoom) haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold)
+                            threadZoom = z
+                        },
+                        onIn = {
+                            val z = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(threadZoom)
+                            if (z != threadZoom) haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold)
+                            threadZoom = z
+                        },
+                    ),
+            ),
             contentPadding = PaddingValues(top = top + 6.dp, bottom = bottom + if (replying) 96.dp else 32.dp),
         ) {
             // Top bar
@@ -1177,7 +1193,21 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     (hq.isEmpty() || Logic.fold(e.note + " " + e.messages.joinToString(" ") { it.text }).contains(hq))
             }
             val visible = if (showAllHistory || hq.isNotEmpty() || historyType != null) filtered else filtered.take(30)
-            itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
+            if (threadZoom != io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) {
+                // Zoomed out: one line per week/month/year („KW 41 · 5 Anrufe · 2 Treffen“); tap zooms back in.
+                threadSpans(filtered, threadZoom, todayDate, idx).forEach { (key, label, summary) ->
+                    item(key = "span-$key") {
+                        Column(
+                            Modifier.animateItem().fillMaxWidth()
+                                .clickable { threadZoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(threadZoom) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            Text(label, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text)
+                            Text(summary, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextDim)
+                        }
+                    }
+                }
+            } else itemsIndexed(visible, key = { _, e -> "e-${e.id}" }) { i, e ->
                 // Each node draws in once per visit, not again when scrolling back up.
                 val first = drawnEntries.add(e.id)
                 EntryRow(
@@ -1188,7 +1218,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     onPhoto = { i -> entryPhotos = e.attachmentIds.mapNotNull { id -> c.gallery.firstOrNull { it.id == id } } to i },
                 )
             }
-            if (visible.size < filtered.size) {
+            if (visible.size < filtered.size && threadZoom == io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) {
                 item(key = "history-more") {
                     Text(
                         "Alle ${filtered.size} Einträge anzeigen",
@@ -1700,3 +1730,20 @@ private suspend fun importPhotosFor(ctx: android.content.Context, contactId: Str
     OrbitRepository.update { d -> d.copy(contacts = d.contacts.map { if (it.id == contactId) it.copy(gallery = added.asReversed() + it.gallery) else it }) }
     return added
 }
+
+/** PLAN 9 E19: the contact's entries per week/month/year – key, label and „5 Anrufe · 2 Treffen“. */
+internal fun threadSpans(
+    entries: List<io.github.thelony97.orbit.core.model.HistoryEntry>,
+    level: io.github.thelony97.orbit.core.domain.TimeZoom.Level,
+    today: java.time.LocalDate,
+    idx: Index,
+): List<Triple<String, String, String>> = entries
+    .groupBy { io.github.thelony97.orbit.core.domain.TimeZoom.key(java.time.Instant.ofEpochMilli(it.at).atZone(zone()).toLocalDate(), level) }
+    .map { (k, list) ->
+        val day = java.time.Instant.ofEpochMilli(list.first().at).atZone(zone()).toLocalDate()
+        Triple(
+            k,
+            io.github.thelony97.orbit.core.domain.TimeZoom.label(day, level, today),
+            io.github.thelony97.orbit.core.domain.TimeZoom.summary(list.map { idx.types[it.typeId]?.name ?: "Eintrag" }),
+        )
+    }
