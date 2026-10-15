@@ -63,6 +63,9 @@ data class HistoryEntry(
     /** PLAN 9 D5 „Auftrag“: what it cost (cents) and how it went (1–5 stars); the invoice is an attachment. */
     val amountCents: Long? = null,
     val stars: Int? = null,
+    /** PLAN 9 E12 Sprachnotiz: the recording's file (next to the photos) and its waveform (0–9 per step). */
+    val audio: String? = null,
+    val wave: String = "",
 )
 
 /** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */

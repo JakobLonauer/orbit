@@ -396,7 +396,7 @@ fun EntryRow(
                 }
                 if (entry.mails.size > 3) Text("+${entry.mails.size - 3}", style = MaterialTheme.typography.labelSmall, color = Space.TextFaint)
             }
-            if (entry.note.isNotBlank()) {
+            if (entry.note.isNotBlank() && entry.audio == null) {
                 Text(
                     entry.note,
                     style = MaterialTheme.typography.bodyMedium,
@@ -404,6 +404,8 @@ fun EntryRow(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
+            // PLAN 9 E12: a Sprachnotiz plays right here.
+            if (entry.audio != null) VoicePlayer(entry)
             if (entry.messages.isNotEmpty()) {
                 val shown = if (expanded) entry.messages else entry.messages.takeLast(2)
                 Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {

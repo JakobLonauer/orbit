@@ -5,6 +5,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -94,6 +97,9 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     val text = rememberTextFieldState()
     var pending by remember { mutableStateOf<String?>(null) }
     var wheel by remember { mutableStateOf(false) }
+    var recording by remember { mutableStateOf<VoiceRecorder?>(null) }
+    val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { recording?.cancel() } }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         val t = pending ?: return@rememberLauncherForActivityResult
         pending = null
@@ -129,8 +135,31 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
                 haptics.perform(Haptic.Tick)
                 mode = modes[(modes.indexOf(mode) + 1) % modes.size]
             }
-            ReplyField(text, mode, Modifier.weight(1f))
-            SendOrb(
+            val rec = recording
+            if (rec != null) RecordingLine(rec, Modifier.weight(1f).padding(vertical = 8.dp)) else ReplyField(text, mode, Modifier.weight(1f))
+            // PLAN 9 E12: a note with an empty line – hold the orb and speak.
+            if (mode == ReplyMode.NOTE && text.text.isBlank()) MicOrb(
+                onDown = {
+                    if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        mic.launch(android.Manifest.permission.RECORD_AUDIO)
+                        false
+                    } else {
+                        val r = VoiceRecorder(ctx)
+                        if (r.start()) {
+                            haptics.perform(Haptic.Threshold)
+                            recording = r
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                },
+                onUp = {
+                    recording?.stop(c.id)
+                    recording = null
+                    haptics.perform(Haptic.Confirm)
+                },
+            ) else SendOrb(
                 ready = text.text.isNotBlank(), color = mode.color,
                 onSend = { send() },
                 onHold = if (mode == ReplyMode.SMS || mode == ReplyMode.CHAT) {
@@ -174,6 +203,24 @@ private fun ReplyField(text: androidx.compose.foundation.text.input.TextFieldSta
             }
         },
     )
+}
+
+/** Hold to record (true from [onDown] = it runs), let go to keep it. */
+@Composable
+private fun MicOrb(onDown: () -> Boolean, onUp: () -> Unit) {
+    var held by remember { mutableStateOf(false) }
+    Box(
+        Modifier.size(if (held) 44.dp else 36.dp).clip(CircleShape).background(if (held) Space.Coral else Space.Violet.copy(alpha = 0.18f))
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    held = onDown()
+                    tryAwaitRelease()
+                    if (held) onUp()
+                    held = false
+                })
+            },
+        contentAlignment = Alignment.Center,
+    ) { Icon(Icons.Rounded.Mic, "Sprachnotiz", tint = if (held) Space.Void else Space.Violet, modifier = Modifier.size(18.dp)) }
 }
 
 @Composable
