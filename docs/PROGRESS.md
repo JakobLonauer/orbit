@@ -13,9 +13,13 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ## Stand
 
-### 15.10.2026 morgens (Tagsitzung, nur `dev`, nichts veröffentlicht)
+### 15.10.2026 morgens (Tagsitzung)
 
-- **Test-App für den Gerätetest:** Branch `release-r7` (= `dev` nach der Nacht, 89e1cc1), CI-Lauf 217 grün, signierte APK 1.0.217 als Artefakt „orbit-apk“. Gerätetest-Checkliste (R1–R7, 35 Punkte) als Seite für Jakob; seine Häkchen und Notizen liest die nächste Sitzung mit (siehe Notizbuch).
+- **Hotfix veröffentlicht als v1.0.224** (15.10. 08:10, Jakobs Zusage „ja veröffentlichen“): `main` fast-forward auf `release-hotfix` (5b38c8d = R1b + Update-Download über `AppWork`), CI-Release grün, APK-Zertifikat geprüft (SHA-256 a549f16d…d81f wie erwartet). `dev` enthielt den Fix schon (Merge = no-op). R2–R7 bleiben unveröffentlicht bis Gerätetest + Zusage.
+- **!! Versionsfalle:** Der Hotfix (224) ist höher als die erste R7-Test-App (217) → Test-App neu gebaut als **1.0.225** (`release-r7` = `dev` 6cc771f). Eine Test-App mit R4+-Daten darf NIE das Update auf 224 bekommen (alter Code würde Zuordnungen/Mitarbeiter beim Speichern verwerfen). Jakob ist gewarnt. Künftig: Test-Builds immer erst NACH einem Release bauen bzw. neu bauen.
+- **Entscheidung (Jakob 15.10.):** Backup-Verschlüsselung ist **nicht Pflicht** – bleibt eine freiwillige Einstellung.
+
+- **Test-App für den Gerätetest:** Branch `release-r7`, zuerst Lauf 217 (89e1cc1), nach dem Hotfix neu als Lauf 225 (6cc771f) → signierte APK 1.0.225 als Artefakt „orbit-apk“. Gerätetest-Checkliste (R1–R7, 35 Punkte) als Seite für Jakob; seine Häkchen und Notizen liest die nächste Sitzung mit (siehe Notizbuch).
 - **Statische Prüfung (PLAN 8):** detekt mit Compose-Regeln und Android Lint laufen bei jedem Build als Bericht (`ci-log-*/analysis/`), Altbestand als Baseline – neue Funde in neuem Code beheben. Lint: 0 Fehler.
 - Kleinigkeiten aus Lint: Boot-Empfänger reagiert nur auf System-Aktionen; benutzte App-Shortcuts werden dem Launcher gemeldet.
 - **Nächster Schritt:** Ergebnisse aus der Gerätetest-Seite lesen, Funde auf `dev` beheben, in `release-r7` übernehmen; Release erst mit Jakobs Zusage.
@@ -126,12 +130,13 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 - **R6 Fotos & Dateien + R7 Komfort (14.10. abends bis 15.10. ~00:30, Tagsitzung, auf `dev`, nicht veröffentlicht):** Fotos-Seite mit Monaten und Scrubber (EXIF-Datum), Foto wächst aus der Kachel und fällt beim Runterwischen zurück, Teilen/ins Handy speichern/„Auch bei …“, PDFs im Ordner, Fotos an Einträgen. R7: „Diese Nummer gibt es schon“ beim Speichern und beim Import (gleiche normalisierte Nummer, sonst letzte neun Ziffern), App-Shortcuts (Neuer Kontakt, Verlauf, zwei Top-Favoriten; angepinnte Favoriten werden grau, wenn archiviert/gelöscht), Favoriten-Widget (Anrufen/WhatsApp mit einem Tipp), Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“ (zeigt nur die Uhrzeit), Mehrfach-Import aus dem Handy (Firma ohne Personennamen = Organisation, Rückgängig), Export Excel (Kontakte, Verlauf, Mitarbeiter; eigener Schreiber `Xlsx`) und vCard aller Kontakte, Erster Start in zwei Schritten (ICH → Handy-Kontakte) mit „Dein Orbit füllt sich“, Berechtigungen fragt jetzt der leere Verlauf, Karte: Kamerafahrt im Bogen, Cluster platzt auf seine Mitglieder, Marker ploppen, Ich-Karte mit Holo-Schimmer beim Neigen (nur unter dem Inhalt, QR bleibt scanbar), zweispaltig ab 840 dp (Liste | Kontakt). Code-Review-Subagent (sonnet) über R6/R7: Funde behoben (Datei-Namen, Rückgängig im Foto-Vollbild sichtbar, Kartenbreite in dp, Sensor nur im Vordergrund, Excel als Strom statt Riesen-String, Kachel lädt kalt, Rückweg im Erst-Start, Falten mit offener Bearbeitung). Teile davon hat die Nachtsitzung parallel gefixt (siehe Notizbuch).
 - **Entscheidung R7:** Der Hinweis „gibt es schon“ nennt auch archivierte Kontakte („(Archiv)“) – wie die Anrufer-Erkennung eine Nummernsuche, sonst entstünden doppelte Kontakte. Excel/vCard-Export enthalten das Archiv (markiert), nie den Papierkorb, nie Passwörter.
 - **R2 offen:** **Test der Telefon-App am Gerät** (Liste im Notizbuch) – davor kein Release-Kandidat; „Mitarbeiter zuordnen?“ bei unbekannter Durchwahl (braucht die Mitarbeiter-Oberfläche aus R4).
-- **Nächster Schritt:** Alle Updates R2–R7 sind im Code fertig und auf `dev` grün. Jetzt: Gerätetest mit Jakob (Test-APK aus dem CI-Artefakt von `dev`, Liste im Notizbuch: Telefon-App, Benachrichtigungen, Mail-Abgleich, Erst-Start), danach ein gemeinsamer Release-Kandidat und – nach Jakobs Zusage – `dev` → `main`. Offene Fragen an Jakob: Hotfix `release-hotfix` veröffentlichen (oder gleich alles)? Backup-Verschlüsselung Pflicht oder überspringbar?
+- **Nächster Schritt:** Alle Updates R2–R7 sind im Code fertig und auf `dev` grün. Jetzt: Gerätetest mit Jakob (Test-APK aus dem CI-Artefakt von `dev`, Liste im Notizbuch: Telefon-App, Benachrichtigungen, Mail-Abgleich, Erst-Start), danach ein gemeinsamer Release-Kandidat und – nach Jakobs Zusage – `dev` → `main`. (Fragen beantwortet 15.10.: Hotfix veröffentlicht als v1.0.224; Backup-Verschlüsselung nicht Pflicht.)
 - Letztes Release: **v1.0.101** (R1b). Davor v1.0.54 (R1a), v1.0.7.
 
 ## Entscheidungen
 
-(noch keine)
+- 15.10.2026 (Jakob): Backup-Verschlüsselung bleibt freiwillig, kein Zwang beim ersten Backup.
+- 15.10.2026 (Jakob): Update-Fix allein veröffentlicht (v1.0.224); R2–R7 erst nach Gerätetest und ausdrücklicher Zusage.
 
 ## Offene Punkte für Jakob
 
