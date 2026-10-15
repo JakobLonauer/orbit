@@ -290,11 +290,11 @@ private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, hold: Whee
                         return@awaitEachGesture
                     }
                     h.onStart(origin + down.position)
-                    while (true) {
-                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
+                    var change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                    while (change != null && change.pressed) {
                         change.consume()
                         h.onMove(origin + change.position)
+                        change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
                     }
                     h.onEnd()
                 }
@@ -347,7 +347,7 @@ private fun PlannedChip(text: String, at: java.time.LocalDateTime, onClick: () -
     val hands = remember { androidx.compose.animation.core.Animatable(0f) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         arrive.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
-        hands.animateTo(1f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized))
+        hands.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.emphasized())
         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
     }
     val minute = at.minute / 60f

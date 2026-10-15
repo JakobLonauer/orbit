@@ -127,7 +127,9 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
                                 modifier = Modifier.padding(vertical = Spacing.S),
                             )
                             list.forEach { card ->
-                                key(card.contact.id + card.gift.id) { GiftCard(card, stage, i, colWidth.value, card.gift.id in budgetOn, onEdit = { editing = card }, onLift = { up -> liftedColumn = if (up) i else -1 }) }
+                                key(card.contact.id + card.gift.id) {
+                                    GiftCard(card, stage, i, colWidth.value, card.gift.id in budgetOn, onEdit = { editing = card }, onLift = { up -> liftedColumn = if (up) i else -1 })
+                                }
                             }
                         }
                     }

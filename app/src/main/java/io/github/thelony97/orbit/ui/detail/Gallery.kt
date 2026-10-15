@@ -537,7 +537,8 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                 onDismiss = { shareTo = null },
             ) { toId ->
                 OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.shareAttachment(d, item.photo, toId) }
-                io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Auch im Ordner von " + (data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) } ?: ""))
+                val toName = data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) }.orEmpty()
+                io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Auch im Ordner von $toName")
             }
         }
     }

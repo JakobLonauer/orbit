@@ -103,7 +103,10 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
             SettingItem(Icons.Rounded.SimCard, "Gruppe → SIM", subtitle = sims.joinToString(" · ") { it.name }.ifBlank { null }, iconTint = Space.Violet, onClick = onGroups, trailing = { Chevron() })
             Hairline()
             val tones = data.groups.filter { it.ringtone != null }
-            SettingItem(Icons.Rounded.LibraryMusic, "Gruppe → Klingelton", subtitle = tones.joinToString(" · ") { it.name }.ifBlank { null }, iconTint = Space.Violet, onClick = onGroups, trailing = { Chevron() })
+            SettingItem(
+                Icons.Rounded.LibraryMusic, "Gruppe → Klingelton",
+                subtitle = tones.joinToString(" · ") { it.name }.ifBlank { null }, iconTint = Space.Violet, onClick = onGroups, trailing = { Chevron() },
+            )
             Hairline()
             val series = data.contacts.count { it.deletedAt == null && it.numberPrefixes.isNotEmpty() }
             SettingItem(

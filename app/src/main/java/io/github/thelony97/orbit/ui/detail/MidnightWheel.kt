@@ -130,7 +130,10 @@ private fun DrawScope.drawWheel(angle: Float, magnet: Boolean, active: Boolean) 
         )
     }
     if (!active) return
-    drawArc(accent.copy(alpha = 0.28f), -90f, angle.coerceAtLeast(0.5f), false, Offset(center.x - r, center.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2), style = Stroke(10.dp.toPx(), cap = StrokeCap.Round))
+    drawArc(
+        accent.copy(alpha = 0.28f), -90f, angle.coerceAtLeast(0.5f), false,
+        Offset(center.x - r, center.y - r), androidx.compose.ui.geometry.Size(r * 2, r * 2), style = Stroke(10.dp.toPx(), cap = StrokeCap.Round),
+    )
     val a = (angle - 90f) * PI.toFloat() / 180f
     drawCircle(accent, 14.dp.toPx(), Offset(center.x + r * cos(a), center.y + r * sin(a)))
     drawCircle(Space.Void, 5.dp.toPx(), Offset(center.x + r * cos(a), center.y + r * sin(a)))
