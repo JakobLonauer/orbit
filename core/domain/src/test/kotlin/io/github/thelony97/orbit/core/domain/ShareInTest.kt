@@ -26,6 +26,12 @@ class ShareInTest {
         // Too short for a number, or more than a number: stays text.
         assertEquals(Item.Text("1234"), ShareIn.parse("1234", null))
         assertEquals(Item.Text("Ruf 0660 1234567 an"), ShareIn.parse("Ruf 0660 1234567 an", null))
+        // Dates and amounts are no numbers.
+        assertEquals(Item.Text("15.10.2026"), ShareIn.parse("15.10.2026", null))
+        assertEquals(Item.Text("01.02.2026"), ShareIn.parse("01.02.2026", null))
+        assertEquals(Item.Text("2026-10-15"), ShareIn.parse("2026-10-15", null))
+        assertEquals(Item.Text("1.234.567"), ShareIn.parse("1.234.567", null))
+        assertEquals(Item.Number("(0732) 2468-12"), ShareIn.parse("(0732) 2468-12", null))
     }
 
     @Test fun plainTextAndNothing() {

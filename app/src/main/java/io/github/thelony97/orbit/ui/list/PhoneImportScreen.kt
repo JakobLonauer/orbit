@@ -238,3 +238,55 @@ private fun ImportRow(item: PhoneImport.Item, selected: Boolean, already: String
         }
     }
 }
+
+/**
+ * vCard-Datei mit mehreren Karten (PLAN 9 A2): picked like the phone book – cards whose number is
+ * already in Orbit are shown as such and not pre-selected; one undo for the whole take-over.
+ */
+@Composable
+fun CardImportScreen(data: OrbitData, nav: Nav, drafts: List<Contact>) {
+    val ctx = LocalContext.current
+    val haptics = rememberHaptics()
+    val iso = remember { Phones.countryIso(ctx) }
+    val lookup = remember(data.contacts) { Duplicates.Lookup(data.contacts) { Phones.normalize(it, iso) } }
+    val rows = remember(drafts) {
+        drafts.mapIndexed { i, c -> PhoneImport.Item(i.toLong(), Logic.displayName(c, false), c.phones.map { it.value }) }
+    }
+    val hits = remember(rows, lookup) { rows.associate { it.id to lookup.hit(it.numbers) } }
+    var selected by remember(rows) { mutableStateOf(rows.filter { hits[it.id] == null }.map { it.id }.toSet()) }
+
+    fun takeOver() {
+        val picked = drafts.filterIndexed { i, _ -> i.toLong() in selected }
+        if (picked.isEmpty()) return
+        val ids = picked.map { it.id }.toSet()
+        OrbitRepository.edit { d -> picked.fold(d) { acc, c -> Mutations.upsertContact(acc, c) } }
+        runCatching { Sync.backfill(ctx, picked.filter { it.phones.isNotEmpty() }.map { it.id }) }
+        haptics.perform(Haptic.Confirm)
+        Undo.offer(if (picked.size == 1) "1 Kontakt übernommen" else "${picked.size} Kontakte übernommen") {
+            OrbitRepository.edit { d -> ids.fold(d) { acc, id -> Mutations.purge(acc, id) } }
+        }
+        nav.back()
+    }
+
+    ManageScaffold(
+        "vCard übernehmen", nav,
+        fabLabel = if (selected.isEmpty()) null else "Übernehmen (${selected.size})",
+        onFab = ::takeOver,
+    ) { padding ->
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 120.dp)) {
+            items(rows, key = { it.id }) { item ->
+                val owner = hits[item.id]?.let { h -> data.contacts.firstOrNull { it.id == h.contactId } }
+                ImportRow(
+                    item = item,
+                    selected = item.id in selected,
+                    already = owner?.let { Logic.displayName(it, data.settings.sortByLastName) + if (it.archived) " (Archiv)" else "" },
+                    onToggle = {
+                        haptics.perform(Haptic.Tick)
+                        selected = if (item.id in selected) selected - item.id else selected + item.id
+                    },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+    }
+}

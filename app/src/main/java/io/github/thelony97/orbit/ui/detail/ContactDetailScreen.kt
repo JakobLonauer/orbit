@@ -585,8 +585,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                             ActionOrb(
                                 Icons.Rounded.Forum, "WhatsApp", true,
                                 onClick = {
-                                    if (waChat != null) io.github.thelony97.orbit.actions.Messengers.open(ctx, waChat, c.id)
-                                    else ContactActions.whatsapp(ctx, c, textNumber)
+                                    // WhatsApp's own row opens the chat directly; gone (uninstalled) → wa.me as before.
+                                    if (waChat == null || !io.github.thelony97.orbit.actions.Messengers.open(ctx, waChat, c.id)) {
+                                        ContactActions.whatsapp(ctx, c, textNumber)
+                                    }
                                 },
                                 // Halten: WhatsApp-Anruf, Video, Signal – else the number choice as before.
                                 onLongClick = { if (extra.isNotEmpty()) messengerMenu = true else chooser = Chooser.WhatsApp },
@@ -1218,7 +1220,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     }
 
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
-    qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }) }
+    qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }, withFields = true) }
     if (shareSheet) ShareFieldsSheet(c, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
     dictate?.let { (label, value) ->
         androidx.compose.ui.window.Dialog(

@@ -70,4 +70,18 @@ class VCardTest {
         assertEquals("Kontakt.vcf", VCard.fileName(Contact("x")))
         assertEquals("Arzt_Müller_Praxis.vcf", VCard.fileName(Contact("o", kind = ContactKind.ORG, company = "Arzt Müller / Praxis")))
     }
+
+    @Test fun titleRufnameAndPickedFields() {
+        val v = VCard.of(anna.copy(title = "Mag.a", nickname = "Anni"))
+        assertTrue("N:Berger;Anna;;Mag.a;" in v)
+        assertTrue("NICKNAME:Anni" in v)
+        // Own fields only when picked (PLAN 9 A12), as a note.
+        assertFalse("KD-1" in v)
+        assertTrue("NOTE:Kundennummer: KD-1" in VCard.of(anna, withFields = true))
+        // Read back, the card is the same person.
+        val back = VCardReader.read(VCard.of(anna.copy(title = "Mag.a", nickname = "Anni")), { "x" }).single()
+        assertEquals("Mag.a", back.title)
+        assertEquals("Anni", back.nickname)
+        assertEquals("Berger", back.lastName)
+    }
 }

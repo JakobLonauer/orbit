@@ -294,11 +294,11 @@ fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (S
 
 /** The contact as a QR code to scan with another phone; the screen goes to full brightness. */
 @Composable
-fun QrDialog(c: Contact, onDismiss: () -> Unit) {
+fun QrDialog(c: Contact, onDismiss: () -> Unit, withFields: Boolean = false) {
     val ctx = LocalContext.current
     // zxing off the main thread (W8); the code fades in where its square already waits.
     val qrState = androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, c) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ShareContact.qr(c)?.asImageBitmap() }
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ShareContact.qr(c, withFields)?.asImageBitmap() }
     }
     var qrDone by remember(c) { mutableStateOf(false) }
     LaunchedEffect(qrState.value) { if (qrState.value != null) qrDone = true }
@@ -375,7 +375,7 @@ fun QrDialog(c: Contact, onDismiss: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(16.dp))
-            GhostButton("Als Datei teilen", { ShareContact.vcard(ctx, c) }, icon = Icons.Rounded.Share)
+            GhostButton("Als Datei teilen", { ShareContact.vcard(ctx, c, withFields) }, icon = Icons.Rounded.Share)
         }
     }
 }

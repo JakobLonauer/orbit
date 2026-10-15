@@ -77,8 +77,9 @@ object OrbitCalendar {
     suspend fun writeNow(ctx: Context): Result<Int> = mutex.withLock {
         withContext(Dispatchers.IO) {
             runCatching {
-                if (OrbitRepository.loadError.value != null) return@runCatching 0
                 val data = OrbitRepository.snapshot()
+                // Never from a state that could not be read (it would empty the calendar).
+                if (OrbitRepository.loadError.value != null) return@runCatching 0
                 if (!data.settings.orbitCalendar || !canWrite(ctx)) return@runCatching 0
                 OrbitAccount.ensure(ctx)
                 val r = ctx.contentResolver
@@ -96,15 +97,21 @@ object OrbitCalendar {
     }
 
     /** Switched off: the calendar and its events go; the account only if the phone book is off too. */
-    suspend fun remove(ctx: Context, keepAccount: Boolean) = withContext(Dispatchers.IO) {
-        runCatching {
-            ctx.contentResolver.delete(
-                asSync(Calendars.CONTENT_URI),
-                "${Calendars.ACCOUNT_NAME} = ? AND ${Calendars.ACCOUNT_TYPE} = ?",
-                arrayOf(PhoneBookSync.ACCOUNT_NAME, PhoneBookSync.ACCOUNT_TYPE),
-            )
-        }.onFailure { Log.w(TAG, "remove calendar", it) }
-        if (!keepAccount) OrbitAccount.release(ctx)
+    suspend fun remove(ctx: Context, keepAccount: Boolean) {
+        // A write waiting or running must not bring the calendar back.
+        synchronized(this) { pending?.cancel() }
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                runCatching {
+                    ctx.contentResolver.delete(
+                        asSync(Calendars.CONTENT_URI),
+                        "${Calendars.ACCOUNT_NAME} = ? AND ${Calendars.ACCOUNT_TYPE} = ?",
+                        arrayOf(PhoneBookSync.ACCOUNT_NAME, PhoneBookSync.ACCOUNT_TYPE),
+                    )
+                }.onFailure { Log.w(TAG, "remove calendar", it) }
+                if (!keepAccount) OrbitAccount.release(ctx)
+            }
+        }
     }
 
     private fun calendarId(r: ContentResolver): Long? {

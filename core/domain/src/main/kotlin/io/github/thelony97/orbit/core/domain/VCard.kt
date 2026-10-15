@@ -9,43 +9,56 @@ import io.github.thelony97.orbit.core.model.Contact
  */
 object VCard {
 
-    fun of(c: Contact): String = buildString {
+    /**
+     * The card. [withFields]: the own fields go along as a note – only when Jakob picked them
+     * himself (PLAN 9 A12 Weitergeben mit Feldwahl), never by default.
+     */
+    fun of(c: Contact, withFields: Boolean = false): String = buildString {
         fun line(s: String) = append(s).append("\r\n")
         line("BEGIN:VCARD")
         line("VERSION:3.0")
-        if (c.isOrg) {
-            val name = c.company.ifBlank { c.firstName }
-            line("N:${esc(name)};;;;")
-            line("FN:${esc(name)}")
-            line("ORG:${esc(name)}")
-            if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
-        } else {
-            // PLAN 9 A10: the title goes into the name's prefix part, the Rufname into NICKNAME.
-            line("N:${esc(c.lastName)};${esc(c.firstName)};;${esc(c.title)};")
-            // FN must not be empty: a person known only by the company is shown under it.
-            val fn = listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { c.company }
-            line("FN:${esc(fn.ifBlank { "Kontakt" })}")
-            if (c.nickname.isNotBlank()) line("NICKNAME:${esc(c.nickname)}")
-            if (c.company.isNotBlank()) line("ORG:${esc(c.company)}")
-            if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
-        }
-        c.phones.filter { it.value.isNotBlank() }.forEachIndexed { i, p ->
-            val type = phoneType(p.label) + if (i == c.defaultPhone) ",PREF" else ""
-            line("TEL;TYPE=$type:${p.value.trim()}")
-        }
-        c.emails.filter { it.value.isNotBlank() }.forEach { e ->
-            line("EMAIL;TYPE=${mailType(e.label)}:${e.value.trim()}")
-        }
-        c.addresses.filter { it.value.isNotBlank() }.forEach { a ->
-            // Free-text address: put it into the street part, the rest stays empty.
-            line("ADR;TYPE=${if (c.isOrg) "WORK" else "HOME"}:;;${esc(a.value.replace("\n", ", "))};;;;")
-        }
-        c.links.forEach { l -> line("URL:${l.url.trim()}") }
-        c.birthday?.let { b ->
-            val md = String.format(java.util.Locale.ROOT, "%02d-%02d", b.month, b.day)
-            line("BDAY:" + (b.year?.let { String.format(java.util.Locale.ROOT, "%04d-", it) + md } ?: "--$md"))
+        nameLines(c).forEach(::line)
+        reachLines(c).forEach(::line)
+        if (withFields && c.fields.isNotEmpty()) {
+            line("NOTE:" + esc(c.fields.joinToString("\n") { it.label.ifBlank { "Feld" } + ": " + it.value.trim() }))
         }
         line("END:VCARD")
+    }
+
+    private fun nameLines(c: Contact): List<String> = buildList {
+        if (c.isOrg) {
+            val name = c.company.ifBlank { c.firstName }
+            add("N:${esc(name)};;;;")
+            add("FN:${esc(name)}")
+            add("ORG:${esc(name)}")
+            if (c.position.isNotBlank()) add("TITLE:${esc(c.position)}")
+            return@buildList
+        }
+        // PLAN 9 A10: the title goes into the name's prefix part, the Rufname into NICKNAME.
+        add("N:${esc(c.lastName)};${esc(c.firstName)};;${esc(c.title)};")
+        // FN must not be empty: a person known only by the company is shown under it.
+        val fn = listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { c.company }
+        add("FN:${esc(fn.ifBlank { "Kontakt" })}")
+        if (c.nickname.isNotBlank()) add("NICKNAME:${esc(c.nickname)}")
+        if (c.company.isNotBlank()) add("ORG:${esc(c.company)}")
+        if (c.position.isNotBlank()) add("TITLE:${esc(c.position)}")
+    }
+
+    private fun reachLines(c: Contact): List<String> = buildList {
+        c.phones.filter { it.value.isNotBlank() }.forEachIndexed { i, p ->
+            val type = phoneType(p.label) + if (i == c.defaultPhone) ",PREF" else ""
+            add("TEL;TYPE=$type:${p.value.trim()}")
+        }
+        c.emails.filter { it.value.isNotBlank() }.forEach { e -> add("EMAIL;TYPE=${mailType(e.label)}:${e.value.trim()}") }
+        // Free-text address: put it into the street part, the rest stays empty.
+        c.addresses.filter { it.value.isNotBlank() }.forEach { a ->
+            add("ADR;TYPE=${if (c.isOrg) "WORK" else "HOME"}:;;${esc(a.value.replace("\n", ", "))};;;;")
+        }
+        c.links.forEach { l -> add("URL:${l.url.trim()}") }
+        c.birthday?.let { b ->
+            val md = String.format(java.util.Locale.ROOT, "%02d-%02d", b.month, b.day)
+            add("BDAY:" + (b.year?.let { String.format(java.util.Locale.ROOT, "%04d-", it) + md } ?: "--$md"))
+        }
     }
 
     /** File name for the shared .vcf, safe on every file system. */

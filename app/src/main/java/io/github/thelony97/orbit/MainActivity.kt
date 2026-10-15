@@ -47,10 +47,7 @@ class MainActivity : FragmentActivity() {
         /** App-Shortcut or QS tile action (see [io.github.thelony97.orbit.actions.AppShortcuts]). */
         val pendingShortcut = MutableStateFlow<String?>(null)
 
-        /** PLAN 9 A2: a contact handed over by another app (JSON), or several from a vCard file. */
-        const val EXTRA_INTAKE = "intake"
-        const val EXTRA_INTAKE_PICK = "intake_pick"
-        const val EXTRA_INTAKE_CARDS = "intake_cards"
+        /** PLAN 9 A2: a contact handed over by another app, or several from a vCard file (set in memory). */
         val pendingIntake = MutableStateFlow<Intake?>(null)
     }
 
@@ -143,21 +140,6 @@ class MainActivity : FragmentActivity() {
                 intent.action = Intent.ACTION_MAIN
                 return
             }
-        }
-        // PLAN 9 A2: another app wants a contact created or extended.
-        val json = io.github.thelony97.orbit.data.OrbitRepository.json
-        intent?.getStringExtra(EXTRA_INTAKE)?.let { raw ->
-            runCatching { json.decodeFromString(io.github.thelony97.orbit.data.Contact.serializer(), raw) }.getOrNull()?.let { draft ->
-                pendingIntake.value = Intake(listOf(draft), intent.getBooleanExtra(EXTRA_INTAKE_PICK, false))
-            }
-            intent.removeExtra(EXTRA_INTAKE)
-            return
-        }
-        intent?.getStringExtra(EXTRA_INTAKE_CARDS)?.let { raw ->
-            runCatching { json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(io.github.thelony97.orbit.data.Contact.serializer()), raw) }.getOrNull()
-                ?.takeIf { it.isNotEmpty() }?.let { pendingIntake.value = Intake(it, false) }
-            intent.removeExtra(EXTRA_INTAKE_CARDS)
-            return
         }
         intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
             pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)

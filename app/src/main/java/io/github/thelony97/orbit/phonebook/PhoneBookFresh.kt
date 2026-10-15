@@ -20,8 +20,8 @@ import java.io.File
  */
 object PhoneBookFresh {
 
-    /** Messengers add their own rows for people who are already there. */
-    private val messengers = setOf(
+    /** Messengers add their own rows for people who are already there (also used by the import). */
+    val messengers = setOf(
         "com.whatsapp", "com.whatsapp.w4b", "org.thoughtcrime.securesms", "org.telegram.messenger",
         "ch.threema.app", "com.viber.voip", "com.skype.contacts.sync", "com.google.android.apps.tachyon",
         PhoneBookSync.ACCOUNT_TYPE,
@@ -54,45 +54,57 @@ object PhoneBookFresh {
     }
 
     suspend fun list(ctx: Context, data: OrbitData): List<Item> = withContext(Dispatchers.IO) {
-        if (!data.settings.phoneBook || !canRead(ctx)) return@withContext emptyList()
         val since = seen(ctx)
-        if (since < 0) return@withContext emptyList()
+        if (!data.settings.phoneBook || !canRead(ctx) || since < 0) return@withContext emptyList()
         runCatching {
             val r = ctx.contentResolver
-            // Newer raw rows of real address books, one per person.
-            val byContact = LinkedHashMap<Long, Item>()
-            r.query(
-                RawContacts.CONTENT_URI,
-                arrayOf(RawContacts._ID, RawContacts.CONTACT_ID, RawContacts.ACCOUNT_TYPE, RawContacts.DISPLAY_NAME_PRIMARY),
-                "${RawContacts._ID} > ? AND ${RawContacts.DELETED} = 0",
-                arrayOf(since.toString()), "${RawContacts._ID} ASC",
-            )?.use { c ->
-                while (c.moveToNext()) {
-                    if (c.getString(2) in messengers) continue
-                    val contactId = c.getLong(1)
-                    if (contactId <= 0 || byContact.containsKey(contactId)) continue
-                    byContact[contactId] = Item(contactId, c.getString(3)?.trim().orEmpty(), c.getLong(0))
-                }
-            }
-            if (byContact.isEmpty()) return@runCatching emptyList<Item>()
-            val ids = byContact.keys.joinToString(",")
-            // Already carrying an Orbit row: Orbit knows them.
-            val ours = HashSet<Long>()
-            r.query(
-                RawContacts.CONTENT_URI, arrayOf(RawContacts.CONTACT_ID),
-                "${RawContacts.ACCOUNT_TYPE} = ? AND ${RawContacts.CONTACT_ID} IN ($ids)",
-                arrayOf(PhoneBookSync.ACCOUNT_TYPE), null,
-            )?.use { c -> while (c.moveToNext()) ours += c.getLong(0) }
-            // Only with a number Orbit doesn't know (fixed rule: same normalized number).
-            val iso = Phones.countryIso(ctx)
-            val matcher = PhoneMatcher(data.contacts, iso)
-            val unknown = HashSet<Long>()
-            r.query(
-                CommonDataKinds.Phone.CONTENT_URI, arrayOf(CommonDataKinds.Phone.CONTACT_ID, CommonDataKinds.Phone.NUMBER),
-                "${CommonDataKinds.Phone.CONTACT_ID} IN ($ids)", null, null,
-            )?.use { c -> while (c.moveToNext()) if (matcher.match(c.getString(1)) == null) unknown += c.getLong(0) }
+            val newer = newerPeople(r, since)
+            if (newer.isEmpty()) return@runCatching emptyList<Item>()
+            val ids = newer.keys.joinToString(",")
+            val ours = withOrbitRow(r, ids)
+            val unknown = withUnknownNumber(r, ids, PhoneMatcher(data.contacts, Phones.countryIso(ctx)))
             val dismissed = data.settings.dismissedGhosts.toSet()
-            byContact.values.filter { it.contactId !in ours && it.contactId in unknown && it.name.isNotEmpty() && "pb:${it.rawId}" !in dismissed }
+            newer.values.filter { it.contactId !in ours && it.contactId in unknown && "pb:${it.rawId}" !in dismissed }
         }.getOrDefault(emptyList())
+    }
+
+    /** Raw rows of real address books newer than the mark, one per person (messengers left out). */
+    private fun newerPeople(r: android.content.ContentResolver, since: Long): Map<Long, Item> {
+        val byContact = LinkedHashMap<Long, Item>()
+        r.query(
+            RawContacts.CONTENT_URI,
+            arrayOf(RawContacts._ID, RawContacts.CONTACT_ID, RawContacts.ACCOUNT_TYPE, RawContacts.DISPLAY_NAME_PRIMARY),
+            "${RawContacts._ID} > ? AND ${RawContacts.DELETED} = 0",
+            arrayOf(since.toString()), "${RawContacts._ID} ASC",
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val contactId = c.getLong(1)
+                val name = c.getString(3)?.trim().orEmpty()
+                val counts = c.getString(2) !in messengers && contactId > 0 && name.isNotEmpty()
+                if (counts) byContact.putIfAbsent(contactId, Item(contactId, name, c.getLong(0)))
+            }
+        }
+        return byContact
+    }
+
+    /** People that already carry an Orbit row: Orbit knows them. */
+    private fun withOrbitRow(r: android.content.ContentResolver, ids: String): Set<Long> {
+        val out = HashSet<Long>()
+        r.query(
+            RawContacts.CONTENT_URI, arrayOf(RawContacts.CONTACT_ID),
+            "${RawContacts.ACCOUNT_TYPE} = ? AND ${RawContacts.CONTACT_ID} IN ($ids)",
+            arrayOf(PhoneBookSync.ACCOUNT_TYPE), null,
+        )?.use { c -> while (c.moveToNext()) out += c.getLong(0) }
+        return out
+    }
+
+    /** People with at least one number Orbit doesn't know (fixed rule: same normalized number). */
+    private fun withUnknownNumber(r: android.content.ContentResolver, ids: String, matcher: PhoneMatcher): Set<Long> {
+        val out = HashSet<Long>()
+        r.query(
+            CommonDataKinds.Phone.CONTENT_URI, arrayOf(CommonDataKinds.Phone.CONTACT_ID, CommonDataKinds.Phone.NUMBER),
+            "${CommonDataKinds.Phone.CONTACT_ID} IN ($ids)", null, null,
+        )?.use { c -> while (c.moveToNext()) if (matcher.match(c.getString(1)) == null) out += c.getLong(0) }
+        return out
     }
 }

@@ -11,7 +11,10 @@ import io.github.thelony97.orbit.core.domain.VCardReader
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.LabeledValue
 import io.github.thelony97.orbit.data.Mutations
-import io.github.thelony97.orbit.data.OrbitRepository
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import io.github.thelony97.orbit.data.newId
 
 /**
@@ -19,28 +22,29 @@ import io.github.thelony97.orbit.data.newId
  * contact (phone, messages, WhatsApp, Gmail, the camera reading a vCard QR) can open Orbit.
  * The handed-over values become a draft; Orbit's own pages do the rest.
  */
-class ContactIntakeActivity : Activity() {
+class ContactIntakeActivity : androidx.activity.ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val i = intent
-        val target = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        when (i?.action) {
-            Intent.ACTION_INSERT, Intent.ACTION_INSERT_OR_EDIT -> {
-                val draft = fromInsert(i.extras)
-                target.putExtra(MainActivity.EXTRA_INTAKE, OrbitRepository.json.encodeToString(Contact.serializer(), draft))
-                target.putExtra(MainActivity.EXTRA_INTAKE_PICK, i.action == Intent.ACTION_INSERT_OR_EDIT)
+        lifecycleScope.launch {
+            // Same process: the draft travels through memory, never through a (size-limited) extra.
+            val intake = when (i?.action) {
+                Intent.ACTION_INSERT, Intent.ACTION_INSERT_OR_EDIT ->
+                    MainActivity.Intake(listOf(fromInsert(i.extras)), pick = i.action == Intent.ACTION_INSERT_OR_EDIT)
+                Intent.ACTION_VIEW -> withContext(Dispatchers.IO) { cards(i.data) }.takeIf { it.isNotEmpty() }?.let { MainActivity.Intake(it, pick = false) }
+                else -> null
             }
-            Intent.ACTION_VIEW -> {
-                val text = i.data?.let { uri -> runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull() }
-                val cards = text?.let { VCardReader.read(it, ::newId) }.orEmpty()
-                if (cards.isNotEmpty()) {
-                    target.putExtra(MainActivity.EXTRA_INTAKE_CARDS, OrbitRepository.json.encodeToString(kotlinx.serialization.builtins.ListSerializer(Contact.serializer()), cards))
-                }
-            }
+            if (intake != null) MainActivity.pendingIntake.value = intake
+            startActivity(Intent(this@ContactIntakeActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            finish()
         }
-        startActivity(target)
-        finish()
     }
+
+    /** A .vcf file or a scanned vCard: read and parsed off the main thread. */
+    private fun cards(uri: android.net.Uri?): List<Contact> = runCatching {
+        val text = uri?.let { contentResolver.openInputStream(it)?.use { s -> s.readBytes().toString(Charsets.UTF_8) } }.orEmpty()
+        VCardReader.read(text, ::newId)
+    }.getOrDefault(emptyList())
 
     /** ContactsContract.Intents.Insert extras (and DATA rows) → a draft contact. */
     private fun fromInsert(extras: Bundle?): Contact {
@@ -61,39 +65,46 @@ class ContactIntakeActivity : Activity() {
         mail(e.getString(ContactsContract.Intents.Insert.EMAIL))
         mail(e.getString(ContactsContract.Intents.Insert.SECONDARY_EMAIL))
         mail(e.getString(ContactsContract.Intents.Insert.TERTIARY_EMAIL))
-        var name = e.getString(ContactsContract.Intents.Insert.NAME).orEmpty()
-        var company = e.getString(ContactsContract.Intents.Insert.COMPANY).orEmpty()
-        var position = e.getString(ContactsContract.Intents.Insert.JOB_TITLE).orEmpty()
-        var address = e.getString(ContactsContract.Intents.Insert.POSTAL).orEmpty()
-        val notes = e.getString(ContactsContract.Intents.Insert.NOTES).orEmpty()
-        // Newer apps hand over whole data rows.
+        // Newer apps hand over whole data rows; the simple extras win where both exist.
         val rows = runCatching { e.getParcelableArrayList(ContactsContract.Intents.Insert.DATA, ContentValues::class.java) }.getOrNull().orEmpty()
-        for (row in rows) {
+        rows.forEach { row ->
             when (row.getAsString(ContactsContract.Data.MIMETYPE)) {
                 CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> phone(row.getAsString(CommonDataKinds.Phone.NUMBER), row.getAsInteger(CommonDataKinds.Phone.TYPE))
                 CommonDataKinds.Email.CONTENT_ITEM_TYPE -> mail(row.getAsString(CommonDataKinds.Email.ADDRESS))
-                CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> if (name.isBlank()) {
-                    name = listOfNotNull(row.getAsString(CommonDataKinds.StructuredName.GIVEN_NAME), row.getAsString(CommonDataKinds.StructuredName.FAMILY_NAME))
-                        .joinToString(" ").ifBlank { row.getAsString(CommonDataKinds.StructuredName.DISPLAY_NAME).orEmpty() }
-                }
-                CommonDataKinds.Organization.CONTENT_ITEM_TYPE -> {
-                    if (company.isBlank()) company = row.getAsString(CommonDataKinds.Organization.COMPANY).orEmpty()
-                    if (position.isBlank()) position = row.getAsString(CommonDataKinds.Organization.TITLE).orEmpty()
-                }
-                CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE -> if (address.isBlank()) address = row.getAsString(CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS).orEmpty()
             }
         }
+        val fromRows = textFromRows(rows)
+        val name = e.getString(ContactsContract.Intents.Insert.NAME).orEmpty().ifBlank { fromRows.name }
         val (first, last) = Mutations.splitMemberName(name)
         return Contact(
             id = newId(),
             firstName = first,
             lastName = last,
-            company = company.trim(),
-            position = position.trim(),
-            notes = notes.trim(),
+            company = e.getString(ContactsContract.Intents.Insert.COMPANY).orEmpty().ifBlank { fromRows.company }.trim(),
+            position = e.getString(ContactsContract.Intents.Insert.JOB_TITLE).orEmpty().ifBlank { fromRows.position }.trim(),
+            notes = e.getString(ContactsContract.Intents.Insert.NOTES).orEmpty().trim(),
             phones = phones,
             emails = emails,
-        ).withAddress(address)
+        ).withAddress(e.getString(ContactsContract.Intents.Insert.POSTAL).orEmpty().ifBlank { fromRows.address })
+    }
+
+    private data class RowText(val name: String = "", val company: String = "", val position: String = "", val address: String = "")
+
+    /** Name, company, role and address from handed-over data rows (first one of each wins). */
+    private fun textFromRows(rows: List<ContentValues>): RowText = rows.fold(RowText()) { acc, row ->
+        when (row.getAsString(ContactsContract.Data.MIMETYPE)) {
+            CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> if (acc.name.isNotBlank()) acc else acc.copy(
+                name = listOfNotNull(row.getAsString(CommonDataKinds.StructuredName.GIVEN_NAME), row.getAsString(CommonDataKinds.StructuredName.FAMILY_NAME))
+                    .joinToString(" ").ifBlank { row.getAsString(CommonDataKinds.StructuredName.DISPLAY_NAME).orEmpty() },
+            )
+            CommonDataKinds.Organization.CONTENT_ITEM_TYPE -> acc.copy(
+                company = acc.company.ifBlank { row.getAsString(CommonDataKinds.Organization.COMPANY).orEmpty() },
+                position = acc.position.ifBlank { row.getAsString(CommonDataKinds.Organization.TITLE).orEmpty() },
+            )
+            CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE ->
+                acc.copy(address = acc.address.ifBlank { row.getAsString(CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS).orEmpty() })
+            else -> acc
+        }
     }
 
     private fun phoneLabel(type: Int?): String = when (type) {

@@ -131,6 +131,9 @@ fun Ghost(
                             haptics.perform(Haptic.Confirm)
                             fill.animateTo(1f, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized))
                             onAccept()
+                            // Still here (a permission was refused, say): back to a ghost, tappable again.
+                            delay(600)
+                            fill.animateTo(0f, tween(Motion.MEDIUM_MS))
                         }
                     }
                 },

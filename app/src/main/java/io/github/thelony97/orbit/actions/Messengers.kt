@@ -71,16 +71,29 @@ object Messengers {
             .setDataAndType(ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, a.dataId), a.kind.mime)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val ok = runCatching { ctx.startActivity(intent) }.isSuccess
-        if (ok && contactId != null) {
-            val type = if (a.kind == Kind.WA_CHAT || a.kind == Kind.SIGNAL_CHAT) TypeIds.MESSAGE else TypeIds.CALL
-            val note = a.kind.label
-            val cutoff = now() - 30 * 60_000L
-            OrbitRepository.edit { d ->
-                val c = d.contacts.firstOrNull { it.id == contactId } ?: return@edit d
-                if (c.entries.any { it.source == EntrySource.APP_ACTION && it.typeId == type && it.note == note && it.at > cutoff }) d
-                else Mutations.addEntry(d, contactId, io.github.thelony97.orbit.data.Entry(id = newId(), contactId = contactId, typeId = type, at = now(), note = note, source = EntrySource.APP_ACTION))
+        if (ok && contactId != null) log(contactId, a.kind)
+        return ok
+    }
+
+    /** One Verlauf line per messenger action and half hour (like Orbit's own call/SMS buttons). */
+    private fun log(contactId: String, kind: Kind) {
+        val type = when (kind) {
+            Kind.WA_CHAT, Kind.SIGNAL_CHAT -> TypeIds.MESSAGE
+            Kind.WA_VIDEO -> TypeIds.VIDEO
+            Kind.WA_CALL, Kind.SIGNAL_CALL -> TypeIds.CALL
+        }
+        val cutoff = now() - 30 * 60_000L
+        fun recent(e: io.github.thelony97.orbit.data.Entry) = e.source == EntrySource.APP_ACTION && e.typeId == type && e.note == kind.label && e.at > cutoff
+        OrbitRepository.edit { d ->
+            val c = d.contacts.firstOrNull { it.id == contactId } ?: return@edit d
+            if (c.entries.any(::recent)) {
+                d
+            } else {
+                val entry = io.github.thelony97.orbit.data.Entry(
+                    id = newId(), contactId = contactId, typeId = type, at = now(), note = kind.label, source = EntrySource.APP_ACTION,
+                )
+                Mutations.addEntry(d, contactId, entry)
             }
         }
-        return ok
     }
 }

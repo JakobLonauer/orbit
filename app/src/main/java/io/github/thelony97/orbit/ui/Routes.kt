@@ -28,6 +28,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object PhoneImport : Route
 
+    /** PLAN 9 A2: the cards of a .vcf file to pick from (held in [Session.cardDrafts]). */
+    @Serializable
+    data object CardImport : Route
+
     /** PLAN 9 A1 „Neu im Telefonbuch“: only these phone-book contacts, all picked. */
     @Serializable
     data class PhoneImportPick(val contactIds: List<Long>) : Route

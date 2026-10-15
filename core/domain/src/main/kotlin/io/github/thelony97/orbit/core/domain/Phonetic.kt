@@ -13,32 +13,7 @@ object Phonetic {
         if (s.isEmpty()) return ""
         val raw = StringBuilder()
         for (i in s.indices) {
-            val c = s[i]
-            val prev = if (i > 0) s[i - 1] else ' '
-            val next = if (i + 1 < s.length) s[i + 1] else ' '
-            raw.append(
-                when (c) {
-                    'a', 'e', 'i', 'j', 'o', 'u', 'y' -> "0"
-                    'h' -> ""
-                    'b' -> "1"
-                    'p' -> if (next == 'h') "3" else "1"
-                    'd', 't' -> if (next == 'c' || next == 's' || next == 'z') "8" else "2"
-                    'f', 'v', 'w' -> "3"
-                    'g', 'k', 'q' -> "4"
-                    'c' -> when {
-                        i == 0 -> if (next in "ahkloqrux") "4" else "8"
-                        prev == 's' || prev == 'z' -> "8"
-                        next in "ahkoqux" -> "4"
-                        else -> "8"
-                    }
-                    'x' -> if (prev == 'c' || prev == 'k' || prev == 'q') "8" else "48"
-                    'l' -> "5"
-                    'm', 'n' -> "6"
-                    'r' -> "7"
-                    's', 'z' -> "8"
-                    else -> ""
-                },
-            )
+            raw.append(letter(s[i], if (i > 0) s[i - 1] else ' ', if (i + 1 < s.length) s[i + 1] else ' ', i == 0))
         }
         // Neighbouring equal digits collapse; a zero only counts at the very start.
         val collapsed = StringBuilder()
@@ -46,6 +21,30 @@ object Phonetic {
         val out = StringBuilder()
         collapsed.forEachIndexed { i, ch -> if (ch != '0' || i == 0) out.append(ch) }
         return out.toString()
+    }
+
+    /** The published letter table of the Kölner Phonetik – one branch per rule, on purpose. */
+    @Suppress("CyclomaticComplexMethod")
+    private fun letter(c: Char, prev: Char, next: Char, first: Boolean): String = when (c) {
+        'a', 'e', 'i', 'j', 'o', 'u', 'y' -> "0"
+        'h' -> ""
+        'b' -> "1"
+        'p' -> if (next == 'h') "3" else "1"
+        'd', 't' -> if (next == 'c' || next == 's' || next == 'z') "8" else "2"
+        'f', 'v', 'w' -> "3"
+        'g', 'k', 'q' -> "4"
+        'c' -> when {
+            first -> if (next in "ahkloqrux") "4" else "8"
+            prev == 's' || prev == 'z' -> "8"
+            next in "ahkoqux" -> "4"
+            else -> "8"
+        }
+        'x' -> if (prev == 'c' || prev == 'k' || prev == 'q') "8" else "48"
+        'l' -> "5"
+        'm', 'n' -> "6"
+        'r' -> "7"
+        's', 'z' -> "8"
+        else -> ""
     }
 
     private val separators = Regex("[\\s\\-/,.'\"„“”()]+")

@@ -128,7 +128,8 @@ fun ShareFieldsSheet(c: Contact, onDismiss: () -> Unit, onQr: (Contact) -> Unit)
                 pieces.forEach { p ->
                     val on = p.key in picked
                     SpaceChip(
-                        if (p.key.startsWith("p") || p.key.startsWith("f")) p.label + " " + p.value.takeLast(4) else p.label,
+                        // Numbers by their last digits („Mobil ·4567“), everything else by its name.
+                        if (p.key.startsWith("p")) p.label + " ·" + p.value.filter(Char::isDigit).takeLast(4) else p.label,
                         on,
                         {
                             haptics.perform(Haptic.Tick)
@@ -170,7 +171,7 @@ fun ShareFieldsSheet(c: Contact, onDismiss: () -> Unit, onQr: (Contact) -> Unit)
                         runCatching { ctx.startActivity(Intent.createChooser(intent, null)) }
                     }
                 }, icon = Icons.Rounded.Share, color = Space.Teal)
-                GhostButton("vCard", { send { ShareContact.vcard(ctx, filtered()) } })
+                GhostButton("vCard", { send { ShareContact.vcard(ctx, filtered(), withFields = true) } })
                 GhostButton("QR", { val f = filtered(); send { onQr(f) } }, icon = Icons.Rounded.QrCode2)
             }
         }

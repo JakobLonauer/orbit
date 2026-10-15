@@ -96,7 +96,9 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
             is ShareIn.Item.Number -> io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso).matchCall(item.number)
                 ?.let { m -> data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived } }
             is ShareIn.Item.Email -> item.address.lowercase().let { a ->
-                data.contacts.firstOrNull { c -> c.deletedAt == null && !c.archived && !c.isMe && (c.emails.any { it.value.trim().lowercase() == a } || c.emailDomains.any { d -> a.endsWith("@" + d.trim().removePrefix("@").lowercase()) }) }
+                fun ownsMail(c: Contact) = c.emails.any { it.value.trim().lowercase() == a } ||
+                    c.emailDomains.any { d -> a.endsWith("@" + d.trim().removePrefix("@").lowercase()) }
+                data.contacts.firstOrNull { c -> c.deletedAt == null && !c.archived && !c.isMe && ownsMail(c) }
             }
             else -> null
         }
@@ -109,6 +111,12 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
 
     fun apply(target: Contact) {
         val name = Logic.shortName(target)
+        // INSERT_OR_EDIT (PLAN 9 A2): everything the other app handed over joins this contact on its edit page.
+        share.draft?.let { draft ->
+            onDone()
+            nav.open(Route.Edit(id = target.id, prefill = OrbitRepository.json.encodeToString(Contact.serializer(), draft)))
+            return
+        }
         when {
             share.images.isNotEmpty() -> scope.launch {
                 withContext(NonCancellable) {
@@ -130,29 +138,8 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                 else c.copy(notes = listOf(c.notes, item.text).filter { it.isNotBlank() }.joinToString("\n"))
             }
             // PLAN 9 A4: the number or address joins the contact (nothing replaced, Undo).
-            item is ShareIn.Item.Number -> {
-                val landline = io.github.thelony97.orbit.domain.Phones.normalize(item.number, iso)?.let { io.github.thelony97.orbit.core.domain.NumberKind.isLandline(it) } == true
-                val label = when {
-                    target.isOrg -> "Zentrale"
-                    landline -> "Privat"
-                    else -> "Mobil"
-                }
-                val key = item.number.filter(Char::isDigit).takeLast(9)
-                OrbitRepository.editContact(target.id) { c ->
-                    if (c.phones.any { it.value.filter(Char::isDigit).takeLast(9) == key }) c else c.copy(phones = c.phones + LabeledValue(label, item.number))
-                }
-                io.github.thelony97.orbit.ui.components.Undo.offer("Nummer bei $name") {
-                    OrbitRepository.editContact(target.id) { c -> c.copy(phones = c.phones.filterNot { it.value == item.number }) }
-                }
-            }
-            item is ShareIn.Item.Email -> {
-                OrbitRepository.editContact(target.id) { c ->
-                    if (c.emails.any { it.value.equals(item.address, ignoreCase = true) }) c else c.copy(emails = c.emails + LabeledValue(if (target.isOrg) "Arbeit" else "Privat", item.address))
-                }
-                io.github.thelony97.orbit.ui.components.Undo.offer("E-Mail bei $name") {
-                    OrbitRepository.editContact(target.id) { c -> c.copy(emails = c.emails.filterNot { it.value == item.address }) }
-                }
-            }
+            item is ShareIn.Item.Number -> addNumber(target, item.number, iso)
+            item is ShareIn.Item.Email -> addMail(target, item.address)
         }
         if (item !is ShareIn.Item.Number && item !is ShareIn.Item.Email) Toast.makeText(ctx, "Bei $name gespeichert", Toast.LENGTH_SHORT).show()
         onDone()
@@ -160,7 +147,7 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
     }
 
     // PLAN 9 A5: shared straight to a person – nothing to pick, it lands there at once.
-    val direct = share.targetId?.let { id -> data.contacts.firstOrNull { it.id == id && it.deletedAt == null } }
+    val direct = share.targetId?.let { id -> data.contacts.firstOrNull { it.id == id && it.deletedAt == null && !it.archived } }
     if (direct != null) {
         androidx.compose.runtime.LaunchedEffect(Unit) { apply(direct) }
         return
@@ -238,6 +225,46 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Adds [number] to [target] unless it is there already (same last nine digits). Undo takes away
+ * exactly the row that was added – never one the contact had before.
+ */
+private fun addNumber(target: Contact, number: String, iso: String) {
+    val key = number.filter(Char::isDigit).takeLast(9)
+    if (target.phones.any { it.value.filter(Char::isDigit).takeLast(9) == key }) return
+    val landline = io.github.thelony97.orbit.domain.Phones.normalize(number, iso)?.let { io.github.thelony97.orbit.core.domain.NumberKind.isLandline(it) } == true
+    val label = when {
+        target.isOrg -> "Zentrale"
+        landline -> "Privat"
+        else -> "Mobil"
+    }
+    val row = LabeledValue(label, number)
+    OrbitRepository.editContact(target.id) { c ->
+        if (c.phones.any { it.value.filter(Char::isDigit).takeLast(9) == key }) c else c.copy(phones = c.phones + row)
+    }
+    io.github.thelony97.orbit.ui.components.Undo.offer("Nummer bei ${Logic.shortName(target)}") {
+        OrbitRepository.editContact(target.id) { c ->
+            val at = c.phones.indexOfLast { it == row }
+            if (at < 0) c else c.copy(phones = c.phones.toMutableList().apply { removeAt(at) })
+        }
+    }
+}
+
+/** Like [addNumber] for a mail address. */
+private fun addMail(target: Contact, address: String) {
+    if (target.emails.any { it.value.equals(address, ignoreCase = true) }) return
+    val row = LabeledValue(if (target.isOrg) "Arbeit" else "Privat", address)
+    OrbitRepository.editContact(target.id) { c ->
+        if (c.emails.any { it.value.equals(address, ignoreCase = true) }) c else c.copy(emails = c.emails + row)
+    }
+    io.github.thelony97.orbit.ui.components.Undo.offer("E-Mail bei ${Logic.shortName(target)}") {
+        OrbitRepository.editContact(target.id) { c ->
+            val at = c.emails.indexOfLast { it == row }
+            if (at < 0) c else c.copy(emails = c.emails.toMutableList().apply { removeAt(at) })
         }
     }
 }

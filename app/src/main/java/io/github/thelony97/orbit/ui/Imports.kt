@@ -88,19 +88,7 @@ object PhoneImport {
             }
         }
         // PLAN 9 A1: people only in Orbit's own phone-book account are Orbit's already – not offered.
-        val foreign = HashSet<Long>()
-        val ours = HashSet<Long>()
-        runCatching {
-            resolver.query(
-                ContactsContract.RawContacts.CONTENT_URI,
-                arrayOf(ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.ACCOUNT_TYPE),
-                "${ContactsContract.RawContacts.DELETED} = 0", null, null,
-            )?.use { c ->
-                while (c.moveToNext()) {
-                    if (c.getString(1) == io.github.thelony97.orbit.phonebook.PhoneBookSync.ACCOUNT_TYPE) ours += c.getLong(0) else foreign += c.getLong(0)
-                }
-            }
-        }
+        val onlyOrbit = onlyInOrbit(resolver)
         val items = mutableListOf<Item>()
         runCatching {
             resolver.query(
@@ -110,13 +98,34 @@ object PhoneImport {
             )?.use { c ->
                 while (c.moveToNext()) {
                     val id = c.getLong(0)
-                    if (id in ours && id !in foreign) continue
                     val name = c.getString(1)?.trim().orEmpty()
-                    if (name.isNotEmpty()) items += Item(id, name, numbers[id].orEmpty())
+                    if (name.isNotEmpty() && id !in onlyOrbit) items += Item(id, name, numbers[id].orEmpty())
                 }
             }
         }
         items
+    }
+
+    /** Phone-book people that exist only as Orbit's own rows (messengers' rows next to them don't count). */
+    private fun onlyInOrbit(resolver: android.content.ContentResolver): Set<Long> {
+        val foreign = HashSet<Long>()
+        val ours = HashSet<Long>()
+        runCatching {
+            resolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.ACCOUNT_TYPE),
+                "${ContactsContract.RawContacts.DELETED} = 0", null, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    when (c.getString(1)) {
+                        io.github.thelony97.orbit.phonebook.PhoneBookSync.ACCOUNT_TYPE -> ours += c.getLong(0)
+                        in io.github.thelony97.orbit.phonebook.PhoneBookFresh.messengers -> Unit
+                        else -> foreign += c.getLong(0)
+                    }
+                }
+            }
+        }
+        return ours - foreign
     }
 
     suspend fun read(ctx: Context, contactUri: Uri): Contact? = withContext(Dispatchers.IO) {

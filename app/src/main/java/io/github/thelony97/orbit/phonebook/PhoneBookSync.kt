@@ -32,6 +32,9 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 
+/** A new data row of one MIME type for the card being written. */
+private typealias RowOf = (String) -> ContentProviderOperation.Builder
+
 /**
  * Orbit im Telefonbuch des Handys (PLAN 9 A1): Orbit's own account „Orbit“ in the Android address
  * book. After every save (and at start) the difference is written – only ever Orbit → phone book,
@@ -83,9 +86,12 @@ object PhoneBookSync {
     suspend fun writeNow(ctx: Context): Result<Int> = mutex.withLock {
         withContext(Dispatchers.IO) {
             runCatching {
-                if (OrbitRepository.loadError.value != null) return@runCatching 0
                 val data = OrbitRepository.snapshot()
+                // Never from a state that could not be read (it would empty the phone book).
+                if (OrbitRepository.loadError.value != null) return@runCatching 0
                 if (!data.settings.phoneBook || !canWrite(ctx)) return@runCatching 0
+                // The mark for „Neu im Telefonbuch“ before Orbit's own first rows (also after a restore).
+                PhoneBookFresh.start(ctx)
                 ensureAccount(ctx)
                 val cards = data.contacts
                     .filter { PhoneBook.exported(it, data.settings.phoneBookOrgs) }
@@ -105,8 +111,10 @@ object PhoneBookSync {
      * Switched off: every row Orbit wrote goes; the account too unless the Orbit calendar still
      * uses it ([keepAccount]). Other accounts' rows are never touched.
      */
-    suspend fun remove(ctx: Context, keepAccount: Boolean) = withContext(Dispatchers.IO) {
-        mutex.withLock {
+    suspend fun remove(ctx: Context, keepAccount: Boolean) {
+        // A write waiting or running must not bring the rows back.
+        synchronized(this) { pending?.cancel() }
+        withContext(Dispatchers.IO) { mutex.withLock {
             runCatching {
                 ctx.contentResolver.delete(
                     sync(RawContacts.CONTENT_URI),
@@ -116,7 +124,7 @@ object PhoneBookSync {
                 _count.value = 0
             }.onFailure { Log.w(TAG, "remove rows", it) }
             if (!keepAccount) OrbitAccount.release(ctx)
-        }
+        } }
     }
 
     private fun ensureAccount(ctx: Context) {
@@ -210,7 +218,21 @@ object PhoneBookSync {
         card: PhoneBook.Card,
         owner: (ContentProviderOperation.Builder) -> ContentProviderOperation.Builder,
     ): Int {
-        fun row(mime: String) = owner(ContentProviderOperation.newInsert(sync(Data.CONTENT_URI))).withValue(Data.MIMETYPE, mime)
+        val row: RowOf = { mime ->
+            owner(ContentProviderOperation.newInsert(sync(Data.CONTENT_URI))).withValue(Data.MIMETYPE, mime)
+        }
+        ops += nameRows(card, row)
+        ops += reachRows(card, row)
+        ops += extraRows(card, row)
+        var bytes = 600
+        card.photo?.let { file -> photo(OrbitRepository.photoFile(file)) }?.let { jpg ->
+            ops += row(CommonDataKinds.Photo.CONTENT_ITEM_TYPE).withValue(CommonDataKinds.Photo.PHOTO, jpg).build()
+            bytes += jpg.size
+        }
+        return bytes
+    }
+
+    private fun nameRows(card: PhoneBook.Card, row: RowOf): List<ContentProviderOperation> = buildList {
         val name = row(CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
         if (card.isOrg) {
             name.withValue(CommonDataKinds.StructuredName.DISPLAY_NAME, card.display)
@@ -219,72 +241,80 @@ object PhoneBookSync {
                 .withValue(CommonDataKinds.StructuredName.FAMILY_NAME, card.family.ifBlank { null })
                 .withValue(CommonDataKinds.StructuredName.PREFIX, card.prefix.ifBlank { null })
         }
-        ops += name.build()
+        add(name.build())
         if (card.nickname.isNotBlank()) {
-            ops += row(CommonDataKinds.Nickname.CONTENT_ITEM_TYPE).withValue(CommonDataKinds.Nickname.NAME, card.nickname).build()
-        }
-        card.numbers.forEach { n ->
-            ops += row(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Phone.NUMBER, n.value)
-                .withValue(CommonDataKinds.Phone.TYPE, n.type)
-                .withValue(CommonDataKinds.Phone.LABEL, n.label)
-                .withValue(Data.IS_PRIMARY, if (n.primary) 1 else 0)
-                .build()
-        }
-        card.mails.forEach { m ->
-            ops += row(CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Email.ADDRESS, m.value)
-                .withValue(CommonDataKinds.Email.TYPE, m.type)
-                .withValue(CommonDataKinds.Email.LABEL, m.label)
-                .build()
-        }
-        card.addresses.forEach { a ->
-            ops += row(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS, a)
-                .withValue(
-                    CommonDataKinds.StructuredPostal.TYPE,
-                    if (card.isOrg) CommonDataKinds.StructuredPostal.TYPE_WORK else CommonDataKinds.StructuredPostal.TYPE_HOME,
-                )
-                .build()
+            add(row(CommonDataKinds.Nickname.CONTENT_ITEM_TYPE).withValue(CommonDataKinds.Nickname.NAME, card.nickname).build())
         }
         if (card.company.isNotBlank() || card.jobTitle.isNotBlank()) {
-            ops += row(CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Organization.COMPANY, card.company.ifBlank { null })
-                .withValue(CommonDataKinds.Organization.TITLE, card.jobTitle.ifBlank { null })
-                .withValue(CommonDataKinds.Organization.TYPE, CommonDataKinds.Organization.TYPE_WORK)
-                .build()
+            add(
+                row(CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Organization.COMPANY, card.company.ifBlank { null })
+                    .withValue(CommonDataKinds.Organization.TITLE, card.jobTitle.ifBlank { null })
+                    .withValue(CommonDataKinds.Organization.TYPE, CommonDataKinds.Organization.TYPE_WORK)
+                    .build(),
+            )
         }
+    }
+
+    private fun reachRows(card: PhoneBook.Card, row: RowOf): List<ContentProviderOperation> = buildList {
+        card.numbers.forEach { n ->
+            add(
+                row(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Phone.NUMBER, n.value)
+                    .withValue(CommonDataKinds.Phone.TYPE, n.type)
+                    .withValue(CommonDataKinds.Phone.LABEL, n.label)
+                    .withValue(Data.IS_PRIMARY, if (n.primary) 1 else 0)
+                    .build(),
+            )
+        }
+        card.mails.forEach { m ->
+            add(
+                row(CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Email.ADDRESS, m.value)
+                    .withValue(CommonDataKinds.Email.TYPE, m.type)
+                    .withValue(CommonDataKinds.Email.LABEL, m.label)
+                    .build(),
+            )
+        }
+        val postalType = if (card.isOrg) CommonDataKinds.StructuredPostal.TYPE_WORK else CommonDataKinds.StructuredPostal.TYPE_HOME
+        card.addresses.forEach { a ->
+            add(
+                row(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS, a)
+                    .withValue(CommonDataKinds.StructuredPostal.TYPE, postalType)
+                    .build(),
+            )
+        }
+    }
+
+    private fun extraRows(card: PhoneBook.Card, row: RowOf): List<ContentProviderOperation> = buildList {
         card.birthday?.let { b ->
-            ops += row(CommonDataKinds.Event.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Event.START_DATE, b)
-                .withValue(CommonDataKinds.Event.TYPE, CommonDataKinds.Event.TYPE_BIRTHDAY)
-                .build()
+            add(
+                row(CommonDataKinds.Event.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Event.START_DATE, b)
+                    .withValue(CommonDataKinds.Event.TYPE, CommonDataKinds.Event.TYPE_BIRTHDAY)
+                    .build(),
+            )
         }
         card.website?.let { w ->
-            ops += row(CommonDataKinds.Website.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Website.URL, w)
-                .withValue(CommonDataKinds.Website.TYPE, CommonDataKinds.Website.TYPE_HOMEPAGE)
-                .build()
+            add(
+                row(CommonDataKinds.Website.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Website.URL, w)
+                    .withValue(CommonDataKinds.Website.TYPE, CommonDataKinds.Website.TYPE_HOMEPAGE)
+                    .build(),
+            )
         }
         // PLAN 9 A3: „In Orbit öffnen“ and the own fields right in the system's contact card.
-        ops += row(MIME_PROFILE)
-            .withValue(Data.DATA1, card.sourceId)
-            .withValue(Data.DATA2, "Orbit")
-            .withValue(Data.DATA3, "In Orbit öffnen")
-            .build()
-        card.fields.forEach { f ->
-            ops += row(MIME_FIELD)
+        add(
+            row(MIME_PROFILE)
                 .withValue(Data.DATA1, card.sourceId)
-                .withValue(Data.DATA2, f.label)
-                .withValue(Data.DATA3, f.value)
-                .build()
+                .withValue(Data.DATA2, "Orbit")
+                .withValue(Data.DATA3, "In Orbit öffnen")
+                .build(),
+        )
+        card.fields.forEach { f ->
+            add(row(MIME_FIELD).withValue(Data.DATA1, card.sourceId).withValue(Data.DATA2, f.label).withValue(Data.DATA3, f.value).build())
         }
-        var bytes = 600
-        card.photo?.let { file -> photo(OrbitRepository.photoFile(file)) }?.let { jpg ->
-            ops += row(CommonDataKinds.Photo.CONTENT_ITEM_TYPE).withValue(CommonDataKinds.Photo.PHOTO, jpg).build()
-            bytes += jpg.size
-        }
-        return bytes
     }
 
     /** The profile picture at most 480 px – enough for every contact card, small for the batch. */

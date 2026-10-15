@@ -144,7 +144,8 @@ object VCardReader {
         }
     }
 
-    private fun contact(props: List<Prop>, newId: () -> String): Contact? {
+    /** What one card says, collected property by property. */
+    private class Draft {
         var first = ""
         var last = ""
         var prefix = ""
@@ -159,57 +160,82 @@ object VCardReader {
         val emails = ArrayList<LabeledValue>()
         val addresses = ArrayList<LabeledValue>()
         val links = ArrayList<Link>()
-        for (p in props) {
-            when (p.name) {
-                "N" -> parts(p.value).let { n ->
-                    last = n.getOrNull(0).orEmpty().trim()
-                    first = listOfNotNull(n.getOrNull(1), n.getOrNull(2)).joinToString(" ").trim()
-                    prefix = n.getOrNull(3).orEmpty().trim()
-                }
-                "FN" -> full = unescape(p.value).trim()
-                "ORG" -> company = parts(p.value).filter { it.isNotBlank() }.joinToString(" · ").trim()
-                "TITLE" -> position = unescape(p.value).trim()
-                "NICKNAME" -> nickname = unescape(p.value).split(',').first().trim()
-                "NOTE" -> notes = unescape(p.value).trim()
-                "TEL" -> p.value.removePrefix("tel:").trim().takeIf { it.any(Char::isDigit) }?.let { phones += LabeledValue(phoneLabel(p), it) }
-                "EMAIL" -> p.value.removePrefix("mailto:").trim().takeIf { '@' in it }?.let { emails += LabeledValue(mailLabel(p), it) }
-                "ADR" -> parts(p.value).let { a ->
-                    val street = a.getOrNull(2).orEmpty().trim()
-                    val city = listOfNotNull(a.getOrNull(5)?.trim()?.takeIf { it.isNotEmpty() }, a.getOrNull(3)?.trim()?.takeIf { it.isNotEmpty() }).joinToString(" ")
-                    val country = a.getOrNull(6).orEmpty().trim()
-                    val line = listOf(street, city, country).filter { it.isNotEmpty() }.joinToString(", ")
-                    if (line.isNotEmpty()) addresses += LabeledValue(if ("WORK" in types(p)) "Arbeit" else "Privat", line)
-                }
-                "URL" -> unescape(p.value).trim().takeIf { it.isNotEmpty() }?.let { links += Link(newId(), "Webseite", if (it.startsWith("http")) it else "https://$it") }
-                "BDAY" -> birthday = day(p.value.trim())
-                "X-ABSHOWAS" -> companyKind = p.value.trim().equals("COMPANY", ignoreCase = true)
+    }
+
+    /** Name-like properties; true when [p] was one of them. */
+    private fun takeName(d: Draft, p: Prop): Boolean {
+        when (p.name) {
+            "N" -> parts(p.value).let { n ->
+                d.last = n.getOrNull(0).orEmpty().trim()
+                d.first = listOfNotNull(n.getOrNull(1), n.getOrNull(2)).joinToString(" ").trim()
+                d.prefix = n.getOrNull(3).orEmpty().trim()
             }
+            "FN" -> d.full = unescape(p.value).trim()
+            "ORG" -> d.company = parts(p.value).filter { it.isNotBlank() }.joinToString(" · ").trim()
+            "TITLE" -> d.position = unescape(p.value).trim()
+            "NICKNAME" -> d.nickname = unescape(p.value).split(',').first().trim()
+            "NOTE" -> d.notes = unescape(p.value).trim()
+            "X-ABSHOWAS" -> d.companyKind = p.value.trim().equals("COMPANY", ignoreCase = true)
+            else -> return false
         }
-        if (first.isBlank() && last.isBlank() && full.isNotBlank() && !(company.isNotBlank() && full == company)) {
-            val words = full.split(Regex("\\s+"))
-            first = words.dropLast(1).joinToString(" ").ifBlank { words.last() }
-            last = if (words.size > 1) words.last() else ""
+        return true
+    }
+
+    /** Ways to reach the person, the birthday and links. */
+    private fun takeReach(d: Draft, p: Prop, newId: () -> String) {
+        when (p.name) {
+            "TEL" -> p.value.removePrefix("tel:").trim().takeIf { it.any(Char::isDigit) }?.let { d.phones += LabeledValue(phoneLabel(p), it) }
+            "EMAIL" -> p.value.removePrefix("mailto:").trim().takeIf { '@' in it }?.let { d.emails += LabeledValue(mailLabel(p), it) }
+            "ADR" -> address(p)?.let { d.addresses += it }
+            "URL" -> unescape(p.value).trim().takeIf { it.isNotEmpty() }
+                ?.let { d.links += Link(newId(), "Webseite", if (it.startsWith("http")) it else "https://$it") }
+            "BDAY" -> d.birthday = day(p.value.trim())
         }
-        val isOrg = companyKind || (first.isBlank() && last.isBlank() && company.isNotBlank())
-        if (!isOrg && first.isBlank() && last.isBlank() && company.isBlank()) return null
+    }
+
+    /** ADR: ;;Street;City;Region;Postal code;Country → „Street, 4020 Linz, Österreich“. */
+    private fun address(p: Prop): LabeledValue? {
+        val a = parts(p.value)
+        fun part(i: Int) = a.getOrNull(i)?.trim().orEmpty()
+        val city = listOf(part(5), part(3)).filter { it.isNotEmpty() }.joinToString(" ")
+        val line = listOf(part(2), city, part(6)).filter { it.isNotEmpty() }.joinToString(", ")
+        return if (line.isEmpty()) null else LabeledValue(if ("WORK" in types(p)) "Arbeit" else "Privat", line)
+    }
+
+    private fun contact(props: List<Prop>, newId: () -> String): Contact? {
+        val d = Draft()
+        props.forEach { p -> if (!takeName(d, p)) takeReach(d, p, newId) }
+        val nameless = d.first.isBlank() && d.last.isBlank()
+        // Only a full name: the last word is the family name (unless it is just the company).
+        if (nameless && d.full.isNotBlank() && d.full != d.company) {
+            val words = d.full.split(Regex("\\s+"))
+            d.first = words.dropLast(1).joinToString(" ").ifBlank { words.last() }
+            d.last = if (words.size > 1) words.last() else ""
+        }
+        val hasName = d.first.isNotBlank() || d.last.isNotBlank()
+        val isOrg = d.companyKind || (!hasName && d.company.isNotBlank())
+        if (!isOrg && !hasName && d.company.isBlank()) return null
         val c = Contact(
             id = newId(),
             kind = if (isOrg) ContactKind.ORG else ContactKind.PERSON,
-            firstName = if (isOrg) "" else first,
-            lastName = if (isOrg) "" else last,
-            title = if (isOrg) "" else prefix,
-            nickname = if (isOrg) "" else nickname,
-            company = company.ifBlank { if (isOrg) full else "" },
-            position = position,
-            notes = notes,
-            phones = phones,
-            emails = emails,
-            addresses = addresses,
-            links = links,
+            firstName = if (isOrg) "" else d.first,
+            lastName = if (isOrg) "" else d.last,
+            title = if (isOrg) "" else d.prefix,
+            nickname = if (isOrg) "" else d.nickname,
+            company = d.company.ifBlank { if (isOrg) d.full else "" },
+            position = d.position,
+            notes = d.notes,
+            phones = d.phones,
+            emails = d.emails,
+            addresses = d.addresses,
+            links = d.links,
         )
+        val birthday = d.birthday
         return if (birthday != null && !isOrg) {
             c.copy(dates = listOf(Occasion(newId(), OccasionKind.BIRTHDAY, date = birthday, reminders = Occasion.BIRTHDAY_REMINDERS)))
-        } else c
+        } else {
+            c
+        }
     }
 
     /** "1990-05-17", "19900517", "--05-17", "--0517", "1990-05-17T00:00:00Z". */

@@ -20,7 +20,9 @@ object ShareIn {
     }
 
     private val URL = Regex("https?://\\S+")
-    private val PHONE = Regex("^(tel:)?\\+?[0-9 ()/.\\-]{5,26}$")
+    /** A number starts with +, 0, „(“ or tel: – dates and amounts (15.10.2026, 1.234.567) never do. */
+    private val PHONE = Regex("^(tel:)?(\\+|0|\\()[0-9 ()/.\\-]{4,25}$")
+    private val DATE = Regex("^\\d{1,2}\\.\\d{1,2}\\.(\\d{2}|\\d{4})$")
     private val MAIL = Regex("^(mailto:)?[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$")
 
     fun isMaps(url: String): Boolean {
@@ -33,7 +35,7 @@ object ShareIn {
         val s = subject?.trim().orEmpty()
         if (t.isEmpty() && s.isEmpty()) return null
         // A number or an address alone (fixed patterns): it belongs to someone or becomes a contact.
-        if (PHONE.matches(t) && t.count(Char::isDigit) in 6..15) return Item.Number(t.removePrefix("tel:").trim())
+        if (PHONE.matches(t) && !DATE.matches(t) && t.count(Char::isDigit) in 6..15) return Item.Number(t.removePrefix("tel:").trim())
         if (MAIL.matches(t)) return Item.Email(t.removePrefix("mailto:").trim())
         val url = URL.find(t)?.value?.trimEnd('.', ',', ')')
         if (url != null && isMaps(url)) {

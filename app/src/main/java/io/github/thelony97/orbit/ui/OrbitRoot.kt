@@ -195,13 +195,10 @@ private fun MainNavigation(data: OrbitData) {
                 backStack.add(Route.Edit(prefill = json.encodeToString(io.github.thelony97.orbit.data.Contact.serializer(), one)))
             }
             drafts.isNotEmpty() -> {
-                // A .vcf with several cards: all in, one undo.
-                val ids = drafts.map { it.id }.toSet()
-                io.github.thelony97.orbit.data.OrbitRepository.edit { d -> drafts.fold(d) { acc, c -> io.github.thelony97.orbit.data.Mutations.upsertContact(acc, c) } }
-                io.github.thelony97.orbit.ui.components.Undo.offer("${drafts.size} Kontakte übernommen") {
-                    io.github.thelony97.orbit.data.OrbitRepository.edit { d -> ids.fold(d) { acc, id -> io.github.thelony97.orbit.data.Mutations.purge(acc, id) } }
-                }
-                nav.home(io.github.thelony97.orbit.ui.home.HomeTab.CONTACTS)
+                // A .vcf with several cards: picked like the phone book, with the duplicate hint.
+                Session.cardDrafts = drafts
+                if (backStack.none { it is Route.Edit }) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                backStack.add(Route.CardImport)
             }
         }
     }
@@ -282,6 +279,9 @@ private fun MainNavigation(data: OrbitData) {
             }
             entry<Route.PhoneImport> {
                 io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav)
+            }
+            entry<Route.CardImport> {
+                io.github.thelony97.orbit.ui.list.CardImportScreen(data = data, nav = nav, drafts = Session.cardDrafts)
             }
             entry<Route.PhoneImportPick> { key ->
                 io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav, initialSelection = key.contactIds.toSet(), only = key.contactIds.toSet())

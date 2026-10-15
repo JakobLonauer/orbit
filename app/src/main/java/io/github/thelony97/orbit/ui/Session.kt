@@ -22,6 +22,9 @@ object Session {
     var networkRoot by mutableStateOf<String?>(null)
     var networkDepth by mutableIntStateOf(2)
 
+    /** PLAN 9 A2: the cards of an opened .vcf file, waiting on the pick screen. */
+    var cardDrafts: List<io.github.thelony97.orbit.data.Contact> = emptyList()
+
     /** „Zurück mit Gedächtnis“ (PLAN 1.2): the row you opened glows once when you come back. */
     var lastOpened: String? = null
 
