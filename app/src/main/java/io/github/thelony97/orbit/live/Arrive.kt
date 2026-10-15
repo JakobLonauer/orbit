@@ -69,6 +69,12 @@ object Arrive {
     /** Fences follow the data: set when on and allowed, removed otherwise; only when the set changed. */
     @SuppressLint("MissingPermission")
     fun sync(ctx: Context, data: OrbitData, force: Boolean = false) {
+        // Without Play services (or in tests) there are simply no fences.
+        runCatching { syncFences(ctx, data, force) }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun syncFences(ctx: Context, data: OrbitData, force: Boolean) {
         val client = LocationServices.getGeofencingClient(ctx)
         val on = data.settings.arrive && allowed(ctx)
         val places = if (on) Arrival.places(data.contacts) else emptyList()
