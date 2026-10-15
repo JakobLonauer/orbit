@@ -257,6 +257,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val fields = remember { mutableStateListOf<PairRow>().apply { original.fields.forEach { add(PairRow(it.id, it.label, it.value)) } } }
     var kind by remember { mutableStateOf(original.kind) }
     var orgCategory by remember { mutableStateOf(original.orgCategory ?: Defaults.orgCategories.first().key) }
+    val tradeField = remember { TextFieldState(original.trade) }
     val isOrg = kind == ContactKind.ORG
     val isMe = original.isMe
     val phones = remember { mutableStateListOf<ValueRow>().apply { original.phones.forEach { add(ValueRow(it.label, it.value, it.value.trim() in freshValues)) } } }
@@ -292,6 +293,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         return original.copy(
             kind = kind,
             orgCategory = if (kind == ContactKind.ORG) orgCategory else null,
+            trade = if (kind == ContactKind.ORG && orgCategory == "craft") tradeField.text.toString().trim() else original.trade,
             firstName = first.text.toString().trim(),
             lastName = last.text.toString().trim(),
             title = if (kind == ContactKind.ORG) original.title else titleField.text.toString().trim(),
@@ -504,6 +506,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                                     SpaceChip(cat.label, orgCategory == cat.key, { orgCategory = cat.key }, leading = orgIcon(cat.key), accent = Space.Blue)
                                 }
                             }
+                            // PLAN 9 D5: the Gewerk – a chip or typed.
+                            if (orgCategory == "craft") TradePicker(tradeField)
                         }
                     }
                 }
@@ -932,3 +936,17 @@ private fun PairList(
 
 /** „0732 2468, 0732 2469“ → two entries; empty pieces dropped. */
 private fun splitList(text: String): List<String> = text.split(',', ';', '\n').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+/** PLAN 9 D5: Gewerk chips (one tap fills the field) and the field for anything else. */
+@Composable
+private fun TradePicker(field: TextFieldState) {
+    val typed = field.text.toString().trim()
+    Spacer(Modifier.size(10.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        io.github.thelony97.orbit.core.domain.Jobs.trades.forEach { t ->
+            SpaceChip(t, typed.equals(t, ignoreCase = true), { field.edit { replace(0, length, if (typed.equals(t, ignoreCase = true)) "" else t) } }, accent = Space.Orange)
+        }
+    }
+    Spacer(Modifier.size(8.dp))
+    SpaceField(field, "Gewerk", placeholder = "Installateur")
+}

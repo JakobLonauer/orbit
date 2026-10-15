@@ -29,6 +29,10 @@
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- Haptik-Vokabular (PLAN 9.2): „Materialisieren“ is a composed vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- PLAN 9 D7/D8: the connected WLAN's name and Ankommen (only once Jakob switches it on). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- PLAN 9 B5 Dranbleiben: the planned call rings on the minute like an alarm clock. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- PLAN 9 B5: „Versuch 7 · 07:31“ as a live chip in the status bar (Android 16). -->

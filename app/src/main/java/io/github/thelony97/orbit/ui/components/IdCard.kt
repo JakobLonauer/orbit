@@ -145,3 +145,15 @@ internal fun barcode(value: String): Bitmap? = runCatching {
     val px = IntArray(w * h) { i -> if (matrix.get(i % w, i / w)) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
     Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
 }.getOrNull()
+
+/** UTF-8 QR with medium error correction (GiroCode, WLAN); null when it does not fit. */
+internal fun qrCode(text: String): Bitmap? = runCatching {
+    val hints = mapOf(
+        com.google.zxing.EncodeHintType.CHARACTER_SET to "UTF-8",
+        com.google.zxing.EncodeHintType.ERROR_CORRECTION to com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M,
+        com.google.zxing.EncodeHintType.MARGIN to 1,
+    )
+    val m = com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0, hints)
+    val px = IntArray(m.width * m.height) { i -> if (m.get(i % m.width, i / m.width)) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
+    Bitmap.createBitmap(px, m.width, m.height, Bitmap.Config.ARGB_8888)
+}.getOrNull()

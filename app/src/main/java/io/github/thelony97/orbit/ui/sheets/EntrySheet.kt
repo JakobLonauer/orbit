@@ -26,7 +26,10 @@ import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -98,6 +101,17 @@ fun EntrySheet(
     }
     var addingMember by remember { mutableStateOf(false) }
     val newMember = rememberTextFieldState()
+    // PLAN 9 D5 „Auftrag“: Betrag, Sterne, Rechnung.
+    val amount = rememberTextFieldState(initial?.amountCents?.let { io.github.thelony97.orbit.core.domain.Jobs.format(it).removeSuffix(" €") }.orEmpty())
+    var stars by remember { androidx.compose.runtime.mutableIntStateOf(initial?.stars ?: 0) }
+    val invoicePicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        val add = onAddPhotos ?: return@rememberLauncherForActivityResult
+        if (uri != null) sheetScope.launch {
+            val added = kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { add(listOf(uri)) }
+            extra = added + extra
+            attached = attached + added.map { it.id }
+        }
+    }
     var pickDate by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
     val fromSystem = initial != null && initial.source != EntrySource.MANUAL
@@ -158,7 +172,20 @@ fun EntrySheet(
                 }
             }
 
-            SpaceField(note, "Notiz", singleLine = false, placeholder = "Worüber habt ihr gesprochen?")
+            val job = typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.JOB
+            SpaceField(note, if (job) "Was" else "Notiz", singleLine = false, placeholder = if (job) "Therme Service" else "Worüber habt ihr gesprochen?")
+            if (job) {
+                JobFields(
+                    amount, stars, { stars = it },
+                    invoice = (extra + photos).firstOrNull { it.id in attached && !it.mime.startsWith("image/") }?.let { "Rechnung" },
+                    onInvoice = if (onAddPhotos == null) null else {
+                        {
+                            io.github.thelony97.orbit.security.AppLock.allowExternal()
+                            invoicePicker.launch(arrayOf("application/pdf", "image/*"))
+                        }
+                    },
+                )
+            }
 
             // Fotos am Eintrag (PLAN 3.10): tap selects, „+“ brings new ones from the phone.
             if (onAddPhotos != null || photos.isNotEmpty()) {
@@ -200,11 +227,17 @@ fun EntrySheet(
                 GlowButton("Speichern", {
                     val at = LocalDateTime.of(date, time).atZone(zone()).toInstant().toEpochMilli()
                     val text = note.text.toString().trim()
+                    val isJob = typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.JOB
+                    val cents = if (isJob) io.github.thelony97.orbit.core.domain.Jobs.parseAmount(amount.text.toString()) else null
+                    val rated = if (isJob) stars.takeIf { it > 0 } else null
                     val entry = if (initial != null) {
-                        initial.copy(typeId = typeId, at = if (fromSystem) initial.at else at, note = text, memberId = member, attachmentIds = attached)
+                        initial.copy(
+                            typeId = typeId, at = if (fromSystem) initial.at else at, note = text, memberId = member, attachmentIds = attached,
+                            amountCents = cents, stars = rated,
+                        )
                     } else {
                         // contactId is set by Mutations.addEntry.
-                        Entry(id = newId(), contactId = "", typeId = typeId, at = at, note = text, memberId = member, attachmentIds = attached)
+                        Entry(id = newId(), contactId = "", typeId = typeId, at = at, note = text, memberId = member, attachmentIds = attached, amountCents = cents, stars = rated)
                     }
                     onSave(entry)
                     onDismiss()
@@ -220,4 +253,36 @@ fun EntrySheet(
 private val occasionTypes = setOf(
     io.github.thelony97.orbit.core.model.BuiltinTypes.CONGRATS,
     io.github.thelony97.orbit.core.model.BuiltinTypes.GIFT,
+    // PLAN 9 D6: the Beleg of a settled loan comes from the Verliehen section.
+    io.github.thelony97.orbit.core.model.BuiltinTypes.SETTLED,
 )
+
+/** PLAN 9 D5: Betrag (as typed, „340“ or „1.240,50“), up to five stars (tap the same again = none), the invoice. */
+@Composable
+private fun JobFields(
+    amount: androidx.compose.foundation.text.input.TextFieldState,
+    stars: Int,
+    onStars: (Int) -> Unit,
+    invoice: String?,
+    onInvoice: (() -> Unit)?,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SpaceField(
+            amount, "Betrag €", Modifier.weight(1f), placeholder = "340",
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+        )
+        Row {
+            (1..io.github.thelony97.orbit.core.domain.Jobs.MAX_STARS).forEach { n ->
+                Icon(
+                    if (n <= stars) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                    "$n Sterne",
+                    tint = if (n <= stars) Space.Orange else Space.TextFaint,
+                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(50)).clickable { onStars(if (stars == n) 0 else n) }.padding(5.dp),
+                )
+            }
+        }
+    }
+    if (onInvoice != null) {
+        SpaceChip(invoice ?: "Rechnung", invoice != null, onInvoice, leading = Icons.Rounded.Receipt, accent = Space.Orange)
+    }
+}

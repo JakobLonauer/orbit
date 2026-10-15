@@ -36,7 +36,7 @@ object SearchText {
     /** Everything findable for one contact, folded. Hidden members are deliberately absent. */
     fun of(c: Contact, orgNames: List<String> = emptyList()): String = buildString {
         fun add(s: String) { if (s.isNotBlank()) append(Fold.fold(s)).append('\n') }
-        add(c.firstName); add(c.lastName); add(c.company); add(c.position)
+        add(c.firstName); add(c.lastName); add(c.company); add(c.position); add(c.trade)
         add(c.notes); add(c.pinnedNote); add(c.howWeMet)
         c.phones.forEach { add(it.value); add(it.value.filter(Char::isDigit)) }
         c.emails.forEach { add(it.value) }

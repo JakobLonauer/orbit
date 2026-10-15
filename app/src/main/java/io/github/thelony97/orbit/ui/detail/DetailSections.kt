@@ -347,6 +347,9 @@ fun EntryRow(
                             append(if (entry.mails.isNotEmpty()) io.github.thelony97.orbit.core.domain.MailBundle.title(entry) else type?.name ?: "Eintrag")
                             member?.let { append(" · ").append(it) }
                             entry.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
+                            // PLAN 9 D5: an Auftrag's cost and stars.
+                            entry.amountCents?.let { append(" · ").append(io.github.thelony97.orbit.core.domain.Jobs.format(it)) }
+                            entry.stars?.takeIf { it > 0 }?.let { append(" · ").append(io.github.thelony97.orbit.core.domain.Jobs.stars(it)) }
                             if (entry.source == EntrySource.SMS) append(" · ${entry.messages.size} SMS")
                         },
                         style = MaterialTheme.typography.labelLargeEmphasized,

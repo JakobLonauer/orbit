@@ -13,7 +13,8 @@ data class Hit(val text: String, val start: Int, val end: Int)
 fun matchSentence(c: Contact, query: String, before: Int = 24, after: Int = 44): Hit? {
     val q = Logic.fold(query.trim()).split(' ').firstOrNull { it.length >= 2 } ?: return null
     val name = Logic.fold(listOf(c.firstName, c.lastName, c.company).joinToString(" "))
-    if (name.contains(q)) return null
+    // A Gewerk match shows the last job instead (PLAN 9 D5).
+    if (name.contains(q) || Logic.fold(c.trade).contains(q)) return null
     val sources = sequence {
         yield(c.notes); yield(c.pinnedNote); yield(c.howWeMet); yield(c.position)
         c.topics.forEach { yield(it.text) }

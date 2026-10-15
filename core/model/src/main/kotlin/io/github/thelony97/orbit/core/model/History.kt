@@ -60,6 +60,9 @@ data class HistoryEntry(
     val occasionId: String? = null,
     val occasionYear: Int? = null,
     val withIds: List<String> = emptyList(),
+    /** PLAN 9 D5 „Auftrag“: what it cost (cents) and how it went (1–5 stars); the invoice is an attachment. */
+    val amountCents: Long? = null,
+    val stars: Int? = null,
 )
 
 /** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */
@@ -86,6 +89,8 @@ object BuiltinTypes {
     const val EVENT = "event"
     const val CONGRATS = "congrats"
     const val GIFT = "gift"
+    const val JOB = "job"
+    const val SETTLED = "settled"
 
     val all = listOf(
         EntryType(MEET, "Treffen", "meet", builtin = true),
@@ -96,5 +101,7 @@ object BuiltinTypes {
         EntryType(EVENT, "Event", "event", builtin = true),
         EntryType(CONGRATS, "Gratuliert", "cake", builtin = true),
         EntryType(GIFT, "Geschenk", "gift", builtin = true),
+        EntryType(JOB, "Auftrag", "job", builtin = true),
+        EntryType(SETTLED, "Erledigt", "receipt", builtin = true),
     )
 }

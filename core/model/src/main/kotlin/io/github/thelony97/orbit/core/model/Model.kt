@@ -165,6 +165,8 @@ data class Contact(
     val id: String,
     val kind: ContactKind = ContactKind.PERSON,
     val orgCategory: String? = null,
+    /** PLAN 9 D5: the Gewerk of a craft business („Installateur“). */
+    val trade: String = "",
     val isMe: Boolean = false,
     val firstName: String = "",
     val lastName: String = "",
@@ -225,6 +227,10 @@ data class Contact(
     val macros: List<Macro> = emptyList(),
     /** PLAN 9 D3: Verträge with this organisation (Handy, Strom, Versicherung …). */
     val contracts: List<Contract> = emptyList(),
+    /** PLAN 9 D6: things lent or borrowed and money owed, either way. */
+    val loans: List<Loan> = emptyList(),
+    /** PLAN 9 D7: the WLAN of a place (an organisation's guest network). */
+    val wifi: List<WifiNet> = emptyList(),
     /**
      * In memory only: this contact's Verlauf, newest first. Stored in SQLite, never in the JSON
      * core (ADR 0003); the repository fills it on load and writes the difference on save.
@@ -319,6 +325,31 @@ data class Contract(
     /** ISO day the cancellation went out; the contract then ends with its term. */
     val cancelledOn: String? = null,
     val note: String = "",
+)
+
+/**
+ * PLAN 9 D6: something lent/borrowed or money owed. [toThem] = from Jakob to them (he lent it, they
+ * owe him); otherwise they gave it / he owes them. Money when [amountCents] is set.
+ */
+@Serializable
+data class Loan(
+    val id: String,
+    val what: String = "",
+    val amountCents: Long? = null,
+    val toThem: Boolean = true,
+    /** ISO day. */
+    val since: String = "",
+    /** ISO day it came back / was paid; then it is history. */
+    val settledOn: String? = null,
+)
+
+/** PLAN 9 D7: a stored WLAN. [security] „WPA“ (WPA2/3 personal), „WEP“ or „nopass“. */
+@Serializable
+data class WifiNet(
+    val id: String,
+    val ssid: String,
+    val password: String = "",
+    val security: String = "WPA",
 )
 
 /** Zuordnung person → organisation (PLAN 3.6), strictly separate from [Relation]. */

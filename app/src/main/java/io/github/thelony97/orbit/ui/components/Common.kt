@@ -22,6 +22,8 @@ import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.rounded.EmojiPeople
 import androidx.compose.material.icons.rounded.Handyman
+import androidx.compose.material.icons.rounded.Receipt
+import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.LocalHospital
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material.icons.rounded.Call
@@ -152,7 +154,8 @@ fun orgIcon(key: String?): ImageVector = when (Defaults.orgCategory(key).icon) {
     "work" -> Icons.Rounded.Work
     "health" -> Icons.Rounded.LocalHospital
     "authority" -> Icons.Rounded.AccountBalance
-    "service" -> Icons.Rounded.Handyman
+    "service" -> Icons.Rounded.SupportAgent
+    "craft" -> Icons.Rounded.Handyman
     "club" -> Icons.Rounded.EmojiPeople
     "other" -> Icons.Rounded.Domain
     else -> Icons.Rounded.Business
@@ -252,6 +255,8 @@ fun entryIcon(key: String): ImageVector = when (key) {
     "travel" -> Icons.Rounded.Flight
     "gift" -> Icons.Rounded.CardGiftcard
     "heart" -> Icons.Rounded.Favorite
+    "job" -> Icons.Rounded.Handyman
+    "receipt" -> Icons.Rounded.Receipt
     else -> Icons.Rounded.Star
 }
 

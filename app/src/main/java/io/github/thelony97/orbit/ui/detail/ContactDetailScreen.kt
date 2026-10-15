@@ -289,6 +289,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var dictate by remember { mutableStateOf<Pair<String, String>?>(null) }
     var idCard by remember { mutableStateOf<Pair<String, String>?>(null) }
     var macroEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Macro?>(null) }
+    var contractEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Contract?>(null) }
+    var loanEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Loan?>(null) }
+    var payQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Loan?>(null) }
+    var wifiEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
+    var wifiQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
@@ -805,6 +810,27 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 }
             }
 
+            // PLAN 9 D3: Verträge with their Laufzeit-Ring.
+            if (c.isOrg && c.contracts.isNotEmpty()) {
+                item(key = "contracts") {
+                    ContractSection(c, data, onEdit = { contractEdit = it })
+                }
+            }
+
+            // PLAN 9 D7: the place's WLAN – tap connects.
+            if (c.wifi.isNotEmpty()) {
+                item(key = "wifi") {
+                    WifiSection(c, onEdit = { wifiEdit = it }, onQr = { wifiQr = it })
+                }
+            }
+
+            // PLAN 9 D6: Verliehen & Schulden.
+            if (!c.isMe && io.github.thelony97.orbit.core.domain.Loans.open(c).isNotEmpty()) {
+                item(key = "loans") {
+                    LoanSection(c, data, onEdit = { loanEdit = it }, onPay = { payQr = it })
+                }
+            }
+
             // A person's links (LinkedIn, Instagram) after the contact details.
             if (!c.isOrg && c.links.isNotEmpty()) item(key = "links") { links(c) }
 
@@ -1040,6 +1066,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         if (humanRels.isEmpty() && !c.isOrg) add(AddItem("Beziehung") { relationDialog = true })
                         if (assigned.isEmpty() && !c.archived) add(AddItem(if (c.isOrg) "Person" else "Organisation") { assignDialog = true })
                         if (c.isOrg && c.members.isEmpty() && "members" !in opened && !c.archived) add(AddItem("Mitarbeiter") { opened = opened + "members" })
+                        if (c.isOrg && c.contracts.isEmpty()) add(AddItem("Vertrag") { contractEdit = newContract() })
+                        if (!c.isMe && io.github.thelony97.orbit.core.domain.Loans.open(c).isEmpty()) add(AddItem("Verliehen") { loanEdit = newLoan() })
+                        if (c.isOrg && c.wifi.isEmpty()) add(AddItem("WLAN") { wifiEdit = newWifi() })
                         if (!c.isOrg && !c.isMe && !c.archived && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
                         add(AddItem("Feld") { fieldDialog = true })
                     },
@@ -1313,6 +1342,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }, withFields = true) }
     if (shareSheet) ShareFieldsSheet(c, color, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
     macroEdit?.let { m -> MacroEditSheet(c, data, m, onDismiss = { macroEdit = null }) }
+    contractEdit?.let { k -> ContractEditSheet(c, k, onDismiss = { contractEdit = null }) }
+    loanEdit?.let { l -> LoanEditSheet(c, l, onDismiss = { loanEdit = null }) }
+    payQr?.let { l -> PayQr(c, l, data, onClose = { payQr = null }) }
+    wifiEdit?.let { w -> WifiEditSheet(c, w, onDismiss = { wifiEdit = null }) }
+    wifiQr?.let { w -> WifiQr(w, onClose = { wifiQr = null }) }
     idCard?.let { (label, value) ->
         io.github.thelony97.orbit.ui.components.IdCard(
             Logic.displayName(c, false), label, value, color,

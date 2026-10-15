@@ -33,6 +33,7 @@ object Defaults {
         OrgCategory("health", "Gesundheit", "health"),
         OrgCategory("authority", "Behörde", "authority"),
         OrgCategory("service", "Dienstleister", "service"),
+        OrgCategory("craft", "Handwerk", "craft"),
         OrgCategory("club", "Verein", "club"),
         OrgCategory("other", "Sonstiges", "other"),
     )

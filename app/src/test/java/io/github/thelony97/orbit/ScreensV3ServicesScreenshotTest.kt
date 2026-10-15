@@ -109,6 +109,27 @@ class ScreensV3ServicesScreenshotTest {
         com.github.takahirom.roborazzi.captureScreenRoboImage("build/outputs/roborazzi/screen_v3d_idcard.png")
     }
 
+    /** D3: the Verträge with their Laufzeit-Ring – one in the orange window, one far, one gekündigt. */
+    @Test fun contracts() {
+        val today = LocalDate.now()
+        val a1 = org("a1", "A1 Telekom") {
+            it.copy(
+                contracts = listOf(
+                    io.github.thelony97.orbit.core.model.Contract(
+                        "h", "Handy", "0664 123", today.minusMonths(21).plusDays(12).toString(), minMonths = 24, noticeMonths = 3, price = "19,90 €/M",
+                    ),
+                    io.github.thelony97.orbit.core.model.Contract("i", "Internet", "", today.minusMonths(3).toString(), minMonths = 12, noticeMonths = 1),
+                    io.github.thelony97.orbit.core.model.Contract("t", "TV", "", today.minusMonths(30).toString(), renewMonths = 12, noticeMonths = 1, cancelledOn = today.minusDays(3).toString()),
+                ),
+            )
+        }
+        moment("v3d_contracts", 300) {
+            Column(Modifier.padding(top = 48.dp, start = 16.dp, end = 16.dp)) {
+                io.github.thelony97.orbit.ui.detail.ContractSection(a1, data, onEdit = {})
+            }
+        }
+    }
+
     private companion object {
         const val AssignmentCustom = io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM
     }

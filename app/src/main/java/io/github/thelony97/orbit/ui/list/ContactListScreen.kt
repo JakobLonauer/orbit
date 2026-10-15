@@ -884,7 +884,11 @@ private fun ContactRow(
                         Icon(Icons.Rounded.Star, "Favorit", tint = Space.Orange, modifier = Modifier.size(13.dp))
                     }
                 }
+                val job = if (contact.isOrg) io.github.thelony97.orbit.core.domain.Jobs.latest(contact.entries) else null
                 val sub = when {
+                    // PLAN 9 D5: a craft business shows its last job – „Therme 05/2025 · 340 € · ★★★★“.
+                    job != null -> listOf(contact.trade, io.github.thelony97.orbit.core.domain.Jobs.line(job, io.github.thelony97.orbit.domain.zone()))
+                        .filter { it.isNotBlank() }.joinToString(" · ")
                     last != null -> buildString {
                         append(idx.types[last.typeId]?.name ?: "Eintrag")
                         when (last.incoming) {
@@ -894,7 +898,7 @@ private fun ContactRow(
                         }
                         last.durationSec?.let { append(" · ").append(Fmt.duration(it)) }
                     }
-                    contact.isOrg -> listOf(Defaults.orgCategory(contact.orgCategory).label, contact.position).filter { it.isNotBlank() }.joinToString(" · ")
+                    contact.isOrg -> listOf(contact.trade.ifBlank { Defaults.orgCategory(contact.orgCategory).label }, contact.position).filter { it.isNotBlank() }.joinToString(" · ")
                     else -> null
                 }
                 if (hit != null) {
