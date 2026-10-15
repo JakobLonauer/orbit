@@ -279,11 +279,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     }
     // PLAN 9 A1: Orbit im Telefonbuch – contacts permission first, then the account.
     fun phoneBookOn() {
-        OrbitRepository.editSettings { it.copy(phoneBook = true) }
-        io.github.thelony97.orbit.ui.components.AppWork.launch {
-            io.github.thelony97.orbit.phonebook.PhoneBookFresh.start(ctx.applicationContext)
-            io.github.thelony97.orbit.phonebook.PhoneBookSync.request(ctx.applicationContext)
-        }
+        io.github.thelony97.orbit.phonebook.PhoneBookSync.turnOn(ctx)
     }
     val phoneBookPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         permissionTick++
@@ -631,10 +627,16 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         if (area == "contacts") item(key = "phonebook") {
             val count by io.github.thelony97.orbit.phonebook.PhoneBookSync.count.collectAsState()
             LaunchedEffect(s.phoneBook) { if (s.phoneBook) io.github.thelony97.orbit.phonebook.PhoneBookSync.request(ctx) }
+            // The status line counts up while Orbit fills the phone book (PLAN 9 A1 Moment).
+            val shown by androidx.compose.animation.core.animateIntAsState(
+                count ?: 0,
+                androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized),
+                label = "phoneBookCount",
+            )
             SettingsGroup("") {
                 SettingItem(
                     Icons.Rounded.Contacts, "Im Telefonbuch des Handys",
-                    subtitle = if (s.phoneBook) count?.let { if (it == 1) "1 Kontakt" else "$it Kontakte" } else null,
+                    subtitle = if (s.phoneBook && count != null) { if (shown == 1) "1 Kontakt" else "$shown Kontakte" } else null,
                     iconTint = Space.Teal,
                     trailing = {
                         SpaceSwitch(s.phoneBook) { on ->

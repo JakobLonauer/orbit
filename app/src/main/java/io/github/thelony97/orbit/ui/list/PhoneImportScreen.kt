@@ -76,6 +76,8 @@ fun PhoneImportScreen(
     initialSelection: Set<Long> = emptySet(),
     /** PLAN 9 A1: show only these phone-book contacts (the ones other apps just added). */
     only: Set<Long>? = null,
+    /** After several were taken over: the ones left out were looked at, too. */
+    onTakenOver: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -105,6 +107,7 @@ fun PhoneImportScreen(
             val contacts = takeOverAll(ctx, picked)
             val ids = contacts.map { it.id }.toSet()
             haptics.perform(Haptic.Confirm)
+            if (contacts.isNotEmpty()) onTakenOver()
             Undo.offer(if (contacts.size == 1) "1 Kontakt übernommen" else "${contacts.size} Kontakte übernommen") {
                 OrbitRepository.edit { d -> ids.fold(d) { acc, id -> Mutations.purge(acc, id) } }
                 contacts.mapNotNull { it.photo }.forEach { OrbitRepository.photoFile(it).delete() }

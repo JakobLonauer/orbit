@@ -6,12 +6,16 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,7 +25,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -33,11 +36,20 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import io.github.thelony97.orbit.core.designsystem.Corners
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.Motion
+import io.github.thelony97.orbit.core.designsystem.Spacing
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.delay
@@ -45,11 +57,23 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
+/** Under the anchor, centred and kept inside the window; above it when there is no room below. */
+private class BesideAnchor(private val gap: Int) : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+        val x = (anchorBounds.center.x - popupContentSize.width / 2).coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val below = anchorBounds.bottom + gap
+        val y = if (below + popupContentSize.height <= windowSize.height) below
+        else (anchorBounds.top - gap - popupContentSize.height).coerceAtLeast(0)
+        return IntOffset(x, y)
+    }
+}
+
 /**
  * Geist (PLAN 9.2, A0): a suggestion after a fixed rule, drawn where it would land – a dashed rim
  * that slowly walks, the content half see-through. A tap takes it: the rim closes, the content
  * fills (250 ms, Bestätigen) and then [onAccept] runs. Holding shows where it comes from
- * ([source]); a swipe across [dismissAxis] sends it away ([onDismiss]).
+ * ([source]) and, with [onDismiss], „Verwerfen“; outside scrolling containers a swipe across
+ * [dismissAxis] sends it away, too (null: no swipe – inside a list it would fight the scrolling).
  */
 @Composable
 fun Ghost(
@@ -58,8 +82,8 @@ fun Ghost(
     onDismiss: (() -> Unit)?,
     modifier: Modifier = Modifier,
     accent: Color = Space.Violet,
-    corner: androidx.compose.ui.unit.Dp = 20.dp,
-    dismissAxis: Orientation = Orientation.Horizontal,
+    corner: Dp = 20.dp,
+    dismissAxis: Orientation? = Orientation.Horizontal,
     content: @Composable () -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -67,15 +91,26 @@ fun Ghost(
     val scope = rememberCoroutineScope()
     val fill = remember { Animatable(0f) }
     val swipe = remember { Animatable(0f) }
+    val leave = remember { Animatable(0f) }
     var showSource by remember { mutableStateOf(false) }
     // The rim walks one slow lap; frozen in battery saver (PLAN 1.1: no permanent animations).
     val saver = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
     val march = if (saver) null else rememberInfiniteTransition(label = "ghost").animateFloat(
         0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing)), label = "march",
     )
-    val drag = Modifier.pointerInput(onDismiss, dismissAxis) {
-        if (onDismiss == null) return@pointerInput
-        val limit = if (dismissAxis == Orientation.Horizontal) size.width.toFloat() else size.height.toFloat()
+
+    fun dismissNow() {
+        val done = onDismiss ?: return
+        showSource = false
+        scope.launch {
+            haptics.perform(Haptic.Reject)
+            leave.animateTo(1f, tween(Motion.FAST_MS, easing = Motion.Exit))
+            done()
+        }
+    }
+
+    val drag = if (dismissAxis != Orientation.Horizontal || onDismiss == null) Modifier else Modifier.pointerInput(onDismiss) {
+        val limit = size.width.toFloat()
         val end: () -> Unit = {
             scope.launch {
                 if (abs(swipe.value) > limit * 0.35f) {
@@ -87,25 +122,19 @@ fun Ghost(
                 }
             }
         }
-        if (dismissAxis == Orientation.Horizontal) {
-            detectHorizontalDragGestures(onDragEnd = end, onDragCancel = end) { change, delta ->
-                change.consume()
-                scope.launch { swipe.snapTo(swipe.value + delta) }
-            }
-        } else {
-            // In a horizontal row only an upward swipe sends a card away.
-            detectVerticalDragGestures(onDragEnd = end, onDragCancel = end) { change, delta ->
-                change.consume()
-                scope.launch { swipe.snapTo((swipe.value + delta).coerceAtMost(0f)) }
-            }
+        detectHorizontalDragGestures(onDragEnd = end, onDragCancel = end) { change, delta ->
+            change.consume()
+            scope.launch { swipe.snapTo(swipe.value + delta) }
         }
     }
     Box(
         modifier
             .graphicsLayer {
-                val limit = if (dismissAxis == Orientation.Horizontal) size.width else size.height
-                if (dismissAxis == Orientation.Horizontal) translationX = swipe.value else translationY = swipe.value
-                alpha = 1f - (abs(swipe.value) / limit.coerceAtLeast(1f)).coerceIn(0f, 0.9f)
+                translationX = swipe.value
+                val gone = leave.value
+                scaleX = 1f - 0.08f * gone
+                scaleY = 1f - 0.08f * gone
+                alpha = (1f - (abs(swipe.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.9f)) * (1f - gone)
             }
             .then(drag)
             .drawWithContent {
@@ -144,20 +173,36 @@ fun Ghost(
             ),
     ) {
         Box(Modifier.graphicsLayer { alpha = 0.66f + 0.34f * fill.value }) { content() }
-        if (showSource && source.isNotBlank()) {
+        if (showSource && (source.isNotBlank() || onDismiss != null)) {
             LaunchedEffect(Unit) {
-                delay(2_600)
+                delay(if (onDismiss != null) 4_000 else 2_600)
                 showSource = false
             }
-            Popup(alignment = Alignment.TopCenter, offset = IntOffset(0, -8), onDismissRequest = { showSource = false }) {
-                Text(
-                    source,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Space.Text,
-                    modifier = Modifier
-                        .glass(androidx.compose.foundation.shape.RoundedCornerShape(50), tint = Space.PanelHighest, border = accent.copy(alpha = 0.5f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                )
+            val gap = with(LocalDensity.current) { Spacing.S.roundToPx() }
+            Popup(
+                popupPositionProvider = remember(gap) { BesideAnchor(gap) },
+                onDismissRequest = { showSource = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                Column(
+                    Modifier
+                        .widthIn(max = 280.dp)
+                        .glass(Corners.Row, tint = Space.PanelHighest, border = accent.copy(alpha = 0.5f))
+                        .padding(horizontal = Spacing.M, vertical = Spacing.S),
+                ) {
+                    if (source.isNotBlank()) Text(source, style = MaterialTheme.typography.labelMedium, color = Space.TextDim)
+                    if (onDismiss != null) {
+                        if (source.isNotBlank()) Spacer(Modifier.height(Spacing.XS))
+                        Text(
+                            "Verwerfen",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Space.Text,
+                            modifier = Modifier
+                                .clickable { dismissNow() }
+                                .padding(vertical = Spacing.XS),
+                        )
+                    }
+                }
             }
         }
     }

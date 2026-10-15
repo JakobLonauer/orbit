@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -196,6 +197,8 @@ fun SpaceChip(
     leading: ImageVector? = null,
     accent: Color = Space.Violet,
     trailing: ImageVector? = null,
+    /** Content centred – for chips given a common minimum width (label columns). */
+    centered: Boolean = false,
 ) {
     val bg by animateColorAsState(if (selected) accent.copy(alpha = 0.20f) else Space.Panel, label = "chipBg")
     val border by animateColorAsState(if (selected) accent.copy(alpha = 0.75f) else Space.Line, label = "chipBorder")
@@ -208,7 +211,7 @@ fun SpaceChip(
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = if (centered) Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(8.dp),
     ) {
         if (dot != null) Box(Modifier.size(7.dp).background(dot, CircleShape))
         if (leading != null) Icon(leading, null, tint = if (selected) accent else Space.TextDim, modifier = Modifier.size(14.dp))
@@ -320,6 +323,8 @@ fun SpaceField(
     singleLine: Boolean = true,
     placeholder: String = "",
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    /** 0–1: the rim lights up teal (a value handed over by another app, PLAN 9 A2); read while drawing. */
+    lit: (() -> Float)? = null,
 ) {
     Column(modifier) {
         if (label.isNotEmpty()) {
@@ -338,6 +343,24 @@ fun SpaceField(
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
                         .glass(RoundedCornerShape(14.dp), tint = Space.Panel)
+                        .then(
+                            if (lit == null) Modifier else Modifier.drawWithContent {
+                                drawContent()
+                                val g = lit()
+                                if (g > 0f) {
+                                    val r = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
+                                    drawRoundRect(Space.Teal.copy(alpha = 0.12f * g), cornerRadius = r)
+                                    val w = 1.5.dp.toPx()
+                                    drawRoundRect(
+                                        Space.Teal.copy(alpha = 0.9f * g),
+                                        topLeft = androidx.compose.ui.geometry.Offset(w / 2, w / 2),
+                                        size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+                                        cornerRadius = r,
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(w),
+                                    )
+                                }
+                            },
+                        )
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {

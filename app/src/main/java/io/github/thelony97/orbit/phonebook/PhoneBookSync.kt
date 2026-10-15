@@ -60,6 +60,36 @@ object PhoneBookSync {
     private val _count = MutableStateFlow<Int?>(null)
     val count: StateFlow<Int?> = _count.asStateFlow()
 
+    /** The first fill after switching on, counted live (PLAN 9 A1 Moment); null when nothing runs. */
+    data class Live(val count: Int, val total: Int, val done: Boolean)
+
+    private val _live = MutableStateFlow<Live?>(null)
+    val live: StateFlow<Live?> = _live.asStateFlow()
+
+    /**
+     * Switch on: the setting, the mark for „Neu im Telefonbuch“, then the first fill – visible as
+     * it counts up. The live state is there at once, so the offer turns into it without a gap.
+     */
+    fun turnOn(ctx: Context) {
+        val app = ctx.applicationContext
+        _live.value = Live(0, 0, done = false)
+        AppWork.launch {
+            OrbitRepository.update { d -> d.copy(settings = d.settings.copy(phoneBook = true)) }
+            PhoneBookFresh.start(app)
+            val result = writeNow(app, counted = true)
+            val now = _live.value
+            // Nothing written (switch off again, no permission, unreadable data): no card at all.
+            if (result.isFailure || now == null || now.total == 0) {
+                _live.value = null
+                return@launch
+            }
+            _live.value = now.copy(done = true)
+            // Long enough to read the result, then the card goes (the count stays in the settings).
+            delay(2_400)
+            _live.value = null
+        }
+    }
+
     fun canWrite(ctx: Context): Boolean =
         ctx.checkSelfPermission(Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED &&
             ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
@@ -83,7 +113,7 @@ object PhoneBookSync {
      * Writes the difference. Never while Orbit's own data could not be read (an empty state must
      * not wipe the phone book), never without the switch or the permission.
      */
-    suspend fun writeNow(ctx: Context): Result<Int> = mutex.withLock {
+    suspend fun writeNow(ctx: Context, counted: Boolean = false): Result<Int> = mutex.withLock {
         withContext(Dispatchers.IO) {
             runCatching {
                 val data = OrbitRepository.snapshot()
@@ -97,8 +127,15 @@ object PhoneBookSync {
                     .filter { PhoneBook.exported(it, data.settings.phoneBookOrgs) }
                     .map { PhoneBook.card(it, data.groups) }
                 val plan = PhoneBook.plan(cards, existing(ctx.contentResolver))
-                if (!plan.isEmpty) apply(ctx.contentResolver, plan)
+                val base = cards.size - plan.insert.size
+                val progress: (Int) -> Unit = { inserted ->
+                    _count.value = base + inserted
+                    if (counted) _live.value = Live(base + inserted, cards.size, done = false)
+                }
+                progress(0)
+                if (!plan.isEmpty) apply(ctx.contentResolver, plan, progress)
                 _count.value = cards.size
+                if (counted) _live.value = Live(cards.size, cards.size, done = false)
                 plan.insert.size + plan.rewrite.size + plan.delete.size
             }.onFailure { e ->
                 Log.w(TAG, "phone book sync failed", e)
@@ -168,14 +205,22 @@ object PhoneBookSync {
         return out
     }
 
-    private fun apply(r: ContentResolver, plan: PhoneBook.Plan) {
+    /** Applies [plan] in batches; [progress] hears how many new cards are in after each batch. */
+    private fun apply(r: ContentResolver, plan: PhoneBook.Plan, progress: (Int) -> Unit) {
         val ops = ArrayList<ContentProviderOperation>()
         var bytes = 0
+        var inserted = 0
+        var pendingCards = 0
         fun flush() {
             if (ops.isEmpty()) return
             r.applyBatch(ContactsContract.AUTHORITY, ops)
             ops.clear()
             bytes = 0
+            if (pendingCards > 0) {
+                inserted += pendingCards
+                pendingCards = 0
+                progress(inserted)
+            }
         }
         for (id in plan.delete) {
             ops += ContentProviderOperation.newDelete(sync(ContentUris.withAppendedId(RawContacts.CONTENT_URI, id))).build()
@@ -193,6 +238,7 @@ object PhoneBookSync {
                 .withValue(RawContacts.CUSTOM_RINGTONE, card.ringtone)
                 .build()
             bytes += rows(ops, card) { b -> b.withValueBackReference(Data.RAW_CONTACT_ID, back) }
+            pendingCards++
             // One card never spans two batches (back references); photos keep a batch small.
             if (ops.size >= 250 || bytes > 350_000) flush()
         }

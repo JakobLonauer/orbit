@@ -23,11 +23,11 @@ import io.github.thelony97.orbit.ui.theme.Space
 
 /** One-line glass banner with an icon and an optional action word. */
 @Composable
-fun Banner(icon: ImageVector, color: Color, text: String, onClick: () -> Unit, action: String? = null) {
+fun Banner(icon: ImageVector, color: Color, text: String, onClick: () -> Unit, action: String? = null, edge: androidx.compose.ui.unit.Dp = 16.dp) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = edge, vertical = 4.dp)
             .glass(RoundedCornerShape(16.dp), tint = Space.Panel, border = color.copy(alpha = 0.35f))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),

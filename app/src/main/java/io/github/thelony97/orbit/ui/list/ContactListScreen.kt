@@ -424,43 +424,46 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             modifier = Modifier.fillMaxSize().nestedScroll(pullConnection),
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
-            item(key = "update") { UpdateBanner() }
+            item(key = "update") { UpdateBanner(Modifier.animateItem()) }
+            // Every item moves when something above it comes or goes – nothing snaps (W2).
             if (showToday) item(key = "today") {
-                io.github.thelony97.orbit.ui.today.TodayRow(todayCards, nav, Modifier.padding(bottom = 10.dp))
+                io.github.thelony97.orbit.ui.today.TodayRow(todayCards, nav, Modifier.animateItem().padding(bottom = io.github.thelony97.orbit.core.designsystem.Spacing.XS))
             }
             // „gehört zu Arzt Müller“ (PLAN 1.3): a pasted Durchwahl or a number in an
             // organisation's range – a hidden member shows only as the organisation.
             belongsTo?.let { org ->
                 item(key = "belongs") {
-                    Banner(
+                    Box(Modifier.animateItem()) { Banner(
                         icon = Icons.Rounded.Business,
                         color = Space.Blue,
                         text = "gehört zu " + Logic.displayName(org, false),
                         action = "Öffnen",
                         onClick = { nav.open(Route.Detail(org.id)) },
-                    )
+                    ) }
                 }
             }
             if (suggestions > 0 && defaultView) {
                 item(key = "suggestions") {
-                    Banner(
-                        icon = Icons.Rounded.PersonAdd,
-                        color = Space.Teal,
-                        text = if (suggestions == 1) "1 unbekannte Nummer taucht öfter auf" else "$suggestions unbekannte Nummern tauchen öfter auf",
-                        onClick = { if (selection == null) nav.open(Route.Suggestions) },
-                    )
+                    Box(Modifier.animateItem()) {
+                        Banner(
+                            icon = Icons.Rounded.PersonAdd,
+                            color = Space.Teal,
+                            text = if (suggestions == 1) "1 unbekannte Nummer taucht öfter auf" else "$suggestions unbekannte Nummern tauchen öfter auf",
+                            onClick = { if (selection == null) nav.open(Route.Suggestions) },
+                        )
+                    }
                 }
             }
             if (me != null && defaultView && audience != Audience.ORGS) {
                 item(key = "me") {
-                    MeCard(me, idx, onOpen = { if (selection == null) nav.open(Route.Detail(me.id)) })
+                    Box(Modifier.animateItem()) { MeCard(me, idx, onOpen = { if (selection == null) nav.open(Route.Detail(me.id)) }) }
                 }
             }
 
             if (sections.all { it.contacts.isEmpty() }) {
                 item(key = "empty") {
                     // W6/W7: one line, one action – no instructions.
-                    when {
+                    Box(Modifier.animateItem()) { when {
                         query.isNotEmpty() -> EmptyHint("Kein Treffer", "", action = "Suche leeren" to { search.clearText() })
                         audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
                             EmptyHint("Keine Organisationen", "", action = "Organisation anlegen" to {
@@ -472,7 +475,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                             Session.audience = Audience.PEOPLE
                         })
                         else -> EmptyHint("Dein Orbit ist leer", "", action = "Kontakt anlegen" to { nav.open(Route.Edit()) })
-                    }
+                    } }
                 }
             }
 
@@ -545,13 +548,15 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
 
             if (hiddenOrgHits > 0) {
                 item(key = "org-hint") {
-                    Banner(
-                        icon = Icons.Rounded.Business,
-                        color = Space.Blue,
-                        text = if (hiddenOrgHits == 1) "1 Treffer bei Organisationen" else "$hiddenOrgHits Treffer bei Organisationen",
-                        action = "Anzeigen",
-                        onClick = { Session.audience = Audience.ALL },
-                    )
+                    Box(Modifier.animateItem()) {
+                        Banner(
+                            icon = Icons.Rounded.Business,
+                            color = Space.Blue,
+                            text = if (hiddenOrgHits == 1) "1 Treffer bei Organisationen" else "$hiddenOrgHits Treffer bei Organisationen",
+                            action = "Anzeigen",
+                            onClick = { Session.audience = Audience.ALL },
+                        )
+                    }
                 }
             }
         }

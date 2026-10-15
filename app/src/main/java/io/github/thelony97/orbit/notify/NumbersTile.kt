@@ -13,6 +13,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import kotlin.math.roundToInt
+import io.github.thelony97.orbit.core.designsystem.Spacing
+import io.github.thelony97.orbit.core.designsystem.Corners
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -110,7 +129,27 @@ class NumbersActivity : ComponentActivity() {
     }
 }
 
-/** [preview]: fixed numbers for screenshot tests instead of the stored ones. */
+/** Shared key of one number: its row in the drawer and the blocks of the dictation. */
+private fun keyOf(item: MyNumbers.Item) = "n:" + item.owner + ":" + item.label + ":" + item.value
+
+/** The row's value grows into the dictation's blocks and back (PLAN W3). */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun Modifier.sharedValue(key: String, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope): Modifier = with(shared) {
+    this@sharedValue.sharedBounds(
+        rememberSharedContentState(key),
+        animatedVisibilityScope = visibility,
+        boundsTransform = { _, _ -> tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized) },
+        resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(),
+    )
+}
+
+/**
+ * [preview]: fixed numbers for screenshot tests instead of the stored ones. Tap copies (marked
+ * sensitive) and the drawer leaves with a tick; holding a number lets its value grow into the
+ * Diktier-Ansicht, back brings it home; the handle pulls the drawer down.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun NumbersDrawer(onClose: () -> Unit, preview: List<MyNumbers.Item>? = null) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -130,19 +169,77 @@ internal fun NumbersDrawer(onClose: () -> Unit, preview: List<MyNumbers.Item>? =
     }
     LaunchedEffect(copied) {
         if (copied != null) {
-            delay(450)
+            // The tick is seen, then the drawer goes.
+            delay(Motion.EMPHASIZED_MS.toLong())
             close()
         }
     }
 
-    dictate?.let { d ->
-        DictationView(d.label, d.value, onClose = { dictate = null })
-        return
+    SharedTransitionLayout {
+        AnimatedContent(
+            dictate,
+            transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
+            label = "numbers",
+        ) { d ->
+            if (d != null) {
+                DictationView(
+                    listOfNotNull(d.owner, d.label).joinToString(" · "),
+                    d.value,
+                    onClose = { dictate = null },
+                    blocksModifier = Modifier.sharedValue(keyOf(d), this@SharedTransitionLayout, this@AnimatedContent),
+                )
+            } else {
+                Drawer(
+                    items = items,
+                    shown = shown,
+                    copied = copied,
+                    onClose = ::close,
+                    onCopy = { item ->
+                        val cm = ctx.getSystemService(ClipboardManager::class.java)
+                        val clip = ClipData.newPlainText(item.label, item.value)
+                        clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
+                        cm?.setPrimaryClip(clip)
+                        haptics.perform(Haptic.Confirm)
+                        copied = item
+                    },
+                    onDictate = { item ->
+                        haptics.perform(Haptic.Threshold)
+                        dictate = item
+                    },
+                    onAddMine = {
+                        val me = OrbitRepository.data.value?.contacts?.firstOrNull { it.isMe }
+                        ctx.startActivity(
+                            Intent(ctx, MainActivity::class.java)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                .apply { if (me != null) putExtra(MainActivity.EXTRA_CONTACT, me.id) },
+                        )
+                        onClose()
+                    },
+                    valueModifier = { item -> Modifier.sharedValue(keyOf(item), this@SharedTransitionLayout, this@AnimatedContent) },
+                )
+            }
+        }
     }
+}
+
+@Composable
+private fun Drawer(
+    items: List<MyNumbers.Item>?,
+    shown: MutableTransitionState<Boolean>,
+    copied: MyNumbers.Item?,
+    onClose: () -> Unit,
+    onCopy: (MyNumbers.Item) -> Unit,
+    onDictate: (MyNumbers.Item) -> Unit,
+    onAddMine: () -> Unit,
+    valueModifier: @Composable (MyNumbers.Item) -> Modifier,
+) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val pull = remember { Animatable(0f) }
     Box(
         Modifier
             .fillMaxSize()
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { close() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(shown, enter = fadeIn(tween(Motion.MEDIUM_MS)), exit = fadeOut(tween(Motion.FAST_MS))) {
@@ -156,59 +253,49 @@ internal fun NumbersDrawer(onClose: () -> Unit, preview: List<MyNumbers.Item>? =
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
-                    .navigationBarsPadding()
-                    .glass(RoundedCornerShape(28.dp), tint = Space.PanelHigh)
+                    .offset { IntOffset(0, pull.value.roundToInt()) }
+                    .glass(Sheet, tint = Space.PanelHigh)
                     // Taps inside the drawer never close it.
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
-                    .padding(vertical = 12.dp),
+                    .navigationBarsPadding()
+                    .padding(bottom = Spacing.S),
             ) {
-                Box(Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(50)).background(Space.LineStrong))
-                Spacer(Modifier.height(10.dp))
-                val list = items
+                // The handle: pull down to close, it springs back when let go early.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(Spacing.XL)
+                        .draggable(
+                            rememberDraggableState { delta -> scope.launch { pull.snapTo((pull.value + delta).coerceAtLeast(0f)) } },
+                            Orientation.Vertical,
+                            onDragStopped = { velocity ->
+                                if (pull.value > with(density) { 96.dp.toPx() } || velocity > 1_800f) onClose()
+                                else pull.animateTo(0f, Motion.snappy())
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(50)).background(Space.LineStrong))
+                }
                 when {
-                    list == null -> Spacer(Modifier.height(120.dp))
-                    list.isEmpty() -> Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    items == null -> Spacer(Modifier.height(120.dp))
+                    items.isEmpty() -> Column(Modifier.fillMaxWidth().padding(Spacing.L), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Keine eigenen Nummern", style = MaterialTheme.typography.titleMedium, color = Space.Text)
-                        Spacer(Modifier.height(12.dp))
-                        GlowButton("Bei Ich anlegen", {
-                            val me = OrbitRepository.data.value?.contacts?.firstOrNull { it.isMe }
-                            ctx.startActivity(
-                                Intent(ctx, MainActivity::class.java)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    .apply { if (me != null) putExtra(MainActivity.EXTRA_CONTACT, me.id) },
-                            )
-                            onClose()
-                        })
+                        Spacer(Modifier.height(Spacing.M))
+                        GlowButton("Bei Ich anlegen", onAddMine)
                     }
                     else -> Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
-                        var lastOwner: String? = "\u0000"
-                        list.forEach { item ->
-                            if (item.owner != lastOwner) {
-                                lastOwner = item.owner
-                                Text(
-                                    (item.owner ?: "Ich").uppercase(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Space.TextDim,
-                                    modifier = Modifier.padding(start = 20.dp, top = 10.dp, bottom = 2.dp),
+                        items.groupBy { it.owner }.forEach { (owner, group) ->
+                            GroupHead(owner)
+                            group.forEach { item ->
+                                NumberRow(
+                                    item = item,
+                                    copied = copied == item,
+                                    onCopy = { onCopy(item) },
+                                    onDictate = { onDictate(item) },
+                                    valueModifier = valueModifier(item),
                                 )
                             }
-                            NumberRow(
-                                item = item,
-                                copied = copied == item,
-                                onCopy = {
-                                    val cm = ctx.getSystemService(ClipboardManager::class.java)
-                                    val clip = ClipData.newPlainText(item.label, item.value)
-                                    clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
-                                    cm?.setPrimaryClip(clip)
-                                    haptics.perform(Haptic.Confirm)
-                                    copied = item
-                                },
-                                onDictate = {
-                                    haptics.perform(Haptic.Threshold)
-                                    dictate = item
-                                },
-                            )
                         }
                     }
                 }
@@ -217,27 +304,62 @@ internal fun NumbersDrawer(onClose: () -> Unit, preview: List<MyNumbers.Item>? =
     }
 }
 
+/** „Ich“ or the service the numbers belong to, with its planet. */
 @Composable
-private fun NumberRow(item: MyNumbers.Item, copied: Boolean, onCopy: () -> Unit, onDictate: () -> Unit) {
+private fun GroupHead(owner: String?) {
+    val color = if (owner == null) Space.Orange else Space.Blue
+    Row(
+        Modifier.padding(start = Spacing.L, end = Spacing.L, top = Spacing.S, bottom = Spacing.XS),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(20.dp).background(color.copy(alpha = 0.22f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(if (owner == null) Icons.Rounded.Person else Icons.Rounded.Business, null, tint = color, modifier = Modifier.size(12.dp))
+        }
+        Spacer(Modifier.width(Spacing.S))
+        Text((owner ?: "Ich").uppercase(), style = MaterialTheme.typography.labelMedium, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun NumberRow(item: MyNumbers.Item, copied: Boolean, onCopy: () -> Unit, onDictate: () -> Unit, valueModifier: Modifier) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .padding(horizontal = Spacing.S)
+            .clip(Corners.Row)
             .combinedClickable(onClick = onCopy, onLongClick = onDictate)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.S, vertical = Spacing.S),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.M),
     ) {
         Column(Modifier.weight(1f)) {
             Text(item.label, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(item.value, style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                item.value,
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum, zero"),
+                color = Space.Text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = valueModifier,
+            )
         }
-        Icon(
-            if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
-            null,
-            tint = if (copied) Space.Teal else Space.TextDim,
-            modifier = Modifier.size(20.dp),
-        )
+        // Copy turns into a tick in place (no toast).
+        AnimatedContent(
+            copied,
+            transitionSpec = {
+                (fadeIn(tween(Motion.FAST_MS)) + scaleIn(tween(Motion.FAST_MS), initialScale = 0.6f)) togetherWith fadeOut(tween(Motion.FAST_MS))
+            },
+            label = "copied",
+        ) { done ->
+            Icon(
+                if (done) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
+                null,
+                tint = if (done) Space.Teal else Space.TextDim,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
+
+/** Sheets are rounded at the top only and sit on the screen's edge. */
+private val Sheet = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)

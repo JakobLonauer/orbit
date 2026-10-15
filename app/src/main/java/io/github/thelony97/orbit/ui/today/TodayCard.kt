@@ -8,8 +8,16 @@ import io.github.thelony97.orbit.phonebook.PhoneBookFresh
 sealed interface TodayCard {
     val key: String
 
-    /** PLAN 9 A1: „Orbit im Telefonbuch“, offered once as a ghost. */
-    data object PhoneBookOffer : TodayCard {
+    /** PLAN 9 A1: „Orbit ins Telefonbuch“, offered once as a ghost; [count] contacts would go in. */
+    data class PhoneBookOffer(val count: Int) : TodayCard {
+        override val key = OFFER_KEY
+    }
+
+    /**
+     * PLAN 9 A1 Moment: the offer taken – the same card (same key, so the surface stays) counts
+     * the first fill live, ticks when [done] and then goes.
+     */
+    data class PhoneBookLive(val count: Int, val total: Int, val done: Boolean) : TodayCard {
         override val key = OFFER_KEY
     }
 

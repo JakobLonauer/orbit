@@ -7,9 +7,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +23,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.focus.onFocusChanged
+import io.github.thelony97.orbit.core.designsystem.Motion
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -126,8 +132,39 @@ internal fun mergeIncoming(base: Contact, incoming: Contact): Contact {
     )
 }
 
-/** Title suggestions (PLAN 9 A10) – Austrian forms, female forms included. */
-private val titleSuggestions = listOf("Mag.a", "Mag.", "Dr.in", "Dr.", "DI", "Ing.", "BEd", "MSc")
+/** Title suggestions (PLAN 9 A10) – the Austrian forms that fit Frau/Herr, both without a choice. */
+private fun titleOffers(salutation: String): List<String> = when (salutation) {
+    "Frau" -> listOf("Mag.a", "Dr.in", "DIin", "Ing.in", "Prof.in", "BEd", "BSc", "MSc")
+    "Herr" -> listOf("Mag.", "Dr.", "DI", "Ing.", "Prof.", "BEd", "BSc", "MSc")
+    else -> listOf("Mag.a", "Mag.", "Dr.in", "Dr.", "DI", "Ing.", "BEd", "MSc")
+}
+
+/**
+ * Handed-over values light up teal at their rim once (PLAN 9 A2 Moment) – one after the other,
+ * 40 ms apart, in 150 ms, then they settle in 350 ms.
+ */
+@Composable
+private fun rememberLit(fresh: Boolean, order: Int): (() -> Float)? {
+    val a = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(fresh) {
+        if (!fresh) return@LaunchedEffect
+        kotlinx.coroutines.delay(Motion.MEDIUM_MS + 40L * order)
+        a.animateTo(1f, androidx.compose.animation.core.tween(Motion.FAST_MS, easing = Motion.Standard))
+        kotlinx.coroutines.delay(700)
+        a.animateTo(0f, androidx.compose.animation.core.tween(Motion.EMPHASIZED_MS, easing = Motion.Standard))
+    }
+    return if (fresh) ({ a.value }) else null
+}
+
+/** The small × that clears a value (same everywhere on the page). */
+@Composable
+private fun ClearButton(onClick: () -> Unit) {
+    Icon(
+        Icons.Rounded.Close, "Entfernen",
+        tint = Space.TextFaint,
+        modifier = Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onClick).padding(7.dp),
+    )
+}
 
 /** Two free-text halves (link title + address, field label + value) of one editable row. */
 private class PairRow(val id: String, first: String, second: String) {
@@ -152,10 +189,33 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             else -> Contact(id = newId())
         }
     }
-    /** Values that came from outside light up once (PLAN 9 A2). */
+    /** Values that came from outside light up once (PLAN 9 A2) – for an existing contact only what joined it. */
     val freshValues = remember(prefill) {
-        incoming?.let { inc -> (inc.phones + inc.emails).map { it.value.trim() }.filter { it.isNotEmpty() }.toSet() }.orEmpty()
+        val before = id?.let { idx.contacts[it] }
+        incoming?.let { inc ->
+            (inc.phones + inc.emails).map { it.value.trim() }.filter { v ->
+                v.isNotEmpty() && before?.let { b -> (b.phones + b.emails).none { it.value.trim() == v } } != false
+            }.toSet()
+        }.orEmpty()
     }
+    val freshFields: Set<String> = remember(prefill) {
+        val before = id?.let { idx.contacts[it] } ?: Contact(id = "")
+        if (incoming == null) emptySet() else buildSet {
+            fun take(key: String, now: String, was: String) { if (now.isNotBlank() && now != was) add(key) }
+            take("first", original.firstName, before.firstName)
+            take("last", original.lastName, before.lastName)
+            take("title", original.title, before.title)
+            take("nickname", original.nickname, before.nickname)
+            take("company", original.company, before.company)
+            take("position", original.position, before.position)
+            take("address", original.address, before.address)
+            take("notes", original.notes, before.notes)
+        }
+    }
+    // The order they light up in: top to bottom as the page shows them.
+    val litOrder = listOf("first", "last", "company", "position", "title", "nickname", "phones", "emails", "address", "notes")
+    @Composable fun lit(key: String) = rememberLit(key in freshFields, litOrder.indexOf(key))
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     val isNew = id == null
     // The page edits a copy taken now; an undo tapped afterwards would be overwritten by Save.
     androidx.compose.runtime.LaunchedEffect(Unit) { io.github.thelony97.orbit.ui.components.Undo.clear() }
@@ -164,6 +224,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     val last = remember { TextFieldState(original.lastName) }
     // PLAN 9 A10: Titel, Rufname, Anrede and Du/Sie.
     val titleField = remember { TextFieldState(original.title) }
+    var titleFocused by remember { mutableStateOf(false) }
     val nickname = remember { TextFieldState(original.nickname) }
     var salutation by remember { mutableStateOf(original.salutation) }
     var formal by remember { mutableStateOf(original.greeting?.formal == true) }
@@ -372,11 +433,11 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (isOrg) {
-                            SpaceField(company, "", placeholder = "Name (z. B. Hausarztpraxis Dr. Huber)", keyboardOptions = caps, singleLine = false)
-                            SpaceField(position, "", placeholder = "Abteilung / Ansprechpartner", keyboardOptions = caps)
+                            SpaceField(company, "", placeholder = "Name (z. B. Hausarztpraxis Dr. Huber)", keyboardOptions = caps, singleLine = false, lit = lit("company"))
+                            SpaceField(position, "", placeholder = "Abteilung / Ansprechpartner", keyboardOptions = caps, lit = lit("position"))
                         } else {
-                            SpaceField(first, "", placeholder = if (isMe) "Dein Name" else "Vorname", keyboardOptions = caps)
-                            SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps)
+                            SpaceField(first, "", placeholder = if (isMe) "Dein Name" else "Vorname", keyboardOptions = caps, lit = lit("first"))
+                            SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps, lit = lit("last"))
                         }
                     }
                 }
@@ -407,35 +468,6 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     )
                 }
 
-                // PLAN 9 A10: Titel and Rufname; Anrede and Du/Sie for everyone but yourself.
-                if (!isOrg) {
-                    GlassCard {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SpaceField(titleField, "", Modifier.weight(0.42f), placeholder = "Titel")
-                            SpaceField(nickname, "", Modifier.weight(0.58f), placeholder = "Rufname", keyboardOptions = caps)
-                        }
-                        // Suggestions only while no title is entered (W5).
-                        if (titleField.text.isEmpty()) {
-                            Row(
-                                Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                titleSuggestions.forEach { t -> SpaceChip(t, false, { titleField.setTextAndPlaceCursorAtEnd(t) }) }
-                            }
-                        }
-                        if (!isMe) {
-                            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                listOf("Frau", "Herr").forEach { s ->
-                                    SpaceChip(s, salutation == s, { salutation = if (salutation == s) "" else s })
-                                }
-                                Spacer(Modifier.weight(1f))
-                                SpaceChip("Du", !formal, { formal = false }, accent = Space.Teal)
-                                SpaceChip("Sie", formal, { formal = true }, accent = Space.Teal)
-                            }
-                        }
-                    }
-                }
-
                 if (!isMe) {
                     GlassCard {
                         SectionTitle("Art")
@@ -463,19 +495,89 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     }
                 }
 
-                if (!isOrg) {
+                // PLAN 9 A10: Titel and Rufname; Anrede and Du/Sie for everyone but yourself. Below
+                // „Art“, so switching to an organisation never moves what is under the finger.
+                AnimatedVisibility(
+                    !isOrg,
+                    enter = expandVertically(androidx.compose.animation.core.tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) +
+                        fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM_MS)),
+                    exit = shrinkVertically(androidx.compose.animation.core.tween(Motion.FAST_MS)) +
+                        fadeOut(androidx.compose.animation.core.tween(Motion.FAST_MS)),
+                ) {
+                    GlassCard {
+                        SectionTitle("Anrede")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SpaceField(
+                                titleField, "Titel",
+                                Modifier.weight(0.42f).onFocusChanged { titleFocused = it.hasFocus },
+                                lit = lit("title"),
+                            )
+                            SpaceField(nickname, "Rufname", Modifier.weight(0.58f), keyboardOptions = caps, lit = lit("nickname"))
+                        }
+                        // While the title field is in use: the forms that fit Frau/Herr, narrowed by what is typed.
+                        val typed = titleField.text.toString().trim()
+                        val offers = titleOffers(salutation).filter { typed.isEmpty() || (it.startsWith(typed, ignoreCase = true) && !it.equals(typed, ignoreCase = true)) }
+                        AnimatedVisibility(
+                            titleFocused && offers.isNotEmpty(),
+                            enter = expandVertically(androidx.compose.animation.core.tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) +
+                                fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM_MS)),
+                            exit = shrinkVertically(androidx.compose.animation.core.tween(Motion.FAST_MS)) +
+                                fadeOut(androidx.compose.animation.core.tween(Motion.FAST_MS)),
+                        ) {
+                            FlowRow(
+                                Modifier.padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                offers.forEach { t ->
+                                    SpaceChip(t, false, {
+                                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                        titleField.setTextAndPlaceCursorAtEnd(t)
+                                    })
+                                }
+                            }
+                        }
+                        if (!isMe) {
+                            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                listOf("Frau", "Herr").forEach { s ->
+                                    SpaceChip(s, salutation == s, {
+                                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                        salutation = if (salutation == s) "" else s
+                                    })
+                                }
+                                Spacer(Modifier.weight(1f))
+                                SpaceChip("Du", !formal, {
+                                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                    formal = false
+                                })
+                                SpaceChip("Sie", formal, {
+                                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                    formal = true
+                                })
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    !isOrg,
+                    enter = expandVertically(androidx.compose.animation.core.tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) +
+                        fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM_MS)),
+                    exit = shrinkVertically(androidx.compose.animation.core.tween(Motion.FAST_MS)) +
+                        fadeOut(androidx.compose.animation.core.tween(Motion.FAST_MS)),
+                ) {
                     GlassCard {
                         SectionTitle("Arbeit / Schule")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SpaceField(company, "", Modifier.weight(1f), placeholder = "Firma / Schule / Uni", keyboardOptions = caps)
-                            SpaceField(position, "", Modifier.weight(1f), placeholder = "Rolle", keyboardOptions = caps)
+                            SpaceField(company, "", Modifier.weight(1f), placeholder = "Firma / Schule / Uni", keyboardOptions = caps, lit = if (isOrg) null else lit("company"))
+                            SpaceField(position, "", Modifier.weight(1f), placeholder = "Rolle", keyboardOptions = caps, lit = if (isOrg) null else lit("position"))
                         }
                     }
                 }
 
                 GlassCard {
                     SectionTitle("Telefon")
-                    ValueList(phones, Defaults.phoneLabels, "Nummer", KeyboardType.Phone, defaultPhone, { defaultPhone = it }, "Nummer hinzufügen")
+                    ValueList(phones, Defaults.phoneLabels, "Nummer", KeyboardType.Phone, defaultPhone, { defaultPhone = it }, "Nummer hinzufügen", litOrder.indexOf("phones"))
                     // Dual-SIM pro Kontakt (PLAN 3.12) – only on a phone with two SIMs (W5).
                     if (sims.size >= 2) {
                         Spacer(Modifier.size(8.dp))
@@ -512,17 +614,16 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                                     )
                                 },
                                 leading = Icons.Rounded.MusicNote,
-                                accent = Space.Teal,
                             )
-                            if (ringtone != null) SpaceChip("entfernen", false, { ringtone = null })
+                            if (ringtone != null) ClearButton { ringtone = null }
                         }
                     }
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("E-Mail")
-                    ValueList(emails, Defaults.emailLabels, "E-Mail", KeyboardType.Email, null, null, "E-Mail hinzufügen")
+                    ValueList(emails, Defaults.emailLabels, "E-Mail", KeyboardType.Email, null, null, "E-Mail hinzufügen", litOrder.indexOf("emails"))
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("Adresse")
-                    SpaceField(address, "", singleLine = false, placeholder = "Straße, PLZ Ort", keyboardOptions = caps)
+                    SpaceField(address, "", singleLine = false, placeholder = "Straße, PLZ Ort", keyboardOptions = caps, lit = lit("address"))
                     Spacer(Modifier.size(8.dp))
                     SectionTitle("Links")
                     PairList(
@@ -573,9 +674,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         SectionTitle("Geburtstag")
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SpaceChip(birthday?.let { Fmt.dayOfYear(it) } ?: "Datum wählen", birthday != null, { birthdayDialog = true }, leading = Icons.Rounded.Cake, accent = Space.Orange)
-                            if (birthday != null) {
-                                SpaceChip("entfernen", false, { birthday = null })
-                            }
+                            if (birthday != null) ClearButton { birthday = null }
                         }
                     }
                     if (!isMe) {
@@ -606,7 +705,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         SpaceField(howWeMet, "Wie kennengelernt", singleLine = false, keyboardOptions = caps)
                         Spacer(Modifier.size(8.dp))
                     }
-                    SpaceField(notes, if (isOrg) "" else "Notizen", singleLine = false, keyboardOptions = caps, placeholder = "")
+                    SpaceField(notes, if (isOrg) "" else "Notizen", singleLine = false, keyboardOptions = caps, placeholder = "", lit = lit("notes"))
                     if (!isMe) Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = Space.Orange, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
@@ -690,39 +789,26 @@ private fun ValueList(
     defaultIndex: Int?,
     onDefault: ((Int) -> Unit)?,
     addLabel: String,
+    /** Where these rows are in the order handed-over values light up (PLAN 9 A2). */
+    litOrder: Int = 0,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row -> androidx.compose.runtime.key(row) {
             var menu by remember { mutableStateOf(false) }
-            // Handed-over values light up teal once, then settle (PLAN 9 A2).
-            val glow = remember { androidx.compose.animation.core.Animatable(if (row.fresh) 1f else 0f) }
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                if (row.fresh) {
-                    kotlinx.coroutines.delay(300)
-                    glow.animateTo(0f, androidx.compose.animation.core.tween(900))
-                }
-            }
-            Row(
-                Modifier.drawBehind {
-                    if (glow.value > 0f) {
-                        drawRoundRect(
-                            Space.Teal.copy(alpha = 0.24f * glow.value),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
-                        )
-                    }
-                },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            // Handed-over values light up at the field's rim once, then settle (PLAN 9 A2).
+            val lit = rememberLit(row.fresh, litOrder + i)
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    SpaceChip(row.label, false, { menu = true })
+                    // One label column: every value starts at the same x.
+                    SpaceChip(row.label, false, { menu = true }, modifier = Modifier.widthIn(min = 84.dp), centered = true)
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Space.PanelHigh) {
                         labels.forEach { l ->
                             DropdownMenuItem(text = { Text(l) }, onClick = { row.label = l; menu = false })
                         }
                     }
                 }
-                Spacer(Modifier.width(6.dp))
-                SpaceField(row.state, "", Modifier.weight(1f), placeholder = hint, keyboardOptions = KeyboardOptions(keyboardType = keyboard))
+                Spacer(Modifier.width(8.dp))
+                SpaceField(row.state, "", Modifier.weight(1f), placeholder = hint, keyboardOptions = KeyboardOptions(keyboardType = keyboard), lit = lit)
                 if (onDefault != null && rows.size > 1) {
                     Icon(
                         if (defaultIndex == i) Icons.Rounded.Star else Icons.Rounded.StarBorder,

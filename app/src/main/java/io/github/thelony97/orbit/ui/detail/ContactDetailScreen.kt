@@ -143,6 +143,14 @@ import io.github.thelony97.orbit.ui.components.OrbButton
 import io.github.thelony97.orbit.ui.components.Pill
 import io.github.thelony97.orbit.ui.components.glow
 import androidx.compose.animation.animateContentSize
+import io.github.thelony97.orbit.core.designsystem.Motion
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.AnimatedVisibility
+import io.github.thelony97.orbit.actions.Messengers.Kind as MessengerKind
 import androidx.compose.animation.core.animateFloat
 import io.github.thelony97.orbit.ui.components.SectionCard
 import io.github.thelony97.orbit.ui.components.SectionTitle
@@ -237,6 +245,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     val c: Contact = contact
     val lastFirst = data.settings.sortByLastName
     val color = contactColor(c, idx)
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
     val todayDate = today()
 
     var menu by remember { mutableStateOf(false) }
@@ -579,18 +588,31 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     // W5: no SMS/WhatsApp for a landline (fixed rule, NumberKind).
                     if (number != null && texting) {
                         ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, textNumber) }, onLongClick = { chooser = Chooser.Sms })
+                        // PLAN 9 A7 / W5: a messenger orb only when the messenger knows the number (its own
+                        // row in the address book): WhatsApp first, else Signal. Without the contacts
+                        // permission Orbit cannot see that – then WhatsApp being installed decides.
+                        val main = messengers.firstOrNull { it.kind == MessengerKind.WA_CHAT } ?: messengers.firstOrNull { it.kind == MessengerKind.SIGNAL_CHAT }
+                        val blind = ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                        val waInstalled = remember {
+                            listOf("com.whatsapp", "com.whatsapp.w4b").any { pkg -> runCatching { ctx.packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.PackageInfoFlags.of(0)) }.isSuccess }
+                        }
+                        AnimatedVisibility(
+                            main != null || (blind && waInstalled),
+                            enter = fadeIn(tween(Motion.MEDIUM_MS)) + expandHorizontally(tween(Motion.MEDIUM_MS)),
+                            exit = fadeOut(tween(Motion.FAST_MS)) + shrinkHorizontally(tween(Motion.FAST_MS)),
+                        ) {
                         Box {
-                            val waChat = messengers.firstOrNull { it.kind == io.github.thelony97.orbit.actions.Messengers.Kind.WA_CHAT }
-                            val extra = messengers.filter { it.kind != io.github.thelony97.orbit.actions.Messengers.Kind.WA_CHAT }
+                            val signal = main?.kind == MessengerKind.SIGNAL_CHAT
+                            val extra = messengers.filter { it != main }
                             ActionOrb(
-                                Icons.Rounded.Forum, "WhatsApp", true,
+                                if (signal) Icons.Rounded.ChatBubble else Icons.Rounded.Forum, if (signal) "Signal" else "WhatsApp", true,
                                 onClick = {
-                                    // WhatsApp's own row opens the chat directly; gone (uninstalled) → wa.me as before.
-                                    if (waChat == null || !io.github.thelony97.orbit.actions.Messengers.open(ctx, waChat, c.id)) {
-                                        ContactActions.whatsapp(ctx, c, textNumber)
+                                    // The messenger's own row opens the chat directly; gone (uninstalled) → wa.me as before.
+                                    if (main == null || !io.github.thelony97.orbit.actions.Messengers.open(ctx, main, c.id)) {
+                                        if (!signal) ContactActions.whatsapp(ctx, c, textNumber)
                                     }
                                 },
-                                // Halten: WhatsApp-Anruf, Video, Signal – else the number choice as before.
+                                // Halten: Anruf, Video, the other messenger – else the number choice as before.
                                 onLongClick = { if (extra.isNotEmpty()) messengerMenu = true else chooser = Chooser.WhatsApp },
                             )
                             DropdownMenu(
@@ -605,8 +627,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                         leadingIcon = {
                                             Icon(
                                                 when (a.kind) {
-                                                    io.github.thelony97.orbit.actions.Messengers.Kind.WA_VIDEO -> Icons.Rounded.Videocam
-                                                    io.github.thelony97.orbit.actions.Messengers.Kind.WA_CALL, io.github.thelony97.orbit.actions.Messengers.Kind.SIGNAL_CALL -> Icons.Rounded.Call
+                                                    MessengerKind.WA_VIDEO -> Icons.Rounded.Videocam
+                                                    MessengerKind.WA_CALL, MessengerKind.SIGNAL_CALL -> Icons.Rounded.Call
+                                                    MessengerKind.SIGNAL_CHAT -> Icons.Rounded.ChatBubble
                                                     else -> Icons.Rounded.Forum
                                                 },
                                                 null,
@@ -624,6 +647,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                     DropdownMenuItem(text = { Text("Andere Nummer") }, onClick = { messengerMenu = false; chooser = Chooser.WhatsApp })
                                 }
                             }
+                        }
                         }
                     }
                     if (email != null) {
@@ -717,7 +741,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 value = f.value,
                                 trailing = { CopyButton(f.value, label) },
                                 // PLAN 9 B7: Halten = Diktier-Ansicht (big blocks, spelled letters).
-                                onLongClick = { dictate = label to f.value },
+                                onLongClick = {
+                                    haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold)
+                                    // Whose number it is, in the dictation's head: „Raiffeisen Linz · Kundennummer“.
+                                    dictate = (Logic.shortName(c) + " · " + label) to f.value
+                                },
                             )
                         }
                     }
@@ -1221,7 +1249,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
 
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
     qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }, withFields = true) }
-    if (shareSheet) ShareFieldsSheet(c, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
+    if (shareSheet) ShareFieldsSheet(c, color, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
     dictate?.let { (label, value) ->
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { dictate = null },

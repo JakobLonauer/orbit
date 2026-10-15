@@ -21,6 +21,26 @@ class DictationTest {
         assertEquals(emptyList<String>(), Dictation.blocks("  "))
     }
 
+    @Test fun sixSignsStayWhole() {
+        // SV-Nr.: the birth date part is read in one go.
+        assertEquals(listOf("1234", "170597"), Dictation.blocks("1234 170597"))
+        assertEquals(listOf("1234", "5678", "9"), Dictation.blocks("123456789"))
+    }
+
+    @Test fun signsStayVisible() {
+        assertEquals(
+            listOf(Dictation.Block("WS", '-'), Dictation.Block("55", '-'), Dictation.Block("1029", '-'), Dictation.Block("3")),
+            Dictation.pieces("WS-55-1029-3"),
+        )
+        assertEquals(listOf(Dictation.Block("RB", '-'), Dictation.Block("100"), Dictation.Block("2834")), Dictation.pieces("RB-100 2834"))
+        assertEquals(listOf(Dictation.Block("AB", '-'), Dictation.Block("12")), Dictation.pieces("AB -12"))
+        // A long piece keeps its sign on the last part only.
+        assertEquals(
+            listOf(Dictation.Block("1234"), Dictation.Block("5678", '/'), Dictation.Block("9")),
+            Dictation.pieces("12345678/9"),
+        )
+    }
+
     @Test fun spelledLettersOnly() {
         assertEquals(listOf('K' to "Konrad", 'A' to "Anton"), Dictation.spelled("K-1a"))
     }

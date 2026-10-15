@@ -284,7 +284,11 @@ private fun MainNavigation(data: OrbitData) {
                 io.github.thelony97.orbit.ui.list.CardImportScreen(data = data, nav = nav, drafts = Session.cardDrafts)
             }
             entry<Route.PhoneImportPick> { key ->
-                io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav, initialSelection = key.contactIds.toSet(), only = key.contactIds.toSet())
+                val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext
+                io.github.thelony97.orbit.ui.list.PhoneImportScreen(
+                    data = data, nav = nav, initialSelection = key.contactIds.toSet(), only = key.contactIds.toSet(),
+                    onTakenOver = { if (key.seenUpTo > 0) io.github.thelony97.orbit.phonebook.PhoneBookFresh.markSeen(appCtx, key.seenUpTo) },
+                )
             }
             entry<Route.Photos> { key ->
                 io.github.thelony97.orbit.ui.detail.PhotosScreen(contactId = key.contactId, data = data, idx = idx, nav = nav)

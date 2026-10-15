@@ -92,6 +92,14 @@ class ScreensV3ScreenshotTest {
         settings = Settings(onboardingDone = true, phoneBook = true),
     )
     private val idx = Index(data)
+    private val dataRing = data.copy(contacts = data.contacts.map { if (it.id == "bank") it.copy(ringtone = "content://media/internal/audio/media/12") else it })
+    private val dataLong = data.copy(
+        contacts = data.contacts + Contact(
+            "long", firstName = "Maria-Theresia", lastName = "Hohenberger-Wallnöfer", title = "Univ.-Prof.in Dr.in", nickname = "Resi",
+            salutation = "Frau", greeting = Greeting(formal = true), position = "Institutsvorständin", company = "Johannes Kepler Universität Linz",
+            phones = listOf(LabeledValue("Arbeit", "0732 2468 4711")),
+        ),
+    )
     private val nav = Nav(open = {}, back = {}, replace = {}, home = {})
 
     private fun shot(name: String, content: @Composable () -> Unit) {
@@ -108,18 +116,37 @@ class ScreensV3ScreenshotTest {
     /** PLAN 9 A10/A8: Titel, Rufname, Anrede, Du/Sie, Klingelton (phone book on). */
     @Test fun editPerson() = shot("v3_edit_person") { ContactEditScreen("anna", null, data, idx, nav) }
 
-    /** PLAN 9 A2: a number another app handed over lights up teal. */
+    /** PLAN 9 A2: what another app handed over lights up teal at the rim, one field after the other. */
     @Test fun editIntake() {
-        val draft = Contact("new", firstName = "Max", lastName = "Muster", phones = listOf(LabeledValue("Mobil", "0660 9998887")))
+        val draft = Contact(
+            "new", firstName = "Max", lastName = "Muster", company = "Muster Bau GmbH",
+            phones = listOf(LabeledValue("Mobil", "0660 9998887")), emails = listOf(LabeledValue("Arbeit", "max@musterbau.at")),
+        )
+        intake("v3_edit_intake", null, draft)
+    }
+
+    /** PLAN 9 A2 „Zu bestehendem“: only what joins Anna lights up. */
+    @Test fun editMerge() = intake("v3_edit_merge", "anna", Contact("x", phones = listOf(LabeledValue("Mobil", "0676 1112223"))))
+
+    private fun intake(name: String, id: String?, draft: Contact) {
         val json = OrbitRepository.json.encodeToString(Contact.serializer(), draft)
         compose.mainClock.autoAdvance = false
-        compose.setContent { OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { ContactEditScreen(null, json, data, idx, nav) } } }
-        compose.mainClock.advanceTimeBy(100)
-        compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_v3_edit_intake.png")
+        compose.setContent { OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { ContactEditScreen(id, json, data, idx, nav) } } }
+        // Mid-moment: the first fields lit, the later ones on their way.
+        compose.mainClock.advanceTimeBy(560)
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_$name.png")
     }
+
+    /** Organisation with an own ringtone; the Ich page without Anrede/Art. */
+    @Test fun editOrg() = shot("v3_edit_org") { ContactEditScreen("bank", null, dataRing, Index(dataRing), nav) }
+
+    @Test fun editMe() = shot("v3_edit_me") { ContactEditScreen("me", null, data, idx, nav) }
 
     /** PLAN 9 A10: the head with title and Rufname. */
     @Test fun detailTitled() = shot("v3_detail_titled") { ContactDetailScreen("anna", data, idx, nav) }
+
+    /** W6: a long title with a very long name. */
+    @Test fun detailLong() = shot("v3_detail_long") { ContactDetailScreen("long", dataLong, Index(dataLong), nav) }
 
     /** PLAN 9 A11: „Klingt ähnlich“ behind the exact hits. */
     @Test fun searchSoundsAlike() {
@@ -132,22 +159,56 @@ class ScreensV3ScreenshotTest {
     /** PLAN 9 C1/A0: the Heute row with ghosts. */
     @Test fun todayGhosts() = shot("v3_today_ghosts") {
         Column(Modifier.padding(top = 48.dp)) {
+            // As in the list (the second card runs off the edge, the row scrolls) …
             TodayRow(
                 listOf(
-                    TodayCard.PhoneBookOffer,
+                    TodayCard.PhoneBookOffer(214),
                     TodayCard.PhoneBookNew(listOf(PhoneBookFresh.Item(1, "Max Muster", 501), PhoneBookFresh.Item(2, "Eva Gruber", 502), PhoneBookFresh.Item(3, "Ali Kaya", 503))),
                 ),
                 nav,
             )
+            // … and the second one on its own.
+            TodayRow(
+                listOf(TodayCard.PhoneBookNew(listOf(PhoneBookFresh.Item(1, "Max Muster", 501), PhoneBookFresh.Item(2, "Eva Gruber", 502), PhoneBookFresh.Item(3, "Ali Kaya", 503)))),
+                nav,
+                Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+
+    /** PLAN 9 C1/A1: the taken offer counting live; a single new person. */
+    @Test fun todayLive() = shot("v3_today_live") {
+        Column(Modifier.padding(top = 48.dp)) {
+            TodayRow(listOf(TodayCard.PhoneBookLive(128, 214, done = false)), nav)
+            TodayRow(listOf(TodayCard.PhoneBookLive(214, 214, done = true)), nav, Modifier.padding(top = 16.dp))
+            TodayRow(listOf(TodayCard.PhoneBookNew(listOf(PhoneBookFresh.Item(1, "Max Muster", 501)))), nav, Modifier.padding(top = 16.dp))
         }
     }
 
     /** PLAN 9 A12: Weitergeben mit Feldwahl. */
-    @Test fun shareFields() = screen("v3_share_fields") { ShareFieldsSheet(anna, onDismiss = {}, onQr = {}) }
+    @Test fun shareFields() = screen("v3_share_fields") { ShareFieldsSheet(anna, Space.Violet, onDismiss = {}, onQr = {}) }
 
-    /** PLAN 9 A4: a marked number that belongs to an organisation's range. */
+    /** An organisation with its own fields. */
+    @Test fun shareFieldsOrg() = screen("v3_share_org") { ShareFieldsSheet(bank, Space.Blue, onDismiss = {}, onQr = {}) }
+
+    /** PLAN 9 A4: a marked number in an organisation's range – fact plus Durchwahl ghost. */
     @Test fun markedNumber() = screen("v3_marked_number") {
         ShareSheet(PendingShare(ShareIn.Item.Number("0732 6596 410"), emptyList()), data, idx, nav, onDone = {})
+    }
+
+    /** A number nobody has: „Neuer Kontakt“ is the main action. */
+    @Test fun markedUnknown() = screen("v3_marked_new") {
+        ShareSheet(PendingShare(ShareIn.Item.Number("0699 1234 5678"), emptyList()), data, idx, nav, onDone = {})
+    }
+
+    /** A marked mail address someone already has. */
+    @Test fun markedMail() = screen("v3_marked_mail") {
+        ShareSheet(PendingShare(ShareIn.Item.Email("anna.huber@brg.at"), emptyList()), data, idx, nav, onDone = {})
+    }
+
+    /** Text without a pattern: a note at someone. */
+    @Test fun markedText() = screen("v3_marked_text") {
+        ShareSheet(PendingShare(ShareIn.Item.Text("Rückruf wegen Therme, Termin Donnerstag"), emptyList()), data, idx, nav, onDone = {})
     }
 
     /** PLAN 9 A9: Nummern-Schublade. */
@@ -163,6 +224,12 @@ class ScreensV3ScreenshotTest {
         )
     }
 
+    /** Nothing of your own yet: one line, one action (W6). */
+    @Test fun numbersEmpty() = shot("v3_numbers_empty") { io.github.thelony97.orbit.notify.NumbersDrawer(onClose = {}, preview = emptyList()) }
+
     /** PLAN 9 B7/A9: Diktier-Ansicht. */
-    @Test fun dictation() = shot("v3_dictation") { DictationView("IBAN", "AT61 1904 3002 3457 3201", onClose = {}) }
+    @Test fun dictation() = shot("v3_dictation") { DictationView("Ich · IBAN", "AT61 1904 3002 3457 3201", onClose = {}) }
+
+    /** Letters and signs: the block's letters spelled, the dashes kept. */
+    @Test fun dictationLetters() = shot("v3_dictation_letters") { DictationView("Wiener Städtische · Polizze", "WS-55-1029-3", onClose = {}) }
 }
