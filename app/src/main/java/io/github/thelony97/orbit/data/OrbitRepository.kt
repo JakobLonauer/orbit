@@ -195,7 +195,14 @@ object OrbitRepository {
                 return@withLock false
             }
             withContext(Dispatchers.IO) {
-                store.save(lastSaved, snapshot)
+                val previous = lastSaved
+                store.save(previous, snapshot)
+                // PLAN 9 E23: what changed in the contacts, kept 30 days – never allowed to break a save.
+                runCatching {
+                    io.github.thelony97.orbit.store.ChangeLogFile.append(
+                        appContext, io.github.thelony97.orbit.core.domain.ChangeLog.diff(previous, snapshot, System.currentTimeMillis(), ::newId),
+                    )
+                }.onFailure { Log.w(TAG, "change log", it) }
                 // Small side file for the call screen; never allowed to break a save.
                 runCatching { CallerIndexFile.write(appContext, snapshot) }.onFailure { Log.w(TAG, "caller index", it) }
             }

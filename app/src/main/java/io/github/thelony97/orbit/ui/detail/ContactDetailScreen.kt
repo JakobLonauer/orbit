@@ -237,6 +237,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         ctx.getSystemService(android.telephony.TelephonyManager::class.java)?.simCountryIso?.takeIf { it.isNotBlank() }?.uppercase()
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
+    val changes = rememberChanges(contact.id)
     val mentions = remember(data.contacts) { io.github.thelony97.orbit.core.domain.Mentions.backlinks(contact.id, data.contacts).take(8) }
     val fieldGhosts = remember(contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts) {
         io.github.thelony97.orbit.core.domain.FieldGhosts.find(contact, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, data.settings.dismissedGhosts.toSet()).take(3)
@@ -1091,6 +1092,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     },
                 )
             }
+
+            // PLAN 9 E23: the last 30 days of changes, folded.
+            if (changes.isNotEmpty() && !c.isMe) item(key = "changes") { ChangesSection(c, changes) }
 
             // History
             // W5: no empty „Verlauf · 0“ – „Eintragen“ above is the way in. While mails are fetched
