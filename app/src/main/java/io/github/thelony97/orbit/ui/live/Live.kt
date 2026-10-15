@@ -29,6 +29,11 @@ sealed interface Live {
     data class Meeting(val phase: LiveMeeting.Phase, val contact: Contact) : Live {
         override val key = "meet:" + phase.meeting.id
     }
+
+    /** PLAN 9 D8: Ankommen – at a place with content. */
+    data class Here(val contact: Contact, val since: Long) : Live {
+        override val key = "here:" + contact.id
+    }
 }
 
 /** The one live thing right now, or null. */
@@ -37,6 +42,7 @@ fun rememberLive(data: OrbitData): Live? {
     val calls by CallSession.calls.collectAsState()
     val cards by CallSession.cards.collectAsState()
     val run by Persist.run.collectAsState()
+    val here by io.github.thelony97.orbit.live.Arrive.here.collectAsState()
     // A slow clock for the meeting minutes (the island never ticks faster than it shows).
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -53,8 +59,9 @@ fun rememberLive(data: OrbitData): Live? {
     }
     run?.let { r -> return Live.Redial(r.plan.name, r.tries, if (r.phase == Persist.Phase.PAUSE) r.nextAt else 0L) }
     val byId = remember(data.contacts) { data.contacts.associateBy { it.id } }
-    val phase = LiveMeeting.now(data.meetings, now) { id -> byId[id]?.let { it.deletedAt == null && !it.archived } == true } ?: return null
-    return byId[phase.meeting.contactId]?.let { Live.Meeting(phase, it) }
+    val phase = LiveMeeting.now(data.meetings, now) { id -> byId[id]?.let { it.deletedAt == null && !it.archived } == true }
+    phase?.let { p -> byId[p.meeting.contactId]?.let { return Live.Meeting(p, it) } }
+    return here?.let { h -> byId[h.contactId]?.takeIf { data.settings.arrive }?.let { Live.Here(it, h.since) } }
 }
 
 private const val TICK_MS = 20_000L

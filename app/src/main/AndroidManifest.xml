@@ -33,6 +33,7 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <!-- PLAN 9 B5 Dranbleiben: the planned call rings on the minute like an alarm clock. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- PLAN 9 B5: „Versuch 7 · 07:31“ as a live chip in the status bar (Android 16). -->
@@ -312,6 +313,9 @@
         <!-- PLAN 9 C2/C3: meetings as a live chip, „+10 Min“ from it. -->
         <receiver
             android:name=".live.MeetingLiveReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".live.ArriveReceiver"
             android:exported="false" />
         <activity
             android:name=".live.LateActivity"

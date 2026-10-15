@@ -144,6 +144,8 @@ class BootReceiver : BroadcastReceiver() {
             // PLAN 9 B5: alarms do not survive a restart – the planned calls set theirs again.
             io.github.thelony97.orbit.call.Persist.restore(context)
             io.github.thelony97.orbit.live.MeetingLive.schedule(context, OrbitRepository.snapshot())
+            // PLAN 9 D8: geofences are gone after a restart.
+            io.github.thelony97.orbit.live.Arrive.sync(context, OrbitRepository.ensureLoaded(), force = true)
         }
     }
 }

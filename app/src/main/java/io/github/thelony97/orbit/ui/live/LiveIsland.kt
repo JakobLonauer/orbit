@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -106,6 +107,7 @@ fun LiveIsland(live: Live?, nav: Nav, modifier: Modifier = Modifier) {
                 is Live.Call -> CallPill(item)
                 is Live.Redial -> RedialPill(item)
                 is Live.Meeting -> MeetingPill(item, nav)
+                is Live.Here -> HerePill(item, nav)
             }
         }
     }
@@ -261,5 +263,15 @@ private fun MeetingPill(item: Live.Meeting, nav: Nav) {
             step > 0 -> PillText("$name · +$step Min", Space.Orange)
             else -> PillText("$name · $time")
         }
+    }
+}
+
+/** PLAN 9 D8: at a place – its name and what there is („2 Themen · Ausweis“); tap opens it. */
+@Composable
+private fun HerePill(item: Live.Here, nav: Nav) {
+    Capsule(Space.Teal, onClick = { nav.open(Route.Detail(item.contact.id)) }) {
+        Dot(Icons.Rounded.Place, Space.Teal)
+        val what = io.github.thelony97.orbit.core.domain.Arrival.summary(item.contact)
+        PillText(Logic.shortName(item.contact) + if (what.isNotBlank()) " · $what" else "")
     }
 }

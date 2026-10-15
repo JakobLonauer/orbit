@@ -17,6 +17,7 @@ maplibre = "13.5.3"
 androidMail = "1.6.7"
 haze = "1.7.2"
 zxing = "3.5.3"
+playServicesLocation = "21.3.0"
 libphonenumberGeocoder = "3.36"
 browser = "1.8.0"
 junit = "4.13.2"
@@ -52,6 +53,7 @@ android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMai
 android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 libphonenumber-geocoder = { module = "com.googlecode.libphonenumber:geocoder", version.ref = "libphonenumberGeocoder" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

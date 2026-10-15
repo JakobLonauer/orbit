@@ -88,11 +88,13 @@ internal fun newContract() = Contract(java.util.UUID.randomUUID().toString(), st
 /** The line under a contract's name: the deadline, or how it ends. */
 internal fun contractLine(c: Contract, today: LocalDate): String {
     val t = Contracts.term(c, today) ?: return "Beginn fehlt"
+    val days = t.days
+    val deadline = t.deadline
     return when {
         t.over -> "beendet ${dmy(t.end)}"
         t.cancelled -> "gekündigt · endet ${dmy(t.end)}"
-        t.deadline != null && t.days != null -> Contracts.deadlineLine(t.days, t.deadline).replaceFirstChar { it.uppercase() } +
-            if (t.days > 1) " · noch ${t.days} T" else ""
+        deadline != null && days != null -> Contracts.deadlineLine(days, deadline).replaceFirstChar { it.uppercase() } +
+            if (days > 1) " · noch $days T" else ""
         else -> "läuft bis ${dmy(t.end)}"
     }
 }

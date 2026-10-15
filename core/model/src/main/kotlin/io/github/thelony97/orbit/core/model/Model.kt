@@ -448,6 +448,8 @@ data class Settings(
      * from the ear onto the table = speaker. Off until Jakob switches it on; never in battery saver.
      */
     val motionGestures: Boolean = false,
+    /** PLAN 9 D8: Ankommen – geofences at places with content; off until Jakob switches it on. */
+    val arrive: Boolean = false,
 ) {
     companion object {
         val DEFAULT_SMS_TEMPLATES = listOf(

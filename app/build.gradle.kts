@@ -144,6 +144,8 @@ dependencies {
     implementation(libs.android.activation)
     // QR code of a shared contact (PLAN 3.3); pure Java, encoder only.
     implementation(libs.zxing.core)
+    // PLAN 9 D8: Ankommen (geofences).
+    implementation(libs.play.services.location)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

@@ -105,6 +105,7 @@ import androidx.compose.material.icons.rounded.Euro
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
@@ -601,6 +602,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 )
             }
         }
+
+        // PLAN 9 D8: Ankommen – off until switched on; then location, then „immer“ (background).
+        if (area == "capture") item(key = "arrive") { ArriveSetting(s.arrive) }
 
         if (area == "capture") item(key = "calls") {
             SettingsGroup("") {
@@ -1177,3 +1181,39 @@ private fun ScreenListDialog(countries: Boolean, s: io.github.thelony97.orbit.co
 private fun countryName(code: String): String =
     runCatching { java.util.Locale.Builder().setRegion(code).build().getDisplayCountry(java.util.Locale.GERMAN) }.getOrNull()
         ?.takeIf { it.isNotBlank() && it != code } ?: code
+
+@Composable
+private fun ArriveSetting(on: Boolean) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    fun enable() {
+        OrbitRepository.editSettings { it.copy(arrive = true) }
+        io.github.thelony97.orbit.live.Arrive.sync(ctx, OrbitRepository.snapshot().let { d -> d.copy(settings = d.settings.copy(arrive = true)) }, force = true)
+    }
+    val background = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) enable()
+    }
+    val foreground = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) background.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    }
+    SettingsGroup("") {
+        SettingItem(
+            Icons.Rounded.Place, "Ankommen",
+            subtitle = if (on) "Orte mit Themen, Ausweis, WLAN" else null,
+            iconTint = Space.Teal,
+            trailing = {
+                SpaceSwitch(on) { v ->
+                    when {
+                        !v -> {
+                            OrbitRepository.editSettings { it.copy(arrive = false) }
+                            io.github.thelony97.orbit.live.Arrive.sync(ctx, OrbitRepository.snapshot().let { d -> d.copy(settings = d.settings.copy(arrive = false)) }, force = true)
+                        }
+                        io.github.thelony97.orbit.live.Arrive.allowed(ctx) -> enable()
+                        ctx.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ->
+                            background.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        else -> foreground.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                }
+            },
+        )
+    }
+}

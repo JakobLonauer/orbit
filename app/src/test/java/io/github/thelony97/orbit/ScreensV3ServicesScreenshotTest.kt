@@ -130,6 +130,35 @@ class ScreensV3ServicesScreenshotTest {
         }
     }
 
+    /** D6/D7/D8: Verliehen & Schulden with balance, the WLAN, and the island on arrival. */
+    @Test fun loansWifiArrive() {
+        val today = LocalDate.now()
+        val me = Contact("me", isMe = true, firstName = "Jakob", fields = listOf(CustomField("i", "IBAN", "AT61 1904 3002 3457 3201")))
+        val anna = Contact(
+            "anna", firstName = "Anna", lastName = "Huber",
+            loans = listOf(
+                io.github.thelony97.orbit.core.model.Loan("1", "Pizza", 2_550, toThem = true, since = today.minusDays(16).toString()),
+                io.github.thelony97.orbit.core.model.Loan("2", "Bohrmaschine", toThem = true, since = today.minusDays(70).toString()),
+                io.github.thelony97.orbit.core.model.Loan("3", "Kino", 1_200, toThem = false, since = today.minusDays(3).toString()),
+            ),
+        )
+        val praxis = org("gp", "Dr. Huber") {
+            it.copy(
+                wifi = listOf(io.github.thelony97.orbit.core.model.WifiNet("w", "Praxis-Gast", "huber2026")),
+                topics = listOf(io.github.thelony97.orbit.core.model.CheckItem("t", "Rezept Ibuprofen")),
+                fields = listOf(CustomField("e", "Patientennummer", "123")),
+            )
+        }
+        val d = data.copy(contacts = data.contacts.filterNot { it.isMe } + me + anna)
+        moment("v3d_loans_wifi", 600) {
+            Column(Modifier.padding(top = 48.dp, start = 16.dp, end = 16.dp)) {
+                io.github.thelony97.orbit.ui.live.LiveIsland(io.github.thelony97.orbit.ui.live.Live.Here(praxis, System.currentTimeMillis()), nav)
+                io.github.thelony97.orbit.ui.detail.LoanSection(anna, d, onEdit = {}, onPay = {}, Modifier.padding(top = 16.dp))
+                io.github.thelony97.orbit.ui.detail.WifiSection(praxis, onEdit = {}, onQr = {}, Modifier.padding(top = 16.dp))
+            }
+        }
+    }
+
     private companion object {
         const val AssignmentCustom = io.github.thelony97.orbit.core.model.AssignmentRoles.CUSTOM
     }

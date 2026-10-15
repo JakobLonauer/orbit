@@ -41,6 +41,8 @@ class OrbitApp : Application() {
                 if (it.settings.orbitCalendar) io.github.thelony97.orbit.phonebook.OrbitCalendar.request(ctx)
                 // PLAN 9 C2: meetings get their live chip alarms.
                 io.github.thelony97.orbit.live.MeetingLive.schedule(ctx, it)
+                // PLAN 9 D8: the fences follow the places (only when the set changed).
+                io.github.thelony97.orbit.live.Arrive.sync(ctx, it)
             }
         }
         Notifications.createChannels(this)
@@ -64,6 +66,8 @@ class OrbitApp : Application() {
             // PLAN 9 B5: planned Dranbleiben calls keep their alarms.
             io.github.thelony97.orbit.call.Persist.restore(this@OrbitApp)
             io.github.thelony97.orbit.live.MeetingLive.schedule(this@OrbitApp, OrbitRepository.snapshot())
+            io.github.thelony97.orbit.live.Arrive.load(this@OrbitApp)
+            io.github.thelony97.orbit.live.Arrive.sync(this@OrbitApp, OrbitRepository.snapshot())
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only
             // with an account at all.
             if (io.github.thelony97.orbit.mail.MailAccounts.accounts.value.isNotEmpty()) io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(this@OrbitApp)
