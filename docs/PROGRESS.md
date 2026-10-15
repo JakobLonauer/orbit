@@ -22,8 +22,8 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-A Telefonbuch (A0–A13) | **veröffentlicht als v1.0.232** (15.10. 19:35) | – |
 | 3.0-B Anruf-Autopilot (B1–B12) | **veröffentlicht** (15.10. spätabends) | – |
 | 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
-| 3.0-D Akten & Meine Dienste (D1–D8) | **fertig, Release folgt** | Tagsitzung 15.10. nachts |
-| 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
+| 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
+| 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | in Arbeit | Tagsitzung 15.10. nachts |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
