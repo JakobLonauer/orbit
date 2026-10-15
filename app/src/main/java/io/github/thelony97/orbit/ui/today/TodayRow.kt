@@ -129,7 +129,7 @@ private fun dismiss(key: String) =
     OrbitRepository.editSettings { it.copy(dismissedGhosts = (it.dismissedGhosts + key).distinct().takeLast(400)) }
 
 /** PLAN 9 C1: meetings, occasions, topics and „Heute vor N Jahren“ as cards. */
-private fun planCards(data: OrbitData): List<TodayCard> {
+internal fun planCards(data: OrbitData): List<TodayCard> {
     val s = data.settings
     val todayDate = io.github.thelony97.orbit.domain.today()
     // „Erledigt“ of earlier days goes from the list by itself (the keys carry their day).
@@ -514,24 +514,9 @@ private fun PlanCard(card: TodayCard.Plan, onOpen: () -> Unit, onDone: () -> Uni
 
 /** Title, line and border colour of a day's item (light code: orange = Anlass/Frist, person colour otherwise). */
 private fun planText(card: TodayCard.Plan, name: String, person: Color): Triple<String, String?, Color> {
-    return when (val item = card.item) {
-        is io.github.thelony97.orbit.core.domain.TodayPlan.Meet ->
-            Triple(io.github.thelony97.orbit.util.Fmt.time(item.start) + " · " + name, item.place.ifBlank { null }, person)
-        is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion -> {
-            val birthday = item.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY
-            val label = if (item.kind == io.github.thelony97.orbit.core.model.OccasionKind.CUSTOM) item.label.ifBlank { "Anlass" }
-            else io.github.thelony97.orbit.core.domain.ReminderPlan.label(item.kind)
-            val names = listOfNotNull(name, card.with?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) }).joinToString(" & ")
-            if (birthday) Triple("$name hat Geburtstag", item.turning?.takeIf { it > 0 }?.let { "wird $it" }, Space.Orange)
-            else Triple((item.turning?.takeIf { it > 0 }?.let { "$it. " } ?: "") + label, names, Space.Orange)
-        }
-        is io.github.thelony97.orbit.core.domain.TodayPlan.Topic -> Triple(item.text, name, person)
-        is io.github.thelony97.orbit.core.domain.TodayPlan.YearsAgo -> Triple(
-            if (item.years == 1) "Heute vor einem Jahr" else "Heute vor ${item.years} Jahren",
-            listOf(card.kindName, name, item.note).filter { it.isNotBlank() }.joinToString(" · "),
-            person,
-        )
-    }
+    val (title, line) = planLines(card, name)
+    val accent = if (card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion) Space.Orange else person
+    return Triple(title, line, accent)
 }
 
 /** A Dranbleiben planned for today (teal: it will run by itself). */

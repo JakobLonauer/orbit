@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- PLAN 9 C3 „Spät dran“: „Bin ca. 10 Min später da“ goes out by itself once Jakob allows it. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -303,6 +305,18 @@
             android:name=".call.PersistReceiver"
             android:exported="false" />
 
+        <!-- PLAN 9 C2/C3: meetings as a live chip, „+10 Min“ from it. -->
+        <receiver
+            android:name=".live.MeetingLiveReceiver"
+            android:exported="false" />
+        <activity
+            android:name=".live.LateActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Orbit.Invisible" />
+
         <activity
             android:name=".notify.CongratulateActivity"
             android:exported="false"
@@ -374,6 +388,19 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/links_widget_info" />
+        </receiver>
+
+        <!-- Heute (PLAN 9 C1): the row of the app as a widget. -->
+        <receiver
+            android:name=".widget.TodayWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
         </receiver>
 
         <!-- Favoriten (PLAN 3.14). -->

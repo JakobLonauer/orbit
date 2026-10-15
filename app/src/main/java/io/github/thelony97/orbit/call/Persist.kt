@@ -124,6 +124,9 @@ object Persist {
         _planned.value = sorted
     }
 
+    /** The planned calls from the file (a widget in a fresh process has no [planned] yet). */
+    fun all(ctx: Context): List<Plan> = read(ctx).sortedBy { it.at }
+
     fun encode(plan: Plan): String = json.encodeToString(Plan.serializer(), plan)
 
     fun decode(text: String?): Plan? = text?.let { runCatching { json.decodeFromString(Plan.serializer(), it) }.getOrNull() }

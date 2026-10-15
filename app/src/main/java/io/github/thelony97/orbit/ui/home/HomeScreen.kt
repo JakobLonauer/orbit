@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -139,12 +140,17 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
     Box(Modifier.fillMaxSize().onGloballyPositioned { overlayOrigin = it.positionInRoot() }) {
         // The whole opaque space (stars + content) is the glass source; the bar is a sibling
         // outside it, so it never blurs itself and transparent rows never punch holes.
+        // PLAN 9 C2: the Live-Insel sits above the tab, the content makes room for it.
+        val live = io.github.thelony97.orbit.ui.live.rememberLive(data)
+        val islandSpace by androidx.compose.animation.core.animateDpAsState(
+            if (live != null) 44.dp else 0.dp, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized), label = "island",
+        )
         SpaceBackground(Modifier.glassSource(glass).nestedScroll(parallax), camera = camera, nebula = { nebula }) {
             AnimatedContent(
                 targetState = current,
                 transitionSpec = { fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.FAST_MS)) },
                 label = "tab",
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(top = islandSpace),
             ) { shown ->
                 saved.SaveableStateProvider(shown) {
                     when (ids[shown]) {
@@ -177,6 +183,10 @@ fun HomeScreen(data: OrbitData, idx: Index, nav: Nav, tab: Int, onTab: (Int) -> 
                 onPlanetAt = { planetTarget = it },
             )
         }
+        io.github.thelony97.orbit.ui.live.LiveIsland(
+            live, nav,
+            Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 4.dp),
+        )
         // Only flips once (true → false); the per-frame progress is read while drawing.
         val introRunning by remember { androidx.compose.runtime.derivedStateOf { intro.value < 1f } }
         if (introRunning) StartMoment({ intro.value }, { planetTarget - overlayOrigin })

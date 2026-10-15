@@ -53,3 +53,23 @@ sealed interface TodayCard {
         const val OFFER_KEY = io.github.thelony97.orbit.phonebook.PhoneBookSync.OFFER_KEY
     }
 }
+
+/** Title and line of a day's item – the same words in the Heute row and the widget (PLAN 9 C1). */
+internal fun planLines(card: TodayCard.Plan, name: String): Pair<String, String?> = when (val item = card.item) {
+    is io.github.thelony97.orbit.core.domain.TodayPlan.Meet ->
+        io.github.thelony97.orbit.util.Fmt.time(item.start) + " · " + name to item.place.ifBlank { null }
+    is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion -> {
+        val label = if (item.kind == io.github.thelony97.orbit.core.model.OccasionKind.CUSTOM) item.label.ifBlank { "Anlass" }
+        else io.github.thelony97.orbit.core.domain.ReminderPlan.label(item.kind)
+        val names = listOfNotNull(name, card.with?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) }).joinToString(" & ")
+        if (item.kind == io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY) {
+            "$name hat Geburtstag" to item.turning?.takeIf { it > 0 }?.let { "wird $it" }
+        } else {
+            (item.turning?.takeIf { it > 0 }?.let { "$it. " } ?: "") + label to names
+        }
+    }
+    is io.github.thelony97.orbit.core.domain.TodayPlan.Topic -> item.text to name
+    is io.github.thelony97.orbit.core.domain.TodayPlan.YearsAgo ->
+        (if (item.years == 1) "Heute vor einem Jahr" else "Heute vor ${item.years} Jahren") to
+            listOf(card.kindName, name, item.note).filter { it.isNotBlank() }.joinToString(" · ")
+}

@@ -136,6 +136,7 @@ class BootReceiver : BroadcastReceiver() {
             Backups.schedule(context)
             // PLAN 9 B5: alarms do not survive a restart – the planned calls set theirs again.
             io.github.thelony97.orbit.call.Persist.restore(context)
+            io.github.thelony97.orbit.live.MeetingLive.schedule(context, OrbitRepository.snapshot())
         }
     }
 }

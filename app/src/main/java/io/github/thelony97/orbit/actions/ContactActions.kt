@@ -93,6 +93,27 @@ object ContactActions {
         }
     }
 
+    /**
+     * PLAN 9 C3 „Spät dran“: [text] to [c] – straight as an SMS when Jakob allowed Orbit to send
+     * them, otherwise WhatsApp (or the SMS app) prepared with it. True when it went out by itself.
+     */
+    @android.annotation.SuppressLint("MissingPermission")
+    fun late(ctx: Context, c: Contact, text: String): Boolean {
+        val mobile = c.phones.firstOrNull { it.value.isNotBlank() && io.github.thelony97.orbit.core.domain.NumberInfo.of(it.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE }?.value
+        val canSend = ctx.checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+        if (canSend && mobile != null) {
+            val sent = runCatching {
+                ctx.getSystemService(android.telephony.SmsManager::class.java).sendTextMessage(mobile, null, text, null, null)
+            }.isSuccess
+            if (sent) {
+                log(c.id, TypeIds.MESSAGE, text)
+                return true
+            }
+        }
+        congratulate(ctx, c, text)
+        return false
+    }
+
     fun email(ctx: Context, c: Contact, address: String?) {
         val target = address ?: c.emails.firstOrNull { it.value.isNotBlank() }?.value
             ?: return toast(ctx, "Keine E-Mail hinterlegt")
