@@ -37,6 +37,9 @@
   - Notification-IDs: 1000–1011 sind vergeben (Persist 1008/1010, Fristen 1009, Ankommen 1011) – vor neuer ID greppen.
   - Verlauf-Einträge liegen als JSON in SQLite → neue optionale Felder an HistoryEntry brauchen keine DB-Migration; fehlende Builtin-Eintragsarten ergänzt OrbitRepository beim Laden.
   - Heredocs in Bash fressen `\\` → Kotlin-Strings mit Backslash per Python/Write-Tool schreiben.
+- Nacht 16.10. (Nachtsitzung orbit-79): Tagsitzung arbeitete parallel an 3.0-E (Commits alle ~10 min) → nicht die Stufe angefasst, sondern Code-Review-Subagent über main..dev laufen lassen und NUR dessen Funde als eigene fix-Commits gepusht (rebase vor Push). Funde-Muster 3.0-E: Zusammenführen vergisst neue Contact-Felder (bei jedem neuen Feld Twins.merged + Test erweitern!), „Zurück“/Undo schreibt ganze Alt-Stände zurück (nur Feld + nur wenn noch neuer Wert), neue Dateiarten (audio) nicht in Mutations.files → fehlen im Backup, PendingIntent-Requestcode-Hash 0xFFF kollidiert → Daten-URI setzen, pointerInput(id) + veraltete Karte → rememberUpdatedState.
+- !! Python-Ersetzen mit s.index(A)…s.index(B): B kam später als gedacht → zwei Composables gelöscht. Immer `git diff --stat` direkt danach prüfen (Zeilenbilanz plausibel?) und `assert s.count(old)==1` nutzen.
+- Delegierte Properties (`val x by produceState`) sind nicht smart-castbar → `val shown = x; if (shown != null)`.
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.
