@@ -19,13 +19,25 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 
 | Stufe | Status | Wer arbeitet daran |
 |---|---|---|
-| 3.0-A Telefonbuch (A0–A13) | in Arbeit | Tagsitzung 15.10. |
-| 3.0-B Anruf-Autopilot (B1–B12) | offen | – |
+| 3.0-A Telefonbuch (A0–A13) | fertig, Release 15.10. abends (siehe unten) | – |
+| 3.0-B Anruf-Autopilot (B1–B12) | in Arbeit | Tagsitzung 15.10. |
 | 3.0-C Heute & Live (C1–C5) | offen | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | offen | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 15.10.2026 abends (Tagsitzung) – 3.0-A fertig
+
+- **3.0-A Telefonbuch komplett (A0–A13)** auf `dev`, CI grün: Geist-Bauteil, Telefonbuch-Konto „Orbit“ mit Differenz-Abgleich, „Neu im Telefonbuch“, Klingelton pro Person/Gruppe, WhatsApp/Signal direkt, Kontakt-Übergabe aus anderen Apps (INSERT/INSERT_OR_EDIT, vCard-Dateien, QR), Markieren → Orbit, Nummern-Schublade (Schnelleinstellung), Feldwahl beim Weitergeben, Personen im Teilen-Menü, Orbit-Zeilen in der System-Kontaktkarte, Ordner im Datei-Dialog, Orbit-Kalender, Titel/Anrede/Rufname, Kölner Phonetik.
+- **Prüfungen:** Code-Review-Subagent (9 Funde, alle behoben), Wow-Review-Subagent 2 Durchgänge (1.: 15 Funde inkl. 5 MUSS – behoben; 2.: 0 MUSS, SOLL-Funde behoben), zweiter Code-Review (0 HIGH, MEDIUM/LOW behoben), detekt ohne neue Funde.
+- **Wow-Gate 3.0-A (PLAN 1.5):**
+  - [x] 1. Momente umgesetzt: Geist (gestrichelter Rand wandert, Tipp füllt 250 ms + Bestätigen, Halten = Quelle + Verwerfen), A1 Angebot wird an Ort und Stelle zur Live-Karte (zählt hoch, Ring, Häkchen), A2 übergebene Felder leuchten am Rand (gestaffelt 40 ms), A12 Felder fliegen in die Karte, die in den Knopf schrumpft; Diktat mit Marker im Takt.
+  - [x] 2. Berührte Screens gegen W1–W9: Heute-Reihe, Bearbeiten (Anrede-Karte), Kontaktseite (Kopf, Messenger-Knopf), Suche („Klingt ähnlich“), Teilen-Sheet, Markieren-Sheet, Nummern-Schublade, Diktat, Einstellungen › Kontakte.
+  - [x] 3. Screenshots aller Zustände angesehen (20 Stück `screen_v3_*`: leer, eins, viele, lang, Organisation, Ich, Zusammenführen), Wow-Review-Subagent zweimal.
+  - [x] 4. Kein Ruckeln: Telefonbuch/Kalender/Messenger-Suche im Hintergrund, stabile Keys, Fotos vorab auf 480 px.
+  - [x] 5. Etwa ein Drittel der Zeit für Wow/Feinschliff (zwei Review-Runden).
+- Bekannt, bewusst offen (KANN): Diktat aus der Kontaktseite öffnet ohne Morph (Dialog-Fenster, eigener Übergang nicht möglich); Banner-Komponente (aus 1.x) noch mit 14/10 dp.
 
 ### 15.10.2026 nachmittags (Tagsitzung) – Start Version 3.0
 
