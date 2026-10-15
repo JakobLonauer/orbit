@@ -21,7 +21,7 @@ object Twins {
     private const val TAIL = 9
 
     fun pairs(contacts: List<Contact>, normalize: (String) -> String?, dismissed: Set<String> = emptySet()): List<Twin> {
-        val live = contacts.filter { it.deletedAt == null && !it.isMe }
+        val live = contacts.filter { it.deletedAt == null && !it.isMe && !it.archived }
         val out = LinkedHashMap<String, Twin>()
         fun add(x: String, y: String, why: Why) {
             if (x == y) return
@@ -139,6 +139,21 @@ object Twins {
             macros = join(keep.macros, gone.macros) { it.id },
             geo = keep.geo ?: gone.geo,
             greeting = keep.greeting ?: gone.greeting,
+            orgCategory = keep.orgCategory ?: gone.orgCategory,
+            trade = keep.trade.ifBlank { gone.trade },
+            ringtone = keep.ringtone ?: gone.ringtone,
+            simId = keep.simId ?: gone.simId,
+            hideNumber = keep.hideNumber || gone.hideNumber,
+            poster = keep.poster ?: gone.poster,
+            numberPrefixes = (keep.numberPrefixes + gone.numberPrefixes).distinct(),
+            emailDomains = (keep.emailDomains + gone.emailDomains).distinct(),
+            mapsUrl = keep.mapsUrl ?: gone.mapsUrl,
+            openingHours = keep.openingHours.ifBlank { gone.openingHours },
+            phoneHours = keep.phoneHours.ifBlank { gone.phoneHours },
+            vacationUntil = keep.vacationUntil ?: gone.vacationUntil,
+            vacationSubstitute = (keep.vacationSubstitute ?: gone.vacationSubstitute)?.takeIf { it != keep.id && it != gone.id },
+            dead = (keep.dead + gone.dead).distinct(),
+            giftBudgetCents = keep.giftBudgetCents ?: gone.giftBudgetCents,
             createdAt = listOf(keep.createdAt, gone.createdAt).filter { it > 0 }.minOrNull() ?: keep.createdAt,
             updatedAt = now,
             entries = join(keep.entries, gone.entries.map { it.copy(contactId = keep.id) }) { it.id }.sortedByDescending { it.at },

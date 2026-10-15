@@ -69,13 +69,16 @@ internal fun ChangesSection(c: Contact, changes: List<ChangeLog.Change>, modifie
                                 style = MaterialTheme.typography.bodySmall, color = Space.Text, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        SpaceChip("Zurück", false, {
-                            val before = c
-                            OrbitRepository.editContact(c.id) { ChangeLog.revert(it, ch) }
-                            Undo.offer(ChangeLog.label(ch.field) + " zurück") {
-                                OrbitRepository.editContact(c.id) { x -> before.copy(entries = x.entries, gallery = x.gallery) }
-                            }
-                        }, accent = Space.Violet)
+                        // Only while the field still holds this change's value (a later change wins).
+                        val revertible = remember(c, ch) { ChangeLog.canRevert(c, ch) }
+                        if (revertible) {
+                            SpaceChip("Zurück", false, {
+                                OrbitRepository.editContact(c.id) { ChangeLog.revert(it, ch) }
+                                Undo.offer(ChangeLog.label(ch.field) + " zurück") {
+                                    OrbitRepository.editContact(c.id) { x -> ChangeLog.redo(x, ch) }
+                                }
+                            }, accent = Space.Violet)
+                        }
                     }
                 }
             }

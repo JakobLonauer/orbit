@@ -53,11 +53,25 @@ object ChangeLog {
         }
     }
 
-    /** [c] with [ch]'s field back at its old value. */
-    fun revert(c: Contact, ch: Change): Contact {
+    private fun current(c: Contact, field: String): JsonElement = obj(c)[field] ?: JsonNull
+
+    private fun same(a: JsonElement, json: String): Boolean =
+        runCatching { a == DocJson.json.parseToJsonElement(json) }.getOrDefault(false)
+
+    /** Only while the field still holds [ch]'s new value – a later change is never overwritten. */
+    fun canRevert(c: Contact, ch: Change): Boolean = same(current(c, ch.field), ch.new)
+
+    /** [c] with [ch]'s field back at its old value; unchanged when the field moved on since. */
+    fun revert(c: Contact, ch: Change): Contact = put(c, ch.field, from = ch.new, to = ch.old)
+
+    /** Rückgängig of [revert]: the field to [ch]'s new value again, only if it still holds the old one. */
+    fun redo(c: Contact, ch: Change): Contact = put(c, ch.field, from = ch.old, to = ch.new)
+
+    private fun put(c: Contact, field: String, from: String, to: String): Contact {
         val o = obj(c).toMutableMap()
-        val old = DocJson.json.parseToJsonElement(ch.old)
-        if (old is JsonNull) o.remove(ch.field) else o[ch.field] = old
+        if (!same(o[field] ?: JsonNull, from)) return c
+        val value = DocJson.json.parseToJsonElement(to)
+        if (value is JsonNull) o.remove(field) else o[field] = value
         return DocJson.json.decodeFromJsonElement(Contact.serializer(), JsonObject(o)).copy(entries = c.entries, gallery = c.gallery)
     }
 

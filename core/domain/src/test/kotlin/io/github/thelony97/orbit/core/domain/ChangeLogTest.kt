@@ -29,6 +29,19 @@ class ChangeLogTest {
         assertTrue(noTopics.topics.isEmpty())
     }
 
+    @Test fun revertNeverOverwritesALaterChange() {
+        val a = Contact("a", phones = listOf(LabeledValue("", "A")))
+        val b = a.copy(phones = listOf(LabeledValue("", "B")))
+        val c = b.copy(phones = listOf(LabeledValue("", "C")))
+        val ab = ChangeLog.diff(OrbitDoc(contacts = listOf(a)), OrbitDoc(contacts = listOf(b)), 1, ids).single()
+        assertTrue(!ChangeLog.canRevert(c, ab))
+        assertEquals("C", ChangeLog.revert(c, ab).phones.single().value)
+        assertTrue(ChangeLog.canRevert(b, ab))
+        val back = ChangeLog.revert(b, ab)
+        assertEquals("A", back.phones.single().value)
+        assertEquals("B", ChangeLog.redo(back, ab).phones.single().value)
+    }
+
     @Test fun onlyUpdatedAtIsNoChange() {
         val a = Contact("a", firstName = "Anna")
         assertTrue(ChangeLog.diff(OrbitDoc(contacts = listOf(a)), OrbitDoc(contacts = listOf(a.copy(updatedAt = 9))), 1, ids).isEmpty())

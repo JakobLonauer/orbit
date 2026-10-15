@@ -105,9 +105,16 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         value = io.github.thelony97.orbit.phonebook.CalendarGhosts.load(ctx, data)
     }
     // PLAN 9 E5: Doppelsterne (fixed rules), at most three at a time.
-    val twins = remember(data.contacts, s.dismissedGhosts) {
-        val iso = io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
-        io.github.thelony97.orbit.core.domain.Twins.pairs(data.contacts, { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }, s.dismissedGhosts.toSet()).take(3)
+    // Off the main thread: libphonenumber over every number (PLAN 8.2); organisations only when shown (PLAN 9.1).
+    val twins by produceState(emptyList<io.github.thelony97.orbit.core.domain.Twins.Twin>(), data.contacts, s.dismissedGhosts, s.showOrgs) {
+        val contacts = data.contacts
+        val dismissed = s.dismissedGhosts.toSet()
+        val showOrgs = s.showOrgs
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val iso = io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
+            val visible = contacts.filter { io.github.thelony97.orbit.core.domain.Visibility.inLists(it, showOrgs) }
+            io.github.thelony97.orbit.core.domain.Twins.pairs(visible, { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }, dismissed).take(3)
+        }
     }
     val exportable = remember(data.contacts, s.phoneBookOrgs) { data.contacts.count { PhoneBook.exported(it, s.phoneBookOrgs) } }
     val planned by io.github.thelony97.orbit.call.Persist.planned.collectAsState()

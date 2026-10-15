@@ -71,4 +71,38 @@ class TwinsTest {
         assertEquals(1, out.relations.size)
         assertEquals("a", out.meetings.single().contactId)
     }
+
+    @Test fun mergeKeepsOrganisationFieldsOfTheOtherOne() {
+        val keep = Contact("k", kind = ContactKind.ORG, company = "Praxis Huber")
+        val gone = Contact(
+            "g", kind = ContactKind.ORG, company = "Praxis Huber", orgCategory = "doctor", trade = "Installateur",
+            numberPrefixes = listOf("+437322468"), emailDomains = listOf("huber.at"), openingHours = "Mo-Fr 08:00-12:00",
+            phoneHours = "Mo-Fr 07:30-11:00", vacationUntil = "2026-08-15", vacationSubstitute = "s", mapsUrl = "https://maps",
+            ringtone = "content://r", simId = "sim2", hideNumber = true, poster = "p.jpg", dead = listOf("+43660"), giftBudgetCents = 5000,
+        )
+        val m = Twins.merged(keep, gone, emptySet(), 1L)
+        assertEquals("doctor", m.orgCategory)
+        assertEquals("Installateur", m.trade)
+        assertEquals(listOf("+437322468"), m.numberPrefixes)
+        assertEquals(listOf("huber.at"), m.emailDomains)
+        assertEquals("Mo-Fr 08:00-12:00", m.openingHours)
+        assertEquals("Mo-Fr 07:30-11:00", m.phoneHours)
+        assertEquals("2026-08-15", m.vacationUntil)
+        assertEquals("s", m.vacationSubstitute)
+        assertEquals("https://maps", m.mapsUrl)
+        assertEquals("content://r", m.ringtone)
+        assertEquals("sim2", m.simId)
+        assertTrue(m.hideNumber)
+        assertEquals("p.jpg", m.poster)
+        assertEquals(listOf("+43660"), m.dead)
+        assertEquals(5000L, m.giftBudgetCents)
+    }
+
+    @Test fun archivedContactsAreNeverTwins() {
+        val list = listOf(
+            Contact("a", firstName = "Anna", phones = listOf(LabeledValue("", "0664 1234567"))),
+            Contact("b", firstName = "Anni", archived = true, phones = listOf(LabeledValue("", "+43 664 1234567"))),
+        )
+        assertTrue(Twins.pairs(list, norm).isEmpty())
+    }
 }
