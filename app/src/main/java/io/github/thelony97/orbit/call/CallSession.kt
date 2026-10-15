@@ -136,6 +136,12 @@ object CallSession {
     fun remove(call: Call, card: CallerCard?, quiet: Boolean = false) {
         val connectedAt = runCatching { call.details.connectTimeMillis }.getOrDefault(0L)
         _calls.value = _calls.value - call
+        // PLAN 9 E8: topics ticked in the call become „Besprochen: …“ in its Verlauf entry.
+        val talked = synchronized(discussed) { discussed.toList().also { discussed.clear() } }
+        if (talked.isNotEmpty() && connectedAt > 0 && card != null) {
+            val e = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis(), emptyList())
+            service?.let { runCatching { CallNoteWorker.enqueue(it, e, "Besprochen: " + talked.joinToString(", "), tag = "-topics") } }
+        }
         // The after-call screen only when the call screen is in front; otherwise the after-call
         // notification takes over (never a stale „Beendet“ screen for a later call).
         val shown = screenVisible && !quiet
@@ -150,6 +156,9 @@ object CallSession {
         }
         changed()
     }
+
+    /** PLAN 9 E8: topics ticked during the running call. */
+    val discussed = LinkedHashSet<String>()
 
     /** Text typed into the note line, kept here so leaving the screen never loses it. */
     @Volatile var draft: String = ""

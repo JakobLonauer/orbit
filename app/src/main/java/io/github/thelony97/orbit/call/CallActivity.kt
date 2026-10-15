@@ -412,6 +412,7 @@ private fun CallRoute(onDone: () -> Unit) {
         override fun toggleTopic(topic: String) {
             val on = topic !in done
             done = if (on) done + topic else done - topic
+            synchronized(CallSession.discussed) { if (on) CallSession.discussed += topic else CallSession.discussed -= topic }
             // Saved at once: closing, rotating or a new call never loses a tick.
             val id = ui.card?.contactId ?: return
             AppWork.launch { CallNotes.setTopic(id, topic, on) }
@@ -530,7 +531,7 @@ class CallNoteWorker(ctx: Context, params: androidx.work.WorkerParameters) : and
         private const val ENDED = "ended"
         private const val NOTE = "note"
 
-        fun enqueue(ctx: Context, e: CallSession.Ended, note: String) {
+        fun enqueue(ctx: Context, e: CallSession.Ended, note: String, tag: String = "") {
             val contactId = e.card?.contactId ?: return
             val request = androidx.work.OneTimeWorkRequestBuilder<CallNoteWorker>()
                 .setInitialDelay(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -538,7 +539,7 @@ class CallNoteWorker(ctx: Context, params: androidx.work.WorkerParameters) : and
                     androidx.work.workDataOf(CONTACT to contactId, CONNECTED to e.connectedAt, ENDED to e.endedAt, NOTE to note.trim()),
                 )
                 .build()
-            androidx.work.WorkManager.getInstance(ctx).enqueueUniqueWork("call-note-${e.connectedAt}", androidx.work.ExistingWorkPolicy.KEEP, request)
+            androidx.work.WorkManager.getInstance(ctx).enqueueUniqueWork("call-note-${e.connectedAt}$tag", androidx.work.ExistingWorkPolicy.KEEP, request)
         }
     }
 

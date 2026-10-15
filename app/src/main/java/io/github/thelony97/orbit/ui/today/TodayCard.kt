@@ -44,6 +44,16 @@ sealed interface TodayCard {
         override val key = item.key
     }
 
+    /** PLAN 9 E9: a finished appointment with someone, not yet in the Verlauf. */
+    data class CalendarMeet(val item: io.github.thelony97.orbit.phonebook.CalendarGhosts.Item, val contact: io.github.thelony97.orbit.data.Contact) : TodayCard {
+        override val key = item.key
+    }
+
+    /** PLAN 9 E5: a Doppelstern – two contacts that are one. */
+    data class Twin(val twin: io.github.thelony97.orbit.core.domain.Twins.Twin, val a: io.github.thelony97.orbit.data.Contact, val b: io.github.thelony97.orbit.data.Contact) : TodayCard {
+        override val key = io.github.thelony97.orbit.core.domain.Twins.key(twin.a, twin.b)
+    }
+
     /** PLAN 9 B5/C1: a Dranbleiben planned for today. */
     data class Persist(val plan: io.github.thelony97.orbit.call.Persist.Plan) : TodayCard {
         override val key = "persist:${plan.id}"

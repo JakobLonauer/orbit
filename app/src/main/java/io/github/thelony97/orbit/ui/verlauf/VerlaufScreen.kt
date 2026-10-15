@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CallMade
 import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
@@ -194,6 +195,21 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                         color = Space.Violet,
                         text = if (callbacks == 1) "1 Rückruf" else "$callbacks Rückrufe",
                         onClick = { nav.open(io.github.thelony97.orbit.ui.Route.Callbacks) },
+                        action = "Öffnen",
+                    )
+                }
+            }
+        }
+        // PLAN 9 E8: all open topics as a stack.
+        val topics = io.github.thelony97.orbit.ui.callbacks.openTopics(data).size
+        if (topics > 0 && query.isEmpty()) {
+            item(key = "topics") {
+                Box(Modifier.animateItem().padding(top = 8.dp)) {
+                    io.github.thelony97.orbit.ui.components.Banner(
+                        icon = Icons.Rounded.Checklist,
+                        color = Space.Violet,
+                        text = if (topics == 1) "1 offenes Thema" else "$topics offene Themen",
+                        onClick = { nav.open(io.github.thelony97.orbit.ui.Route.Topics) },
                         action = "Öffnen",
                     )
                 }

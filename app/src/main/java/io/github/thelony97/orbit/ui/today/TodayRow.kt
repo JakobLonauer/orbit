@@ -100,11 +100,20 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
     val callbacks by produceState(emptyList<io.github.thelony97.orbit.call.Callbacks.Item>(), tick, s.dismissedGhosts) {
         value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data)
     }
+    // PLAN 9 E9: appointments with someone that are over → „Treffen mit Anna“ ghosts.
+    val calendar by produceState(emptyList<io.github.thelony97.orbit.phonebook.CalendarGhosts.Item>(), tick, s.dismissedGhosts, data.contacts) {
+        value = io.github.thelony97.orbit.phonebook.CalendarGhosts.load(ctx, data)
+    }
+    // PLAN 9 E5: Doppelsterne (fixed rules), at most three at a time.
+    val twins = remember(data.contacts, s.dismissedGhosts) {
+        val iso = io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
+        io.github.thelony97.orbit.core.domain.Twins.pairs(data.contacts, { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }, s.dismissedGhosts.toSet()).take(3)
+    }
     val exportable = remember(data.contacts, s.phoneBookOrgs) { data.contacts.count { PhoneBook.exported(it, s.phoneBookOrgs) } }
     val planned by io.github.thelony97.orbit.call.Persist.planned.collectAsState()
     // PLAN 9 C1: the day's items by fixed rules (read again on every return to the app).
     val day = remember(data, tick) { planCards(data) }
-    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable, callbacks, planned, day) {
+    return remember(s.phoneBook, s.dismissedGhosts, fresh, s.onboardingDone, live, exportable, callbacks, planned, day, calendar, twins) {
         buildList {
             // Waiting people first – the one thing that is about someone else's time.
             if (callbacks.isNotEmpty()) add(TodayCard.Callbacks(callbacks.size, callbacks.take(2).map { it.title }, callbacks.any { it.warn }))
@@ -112,6 +121,9 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
             planned.filter { java.time.Instant.ofEpochMilli(it.at).atZone(io.github.thelony97.orbit.domain.zone()).toLocalDate() == todayDate }
                 .forEach { add(TodayCard.Persist(it)) }
             addAll(day)
+            val byId = data.contacts.associateBy { it.id }
+            calendar.forEach { g -> byId[g.contactId]?.let { add(TodayCard.CalendarMeet(g, it)) } }
+            twins.forEach { t -> val a = byId[t.a]; val b = byId[t.b]; if (a != null && b != null) add(TodayCard.Twin(t, a, b)) }
             val l = live
             // Offer and live share one key: the taken ghost becomes the live card in place.
             val offer = !s.phoneBook && TodayCard.OFFER_KEY !in s.dismissedGhosts
@@ -218,11 +230,43 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                         }
                         is TodayCard.PhoneBookNew -> NewInPhoneBook(c, nav)
                         is TodayCard.Callbacks -> CallbacksCard(c, onOpen = { nav.open(Route.Callbacks) })
+                        is TodayCard.CalendarMeet -> CalendarMeetGhost(c)
+                        is TodayCard.Twin -> io.github.thelony97.orbit.ui.list.TwinGhost(c.a, c.b, c.key, onDismiss = { dismiss(c.key) })
                         is TodayCard.Plan, is TodayCard.Persist -> Unit
                     }
                 }
             }
         }
+    }
+}
+
+/** PLAN 9 E9: „Treffen mit Anna“ from the calendar – tap logs it (at its time, with its length), hold puts it away. */
+@Composable
+private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
+    val g = card.item
+    val name = io.github.thelony97.orbit.domain.Logic.shortName(card.contact)
+    Ghost(
+        source = "Kalender · " + g.title,
+        onAccept = {
+            val e = io.github.thelony97.orbit.core.model.HistoryEntry(
+                io.github.thelony97.orbit.data.newId(), card.contact.id, io.github.thelony97.orbit.core.model.BuiltinTypes.MEET, g.begin,
+                note = g.title, durationSec = (g.end - g.begin) / 1_000,
+            )
+            OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.addEntry(d, card.contact.id, e) }
+            dismiss(g.key)
+            io.github.thelony97.orbit.ui.components.Undo.offer("Treffen eingetragen") {
+                OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.deleteEntry(d, card.contact.id, e.id) }
+                OrbitRepository.editSettings { it.copy(dismissedGhosts = it.dismissedGhosts - g.key) }
+            }
+        },
+        onDismiss = { dismiss(g.key) },
+        dismissAxis = null,
+    ) {
+        CardBody(
+            planet = { People(listOf(name to card.contact.id)) },
+            title = "Treffen mit $name",
+            line = io.github.thelony97.orbit.util.Fmt.whenShort(g.begin, System.currentTimeMillis()),
+        )
     }
 }
 

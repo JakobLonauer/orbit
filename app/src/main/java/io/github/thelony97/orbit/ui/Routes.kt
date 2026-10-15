@@ -32,6 +32,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object Callbacks : Route
 
+    /** Themen-Stapel (PLAN 9 E8). */
+    @Serializable
+    data object Topics : Route
+
     /** Netz (PLAN 9 C5): no longer a tab – opened from a contact's relations or the ICH card. */
     @Serializable
     data object Network : Route
