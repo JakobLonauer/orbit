@@ -1,0 +1,40 @@
+# detekt for Orbit (PLAN 8): default rules plus Compose rules, tuned to the project's style.
+# Report only – CI never fails on findings. Altbestand lives in baseline.xml.
+config:
+  # Unknown keys (detekt 2 renames) must never stop the report.
+  validation: false
+
+build:
+  maxIssues: -1
+
+style:
+  MaxLineLength:
+    maxLineLength: 200
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: false
+  ReturnCount:
+    active: false
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][A-Za-z0-9_]*'
+
+complexity:
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    active: false
+
+Compose:
+  ModifierMissing:
+    active: true
+  ViewModelForwarding:
+    active: false

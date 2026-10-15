@@ -62,6 +62,32 @@ jobs:
         run: |
           grep -E "^e: |error:|FAILURE|What went wrong" -A3 build.log | head -300 || true
 
+      # PLAN 8: detekt (with Compose rules) and Android Lint as reports only – never block a build or a release.
+      - name: Static analysis (report only)
+        if: success()
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          mkdir -p "$RUNNER_TEMP/analysis"
+          ./gradlew --no-daemon --continue :app:lintDebug -PorbitVersionCode=${{ github.run_number }} > "$RUNNER_TEMP/analysis/lint.log" 2>&1 || true
+          cp app/build/reports/lint/lint.txt "$RUNNER_TEMP/analysis/lint.txt" 2>/dev/null || true
+          DETEKT=2.0.0-alpha.6
+          curl -fsSL -o detekt.jar "https://github.com/detekt/detekt/releases/download/v$DETEKT/detekt-cli-$DETEKT-all.jar" || echo "detekt download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
+          curl -fsSL -o compose-rules.jar "https://repo1.maven.org/maven2/io/nlopez/compose/rules/detekt/0.6.6/detekt-0.6.6.jar" || echo "compose rules download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
+          if [ -f detekt.jar ]; then
+            PLUG=""; [ -f compose-rules.jar ] && PLUG="--plugins compose-rules.jar"
+            BASE=""; [ -f config/detekt/baseline.xml ] && BASE="--baseline config/detekt/baseline.xml"
+            java -jar detekt.jar --input app/src/main/java,core/model/src/main,core/domain/src/main,core/designsystem/src/main \
+              --build-upon-default-config --config config/detekt/detekt.yml $PLUG $BASE \
+              --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
+              >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+            # A baseline of today's findings, to commit as config/detekt/baseline.xml (only new findings count afterwards).
+            [ -z "$BASE" ] && java -jar detekt.jar --input app/src/main/java,core/model/src/main,core/domain/src/main,core/designsystem/src/main \
+              --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
+              --create-baseline --baseline "$RUNNER_TEMP/analysis/baseline.xml" >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+          fi
+          tail -c 20000 "$RUNNER_TEMP/analysis/detekt.log" > "$RUNNER_TEMP/analysis/detekt.log.tail" 2>/dev/null || true
+
       - name: Publish build log to ci-log branch
         if: always()
         env:
@@ -75,6 +101,10 @@ jobs:
           cp "$GITHUB_WORKSPACE"/app/build/outputs/roborazzi/*.png shots/ 2>/dev/null || true
           find "$GITHUB_WORKSPACE" -path "*/build/test-results/*" -name "TEST-*.xml" -exec cp {} tests/ \; 2>/dev/null || true
           grep -l "<failure" tests/*.xml > tests/failed.txt 2>/dev/null || true
+          mkdir -p analysis
+          cp "$RUNNER_TEMP"/analysis/lint.txt "$RUNNER_TEMP"/analysis/detekt.md "$RUNNER_TEMP"/analysis/detekt.xml "$RUNNER_TEMP"/analysis/baseline.xml analysis/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/analysis/detekt.log.tail analysis/detekt.log 2>/dev/null || true
+          tail -c 20000 "$RUNNER_TEMP"/analysis/lint.log > analysis/lint.log 2>/dev/null || true
           echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
           if [ "$GITHUB_REF_NAME" = "main" ]; then LOGBRANCH=ci-log; else LOGBRANCH="ci-log-$GITHUB_REF_NAME"; fi
           echo "branch $GITHUB_REF_NAME" >> meta.txt

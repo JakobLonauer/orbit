@@ -84,6 +84,9 @@ android {
     lint {
         checkReleaseBuilds = false
         abortOnError = false
+        // PLAN 8: a plain-text report for the CI log branch (ci-log-*/analysis/lint.txt).
+        textReport = true
+        textOutput = file("build/reports/lint/lint.txt")
     }
 
     packaging.resources {
