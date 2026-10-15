@@ -36,7 +36,8 @@ object MeetingLive {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
         val now = System.currentTimeMillis()
         data.meetings.filter { !it.resolved && it.end > now && it.start - now < HORIZON }.forEach { m ->
-            val at = maxOf(now + 1_000, m.start - LiveMeeting.SOON_MS)
+            // A few seconds inside the 30 minutes, so the alarm never fires just before them.
+            val at = maxOf(now + 1_000, m.start - LiveMeeting.SOON_MS + 5_000)
             val pi = PendingIntent.getBroadcast(
                 ctx, id(m.id), Intent(ctx, MeetingLiveReceiver::class.java).setAction(ACTION_SOON).putExtra(EXTRA_ID, m.id),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

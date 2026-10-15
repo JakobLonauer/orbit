@@ -21,11 +21,27 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 |---|---|---|
 | 3.0-A Telefonbuch (A0–A13) | **veröffentlicht als v1.0.232** (15.10. 19:35) | – |
 | 3.0-B Anruf-Autopilot (B1–B12) | **veröffentlicht** (15.10. spätabends) | – |
-| 3.0-C Heute & Live (C1–C5) | in Arbeit | Tagsitzung 15.10. abends |
-| 3.0-D Akten & Meine Dienste (D1–D8) | offen | – |
+| 3.0-C Heute & Live (C1–C5) | **veröffentlicht** (16.10. nachts) | – |
+| 3.0-D Akten & Meine Dienste (D1–D8) | in Arbeit | Tagsitzung 16.10. nachts |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 15.10.2026 nachts (Tagsitzung) – 3.0-B veröffentlicht, 3.0-C fertig
+
+- **3.0-B veröffentlicht als v1.0.240** (main fast-forward, Release-Lauf 240, Zertifikat a549f16d…d81f geprüft, Jakob informiert).
+- **3.0-C Heute & Live (C1–C5)** auf `dev`, CI grün:
+  - C1 Heute: Tagesplan nach festen Regeln (`core/domain/TodayPlan` + Tests): Treffen heute, Anlässe heute, Themen mit Datum (eine Woche nachgeholt), höchstens ein „Heute vor N Jahren“, dazu Rückrufe, Dranbleiben heute, Telefonbuch-Geister. Moment: gestaffeltes Einblenden (40 ms), Halten → „Erledigt“ zerfällt in Sternenstaub, Reihe schließt federnd; Rückgängig. Widget „Orbit – Heute“ (Start- und Sperrbildschirm). Fristen kommen mit D3, Duplikat-Geister mit E.
+  - C2 Live-Insel: Glaskapsel oben (Anruf > Dranbleiben > Treffen), wächst aus dem Punkt (250 ms), Inhalt morpht; Treffen als ruhiges Live-Update ab 30 Min vorher (Countdown, dann läuft bis Ende), nur wenn nichts Höheres läuft.
+  - C3 Spät dran: Minuten in der Insel nach unten ziehen, rastet bei +5/+10/+15, Loslassen → 5-s-Rückgängig-Ring → „Bin ca. 10 Min später da“ (SMS direkt mit Erlaubnis SEND_SMS, sonst WhatsApp/SMS vorbereitet); am Live-Chip als Knöpfe.
+  - C4 Eine Karte, drei Größen: gleiche Anatomie (Planet · Zahl · Aktion) in Insel/Chip, Heute-Karte/Widget und Akte; geteilte Übergänge Liste → Akte bestehen.
+  - C5 Leiste Kontakte · Verlauf · Anlässe · Karte; Netz als eigene Seite aus Beziehungen/ICH.
+- **Wow-Gate 3.0-C (PLAN 1.5):**
+  - [x] 1. Momente: Einblenden gestaffelt, Sternenstaub + federndes Schließen, Insel wächst aus dem Punkt, Ziehen mit Einrasten + Rückgängig-Ring.
+  - [x] 2. Berührte Screens gegen W1–W9: Kontaktliste (Heute, Insel), Leiste, Netz-Seite, Widget.
+  - [x] 3. Screenshots `screen_v3c_*` angesehen (Karten waren zu schmal → behoben).
+  - [x] 4. Kein Ruckeln: Uhr der Insel 20 s, Sekunden nur im Anruf-/Pausen-Chip.
+  - [x] 5. Feinschliff-Runde (Breite, detekt).
 
 ### 15.10.2026 spätabends (Tagsitzung) – 3.0-B fertig
 
