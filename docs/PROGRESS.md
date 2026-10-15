@@ -13,6 +13,25 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ## Stand
 
+### Version 3.0 – Arbeitsstand (immer aktuell halten)
+
+Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist“. Spezifikation: **PLAN Kapitel 9** (fasst 1.5 + 2.0 bereinigt + 3.0 zusammen). Releases je Stufe nach DoD (8.4) mit Jakobs stehender Zusage vom 15.10. 09:32.
+
+| Stufe | Status | Wer arbeitet daran |
+|---|---|---|
+| 3.0-A Telefonbuch (A0–A13) | in Arbeit | Tagsitzung 15.10. |
+| 3.0-B Anruf-Autopilot (B1–B12) | offen | – |
+| 3.0-C Heute & Live (C1–C5) | offen | – |
+| 3.0-D Akten & Meine Dienste (D1–D8) | offen | – |
+| 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
+
+**Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 15.10.2026 nachmittags (Tagsitzung) – Start Version 3.0
+
+- PLAN Kapitel 9 geschrieben (verbindlich): Grundsätze 3.0, verbindendes Prinzip (Eine Karte/drei Größen, Geist → Karte → Live → Beleg, eine Live-Insel, Licht-Code, Null-Text, Bediensprache, Haptik-Vokabular), Stufen A–E mit allen Funktionen, Entscheidungen 9.9 (offene Punkte aus dem Plan selbst entschieden: keine SMS-App-Rolle, Themen im Treffen = „Besprochen“, Event-Modus leicht und zuletzt, Herold per Webseite).
+- **Nächster Schritt:** 3.0-A in der Reihenfolge aus 9.8.
+
 ### 15.10.2026 morgens (Tagsitzung)
 
 - **R1–R7 veröffentlicht als v1.0.226** (15.10. 09:38, Jakobs Zusage 09:32 „wenn du fertig bist … alles als offiziellen Release freigeben“): `main` fast-forward auf `dev` (0d52816), Release-Lauf 226 per workflow_dispatch (oberster Commit war [skip ci]), APK-Zertifikat geprüft (SHA-256 a549f16d…d81f wie erwartet). Beim ersten Start wird Schema 2 → 3 umgestellt, vorher automatische Kopie `orbit.v2.bak.json`. Telefon-App-Rolle bleibt aus, bis Jakob sie selbst einschaltet. Gerätetest-Checkliste gilt jetzt für 1.0.226.
