@@ -72,19 +72,22 @@ private fun moveGift(card: GiftBoard.Card, to: GiftBoard.Stage) {
     val from = GiftBoard.stageOf(card.gift)
     if (from == to) return
     val c = card.contact
-    val moved = GiftBoard.move(card.gift, to)
+    val giftId = card.gift.id
     val entry = if (to == GiftBoard.Stage.GIVEN) {
         HistoryEntry(newId(), c.id, BuiltinTypes.GIFT, System.currentTimeMillis(), note = card.gift.text, amountCents = card.gift.priceCents)
     } else {
         null
     }
+    // Only the stage changes – on the gift as it is now (price or text may have changed since the card was drawn).
+    fun stage(d: OrbitData, s: GiftBoard.Stage) =
+        d.copy(contacts = d.contacts.map { o -> if (o.id != c.id) o else o.copy(gifts = o.gifts.map { if (it.id == giftId) GiftBoard.move(it, s) else it }) })
     OrbitRepository.edit { d ->
-        val x = d.copy(contacts = d.contacts.map { o -> if (o.id != c.id) o else o.copy(gifts = o.gifts.map { if (it.id == moved.id) moved else it }) })
+        val x = stage(d, to)
         if (entry != null) Mutations.addEntry(x, c.id, entry) else x
     }
     Undo.offer(to.label) {
         OrbitRepository.edit { d ->
-            val x = d.copy(contacts = d.contacts.map { o -> if (o.id != c.id) o else o.copy(gifts = o.gifts.map { if (it.id == moved.id) card.gift else it }) })
+            val x = stage(d, from)
             if (entry != null) Mutations.deleteEntry(x, c.id, entry.id) else x
         }
     }
@@ -162,6 +165,10 @@ private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, 
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val drag = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    // The gesture outlives recompositions (keyed by id) – it reads the card as it is now.
+    val current by androidx.compose.runtime.rememberUpdatedState(card)
+    val currentStage by androidx.compose.runtime.rememberUpdatedState(stage)
+    val currentColumn by androidx.compose.runtime.rememberUpdatedState(column)
     var lifted by remember { mutableStateOf(false) }
     val c = card.contact
     Column(
@@ -181,12 +188,12 @@ private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, 
                     onDragStart = { haptics.perform(Haptic.Tick); lifted = true; onLift(true) },
                     onDragEnd = {
                         val shift = (drag.value.x / (colWidthDp * density)).roundToInt()
-                        val target = GiftBoard.Stage.entries[(column + shift).coerceIn(0, GiftBoard.Stage.entries.lastIndex)]
+                        val target = GiftBoard.Stage.entries[(currentColumn + shift).coerceIn(0, GiftBoard.Stage.entries.lastIndex)]
                         lifted = false
                         onLift(false)
-                        if (target != stage) haptics.perform(Haptic.Confirm)
+                        if (target != currentStage) haptics.perform(Haptic.Confirm)
                         scope.launch {
-                            if (target != stage) moveGift(card, target)
+                            if (target != currentStage) moveGift(current, target)
                             drag.animateTo(Offset.Zero, Motion.snappy())
                         }
                     },

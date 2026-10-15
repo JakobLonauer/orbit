@@ -121,9 +121,14 @@ internal fun DocScan(contactId: String, onDone: () -> Unit) {
             if (shot == null) onDone()
         }
     }
+    // Once per scan – after a rotation or process death the result comes back to this launcher instead.
+    var launched by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        io.github.thelony97.orbit.security.AppLock.allowExternal()
-        camera.launch(target)
+        if (!launched) {
+            launched = true
+            io.github.thelony97.orbit.security.AppLock.allowExternal()
+            camera.launch(target)
+        }
     }
     shot?.let { bmp ->
         CornerEditor(bmp, onCancel = onDone, onSave = { corners ->

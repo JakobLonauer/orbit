@@ -57,8 +57,10 @@ object Scheduled {
 
     private fun id(planId: String) = ID_BASE + (planId.hashCode() and 0x0FFF)
 
+    // The plan id as data URI: two plans whose request codes collide never replace each other's alarm.
     private fun pending(ctx: Context, p: Plan) = PendingIntent.getBroadcast(
-        ctx, id(p.id), Intent(ctx, ScheduledReceiver::class.java).putExtra(EXTRA_ID, p.id),
+        ctx, id(p.id),
+        Intent(ctx, ScheduledReceiver::class.java).setData(android.net.Uri.parse("orbit://plan/" + p.id)).putExtra(EXTRA_ID, p.id),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
@@ -102,7 +104,7 @@ object Scheduled {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(PendingIntent.getActivity(ctx, id(p.id), open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-        runCatching { NotificationManagerCompat.from(ctx).notify(id(p.id), builder.build()) }
+        runCatching { NotificationManagerCompat.from(ctx).notify(p.id, id(p.id), builder.build()) }
     }
 }
 

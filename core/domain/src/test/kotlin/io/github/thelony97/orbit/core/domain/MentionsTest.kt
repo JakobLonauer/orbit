@@ -17,6 +17,12 @@ class MentionsTest {
         assertEquals(setOf("tom2"), Mentions.find("@Tom_Maier kommt", all))
     }
 
+    @Test fun archivedIsNeverMentionedNorMentioning() {
+        val archivedAnna = anna.copy(archived = true)
+        assertEquals(emptySet<String>(), Mentions.find("Gruß an @anna!", listOf(archivedAnna, tom, tom2)))
+        assertEquals(emptyList<Mentions.Backlink>(), Mentions.backlinks("anna", listOf(anna, tom.copy(archived = true), tom2)))
+    }
+
     @Test fun backlinks() {
         val b = Mentions.backlinks("anna", all).single()
         assertEquals("tom", b.fromId)

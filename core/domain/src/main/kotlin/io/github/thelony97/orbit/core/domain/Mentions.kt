@@ -15,7 +15,7 @@ object Mentions {
     /** Contact ids mentioned in [text]. */
     fun find(text: String, contacts: List<Contact>): Set<String> {
         if ('@' !in text) return emptySet()
-        val live = contacts.filter { it.deletedAt == null && !it.isMe }
+        val live = contacts.filter { it.deletedAt == null && !it.isMe && !it.archived }
         return AT.findAll(text).mapNotNull { m -> resolve(m.groupValues[1], live) }.toSet()
     }
 
@@ -28,7 +28,7 @@ object Mentions {
 
     /** Where [id] is mentioned: entry notes and the notes of other contacts, newest first. */
     fun backlinks(id: String, contacts: List<Contact>): List<Backlink> = contacts
-        .filter { it.id != id && it.deletedAt == null }
+        .filter { it.id != id && it.deletedAt == null && !it.archived }
         .flatMap { c ->
             val inEntries = c.entries.filter { e -> '@' in e.note && id in find(e.note, contacts) }.map { e -> Backlink(c.id, e.id, e.note, e.at) }
             val inNotes = listOf(c.notes, c.pinnedNote).filter { n -> '@' in n && id in find(n, contacts) }.map { Backlink(c.id, null, it, c.updatedAt) }

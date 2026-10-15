@@ -256,12 +256,13 @@ object OrbitLine {
 
     /** The longest run of words (up to three) that names exactly one contact. */
     private fun personOf(toks: List<Tok>, contacts: List<Contact>, chips: MutableList<Chip>): String? {
-        val live = contacts.filter { it.deletedAt == null && !it.isMe }
+        // Archived contacts are nowhere but the archive (PLAN 9.1) – never a chip, never a new entry.
+        val live = contacts.filter { it.deletedAt == null && !it.isMe && !it.archived }
         val runs = (3 downTo 1).asSequence().flatMap { len -> (0..toks.size - len).asSequence().map { toks.subList(it, it + len) } }
         val (run, one) = runs.filter { r -> r.none { it.used } }.firstNotNullOfOrNull { r ->
             val q = r.joinToString(" ") { it.f }
             val hits = live.filter { c -> namesOf(c).any { it == q } }
-            (hits.singleOrNull() ?: hits.filterNot { it.archived }.singleOrNull())?.let { r to it }
+            hits.singleOrNull()?.let { r to it }
         } ?: return null
         run.forEach { it.used = true }
         chips += Chip(Kind.PERSON, run.joinToString(" ") { it.raw })

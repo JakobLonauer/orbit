@@ -99,6 +99,8 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     var wheel by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf<VoiceRecorder?>(null) }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    // A planned SMS goes out by itself only with SEND_SMS – asked when it is planned, not at its time.
+    val smsLater = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { recording?.cancel() } }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         val t = pending ?: return@rememberLauncherForActivityResult
@@ -174,6 +176,8 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
             val ms = at.atZone(io.github.thelony97.orbit.domain.zone()).toInstant().toEpochMilli()
             io.github.thelony97.orbit.live.Scheduled.plan(ctx, io.github.thelony97.orbit.live.Scheduled.Plan(newId(), c.id, text.text.toString().trim(), ms, sms = mode == ReplyMode.SMS))
             text.clearText()
+            val granted = ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (mode == ReplyMode.SMS && !granted) smsLater.launch(android.Manifest.permission.SEND_SMS)
         }, onDismiss = { wheel = false })
     }
 }

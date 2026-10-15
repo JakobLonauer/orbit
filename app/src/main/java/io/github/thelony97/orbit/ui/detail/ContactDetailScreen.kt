@@ -238,9 +238,23 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
     val changes = rememberChanges(contact.id)
-    val mentions = remember(data.contacts) { io.github.thelony97.orbit.core.domain.Mentions.backlinks(contact.id, data.contacts).take(8) }
-    val fieldGhosts = remember(contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts) {
-        io.github.thelony97.orbit.core.domain.FieldGhosts.find(contact, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, data.settings.dismissedGhosts.toSet()).take(3)
+    // Both scan every note / the whole Verlauf – off the main thread (PLAN 8.2).
+    val mentions by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts) {
+        val id = contact.id
+        val all = data.contacts
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            io.github.thelony97.orbit.core.domain.Mentions.backlinks(id, all).take(8)
+        }
+    }
+    val fieldGhosts by androidx.compose.runtime.produceState(
+        emptyList<io.github.thelony97.orbit.core.domain.FieldGhosts.Ghost>(),
+        contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts,
+    ) {
+        val c = contact
+        val dismissed = data.settings.dismissedGhosts.toSet()
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            io.github.thelony97.orbit.core.domain.FieldGhosts.find(c, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, dismissed).take(3)
+        }
     }
     val landlines = remember(contact.phones, phoneIso) {
         contact.phones.associate { p ->
@@ -299,7 +313,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var payQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Loan?>(null) }
     var wifiEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
     var wifiQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
-    var scanning by remember { mutableStateOf(false) }
+    // Saveable: the camera app may rotate or the process may die while the picture is taken.
+    var scanning by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }

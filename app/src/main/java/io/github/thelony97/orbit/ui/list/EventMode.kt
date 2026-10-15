@@ -93,7 +93,7 @@ fun EventCaptureSheet(event: String, onDismiss: () -> Unit, modifier: Modifier =
     val scope = rememberCoroutineScope()
     val name = rememberTextFieldState()
     val sentence = rememberTextFieldState()
-    var photo by remember { mutableStateOf<String?>(null) }
+    var photo by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var saved by remember { mutableIntStateOf(0) }
     val target = remember {
         val dir = java.io.File(ctx.cacheDir, "camera").apply { mkdirs() }
@@ -137,8 +137,12 @@ fun EventCaptureSheet(event: String, onDismiss: () -> Unit, modifier: Modifier =
                 },
                 contentAlignment = Alignment.Center,
             ) {
-                val bmp = remember(photo) { photo?.let { android.graphics.BitmapFactory.decodeFile(OrbitRepository.photoFile(it).path) } }
-                if (bmp != null) Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                val bmp by androidx.compose.runtime.produceState<android.graphics.Bitmap?>(null, photo) {
+                    val p = photo
+                    value = p?.let { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { android.graphics.BitmapFactory.decodeFile(OrbitRepository.photoFile(it).path) } }
+                }
+                val shown = bmp
+                if (shown != null) Image(shown.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 else Icon(Icons.Rounded.PhotoCamera, "Foto", tint = Space.Orange, modifier = Modifier.size(32.dp))
             }
             SpaceField(name, "Name", placeholder = "Lena Maier")

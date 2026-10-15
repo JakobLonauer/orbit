@@ -28,6 +28,12 @@ class SmsSentReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra(CONTACT) ?: return
         val number = intent.getStringExtra(NUMBER) ?: return
+        // No network, flight mode or radio off say nothing about the number – those never mark it dead.
+        val offline = resultCode == android.telephony.SmsManager.RESULT_ERROR_NO_SERVICE ||
+            resultCode == android.telephony.SmsManager.RESULT_ERROR_RADIO_OFF ||
+            resultCode == android.telephony.SmsManager.RESULT_NETWORK_REJECT ||
+            resultCode == android.telephony.SmsManager.RESULT_NO_DEFAULT_SMS_APP
+        if (offline) return
         val failed = resultCode != Activity.RESULT_OK
         runAsync(context) {
             OrbitRepository.ensureLoaded()

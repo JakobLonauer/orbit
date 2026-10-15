@@ -50,13 +50,22 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
     val ctx = LocalContext.current
     val s = data.settings
     val counts = remember { listOf(AutoCount.SCREEN, AutoCount.NUDGE, AutoCount.BUSY_SMS).associateWith { AutoCount.get(ctx, it) } }
+    // The SMS goes out by itself and the appointment comes from the calendar – both asked when switched on.
+    val busyPermissions = arrayOf(android.Manifest.permission.SEND_SMS, android.Manifest.permission.READ_CALENDAR)
+    val askBusy = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result -> if (result.values.all { it }) OrbitRepository.editSettings { it.copy(autoBusySms = true) } }
+    fun setBusy(on: Boolean) {
+        val missing = busyPermissions.filter { ctx.checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (on && missing.isNotEmpty()) askBusy.launch(missing.toTypedArray()) else OrbitRepository.editSettings { it.copy(autoBusySms = on) }
+    }
     androidx.compose.foundation.layout.Column(modifier) {
     SettingsGroup("") {
         SettingItem(
             Icons.Rounded.EventBusy, "Verpasst im Termin → SMS",
             subtitle = "Rückrufzeit = Terminende" + ran(counts.getValue(AutoCount.BUSY_SMS)),
             iconTint = Space.Teal,
-            trailing = { SpaceSwitch(s.autoBusySms) { v -> OrbitRepository.editSettings { it.copy(autoBusySms = v) } } },
+            trailing = { SpaceSwitch(s.autoBusySms) { v -> setBusy(v) } },
         )
         if (s.autoBusySms && data.groups.isNotEmpty()) {
             Row(
