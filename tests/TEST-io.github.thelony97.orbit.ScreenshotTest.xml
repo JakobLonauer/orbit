@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreenshotTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:04:59.611Z" hostname="runnervm8k3b6" time="1.172">
+  <properties/>
+  <testcase name="sharedAvatarClosedAndOpen" classname="io.github.thelony97.orbit.ScreenshotTest" time="0.135"/>
+  <testcase name="glassOverContent" classname="io.github.thelony97.orbit.ScreenshotTest" time="0.383"/>
+  <testcase name="sharedAvatarOpen" classname="io.github.thelony97.orbit.ScreenshotTest" time="0.2"/>
+  <testcase name="holoSheen" classname="io.github.thelony97.orbit.ScreenshotTest" time="0.43"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

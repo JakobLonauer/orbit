@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.RedialTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:01:57.049Z" hostname="runnervm8k3b6" time="0.007">
+  <properties/>
+  <testcase name="offersAreTheNextHalfHours" classname="io.github.thelony97.orbit.core.domain.RedialTest" time="0.001"/>
+  <testcase name="talkingOrJakobEndsIt" classname="io.github.thelony97.orbit.core.domain.RedialTest" time="0.004"/>
+  <testcase name="thirtyTriesAtMost" classname="io.github.thelony97.orbit.core.domain.RedialTest" time="0.0"/>
+  <testcase name="busyAndAnnouncementsDialAgain" classname="io.github.thelony97.orbit.core.domain.RedialTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

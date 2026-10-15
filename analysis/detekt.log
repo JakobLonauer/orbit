@@ -1,0 +1,7 @@
+Successfully generated checkstyle at file:///home/runner/work/_temp/analysis/detekt.xml
+e: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/MidnightWheel.kt:136:1 Line detected, which is longer than the defined maximum line length in the code style. [MaxLineLength]
+e: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/ReplyMode.kt:279:1 Line detected, which is longer than the defined maximum line length in the code style. [MaxLineLength]
+e: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/occasions/GiftBoardScreen.kt:130:1 Line detected, which is longer than the defined maximum line length in the code style. [MaxLineLength]
+e: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/settings/AutomationsPage.kt:106:1 Line detected, which is longer than the defined maximum line length in the code style. [MaxLineLength]
+
+Analysis failed with 4 issues.

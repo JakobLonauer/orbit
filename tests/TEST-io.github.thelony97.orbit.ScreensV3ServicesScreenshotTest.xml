@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensV3ServicesScreenshotTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:04:56.121Z" hostname="runnervm8k3b6" time="2.146">
+  <properties/>
+  <testcase name="idCard" classname="io.github.thelony97.orbit.ScreensV3ServicesScreenshotTest" time="0.854"/>
+  <testcase name="loansWifiArrive" classname="io.github.thelony97.orbit.ScreensV3ServicesScreenshotTest" time="0.549"/>
+  <testcase name="contracts" classname="io.github.thelony97.orbit.ScreensV3ServicesScreenshotTest" time="0.362"/>
+  <testcase name="services" classname="io.github.thelony97.orbit.ScreensV3ServicesScreenshotTest" time="0.365"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

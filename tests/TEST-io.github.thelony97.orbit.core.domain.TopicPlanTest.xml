@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.TopicPlanTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:01:57.314Z" hostname="runnervm8k3b6" time="0.016">
+  <properties/>
+  <testcase name="missedMorningsAreCaughtUpForAWeek" classname="io.github.thelony97.orbit.core.domain.TopicPlanTest" time="0.006"/>
+  <testcase name="onlyOpenTopicsOfTodayFromVisibleContacts" classname="io.github.thelony97.orbit.core.domain.TopicPlanTest" time="0.001"/>
+  <testcase name="oldTopicsHaveNoDay" classname="io.github.thelony97.orbit.core.domain.TopicPlanTest" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

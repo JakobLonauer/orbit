@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ShortcutsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:01:57.152Z" hostname="runnervm8k3b6" time="0.014">
+  <properties/>
+  <testcase name="futureEntriesDoNotCount" classname="io.github.thelony97.orbit.core.domain.ShortcutsTest" time="0.009"/>
+  <testcase name="mostTalkedToComesFirstThenRecentThenName" classname="io.github.thelony97.orbit.core.domain.ShortcutsTest" time="0.002"/>
+  <testcase name="lastCallIsTheNewestCallOutsideArchiveAndTrash" classname="io.github.thelony97.orbit.core.domain.ShortcutsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

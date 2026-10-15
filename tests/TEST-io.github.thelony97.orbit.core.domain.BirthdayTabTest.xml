@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.BirthdayTabTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-15T23:01:55.765Z" hostname="runnervm8k3b6" time="0.031">
+  <properties/>
+  <testcase name="typedBirthdays" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.023"/>
+  <testcase name="peopleWithoutBirthdayByName" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.0"/>
+  <testcase name="sameDaySortsByName" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.001"/>
+  <testcase name="onSundayThereIsNoRestOfTheWeek" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.001"/>
+  <testcase name="weekReachingIntoNextMonth" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.003"/>
+  <testcase name="ageDaysAndLeapDay" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.0"/>
+  <testcase name="sectionsInOrder" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.0"/>
+  <testcase name="neverArchiveOrOrganisationsAndCountsPeopleWithoutBirthday" classname="io.github.thelony97.orbit.core.domain.BirthdayTabTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
