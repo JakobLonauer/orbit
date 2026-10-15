@@ -299,6 +299,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var payQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Loan?>(null) }
     var wifiEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
     var wifiQr by remember { mutableStateOf<io.github.thelony97.orbit.core.model.WifiNet?>(null) }
+    var scanning by remember { mutableStateOf(false) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
@@ -1087,6 +1088,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         if (c.isOrg && c.contracts.isEmpty()) add(AddItem("Vertrag") { contractEdit = newContract() })
                         if (!c.isMe && io.github.thelony97.orbit.core.domain.Loans.open(c).isEmpty()) add(AddItem("Verliehen") { loanEdit = newLoan() })
                         if (c.isOrg && c.wifi.isEmpty()) add(AddItem("WLAN") { wifiEdit = newWifi() })
+                        // PLAN 9 E11: a paper into the folder as a straightened PDF.
+                        add(AddItem("Scan") { scanning = true })
                         if (!c.isOrg && !c.isMe && !c.archived && c.gifts.isEmpty() && "gifts" !in opened) add(AddItem("Geschenkidee") { opened = opened + "gifts" })
                         add(AddItem("Feld") { fieldDialog = true })
                     },
@@ -1370,6 +1373,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     payQr?.let { l -> PayQr(c, l, data, onClose = { payQr = null }) }
     wifiEdit?.let { w -> WifiEditSheet(c, w, onDismiss = { wifiEdit = null }) }
     wifiQr?.let { w -> WifiQr(w, onClose = { wifiQr = null }) }
+    if (scanning) DocScan(c.id, onDone = { scanning = false })
     idCard?.let { (label, value) ->
         io.github.thelony97.orbit.ui.components.IdCard(
             Logic.displayName(c, false), label, value, color,
@@ -1670,7 +1674,9 @@ private fun MailWave(modifier: Modifier = Modifier) {
 
 /** New pictures for an entry: into the contact's folder first (PLAN 3.10), then attached. */
 private suspend fun importPhotosFor(ctx: android.content.Context, contactId: String, uris: List<android.net.Uri>): List<io.github.thelony97.orbit.data.GalleryPhoto> {
-    val added = GalleryStore.import(ctx.applicationContext, uris).map { it.copy(contactId = contactId) }
+    // PLAN 9 D5: a Rechnung may be a PDF – documents are copied as they are, pictures scaled.
+    val (docs, pics) = uris.partition { ctx.contentResolver.getType(it) == "application/pdf" }
+    val added = (GalleryStore.import(ctx.applicationContext, pics) + GalleryStore.importDocs(ctx.applicationContext, docs)).map { it.copy(contactId = contactId) }
     OrbitRepository.update { d -> d.copy(contacts = d.contacts.map { if (it.id == contactId) it.copy(gallery = added.asReversed() + it.gallery) else it }) }
     return added
 }
