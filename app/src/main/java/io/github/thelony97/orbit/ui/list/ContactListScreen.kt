@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.BookmarkAdded
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.AlertDialog
@@ -340,10 +341,22 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             BadgeOrb(Icons.Rounded.Tune, "Filter & Sortierung", activeCount, { filterSheet = true })
         }
 
-        AnimatedVisibility(line.chips.isNotEmpty()) { OrbitLineChips(line, onClick = {}) }
+        AnimatedVisibility(line.chips.isNotEmpty()) {
+            OrbitLineChips(
+                line, onClick = {},
+                // PLAN 9 E15: a search with operators can be kept as a Smart-Gruppe.
+                onKeep = if (!line.capture && !line.filters.isEmpty && data.settings.smartGroups.none { it.query == typed.trim() }) {
+                    {
+                        val q = typed.trim()
+                        OrbitRepository.editSettings { it.copy(smartGroups = it.smartGroups + io.github.thelony97.orbit.core.model.SmartGroup(io.github.thelony97.orbit.data.newId(), q, q)) }
+                        haptics.perform(Haptic.Confirm)
+                    }
+                } else null,
+            )
+        }
 
         // Feedback bar: pinned groups + whatever is active. Invisible when there is nothing to show.
-        val showBar = pinned.isNotEmpty() || activeCount > 0
+        val showBar = pinned.isNotEmpty() || activeCount > 0 || data.settings.smartGroups.isNotEmpty()
         AnimatedVisibility(showBar) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 10.dp),
@@ -367,6 +380,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 }
                 data.groups.filter { !it.pinned && it.id in groups }.forEach { g ->
                     SpaceChip(g.name, true, { Session.toggleGroup(g.id) }, dot = Color(g.color), accent = Color(g.color), trailing = Icons.Rounded.Close)
+                }
+                // PLAN 9 E15: Smart-Gruppen – a tap puts the saved line into the search (again = off).
+                data.settings.smartGroups.forEach { sg ->
+                    val on = typed.trim() == sg.query
+                    SpaceChip(sg.name, on, {
+                        if (on) search.clearText() else search.edit { replace(0, length, sg.query) }
+                    }, leading = Icons.Rounded.BookmarkAdded, accent = Space.Violet, trailing = if (on) Icons.Rounded.Close else null)
                 }
             }
         }

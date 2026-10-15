@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.FilterAlt
 import androidx.compose.material.icons.automirrored.rounded.Notes
@@ -61,7 +62,7 @@ private fun OrbitLine.Kind.icon() = when (this) {
  * springs in with its own tick.
  */
 @Composable
-fun OrbitLineChips(line: OrbitLine.Line, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun OrbitLineChips(line: OrbitLine.Line, onClick: () -> Unit, modifier: Modifier = Modifier, onKeep: (() -> Unit)? = null) {
     Row(
         modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -69,6 +70,7 @@ fun OrbitLineChips(line: OrbitLine.Line, onClick: () -> Unit, modifier: Modifier
         line.chips.forEach { chip ->
             key(chip.kind, chip.text) { LooseChip(chip, onClick) }
         }
+        if (onKeep != null) SpaceChip("Merken", false, onKeep, leading = Icons.Rounded.BookmarkAdd, accent = Space.Violet)
     }
 }
 

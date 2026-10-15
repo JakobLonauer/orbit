@@ -358,6 +358,10 @@ data class WifiNet(
     val security: String = "WPA",
 )
 
+/** PLAN 9 E15: a Smart-Gruppe – a saved Orbit-Zeile („#uni hat:geburtstag“). */
+@Serializable
+data class SmartGroup(val id: String, val name: String, val query: String)
+
 /** PLAN 9 E6: a Textbaustein; {Vorname} {Rufname} {Anrede} {Kundennummer} {Vertragsnummer} {Datum} are filled per contact. */
 @Serializable
 data class Snippet(val id: String, val name: String, val text: String)
@@ -466,6 +470,8 @@ data class Settings(
     val autoBusySms: Boolean = false,
     /** PLAN 9 E17: only callers in these groups; empty = everyone in Orbit. */
     val autoBusyGroups: List<String> = emptyList(),
+    /** PLAN 9 E15: saved searches of the Orbit-Zeile, shown as chips next to the groups. */
+    val smartGroups: List<SmartGroup> = emptyList(),
 ) {
     companion object {
         val DEFAULT_SNIPPETS = listOf(

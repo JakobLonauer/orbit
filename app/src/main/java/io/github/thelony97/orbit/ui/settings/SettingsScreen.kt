@@ -84,6 +84,10 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.MaterialTheme
@@ -265,6 +269,7 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     // The long "restricted settings" help only after Android actually refused (W7).
     var permissionDenied by remember { mutableStateOf(false) }
     var permissionsOpen by remember { mutableStateOf(false) }
+    var handbook by remember { mutableStateOf(false) }
     var phoneDialog by remember { mutableStateOf(false) }
     var smsDialog by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
@@ -762,6 +767,23 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             }
         }
 
+        // PLAN 9 E15: Smart-Gruppen (gespeicherte Suchen) – entfernen mit Rückgängig.
+        if (area == "contacts" && s.smartGroups.isNotEmpty()) item(key = "smart") {
+            SettingsGroup("Smart-Gruppen") {
+                s.smartGroups.forEachIndexed { i, sg ->
+                    if (i > 0) Hairline()
+                    SettingItem(Icons.Rounded.Search, sg.name, iconTint = Space.Violet, trailing = {
+                        IconButton(onClick = {
+                            OrbitRepository.editSettings { st -> st.copy(smartGroups = st.smartGroups.filterNot { it.id == sg.id }) }
+                            io.github.thelony97.orbit.ui.components.Undo.offer("Entfernt") {
+                                OrbitRepository.editSettings { st -> if (st.smartGroups.any { it.id == sg.id }) st else st.copy(smartGroups = st.smartGroups + sg) }
+                            }
+                        }) { Icon(Icons.Rounded.Close, "Entfernen", tint = Space.TextFaint) }
+                    })
+                }
+            }
+        }
+
         if (area == "contacts") item(key = "org") {
             SettingsGroup("") {
                 SettingItem(Icons.Rounded.Groups, "Gruppen", if (data.groups.size == 1) "1 Gruppe" else "${data.groups.size} Gruppen", onClick = { nav.open(Route.Groups) })
@@ -903,6 +925,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     onClick = { io.github.thelony97.orbit.ui.components.AppWork.launch { Updates.check() } },
                 )
                 Hairline()
+                // PLAN 9 E22: the Handbuch instead of explanations in the screens.
+                SettingItem(Icons.AutoMirrored.Rounded.MenuBook, "Handbuch", "Gesten, Regeln, Automatiken", iconTint = Space.Violet, onClick = { handbook = true })
+                Hairline()
                 // PLAN 2.4 / 3.13: what is new is one line here – never a popup.
                 SettingItem(Icons.Rounded.NewReleases, "Neu in dieser Version", WHATS_NEW, iconTint = Space.Violet)
                 Hairline()
@@ -963,6 +988,8 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
             onConfirm = { pw -> readBackup(uri, pw) },
         )
     }
+
+    if (handbook) HandbookSheet(onDismiss = { handbook = false })
 
     if (smsDialog) {
         // Three slots for „Ablehnen mit SMS“; empty ones are dropped.
