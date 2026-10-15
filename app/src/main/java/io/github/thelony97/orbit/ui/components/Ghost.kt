@@ -38,13 +38,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import io.github.thelony97.orbit.core.designsystem.Corners
 import io.github.thelony97.orbit.core.designsystem.Haptic
@@ -56,17 +51,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
-
-/** Under the anchor, centred and kept inside the window; above it when there is no room below. */
-internal class BesideAnchor(private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
-        val x = (anchorBounds.center.x - popupContentSize.width / 2).coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-        val below = anchorBounds.bottom + gap
-        val y = if (below + popupContentSize.height <= windowSize.height) below
-        else (anchorBounds.top - gap - popupContentSize.height).coerceAtLeast(0)
-        return IntOffset(x, y)
-    }
-}
 
 /**
  * Geist (PLAN 9.2, A0): a suggestion after a fixed rule, drawn where it would land – a dashed rim

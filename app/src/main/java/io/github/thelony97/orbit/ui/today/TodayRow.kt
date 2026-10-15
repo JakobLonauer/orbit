@@ -179,7 +179,7 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                 propagateMinConstraints = true,
             ) {
                 if (card is TodayCard.Plan || card is TodayCard.Persist) {
-                    Dust(leaving = card.key in leaving, seed = card.key.hashCode(), onGone = {
+                    Dust(leaving = card.key in leaving, seed = card.key.hashCode(), onVanish = {
                         finish(ctx, card)
                         leaving = leaving - card.key
                     }) {
@@ -409,13 +409,13 @@ private const val STAGGER_MS = 40L
 
 /**
  * PLAN 9 C1 Moment: a card done falls apart into stardust (≤ 400 ms) – the content fades and
- * shrinks while bright specks drift up and away; then [onGone].
+ * shrinks while bright specks drift up and away; then [onVanish].
  */
 @Composable
-private fun Dust(leaving: Boolean, seed: Int, onGone: () -> Unit, content: @Composable () -> Unit) {
+private fun Dust(leaving: Boolean, seed: Int, onVanish: () -> Unit, content: @Composable () -> Unit) {
     val haptics = rememberHaptics()
     val p = remember { androidx.compose.animation.core.Animatable(0f) }
-    val gone by androidx.compose.runtime.rememberUpdatedState(onGone)
+    val gone by androidx.compose.runtime.rememberUpdatedState(onVanish)
     androidx.compose.runtime.LaunchedEffect(leaving) {
         if (!leaving) return@LaunchedEffect
         haptics.perform(Haptic.Confirm)
@@ -431,7 +431,13 @@ private fun Dust(leaving: Boolean, seed: Int, onGone: () -> Unit, content: @Comp
             drawContent()
             val t = p.value
             if (t <= 0f) return@drawWithContent
-            specks.forEach { (x, y, vx, vy, rad, hue) ->
+            specks.forEach { sp ->
+                val x = sp[0]
+                val y = sp[1]
+                val vx = sp[2]
+                val vy = sp[3]
+                val rad = sp[4]
+                val hue = sp[5]
                 val color = when {
                     hue < 0.5f -> Space.Text
                     hue < 0.8f -> Space.Teal
@@ -458,15 +464,15 @@ private fun Dust(leaving: Boolean, seed: Int, onGone: () -> Unit, content: @Comp
 
 private const val SPECKS = 56
 
-private operator fun FloatArray.component6(): Float = this[5]
 
 /** Hold: „Erledigt“ in a small popup beside the card (inside the list, never a swipe). */
 @Composable
 private fun DoneMenu(open: Boolean, accent: Color, onClose: () -> Unit, onDone: () -> Unit) {
     if (!open) return
+    val close by androidx.compose.runtime.rememberUpdatedState(onClose)
     androidx.compose.runtime.LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(4_000)
-        onClose()
+        close()
     }
     val gap = with(androidx.compose.ui.platform.LocalDensity.current) { Spacing.S.roundToPx() }
     androidx.compose.ui.window.Popup(
