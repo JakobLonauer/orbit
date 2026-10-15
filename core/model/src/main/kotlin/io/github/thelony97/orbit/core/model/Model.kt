@@ -223,6 +223,8 @@ data class Contact(
     val vacationSubstitute: String? = null,
     /** PLAN 9 B4: Hotline-Makros – keys, pauses, „Warten auf Weiter“ and own fields, played in a call. */
     val macros: List<Macro> = emptyList(),
+    /** PLAN 9 D3: Verträge with this organisation (Handy, Strom, Versicherung …). */
+    val contracts: List<Contract> = emptyList(),
     /**
      * In memory only: this contact's Verlauf, newest first. Stored in SQLite, never in the JSON
      * core (ADR 0003); the repository fills it on load and writes the difference on save.
@@ -292,6 +294,31 @@ data class Relation(
     val fromId: String,
     val toId: String,
     val kind: String,
+)
+
+/**
+ * PLAN 9 D3: a contract with an organisation. Dates are ISO days; months 0 = not set. The
+ * „Kündigen bis …“ day follows from [start], [minMonths], [renewMonths] and [noticeMonths]/[noticeDays].
+ */
+@Serializable
+data class Contract(
+    val id: String,
+    val name: String = "",
+    val number: String = "",
+    val start: String? = null,
+    /** Mindestlaufzeit; 0 = none (cancel any time with the notice). */
+    val minMonths: Int = 0,
+    /** Verlängerung after the first term; 0 = runs on indefinitely (monthly cancellable). */
+    val renewMonths: Int = 12,
+    val noticeMonths: Int = 0,
+    val noticeDays: Int = 0,
+    /** „19,90 €/Monat“ – as typed. */
+    val price: String = "",
+    /** Attachment file names (Ablage). */
+    val documents: List<String> = emptyList(),
+    /** ISO day the cancellation went out; the contract then ends with its term. */
+    val cancelledOn: String? = null,
+    val note: String = "",
 )
 
 /** Zuordnung person → organisation (PLAN 3.6), strictly separate from [Relation]. */

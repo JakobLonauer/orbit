@@ -524,7 +524,7 @@ private fun PlanCard(card: TodayCard.Plan, onOpen: () -> Unit, onDone: () -> Uni
 /** Title, line and border colour of a day's item (light code: orange = Anlass/Frist, person colour otherwise). */
 private fun planText(card: TodayCard.Plan, name: String, person: Color): Triple<String, String?, Color> {
     val (title, line) = planLines(card, name)
-    val accent = if (card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion) Space.Orange else person
+    val accent = if (card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion || card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Deadline) Space.Orange else person
     return Triple(title, line, accent)
 }
 

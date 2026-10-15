@@ -96,7 +96,7 @@ class TodayWidget : GlanceAppWidget() {
             .forEach { p -> add(Line(io.github.thelony97.orbit.util.Fmt.time(p.at) + " · " + p.name, "Dranbleiben", Space.Teal, open(context, p.contactId))) }
         io.github.thelony97.orbit.ui.today.planCards(data).filterIsInstance<TodayCard.Plan>().forEach { card ->
             val (title, line) = io.github.thelony97.orbit.ui.today.planLines(card, Logic.shortName(card.contact))
-            val color = if (card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion) Space.Orange
+            val color = if (card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Occasion || card.item is io.github.thelony97.orbit.core.domain.TodayPlan.Deadline) Space.Orange
             else card.color?.let { Color(it) } ?: io.github.thelony97.orbit.ui.components.fallbackColor(card.contact.id)
             add(Line(title, line, color, open(context, card.contact.id)))
         }

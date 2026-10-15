@@ -61,7 +61,7 @@ import kotlinx.coroutines.withContext
 fun IdCard(title: String, label: String, value: String, color: Color, onDictate: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val code by produceState<Bitmap?>(null, value) {
-        value = withContext(Dispatchers.Default) { barcode(value) }
+        this.value = withContext(Dispatchers.Default) { barcode(value) }
     }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window

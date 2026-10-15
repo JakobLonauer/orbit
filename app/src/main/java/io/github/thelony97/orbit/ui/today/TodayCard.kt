@@ -69,6 +69,8 @@ internal fun planLines(card: TodayCard.Plan, name: String): Pair<String, String?
         }
     }
     is io.github.thelony97.orbit.core.domain.TodayPlan.Topic -> item.text to name
+    is io.github.thelony97.orbit.core.domain.TodayPlan.Deadline ->
+        item.title + " · " + io.github.thelony97.orbit.core.domain.Contracts.deadlineLine(item.days, item.deadline) to name
     is io.github.thelony97.orbit.core.domain.TodayPlan.YearsAgo ->
         (if (item.years == 1) "Heute vor einem Jahr" else "Heute vor ${item.years} Jahren") to
             listOf(card.kindName, name, item.note).filter { it.isNotBlank() }.joinToString(" · ")

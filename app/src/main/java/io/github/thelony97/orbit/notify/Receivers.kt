@@ -92,6 +92,13 @@ object DigestScheduler {
             io.github.thelony97.orbit.core.domain.TopicPlan.due(data.contacts, todayDate, lastRun) { it.deletedAt == null && !it.archived },
             data,
         )
+        // Fristen (PLAN 9 D3): contracts to cancel, with lead.
+        Notifications.deadlines(
+            ctx,
+            io.github.thelony97.orbit.core.domain.Contracts.due(data.contacts.filter { it.isOrg && it.deletedAt == null && !it.archived }, todayDate)
+                .filter { it.days in io.github.thelony97.orbit.core.domain.Contracts.NOTIFY_DAYS },
+            data,
+        )
         // Treffen heute (PLAN 3.13a): what to have in mind before meeting someone.
         if (data.settings.meetingBrief) io.github.thelony97.orbit.core.domain.MeetingBrief.today(
             data.meetings, data.contacts, data.relations, todayDate, System.currentTimeMillis(), zone(),

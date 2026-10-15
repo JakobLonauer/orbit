@@ -62,4 +62,16 @@ class TodayPlanTest {
         assertFalse(TodayPlan.stale("occ:anna:b1:2026-10-14", today))
         assertFalse(TodayPlan.stale("phonebook-offer", today))
     }
+
+    @Test fun contractDeadlineEvenWhenOrgsHidden() {
+        val a1 = Contact(
+            "a1", kind = io.github.thelony97.orbit.core.model.ContactKind.ORG, company = "A1",
+            contracts = listOf(io.github.thelony97.orbit.core.model.Contract("h", "Handy", start = "2025-01-20", minMonths = 24, noticeMonths = 3)),
+        )
+        val items = TodayPlan.build(listOf(a1), emptyList(), now, zone, emptySet()) { !it.isOrg }
+        val d = items.filterIsInstance<TodayPlan.Deadline>().single()
+        assertEquals("due:h:2026-10-20", d.key)
+        assertEquals(5L, d.days)
+        assertTrue(TodayPlan.stale("due:h:2026-10-13", today))
+    }
 }

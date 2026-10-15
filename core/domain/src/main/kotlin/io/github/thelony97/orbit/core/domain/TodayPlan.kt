@@ -41,11 +41,21 @@ object TodayPlan {
         val note: String,
     ) : Item
 
+    /** PLAN 9 D3: a contract's „Kündigen bis …“ within its lead (Fristen). */
+    data class Deadline(
+        override val key: String,
+        override val contactId: String,
+        val contractId: String,
+        val title: String,
+        val deadline: LocalDate,
+        val days: Long,
+    ) : Item
+
     private const val TOPIC_DAYS = 7L
 
     /** Keys of the day carry the date; older ones can go from the „erledigt“ list. */
     fun stale(key: String, today: LocalDate): Boolean {
-        if (!key.startsWith("occ:") && !key.startsWith("ago:")) return false
+        if (listOf("occ:", "ago:", "due:").none { key.startsWith(it) }) return false
         val day = runCatching { LocalDate.parse(key.substringAfterLast(':')) }.getOrNull() ?: return true
         return day.isBefore(today.minusDays(1))
     }
@@ -66,6 +76,10 @@ object TodayPlan {
         out += meetingsToday(meetings, ids.keys, now, today, zone)
         out += occasionsToday(shown, today, me)
         out += topicsDue(shown, today)
+        // Fristen also when organisations are hidden in the lists.
+        out += Contracts.due(contacts.filter { it.isOrg && it.deletedAt == null && !it.archived }, today).map { d ->
+            Deadline("due:${d.contract.id}:${d.deadline}", d.contactId, d.contract.id, Contracts.title(d.contract), d.deadline, d.days)
+        }
         yearsAgo(shown, today, zone)?.let { out += it }
         return out.filter { it.key !in done }
     }

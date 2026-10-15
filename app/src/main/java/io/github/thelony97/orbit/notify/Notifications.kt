@@ -38,6 +38,8 @@ object Notifications {
     const val ID_TOPICS_DAY = 1006
     /** PLAN 9 B3: „3 Rückrufe“ after a busy calendar event. */
     const val ID_CALLBACKS = 1007
+    /** 1008 is Dranbleiben live (call/Persist). */
+    const val ID_DEADLINES = 1009
     private const val ID_AFTER_CALL_BASE = 20_000
     private const val ID_MEETING_BASE = 30_000
     private const val ID_CALLBACK_BASE = 40_000
@@ -194,6 +196,24 @@ object Notifications {
                 })
         }
         post(ctx, ID_TOPICS_DAY, builder)
+    }
+
+    /** PLAN 9 D3: „Kündigen bis …“ – 30, 7 and 1 day before and on the day. */
+    fun deadlines(ctx: Context, due: List<io.github.thelony97.orbit.core.domain.Contracts.Due>, data: io.github.thelony97.orbit.data.OrbitData) {
+        if (due.isEmpty()) return
+        val byId = data.contacts.associateBy { it.id }
+        val lines = due.map { d ->
+            (byId[d.contactId]?.let { Logic.shortName(it) } ?: "") + " · " + io.github.thelony97.orbit.core.domain.Contracts.title(d.contract) +
+                " · " + io.github.thelony97.orbit.core.domain.Contracts.deadlineLine(d.days, d.deadline)
+        }
+        val builder = base(ctx, CH_DIGEST)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setColor(0xFFFFB86B.toInt())
+            .setContentIntent(openContact(ctx, due.map { it.contactId }.distinct().singleOrNull(), ID_DEADLINES))
+            .setContentTitle(if (due.size == 1) "Frist" else "${due.size} Fristen")
+            .setContentText(lines.joinToString(" · "))
+            .setStyle(NotificationCompat.InboxStyle().also { st -> lines.take(7).forEach { st.addLine(it) } })
+        post(ctx, ID_DEADLINES, builder)
     }
 
     fun cancelTopics(ctx: Context) {
