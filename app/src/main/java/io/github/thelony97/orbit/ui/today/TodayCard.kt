@@ -44,6 +44,11 @@ sealed interface TodayCard {
         override val key = item.key
     }
 
+    /** PLAN 9 E10: Neue Gesichter – the Lernkarten, once a week while there are some. */
+    data class Faces(val people: List<io.github.thelony97.orbit.data.Contact>, val week: String) : TodayCard {
+        override val key = "faces:$week"
+    }
+
     /** PLAN 9 E9: a finished appointment with someone, not yet in the Verlauf. */
     data class CalendarMeet(val item: io.github.thelony97.orbit.phonebook.CalendarGhosts.Item, val contact: io.github.thelony97.orbit.data.Contact) : TodayCard {
         override val key = item.key

@@ -130,6 +130,10 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
             addAll(day)
             val byId = data.contacts.associateBy { it.id }
             calendar.forEach { g -> byId[g.contactId]?.let { add(TodayCard.CalendarMeet(g, it)) } }
+            // PLAN 9 E10: from three new faces on, the Lernkarten (once a week).
+            val week = io.github.thelony97.orbit.core.domain.TimeZoom.key(io.github.thelony97.orbit.domain.today(), io.github.thelony97.orbit.core.domain.TimeZoom.Level.WEEK)
+            val faces = io.github.thelony97.orbit.ui.callbacks.newFaces(data)
+            if (faces.size >= 3 && "faces:$week" !in s.dismissedGhosts) add(TodayCard.Faces(faces.take(3), week))
             twins.forEach { t -> val a = byId[t.a]; val b = byId[t.b]; if (a != null && b != null) add(TodayCard.Twin(t, a, b)) }
             val l = live
             // Offer and live share one key: the taken ghost becomes the live card in place.
@@ -238,6 +242,18 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
                         is TodayCard.PhoneBookNew -> NewInPhoneBook(c, nav)
                         is TodayCard.Callbacks -> CallbacksCard(c, onOpen = { nav.open(Route.Callbacks) })
                         is TodayCard.CalendarMeet -> CalendarMeetGhost(c)
+                        is TodayCard.Faces -> Ghost(
+                            source = "Menschen der letzten zwei Monate mit Foto",
+                            onAccept = { nav.open(Route.Faces) },
+                            onDismiss = { dismiss(c.key) },
+                            dismissAxis = null,
+                        ) {
+                            CardBody(
+                                planet = { People(c.people.map { io.github.thelony97.orbit.domain.Logic.shortName(it) to it.id }) },
+                                title = "Neue Gesichter",
+                                line = "Wer ist wer?",
+                            )
+                        }
                         is TodayCard.Twin -> io.github.thelony97.orbit.ui.list.TwinGhost(c.a, c.b, c.key, onDismiss = { dismiss(c.key) })
                         is TodayCard.Plan, is TodayCard.Persist -> Unit
                     }

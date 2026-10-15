@@ -310,6 +310,7 @@ private fun MainNavigation(data: OrbitData) {
             entry<Route.SettingsArea> { key -> SpaceBackground { SettingsScreen(data = data, nav = nav, area = key.key) } }
             entry<Route.Suggestions> { SuggestionsScreen(data = data, nav = nav) }
             entry<Route.Callbacks> { io.github.thelony97.orbit.ui.callbacks.CallbackStackScreen(data = data, idx = idx, nav = nav) }
+            entry<Route.Faces> { io.github.thelony97.orbit.ui.callbacks.FacesScreen(data = data, nav = nav) }
             entry<Route.Gifts> { io.github.thelony97.orbit.ui.occasions.GiftBoardScreen(data = data, nav = nav) }
             entry<Route.Topics> { io.github.thelony97.orbit.ui.callbacks.TopicStackScreen(data = data, idx = idx, nav = nav) }
             entry<Route.Network> {

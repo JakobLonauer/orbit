@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.height
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.PersonAddAlt
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Wallpaper
@@ -404,6 +405,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
     val ctx = LocalContext.current
     val pager = rememberPagerState(initialPage = start.coerceIn(0, items.lastIndex)) { items.size }
     var shareTo by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.PhotoMonths.Item?>(null) }
+    var pinning by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.PhotoMonths.Item?>(null) }
     val scope = rememberCoroutineScope()
     val data by OrbitRepository.data.collectAsState()
     val phoneApp = remember { io.github.thelony97.orbit.call.PhoneRole.held(ctx) }
@@ -504,6 +506,8 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                         }
                     }, size = 40.dp)
                     OrbButton(Icons.Rounded.PersonAddAlt, "Auch bei …", { shareTo = current }, size = 40.dp)
+                    // PLAN 9 E10: who is who on a group photo.
+                    OrbButton(Icons.Rounded.Face, "Namens-Pins", { pinning = current }, size = 40.dp)
                     Spacer(Modifier.weight(1f))
                     OrbButton(Icons.Rounded.Delete, "Entfernen", {
                         val cur = current ?: return@OrbButton
@@ -525,6 +529,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
                 }
             }
         }
+        pinning?.let { item -> GroupPhotoPins(item.contactId, item.photo, onClose = { pinning = null }) }
         shareTo?.let { item ->
             ContactPickDialog(
                 title = "Auch bei …",

@@ -46,6 +46,9 @@ object Photos {
         }.getOrNull()
     }
 
+    /** PLAN 9 E10: a face cut from a group photo as the profile picture. */
+    suspend fun storeBitmap(bitmap: Bitmap): String? = withContext(Dispatchers.IO) { runCatching { store(bitmap) }.getOrNull() }
+
     suspend fun saveFromStream(stream: InputStream): String? = withContext(Dispatchers.IO) {
         runCatching { BitmapFactory.decodeStream(stream)?.let { store(it) } }.getOrNull()
     }

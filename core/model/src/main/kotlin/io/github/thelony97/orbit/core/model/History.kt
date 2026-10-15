@@ -70,6 +70,11 @@ data class HistoryEntry(
 
 /** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */
 @Serializable
+/** PLAN 9 E10: who is where on a photo. */
+@Serializable
+data class FacePin(val contactId: String, val x: Float, val y: Float)
+
+@Serializable
 data class Attachment(
     val id: String,
     val contactId: String,
@@ -81,6 +86,8 @@ data class Attachment(
     val takenAt: Long? = null,
     /** Original file name of a document (PDF) for its tile. */
     val name: String = "",
+    /** PLAN 9 E10: name pins on a group photo (position 0–1 of width/height). */
+    val pins: List<FacePin> = emptyList(),
 )
 
 object BuiltinTypes {
