@@ -1,6 +1,9 @@
 package io.github.thelony97.orbit.ui.detail
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,6 +72,31 @@ internal fun FieldGhostRow(c: Contact, ghosts: List<FieldGhosts.Ghost>, modifier
                     Spacer(Modifier.width(Spacing.S))
                     Text(g.value, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"), color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            }
+        }
+    }
+}
+
+/** PLAN 9 E16: the found picture as a dashed planet; tap takes it, holding shows where it is from. */
+@Composable
+internal fun PhotoGhost(c: Contact, f: io.github.thelony97.orbit.links.RealPhotos.Found, modifier: Modifier = Modifier) {
+    val bmp = androidx.compose.runtime.remember(f.file) {
+        runCatching { android.graphics.BitmapFactory.decodeFile(OrbitRepository.photoFile(f.file).path)?.asImageBitmap() }.getOrNull()
+    } ?: return
+    Box(modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter, vertical = 6.dp)) {
+        Ghost(
+            source = "Bild von " + f.source,
+            onAccept = { io.github.thelony97.orbit.links.RealPhotos.take(c, f) },
+            onDismiss = { OrbitRepository.editSettings { s -> s.copy(dismissedGhosts = (s.dismissedGhosts + "photo:${c.id}").distinct().takeLast(400)) } },
+            dismissAxis = null,
+        ) {
+            Row(Modifier.padding(Spacing.S), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.foundation.Image(
+                    bmp, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape),
+                )
+                Spacer(Modifier.width(Spacing.M))
+                Text("Als Foto", style = MaterialTheme.typography.bodyMedium, color = Space.Text)
             }
         }
     }

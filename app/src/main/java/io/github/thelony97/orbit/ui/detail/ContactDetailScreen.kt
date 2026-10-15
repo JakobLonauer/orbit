@@ -238,6 +238,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
     val changes = rememberChanges(contact.id)
+    val realPhoto by androidx.compose.runtime.produceState<io.github.thelony97.orbit.links.RealPhotos.Found?>(null, contact.photo, contact.emails, data.settings.dismissedGhosts) {
+        value = if (contact.isMe || "photo:${contact.id}" in data.settings.dismissedGhosts) null else io.github.thelony97.orbit.links.RealPhotos.find(contact)
+    }
     // Both scan every note / the whole Verlauf – off the main thread (PLAN 8.2).
     val mentions by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts) {
         val id = contact.id
@@ -833,6 +836,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     MacroSection(c, data, onEdit = { macroEdit = it })
                 }
             }
+
+            // PLAN 9 E16: a real picture (Gravatar, the website's icon) for a contact without one.
+            realPhoto?.let { f -> if (c.photo == null) item(key = "photo-ghost") { PhotoGhost(c, f) } }
 
             // PLAN 9 E3: numbers, mails and addresses the contact wrote but that are not in the card.
             if (!c.isMe && fieldGhosts.isNotEmpty()) {
