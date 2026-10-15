@@ -91,6 +91,7 @@ object BuiltinTypes {
     const val GIFT = "gift"
     const val JOB = "job"
     const val SETTLED = "settled"
+    const val NOTE = "note"
 
     val all = listOf(
         EntryType(MEET, "Treffen", "meet", builtin = true),
@@ -103,5 +104,6 @@ object BuiltinTypes {
         EntryType(GIFT, "Geschenk", "gift", builtin = true),
         EntryType(JOB, "Auftrag", "job", builtin = true),
         EntryType(SETTLED, "Erledigt", "receipt", builtin = true),
+        EntryType(NOTE, "Notiz", "note", builtin = true),
     )
 }

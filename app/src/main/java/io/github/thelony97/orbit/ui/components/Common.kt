@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.rounded.EmojiPeople
 import androidx.compose.material.icons.rounded.Handyman
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.LocalHospital
@@ -257,6 +258,7 @@ fun entryIcon(key: String): ImageVector = when (key) {
     "heart" -> Icons.Rounded.Favorite
     "job" -> Icons.Rounded.Handyman
     "receipt" -> Icons.Rounded.Receipt
+    "note" -> Icons.AutoMirrored.Rounded.Notes
     else -> Icons.Rounded.Star
 }
 

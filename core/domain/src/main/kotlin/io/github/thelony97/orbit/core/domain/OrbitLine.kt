@@ -102,88 +102,117 @@ object OrbitLine {
     private fun filtersOf(toks: List<Tok>, chips: MutableList<Chip>): Filters {
         var f = Filters()
         for (t in toks) {
-            val v = t.f.substringAfter(':')
-            val hit = when {
-                t.f.startsWith("#") && t.f.length > 1 -> { f = f.copy(groups = f.groups + t.f.drop(1)); true }
-                t.f == "ist:org" || t.f == "ist:organisation" -> { f = f.copy(org = true); true }
-                t.f == "ist:person" || t.f == "ist:mensch" -> { f = f.copy(org = false); true }
-                t.f.startsWith("hat:") && v.isNotBlank() -> { f = f.copy(has = f.has + v); true }
-                t.f.startsWith("ort:") && v.isNotBlank() -> { f = f.copy(place = v); true }
-                else -> false
-            }
-            if (hit) {
-                t.used = true
-                chips += Chip(if (t.f.startsWith("#")) Kind.GROUP else Kind.FILTER, t.raw)
-            }
+            val next = operator(t.f, f) ?: continue
+            f = next
+            t.used = true
+            chips += Chip(if (t.f.startsWith("#")) Kind.GROUP else Kind.FILTER, t.raw)
         }
         return f
+    }
+
+    /** One operator applied to [f]; null when [w] is none. */
+    private fun operator(w: String, f: Filters): Filters? {
+        val v = w.substringAfter(':')
+        return when {
+            w.startsWith("#") && w.length > 1 -> f.copy(groups = f.groups + w.drop(1))
+            w == "ist:org" || w == "ist:organisation" -> f.copy(org = true)
+            w == "ist:person" || w == "ist:mensch" -> f.copy(org = false)
+            w.startsWith("hat:") && v.isNotBlank() -> f.copy(has = f.has + v)
+            w.startsWith("ort:") && v.isNotBlank() -> f.copy(place = v)
+            else -> null
+        }
     }
 
     /** A kind: an entry type's own name first, then the fixed synonyms. */
     private fun typeOf(toks: List<Tok>, types: List<EntryType>, chips: MutableList<Chip>): Pair<String?, String?> {
         val names = types.filter { it.id != BuiltinTypes.SETTLED }.associateBy { Fold.fold(it.name) }
-        for (t in toks) {
-            if (t.used) continue
-            val id = names[t.f]?.id ?: SYNONYMS[t.f] ?: continue
-            t.used = true
-            chips += Chip(Kind.TYPE, t.raw)
-            return id to (if (t.f in KEEP_AS_NOTE && names[t.f] == null) t.raw.replaceFirstChar { it.uppercase() } else null)
-        }
-        return null to null
+        val t = toks.firstOrNull { !it.used && (names[it.f] != null || SYNONYMS[it.f] != null) } ?: return null to null
+        t.used = true
+        chips += Chip(Kind.TYPE, t.raw)
+        val id = names[t.f]?.id ?: SYNONYMS.getValue(t.f)
+        return id to (if (t.f in KEEP_AS_NOTE && names[t.f] == null) t.raw.replaceFirstChar { it.uppercase() } else null)
     }
 
-    private fun timeOf(toks: List<Tok>, now: LocalDateTime, chips: MutableList<Chip>): LocalDateTime? {
-        val today = now.toLocalDate()
+    /** What the time words said so far. */
+    private class When {
         var day: LocalDate? = null
         var weekday: DayOfWeek? = null
         var time: LocalTime? = null
         val parts = ArrayList<String>()
+        val empty: Boolean get() = day == null && weekday == null && time == null
+    }
+
+    private fun timeOf(toks: List<Tok>, now: LocalDateTime, chips: MutableList<Chip>): LocalDateTime? {
+        val today = now.toLocalDate()
+        val w = When()
         var i = 0
         while (i < toks.size) {
-            val t = toks[i]
-            val next = toks.getOrNull(i + 1)
-            if (t.used) { i++; continue }
-            val f = t.f.trimEnd('.')
-            when {
-                f in RELATIVE_DAYS && day == null -> { day = today.plusDays(RELATIVE_DAYS.getValue(f)); take(t, parts) }
-                f in WEEKDAYS && weekday == null -> { weekday = WEEKDAYS.getValue(f); take(t, parts) }
-                // „Fr“ alone is too often a word; with a time or a dot it is the day.
-                f in SHORT_DAYS && weekday == null && (t.f.endsWith('.') || next?.let { isClock(it.f) } == true) -> { weekday = SHORT_DAYS.getValue(f); take(t, parts) }
-                f == "in" && next != null && day == null -> {
-                    val n = toks.getOrNull(i + 1)?.f?.let { it.toLongOrNull() ?: NUMBER_WORDS[it] }
-                    val unit = toks.getOrNull(if (n != null) i + 2 else -1)?.f
-                    val d = if (n != null && unit != null) shift(today, n, unit) else null
-                    if (d != null) {
-                        day = d
-                        for (k in i..i + 2) take(toks[k], parts)
-                        i += 3
-                        continue
-                    }
-                }
-                f == "um" && next != null && time == null && clockOf(next.f) != null -> {
-                    time = clockOf(next.f)
-                    take(t, parts); take(next, parts)
-                    i += 2
-                    continue
-                }
-                time == null && clockOf(t.f) != null && (CLOCK.matches(t.f) || t.f.endsWith("uhr") || next?.f == "uhr") -> {
-                    time = clockOf(t.f)
-                    take(t, parts)
-                    if (next?.f == "uhr") { take(next, parts); i++ }
-                }
-                day == null && DATE.matches(t.f) -> { day = dateOf(t.f, today); if (day != null) take(t, parts) }
-            }
-            i++
+            i += if (toks[i].used) 1 else step(toks, i, w, today).coerceAtLeast(1)
         }
-        if (day == null && weekday == null && time == null) return null
-        chips += Chip(Kind.TIME, parts.joinToString(" "))
-        val d = day ?: weekday?.let { w ->
-            val candidate = today.with(TemporalAdjusters.nextOrSame(w))
+        if (w.empty) return null
+        chips += Chip(Kind.TIME, w.parts.joinToString(" "))
+        val time = w.time
+        val d = w.day ?: w.weekday?.let { wd ->
+            val candidate = today.with(TemporalAdjusters.nextOrSame(wd))
             // Today's weekday with a time already past means next week.
             if (candidate == today && time != null && time.isBefore(now.toLocalTime())) candidate.plusWeeks(1) else candidate
         } ?: today
         val t = time ?: if (d == today) now.toLocalTime().withSecond(0).withNano(0) else LocalTime.of(NOON, 0)
         return LocalDateTime.of(d, t)
+    }
+
+    /** Consumes the time words at [i]; returns how many words it took (0 = none). */
+    private fun step(toks: List<Tok>, i: Int, w: When, today: LocalDate): Int =
+        dayWord(toks, i, w, today) ?: inWords(toks, i, w, today) ?: clockWords(toks, i, w) ?: dateWord(toks[i], w, today) ?: 0
+
+    private fun dayWord(toks: List<Tok>, i: Int, w: When, today: LocalDate): Int? {
+        val t = toks[i]
+        val f = t.f.trimEnd('.')
+        val next = toks.getOrNull(i + 1)
+        when {
+            f in RELATIVE_DAYS && w.day == null -> w.day = today.plusDays(RELATIVE_DAYS.getValue(f))
+            f in WEEKDAYS && w.weekday == null -> w.weekday = WEEKDAYS.getValue(f)
+            // „Fr“ alone is too often a word; with a time or a dot it is the day.
+            f in SHORT_DAYS && w.weekday == null && (t.f.endsWith('.') || next?.let { isClock(it.f) } == true) -> w.weekday = SHORT_DAYS.getValue(f)
+            else -> return null
+        }
+        take(t, w.parts)
+        return 1
+    }
+
+    /** „in 2 Wochen“, „in einem Monat“. */
+    private fun inWords(toks: List<Tok>, i: Int, w: When, today: LocalDate): Int? {
+        if (toks[i].f != "in" || w.day != null || i + 2 >= toks.size) return null
+        val n = toks[i + 1].f.let { it.toLongOrNull() ?: NUMBER_WORDS[it] } ?: return null
+        val d = shift(today, n, toks[i + 2].f) ?: return null
+        w.day = d
+        for (k in i..i + 2) take(toks[k], w.parts)
+        return 3
+    }
+
+    /** „um 15“, „15 Uhr“, „15uhr“, „9:30“. */
+    private fun clockWords(toks: List<Tok>, i: Int, w: When): Int? {
+        if (w.time != null) return null
+        val t = toks[i]
+        val next = toks.getOrNull(i + 1)
+        if (t.f == "um" && next != null) {
+            w.time = clockOf(next.f) ?: return null
+            take(t, w.parts); take(next, w.parts)
+            return 2
+        }
+        val withUhr = next?.f == "uhr"
+        if (!(CLOCK.matches(t.f) || t.f.endsWith("uhr") || withUhr)) return null
+        w.time = clockOf(t.f) ?: return null
+        take(t, w.parts)
+        if (withUhr && next != null) take(next, w.parts)
+        return if (withUhr) 2 else 1
+    }
+
+    private fun dateWord(t: Tok, w: When, today: LocalDate): Int? {
+        if (w.day != null || !DATE.matches(t.f)) return null
+        w.day = dateOf(t.f, today) ?: return null
+        take(t, w.parts)
+        return 1
     }
 
     private fun take(t: Tok, parts: MutableList<String>) {
@@ -220,19 +249,15 @@ object OrbitLine {
     /** The longest run of words (up to three) that names exactly one contact. */
     private fun personOf(toks: List<Tok>, contacts: List<Contact>, chips: MutableList<Chip>): String? {
         val live = contacts.filter { it.deletedAt == null && !it.isMe }
-        for (len in 3 downTo 1) {
-            for (start in 0..toks.size - len) {
-                val run = toks.subList(start, start + len)
-                if (run.any { it.used }) continue
-                val q = run.joinToString(" ") { it.f }
-                val hits = live.filter { c -> namesOf(c).any { it == q } }
-                val one = hits.singleOrNull() ?: hits.filterNot { it.archived }.singleOrNull() ?: continue
-                run.forEach { it.used = true }
-                chips += Chip(Kind.PERSON, run.joinToString(" ") { it.raw })
-                return one.id
-            }
-        }
-        return null
+        val runs = (3 downTo 1).asSequence().flatMap { len -> (0..toks.size - len).asSequence().map { toks.subList(it, it + len) } }
+        val (run, one) = runs.filter { r -> r.none { it.used } }.firstNotNullOfOrNull { r ->
+            val q = r.joinToString(" ") { it.f }
+            val hits = live.filter { c -> namesOf(c).any { it == q } }
+            (hits.singleOrNull() ?: hits.filterNot { it.archived }.singleOrNull())?.let { r to it }
+        } ?: return null
+        run.forEach { it.used = true }
+        chips += Chip(Kind.PERSON, run.joinToString(" ") { it.raw })
+        return one.id
     }
 
     private fun namesOf(c: Contact): List<String> = listOf(
@@ -253,16 +278,20 @@ object OrbitLine {
         return true
     }
 
-    private fun has(c: Contact, what: String): Boolean = when {
-        what.startsWith("geburtstag") -> c.birthday != null
-        what.startsWith("thema") || what.startsWith("themen") -> c.topics.any { !it.done }
-        what.startsWith("vertrag") -> c.contracts.isNotEmpty()
-        what.startsWith("schuld") || what.startsWith("verlieh") -> c.loans.any { it.settledOn == null }
-        what.startsWith("notiz") -> c.notes.isNotBlank() || c.pinnedNote.isNotBlank()
-        what.startsWith("foto") || what.startsWith("bild") -> c.photo != null
-        what.startsWith("nummer") || what.startsWith("telefon") -> c.phones.isNotEmpty()
-        what.startsWith("mail") -> c.emails.isNotEmpty()
-        what.startsWith("wlan") -> c.wifi.isNotEmpty()
-        else -> false
-    }
+    private val HAS: List<Pair<String, (Contact) -> Boolean>> = listOf(
+        "geburtstag" to { c -> c.birthday != null },
+        "thema" to { c -> c.topics.any { !it.done } },
+        "vertrag" to { c -> c.contracts.isNotEmpty() },
+        "schuld" to { c -> c.loans.any { it.settledOn == null } },
+        "verlieh" to { c -> c.loans.any { it.settledOn == null } },
+        "notiz" to { c -> c.notes.isNotBlank() || c.pinnedNote.isNotBlank() },
+        "foto" to { c -> c.photo != null },
+        "bild" to { c -> c.photo != null },
+        "nummer" to { c -> c.phones.isNotEmpty() },
+        "telefon" to { c -> c.phones.isNotEmpty() },
+        "mail" to { c -> c.emails.isNotEmpty() },
+        "wlan" to { c -> c.wifi.isNotEmpty() },
+    )
+
+    private fun has(c: Contact, what: String): Boolean = HAS.firstOrNull { what.startsWith(it.first) }?.second?.invoke(c) ?: false
 }

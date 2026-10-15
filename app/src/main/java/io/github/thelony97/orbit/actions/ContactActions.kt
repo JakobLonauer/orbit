@@ -97,6 +97,28 @@ object ContactActions {
      * PLAN 9 C3 „Spät dran“: [text] to [c] – straight as an SMS when Jakob allowed Orbit to send
      * them, otherwise WhatsApp (or the SMS app) prepared with it. True when it went out by itself.
      */
+    /** PLAN 9 E2 Faden: an SMS straight from the reply line (mobile first); false = not allowed / no number. */
+    @android.annotation.SuppressLint("MissingPermission")
+    fun smsDirect(ctx: Context, c: Contact, text: String): Boolean {
+        if (ctx.checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) return false
+        val numbers = c.phones.filter { it.value.isNotBlank() }
+        val to = (numbers.firstOrNull { io.github.thelony97.orbit.core.domain.NumberInfo.of(it.value)?.kind == io.github.thelony97.orbit.core.domain.NumberInfo.Kind.MOBILE } ?: numbers.firstOrNull())?.value
+            ?: return false
+        val sent = runCatching {
+            val sms = ctx.getSystemService(android.telephony.SmsManager::class.java)
+            sms.sendMultipartTextMessage(to, null, sms.divideMessage(text), null, null)
+        }.isSuccess
+        if (sent) log(c.id, TypeIds.MESSAGE, text)
+        return sent
+    }
+
+    /** PLAN 9 E2: the mail app with recipient, subject and text (Jakob sends). */
+    fun mailDraft(ctx: Context, c: Contact, subject: String, body: String): Boolean {
+        val to = c.emails.firstOrNull { it.value.isNotBlank() }?.value ?: return false
+        val uri = Uri.parse("mailto:" + Uri.encode(to) + "?subject=" + Uri.encode(subject) + "&body=" + Uri.encode(body))
+        return start(ctx, Intent(Intent.ACTION_SENDTO, uri))
+    }
+
     @android.annotation.SuppressLint("MissingPermission")
     fun late(ctx: Context, c: Contact, text: String): Boolean {
         val mobile = c.phones.firstOrNull { p ->

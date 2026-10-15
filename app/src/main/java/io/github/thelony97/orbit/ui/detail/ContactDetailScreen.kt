@@ -348,6 +348,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val listState = rememberLazyListState()
+    // PLAN 9 E2 Faden: the answer line under the thread.
+    val replying = !c.isMe && !c.archived
     val photo = rememberPhoto(c.photo)
     // Kopf in der Farbe der Person (PLAN 1.3): palette from the photo; "Ich" stays the sun,
     // organisations stay blue. Glides over from the normal colour once it is known.
@@ -386,7 +388,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = top + 6.dp, bottom = bottom + 32.dp),
+            contentPadding = PaddingValues(top = top + 6.dp, bottom = bottom + if (replying) 96.dp else 32.dp),
         ) {
             // Top bar
             item(key = "bar") {
@@ -1159,6 +1161,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 }
             }
         }
+        if (replying) ReplyBar(c, Modifier.align(Alignment.BottomCenter))
+        if (replying) LiveThread()
     }
 
     // Sheets & dialogs
