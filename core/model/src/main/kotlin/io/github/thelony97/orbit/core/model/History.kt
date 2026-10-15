@@ -68,12 +68,11 @@ data class HistoryEntry(
     val wave: String = "",
 )
 
-/** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */
-@Serializable
 /** PLAN 9 E10: who is where on a photo. */
 @Serializable
 data class FacePin(val contactId: String, val x: Float, val y: Float)
 
+/** Ablage item (SQLite `attachments`); [file] is relative to the app's attachment folder. */
 @Serializable
 data class Attachment(
     val id: String,
