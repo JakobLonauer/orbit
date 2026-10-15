@@ -47,9 +47,13 @@ internal fun wheelCenter(thumb: Offset, window: androidx.compose.ui.geometry.Siz
     return Offset(thumb.x.coerceIn(m, (window.width - m).coerceAtLeast(m)), thumb.y.coerceIn(m, (window.height - m).coerceAtLeast(m)))
 }
 
-/** The pick for the finger at [finger] around [center]; null in the centre (= cancel). */
-internal fun wheelPick(c: Contact, data: OrbitData, now: LocalDateTime, center: Offset, finger: Offset, density: Float): SendLater.Pick? {
+/** A finger that has not moved this far from where the wheel opened has not picked anything yet. */
+private const val MOVE_DP = 24f
+
+/** The pick for the finger at [finger] around [center]; null in the centre or before the finger moved (= cancel). */
+internal fun wheelPick(c: Contact, data: OrbitData, now: LocalDateTime, center: Offset, finger: Offset, density: Float, start: Offset = finger + Offset(1e6f, 0f)): SendLater.Pick? {
     if ((finger - center).getDistance() < CANCEL_DP * density) return null
+    if ((finger - start).getDistance() < MOVE_DP * density) return null
     val occasion = SendLater.nextOccasion(c, data.contacts, now.toLocalDate())
     return SendLater.at(SendLater.minuteOf(angleAt(finger, center)), now, occasion?.date)
 }
@@ -61,12 +65,12 @@ internal fun wheelPick(c: Contact, data: OrbitData, now: LocalDateTime, center: 
  * centre cancels. Pure display – the gesture lives on the send orb.
  */
 @Composable
-internal fun MidnightWheelOverlay(c: Contact, data: OrbitData, center: Offset, finger: Offset, modifier: Modifier = Modifier) {
+internal fun MidnightWheelOverlay(c: Contact, data: OrbitData, center: Offset, finger: Offset, modifier: Modifier = Modifier, start: Offset = finger + Offset(1e6f, 0f)) {
     val haptics = rememberHaptics()
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     val now = remember { LocalDateTime.now(zone()) }
     val occasion = remember(c, data) { SendLater.nextOccasion(c, data.contacts, now.toLocalDate()) }
-    val pick = wheelPick(c, data, now, center, finger, density)
+    val pick = wheelPick(c, data, now, center, finger, density, start)
     val minute = SendLater.minuteOf(angleAt(finger, center))
     // Haptics: Tick per hour, Einrasten on the magnet, nothing in the centre.
     val hour = if (pick == null) -1 else if (pick.magnet) -2 else minute / MINUTES_PER_HOUR

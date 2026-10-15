@@ -40,6 +40,7 @@ import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * „Rückgängig statt Nachfragen“ (PLAN 1.2): after deleting, archiving, logging … a bar with a
@@ -68,13 +69,17 @@ object Undo {
      * screen, notification actions) it falls back to the system toast.
      */
     fun note(ctx: android.content.Context, text: String, ok: Boolean = true) {
-        if (hosted) {
-            // Never replace a pending Rückgängig with a mere note.
-            if (_current.value?.undo == null) _current.value = Offer(text, null, ok = ok)
-        } else {
-            android.widget.Toast.makeText(ctx.applicationContext, text, android.widget.Toast.LENGTH_SHORT).show()
+        var shown = false
+        if (hosted && dialogs.get() == 0) {
+            // Never replace a pending Rückgängig with a mere note (atomic: an offer in between wins).
+            _current.update { cur -> if (cur?.undo == null) Offer(text, null, ok = ok).also { shown = true } else cur }
         }
+        // A dialog covers the bar, or a Rückgängig is pending: the note must not get lost.
+        if (!shown) android.widget.Toast.makeText(ctx.applicationContext, text, android.widget.Toast.LENGTH_SHORT).show()
     }
+
+    /** Open dialogs that would hide the bar (see [DialogMark]). */
+    val dialogs = java.util.concurrent.atomic.AtomicInteger(0)
 
     /** Drops any pending offer, e.g. when the edit page opens with a copy that would undo the undo. */
     fun clear() {
@@ -90,9 +95,10 @@ object Undo {
 fun UndoBar(modifier: Modifier = Modifier) {
     val offer by Undo.current.collectAsState()
     val haptics = rememberHaptics()
-    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+    // From ON_START: activity results (permissions, pickers) arrive before ON_RESUME.
+    androidx.lifecycle.compose.LifecycleStartEffect(Unit) {
         Undo.hosted = true
-        onPauseOrDispose { Undo.hosted = false }
+        onStopOrDispose { Undo.hosted = false }
     }
     AnimatedVisibility(
         visible = offer != null,
@@ -152,5 +158,14 @@ fun UndoBar(modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+}
+
+/** Put into a dialog's content: while it is open, notes go out as system toasts (the bar lies under it). */
+@Composable
+fun DialogMark() {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        Undo.dialogs.incrementAndGet()
+        onDispose { Undo.dialogs.decrementAndGet() }
     }
 }

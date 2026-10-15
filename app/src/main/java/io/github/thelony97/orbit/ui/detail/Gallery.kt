@@ -413,6 +413,7 @@ fun PhotoViewer(items: List<io.github.thelony97.orbit.core.domain.PhotoMonths.It
     val drag = remember { androidx.compose.animation.core.Animatable(0f) }
     val grow = remember { androidx.compose.animation.core.Animatable(0.82f) }
     LaunchedEffect(Unit) { grow.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 500f)) }
+    io.github.thelony97.orbit.ui.components.DialogMark()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),

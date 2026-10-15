@@ -110,8 +110,10 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     var wheelThumb by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     var wheelFinger by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val density = androidx.compose.ui.platform.LocalDensity.current.density
-    val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val windowSize = androidx.compose.ui.unit.IntSize((config.screenWidthDp * density).toInt(), (config.screenHeightDp * density).toInt())
+    // The window as it is now, minus the keyboard – the whole wheel stays visible above it.
+    val root = androidx.compose.ui.platform.LocalView.current.rootView
+    val imeBottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+    val windowSize = androidx.compose.ui.unit.IntSize(root.width, (root.height - imeBottom).coerceAtLeast(1))
     var recording by remember { mutableStateOf<VoiceRecorder?>(null) }
     val mic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     // A planned SMS goes out by itself only with SEND_SMS – asked when it is planned, not at its time.
@@ -137,9 +139,11 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     }
 
     fun planAt(at: java.time.LocalDateTime) {
-        haptics.perform(Haptic.Confirm)
         val ms = at.atZone(io.github.thelony97.orbit.domain.zone()).toInstant().toEpochMilli()
-        io.github.thelony97.orbit.live.Scheduled.plan(ctx, io.github.thelony97.orbit.live.Scheduled.Plan(newId(), c.id, text.text.toString().trim(), ms, sms = mode == ReplyMode.SMS))
+        val plan = io.github.thelony97.orbit.live.Scheduled.Plan(newId(), c.id, text.text.toString().trim(), ms, sms = mode == ReplyMode.SMS)
+        // Only a plan made just now flies in as the clock (with its Confirm) – not on every visit.
+        freshPlans += plan.id
+        io.github.thelony97.orbit.live.Scheduled.plan(ctx, plan)
         text.clearText()
         val granted = ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
         if (mode == ReplyMode.SMS && !granted) smsLater.launch(android.Manifest.permission.SEND_SMS)
@@ -192,14 +196,14 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
                     WheelHold(
                         onStart = { at -> haptics.perform(Haptic.Threshold); wheelThumb = at; wheelFinger = at },
                         onMove = { at -> wheelFinger = at },
-                        onEnd = {
+                        onEnd = { commit ->
                             val thumb = wheelThumb
                             wheelThumb = null
-                            if (thumb != null) {
+                            if (thumb != null && commit) {
                                 val size = androidx.compose.ui.geometry.Size(windowSize.width.toFloat(), windowSize.height.toFloat())
                                 val center = wheelCenter(thumb, size, density)
                                 val now = java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone())
-                                wheelPick(c, data, now, center, wheelFinger, density)?.let { p -> planAt(p.at) }
+                                wheelPick(c, data, now, center, wheelFinger, density, start = thumb)?.let { p -> planAt(p.at) }
                             }
                         },
                     )
@@ -210,7 +214,7 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
     wheelThumb?.let { thumb ->
         val size = androidx.compose.ui.geometry.Size(windowSize.width.toFloat(), windowSize.height.toFloat())
         androidx.compose.ui.window.Popup(popupPositionProvider = WindowOrigin) {
-            MidnightWheelOverlay(c, data, wheelCenter(thumb, size, density), wheelFinger)
+            MidnightWheelOverlay(c, data, wheelCenter(thumb, size, density), wheelFinger, start = thumb)
         }
     }
 }
@@ -290,13 +294,19 @@ private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, hold: Whee
                         return@awaitEachGesture
                     }
                     h.onStart(origin + down.position)
-                    var change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
-                    while (change != null && change.pressed) {
-                        change.consume()
-                        h.onMove(origin + change.position)
-                        change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                    var genuine = false
+                    try {
+                        var change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                        while (change != null && change.pressed) {
+                            change.consume()
+                            h.onMove(origin + change.position)
+                            change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                        }
+                        // A real lift plans; a system cancel (home gesture, screen off) only closes.
+                        genuine = change != null && !change.pressed && !change.isConsumed
+                    } finally {
+                        h.onEnd(genuine)
                     }
-                    h.onEnd()
                 }
             },
         contentAlignment = Alignment.Center,
@@ -305,8 +315,15 @@ private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, hold: Whee
     }
 }
 
+/** Plans made in this process that have not flown in yet (PLAN 9 E4 moment plays once). */
+private val freshPlans = java.util.Collections.synchronizedSet(HashSet<String>())
+
 /** The send orb's hold: the wheel opens at the thumb, follows it and plans on letting go. */
-internal class WheelHold(val onStart: (androidx.compose.ui.geometry.Offset) -> Unit, val onMove: (androidx.compose.ui.geometry.Offset) -> Unit, val onEnd: () -> Unit)
+internal class WheelHold(
+    val onStart: (androidx.compose.ui.geometry.Offset) -> Unit,
+    val onMove: (androidx.compose.ui.geometry.Offset) -> Unit,
+    val onEnd: (commit: Boolean) -> Unit,
+)
 
 /** A popup at the window's origin – the wheel draws in window coordinates. */
 private object WindowOrigin : androidx.compose.ui.window.PopupPositionProvider {
@@ -328,7 +345,7 @@ private fun PlannedRow(c: Contact) {
     mine.forEach { p ->
         androidx.compose.runtime.key(p.id) {
             val at = java.time.Instant.ofEpochMilli(p.at).atZone(io.github.thelony97.orbit.domain.zone()).toLocalDateTime()
-            PlannedChip(io.github.thelony97.orbit.core.domain.SendLater.label(at, now) + " · " + p.text.take(PREVIEW_CHARS), at) {
+            PlannedChip(io.github.thelony97.orbit.core.domain.SendLater.label(at, now) + " · " + p.text.take(PREVIEW_CHARS), at, fresh = remember(p.id) { freshPlans.remove(p.id) }) {
                 io.github.thelony97.orbit.live.Scheduled.cancel(ctx, p.id)
                 io.github.thelony97.orbit.ui.components.Undo.offer("Zurückgeholt") { io.github.thelony97.orbit.live.Scheduled.plan(ctx, p) }
             }
@@ -341,11 +358,12 @@ private fun PlannedRow(c: Contact) {
  * side, the hands run from 12 to the target time and click into place (Confirm).
  */
 @Composable
-private fun PlannedChip(text: String, at: java.time.LocalDateTime, onClick: () -> Unit) {
+private fun PlannedChip(text: String, at: java.time.LocalDateTime, fresh: Boolean, onClick: () -> Unit) {
     val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
-    val arrive = remember { androidx.compose.animation.core.Animatable(0f) }
-    val hands = remember { androidx.compose.animation.core.Animatable(0f) }
+    val arrive = remember { androidx.compose.animation.core.Animatable(if (fresh) 0f else 1f) }
+    val hands = remember { androidx.compose.animation.core.Animatable(if (fresh) 0f else 1f) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!fresh) return@LaunchedEffect
         arrive.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
         hands.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.emphasized())
         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)

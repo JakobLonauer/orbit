@@ -1125,6 +1125,7 @@ private fun BackupPasswordDialog(
     onConfirm: (CharArray) -> Unit,
     extra: (@Composable () -> Unit)? = null,
 ) {
+    io.github.thelony97.orbit.ui.components.DialogMark()
     val first = rememberTextFieldState()
     val second = rememberTextFieldState()
     val a = first.text.toString()

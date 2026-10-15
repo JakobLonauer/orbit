@@ -173,6 +173,7 @@ private fun MailRow(h: MailHeader, showAccount: Boolean, showSender: Boolean, on
 
 @Composable
 internal fun MailDialog(h: MailHeader, onDismiss: () -> Unit, contactId: String? = null) {
+    io.github.thelony97.orbit.ui.components.DialogMark()
     var text by remember(h) { mutableStateOf<String?>(null) }
     var error by remember(h) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()

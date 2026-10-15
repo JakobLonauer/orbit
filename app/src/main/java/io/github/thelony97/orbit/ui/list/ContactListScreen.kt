@@ -171,6 +171,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val lastFirst = data.settings.sortByLastName
     val typed = search.text.toString()
     var landing by remember { mutableStateOf(false) }
+    // Topics ticked in the quick entry being saved (their Rückgängig takes them back too).
+    var discussedNow by remember { mutableStateOf(emptyList<String>()) }
     val lineScope = rememberCoroutineScope()
     // PLAN 9 E1 Orbit-Zeile: fixed patterns become chips; with a person + kind/time Enter creates.
     val line = remember(typed, data) {
@@ -347,14 +349,18 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         landing = true
                         Session.flash = landed
                         lineScope.launch {
-                            kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
-                            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
-                            kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
-                            search.clearText()
-                            landing = false
-                            // Let the row's flare run out before the flag goes (it would cancel the fade).
-                            kotlinx.coroutines.delay(Motion.MAX_MS.toLong())
-                            Session.flash = null
+                            try {
+                                kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                                kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                                search.clearText()
+                                landing = false
+                                // Let the row's flare run out before the flag goes (it would cancel the fade).
+                                kotlinx.coroutines.delay(Motion.MAX_MS.toLong())
+                            } finally {
+                                landing = false
+                                Session.flash = null
+                            }
                         }
                     }
                 },
@@ -664,12 +670,22 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             defaultType = if (c.isOrg) TypeIds.CALL else TypeIds.MEET,
             onSave = { e ->
                 OrbitRepository.edit { d -> Mutations.addEntry(d, c.id, e) }
-                // Swiped by mistake? One tap takes it back (PLAN 1.2).
-                Undo.offer("Eingetragen bei ${Logic.shortName(c)}") { OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, e.id) } }
+                // Swiped by mistake? One tap takes it back (PLAN 1.2) – with the topics ticked in it.
+                val ticked = discussedNow
+                discussedNow = emptyList()
+                Undo.offer("Eingetragen bei ${Logic.shortName(c)}") {
+                    OrbitRepository.edit { d -> Mutations.deleteEntry(d, c.id, e.id) }
+                    if (ticked.isNotEmpty()) {
+                        OrbitRepository.editContact(c.id) { x -> x.copy(topics = x.topics.map { if (it.id in ticked) it.copy(done = false) else it }) }
+                    }
+                }
             },
             onDismiss = { quickEntry = null },
             topics = c.topics,
-            onDiscussed = { ids -> io.github.thelony97.orbit.ui.detail.markDiscussed(c.id, ids) },
+            onDiscussed = { ids ->
+                discussedNow = ids
+                io.github.thelony97.orbit.ui.detail.markDiscussed(c.id, ids)
+            },
         )
     }
     if (filterSheet) FilterSheet(data, onDismiss = { filterSheet = false })

@@ -249,7 +249,8 @@ fun EntrySheet(
                 Spacer(Modifier.weight(1f))
                 GlowButton("Speichern", {
                     val at = LocalDateTime.of(date, time).atZone(zone()).toInstant().toEpochMilli()
-                    val talked = topics.filter { it.id in discussed && !it.done }
+                    val talkType = typeId == TypeIds.MEET || typeId == TypeIds.CALL || typeId == TypeIds.VIDEO
+                    val talked = if (talkType) topics.filter { it.id in discussed && !it.done } else emptyList()
                     val typed = note.text.toString().trim()
                     val text = if (initial == null && talked.isNotEmpty()) {
                         listOf(typed, "Besprochen: " + talked.joinToString(", ") { it.text }).filter { it.isNotEmpty() }.joinToString("\n")

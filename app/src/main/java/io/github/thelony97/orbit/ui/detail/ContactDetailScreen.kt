@@ -1194,8 +1194,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             }
             val visible = if (showAllHistory || hq.isNotEmpty() || historyType != null) filtered else filtered.take(30)
             if (threadZoom != io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) {
+                val spans = threadSpans(filtered, threadZoom, todayDate, idx)
                 // Zoomed out: one line per week/month/year („KW 41 · 5 Anrufe · 2 Treffen“); tap zooms back in.
-                threadSpans(filtered, threadZoom, todayDate, idx).forEach { (key, label, summary) ->
+                spans.forEach { (key, label, summary) ->
                     item(key = "span-$key") {
                         Column(
                             Modifier.animateItem().fillMaxWidth()
