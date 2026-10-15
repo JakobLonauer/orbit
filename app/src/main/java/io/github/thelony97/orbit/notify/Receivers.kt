@@ -123,10 +123,18 @@ class DigestReceiver : BroadcastReceiver() {
 }
 
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) = runAsync(context) {
-        DigestScheduler.schedule(context)
-        Sync.schedulePeriodic(context)
-        Backups.schedule(context)
+    private val handled = setOf(
+        Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED,
+    )
+
+    override fun onReceive(context: Context, intent: Intent) {
+        // Only the system's own broadcasts (an explicit intent from elsewhere does nothing).
+        if (intent.action !in handled) return
+        runAsync(context) {
+            DigestScheduler.schedule(context)
+            Sync.schedulePeriodic(context)
+            Backups.schedule(context)
+        }
     }
 }
 

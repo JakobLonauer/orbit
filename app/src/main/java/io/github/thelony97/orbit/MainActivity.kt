@@ -124,6 +124,10 @@ class MainActivity : FragmentActivity() {
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW,
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_VERLAUF,
             io.github.thelony97.orbit.actions.AppShortcuts.ACTION_LAST_CALL -> {
+                when (intent.action) {
+                    io.github.thelony97.orbit.actions.AppShortcuts.ACTION_NEW -> io.github.thelony97.orbit.actions.AppShortcuts.used(this, "new")
+                    io.github.thelony97.orbit.actions.AppShortcuts.ACTION_VERLAUF -> io.github.thelony97.orbit.actions.AppShortcuts.used(this, "verlauf")
+                }
                 pendingShortcut.value = intent.action
                 intent.action = Intent.ACTION_MAIN
                 return
@@ -136,6 +140,9 @@ class MainActivity : FragmentActivity() {
             return
         }
         val id = intent?.getStringExtra(EXTRA_CONTACT) ?: return
+        if (intent.data?.toString()?.startsWith("orbit://contact/") == true && intent.action == Intent.ACTION_VIEW) {
+            io.github.thelony97.orbit.actions.AppShortcuts.used(this, "fav-$id")
+        }
         pendingContact.value = id
         intent.removeExtra(EXTRA_CONTACT)
     }

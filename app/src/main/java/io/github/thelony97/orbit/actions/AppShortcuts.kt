@@ -35,6 +35,11 @@ object AppShortcuts {
     @Volatile private var shown: List<String>? = null
     @Volatile private var goneShown: Set<String>? = null
 
+    /** The launcher learns which shortcut gets used (its own ranking). */
+    fun used(ctx: Context, id: String) {
+        runCatching { ShortcutManagerCompat.reportShortcutUsed(ctx, id) }
+    }
+
     fun update(ctx: Context, data: OrbitData) {
         val gone = data.contacts.filter { it.deletedAt != null || it.archived }.map { it.id }.toSet()
         if (gone != goneShown) {

@@ -73,15 +73,31 @@ jobs:
           cp app/build/reports/lint/lint.txt "$RUNNER_TEMP/analysis/lint.txt" 2>/dev/null || true
           DETEKT=2.0.0-alpha.6
           curl -fsSL -o detekt.jar "https://github.com/detekt/detekt/releases/download/v$DETEKT/detekt-cli-$DETEKT-all.jar" || echo "detekt download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
-          curl -fsSL -o compose-rules.jar "https://repo1.maven.org/maven2/io/nlopez/compose/rules/detekt/0.6.6/detekt-0.6.6.jar" || echo "compose rules download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
+          # Compose rules plus their own modules from the same group (read from the POM).
+          CR=0.6.6; CRBASE=https://repo1.maven.org/maven2/io/nlopez/compose/rules
+          PLUGS=""
+          if curl -fsSL -o cr.pom "$CRBASE/detekt/$CR/detekt-$CR.pom"; then
+            for a in detekt $(python3 -c "import re,sys; t=open('cr.pom').read(); print(' '.join(sorted({m for g,m in re.findall(r'<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>', t) if g=='io.nlopez.compose.rules'})))"); do
+              curl -fsSL -o "cr-$a.jar" "$CRBASE/$a/$CR/$a-$CR.jar" && PLUGS="$PLUGS:cr-$a.jar" || echo "compose rules: $a missing" >> "$RUNNER_TEMP/analysis/detekt.log"
+            done
+          else
+            echo "compose rules download failed" >> "$RUNNER_TEMP/analysis/detekt.log"
+          fi
           INPUTS="--input app/src/main/java:core/model/src/main:core/domain/src/main:core/designsystem/src/main"
           if [ -f detekt.jar ]; then
-            PLUG=""; [ -f compose-rules.jar ] && PLUG="--plugins compose-rules.jar"
+            PLUG=""; [ -n "$PLUGS" ] && PLUG="--plugins ${PLUGS#:}"
             BASE=""; [ -f config/detekt/baseline.xml ] && BASE="--baseline config/detekt/baseline.xml"
             java -jar detekt.jar $INPUTS \
               --build-upon-default-config --config config/detekt/detekt.yml $PLUG $BASE \
               --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
               >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+            # Compose rules not loadable: the plain rules still give a report.
+            if [ ! -s "$RUNNER_TEMP/analysis/detekt.md" ] && [ -n "$PLUG" ]; then
+              echo "retry without compose rules" >> "$RUNNER_TEMP/analysis/detekt.log"; PLUG=""
+              java -jar detekt.jar $INPUTS --build-upon-default-config --config config/detekt/detekt.yml $BASE \
+                --report md:"$RUNNER_TEMP/analysis/detekt.md" --report checkstyle:"$RUNNER_TEMP/analysis/detekt.xml" \
+                >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
+            fi
             # A baseline of today's findings, to commit as config/detekt/baseline.xml (only new findings count afterwards).
             [ -z "$BASE" ] && java -jar detekt.jar $INPUTS \
               --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
