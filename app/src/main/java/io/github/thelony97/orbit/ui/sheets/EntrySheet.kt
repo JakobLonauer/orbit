@@ -272,7 +272,7 @@ private fun JobFields(
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
         )
         Row {
-            (1..io.github.thelony97.orbit.core.domain.Jobs.MAX_STARS).forEach { n ->
+            for (n in 1..io.github.thelony97.orbit.core.domain.Jobs.MAX_STARS) {
                 Icon(
                     if (n <= stars) Icons.Rounded.Star else Icons.Rounded.StarBorder,
                     "$n Sterne",

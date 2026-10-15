@@ -7,7 +7,12 @@ object WifiCode {
 
     private val SPECIAL = setOf('\\', ';', ',', ':', '"')
 
-    private fun escape(s: String): String = buildString { s.forEach { ch -> if (ch in SPECIAL) append('\\'); append(ch) } }
+    private fun escape(s: String): String = buildString {
+        for (ch in s) {
+            if (ch in SPECIAL) append('\\')
+            append(ch)
+        }
+    }
 
     fun qr(w: WifiNet): String {
         val open = w.password.isEmpty() || w.security.equals("nopass", ignoreCase = true)

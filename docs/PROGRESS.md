@@ -21,11 +21,32 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 |---|---|---|
 | 3.0-A Telefonbuch (A0–A13) | **veröffentlicht als v1.0.232** (15.10. 19:35) | – |
 | 3.0-B Anruf-Autopilot (B1–B12) | **veröffentlicht** (15.10. spätabends) | – |
-| 3.0-C Heute & Live (C1–C5) | **veröffentlicht** (16.10. nachts) | – |
-| 3.0-D Akten & Meine Dienste (D1–D8) | in Arbeit | Tagsitzung 16.10. nachts |
+| 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
+| 3.0-D Akten & Meine Dienste (D1–D8) | **fertig, Release folgt** | Tagsitzung 15.10. nachts |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | offen | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 15.10.2026 nachts (Tagsitzung, Teil 2) – 3.0-C veröffentlicht, 3.0-D fertig
+
+- **3.0-C veröffentlicht als v1.0.246** (main fast-forward 06f6e5f, Release-Lauf per workflow_dispatch, Zertifikat a549f16d…d81f geprüft, Jakob informiert).
+- **3.0-D Akten & Meine Dienste (D1–D8)** auf `dev`, CI grün:
+  - D1 Meine Dienste: Kacheln der Organisationen, denen ICH zugeordnet ist (Hausarzt, Bank …) unter Heute – Status-Zeile, runder Anruf-Knopf, Halten → Dranbleiben / Makros / Ausweis.
+  - D2 Telefonzeiten, Feiertage (AT, Ostern berechnet), Urlaub mit Vertretung, Schulferien (OpenHolidays AT-4, jährlich gecacht, Regel „SH off“): eine Zeile mit Vorrang Urlaub > Feiertag > Ferien > Telefon > offen.
+  - D3 Verträge: Laufzeit-Ring (Fortschritt Teal, Kündigungsfenster Orange, Tage bis zur Frist in der Mitte); Planet aus dem Ring ziehen → Kündigungsmail aus dem Baustein + „gekündigt“ mit Rückgängig. Frist als Heute-Karte (30 Tage Vorlauf) und Benachrichtigung (30/7/1/0 Tage). `core/domain/Contracts` + Tests.
+  - D4 Ausweis: Kunden-/Mitglieds-/Patientennummer halten → Karte mit voller Helligkeit, Code 128 (sonst QR), Holo nach Neigung, Diktieren.
+  - D5 Gewerk & Auftrag: Kategorie Handwerk mit Gewerk-Chips; Eintragsart „Auftrag“ mit Betrag, Sternen, Rechnung (PDF/Bild); Liste/Suche zeigt „Therme 05/2025 · 340 € · ★★★★“.
+  - D6 Verliehen & Schulden: Dinge und Geld in beide Richtungen, Saldo oben, Wisch = erledigt mit Beleg im Verlauf (Rückgängig), Zahl-QR (EPC/GiroCode) mit IBAN aus dem eigenen Feld „IBAN“.
+  - D7 WLAN: „Verbundenes Netz“ übernehmen, Passwort einmal, Tipp → System-Dialog „Netzwerk speichern“, QR zum Weitergeben.
+  - D8 Ankommen (Schalter in Einstellungen › Mitschreiben, aus): 100-m-Geofences (Play-Dienste) nur an Orten mit Inhalt; Insel „Dr. Huber · 1 Thema · Ausweis · WLAN“ + ruhiges Live-Update; beim Verlassen „Besuch 14:05–14:40“ im Verlauf (ab 3 Min). Bekanntes-WLAN-Auslöser nicht umgesetzt (nur Geofence).
+- **Prüfungen:** eigenes Code-Review (Smart-Casts, Notification-ID-Kollision 1008/1010 gefunden und behoben, Geofence ohne Play-Dienste abgesichert), detekt sauber, Screenshots `screen_v3d_*` (Dienste, Ausweis, Verträge, Verliehen/WLAN/Insel) angesehen.
+- **Wow-Gate 3.0-D (PLAN 1.5):**
+  - [x] 1. Momente: Ausweis mit Holo und voller Helligkeit; Planet aus dem Vertrags-Ring ziehen (Faden, Einrasten Coral, federt zurück); Insel beim Ankommen.
+  - [x] 2. Berührte Screens gegen W1–W9: Kontaktliste (Dienste), Akte Organisation (Status, Verträge, WLAN), Akte Person (Verliehen), Bearbeiten (Gewerk, Telefonzeiten, Urlaub), Eintrag (Auftrag), Einstellungen (Ankommen).
+  - [x] 3. Screenshots angesehen.
+  - [x] 4. Kein Ruckeln: Status-Uhr minütlich, Codes im Hintergrund, Geofences nur bei geänderter Ortsliste.
+  - [x] 5. Feinschliff (detekt, Lesbarkeit der Zeilen).
+- Bewusst offen: Ankommen per bekanntem WLAN; Fristen im Orbit-Kalender (nur Heute + Benachrichtigung).
 
 ### 15.10.2026 nachts (Tagsitzung) – 3.0-B veröffentlicht, 3.0-C fertig
 

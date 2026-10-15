@@ -29,6 +29,14 @@
   - Screenshot-Tests: Schleifen mit withFrameMillis/System-Zeit → `moment()` (autoAdvance=false); Hintergrund-Berechnung → waitForIdle + sleep; Robolectric hat keine SIM → Locale de-AT setzen. `Int * Dp` braucht Import → `6.dp * n` schreiben.
   - detekt: Datei mit genau einer Klasse + Funktionen → MatchingDeclarationName; LongMethod 60 Zeilen auch für Companion-Funktionen.
   - PhoneBook-Card-Hash = toString → neues Feld ändert alle Hashes (alles neu schreiben) → leere Felder aus dem Hash-Text herausnehmen.
+- 3.0-C/D Lehren (15.10. nachts):
+  - `produceState(…, value)` im Composable mit Parameter `value`: im Lambda `this.value = …` schreiben (sonst „val cannot be reassigned“, der Parameter gewinnt).
+  - `OrbitRepository.snapshot()` ist suspend → in Click-Handlern `editSettings`/`edit` nutzen; Folgearbeit hängt an `OrbitApp.onSaved` (dort laufen MeetingLive, Arrive.sync, Widgets).
+  - Smart-Cast auf Properties aus core/domain (`Term.days`) geht nicht → lokale vals.
+  - detekt: Callback-Parameter im Präsens (`onPull`, nicht `onPulled`), kein `forEach` auf Ranges, mehrere Emitter in einem Composable → in Column packen.
+  - Notification-IDs: 1000–1011 sind vergeben (Persist 1008/1010, Fristen 1009, Ankommen 1011) – vor neuer ID greppen.
+  - Verlauf-Einträge liegen als JSON in SQLite → neue optionale Felder an HistoryEntry brauchen keine DB-Migration; fehlende Builtin-Eintragsarten ergänzt OrbitRepository beim Laden.
+  - Heredocs in Bash fressen `\\` → Kotlin-Strings mit Backslash per Python/Write-Tool schreiben.
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.

@@ -941,12 +941,12 @@ private fun splitList(text: String): List<String> = text.split(',', ';', '\n').m
 @Composable
 private fun TradePicker(field: TextFieldState) {
     val typed = field.text.toString().trim()
-    Spacer(Modifier.size(10.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        io.github.thelony97.orbit.core.domain.Jobs.trades.forEach { t ->
-            SpaceChip(t, typed.equals(t, ignoreCase = true), { field.edit { replace(0, length, if (typed.equals(t, ignoreCase = true)) "" else t) } }, accent = Space.Orange)
+    Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            io.github.thelony97.orbit.core.domain.Jobs.trades.forEach { t ->
+                SpaceChip(t, typed.equals(t, ignoreCase = true), { field.edit { replace(0, length, if (typed.equals(t, ignoreCase = true)) "" else t) } }, accent = Space.Orange)
+            }
         }
+        SpaceField(field, "Gewerk", placeholder = "Installateur")
     }
-    Spacer(Modifier.size(8.dp))
-    SpaceField(field, "Gewerk", placeholder = "Installateur")
 }

@@ -123,7 +123,7 @@ internal fun ContractSection(org: Contact, data: OrbitData, onEdit: (Contract) -
                 Modifier.fillMaxWidth().clip(Corners.Row).clickable { onEdit(c) }.padding(vertical = Spacing.S),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ContractRing(c, today, onPulled = { cancel(ctx, org, c, data) })
+                ContractRing(c, today, onPull = { cancel(ctx, org, c, data) })
                 Spacer(Modifier.width(Spacing.M))
                 Column(Modifier.weight(1f)) {
                     Text(Contracts.title(c), style = MaterialTheme.typography.bodyLarge, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -164,17 +164,17 @@ private const val PULL_DP = 44f
  * Laufzeit als Ring (PLAN 9 D3 Moment): the term runs clockwise from the top in teal, the
  * Kündigungsfenster is orange, after the deadline the rest is faint; in the middle the days to the
  * deadline („−77“). The planet sits where today is; pulled out past the rim it snaps (Einrasten),
- * let go there it [onPulled], else it springs back.
+ * let go there it [onPull], else it springs back.
  */
 @Composable
-internal fun ContractRing(c: Contract, today: LocalDate, onPulled: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ContractRing(c: Contract, today: LocalDate, onPull: () -> Unit, modifier: Modifier = Modifier) {
     val t = Contracts.term(c, today)
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val pull = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     var armed by remember { mutableStateOf(false) }
-    val pulled by androidx.compose.runtime.rememberUpdatedState(onPulled)
+    val pulled by androidx.compose.runtime.rememberUpdatedState(onPull)
     val progress = t?.progress(today) ?: 0f
     val windowAt = t?.windowAt()
     val deadlineAt = t?.deadlineAt()
