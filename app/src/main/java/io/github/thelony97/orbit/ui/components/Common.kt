@@ -213,12 +213,24 @@ fun Avatar(
                     if (contact.isOrg) {
                         Icon(orgIcon(contact.orgCategory), null, tint = Space.Text, modifier = Modifier.size(size * 0.46f))
                     } else {
+                        // Line height = font size, trimmed: the initials sit in the optical centre at every size.
+                        val fs = (size.value * 0.36f).sp
                         Text(
-                            Logic.initials(contact),
+                            if (size < 24.dp) Logic.initials(contact).take(1) else Logic.initials(contact),
                             color = Space.Text,
                             fontFamily = Grotesk,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = (size.value * 0.36f).sp,
+                            fontSize = fs,
+                            maxLines = 1,
+                            softWrap = false,
+                            style = androidx.compose.ui.text.TextStyle(
+                                lineHeight = fs,
+                                lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                                    androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                                    androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+                                ),
+                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                            ),
                         )
                     }
                 }

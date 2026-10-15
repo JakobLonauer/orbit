@@ -3,6 +3,11 @@ package io.github.thelony97.orbit.ui.list
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import io.github.thelony97.orbit.core.designsystem.Motion
+import io.github.thelony97.orbit.core.designsystem.Spacing
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -40,9 +45,10 @@ import io.github.thelony97.orbit.ui.components.SpaceChip
 import io.github.thelony97.orbit.ui.components.Undo
 import io.github.thelony97.orbit.ui.theme.Space
 
+// Licht-Code (PLAN 9.2): the person in their own colour, never Teal (= läuft) for a mere kind.
 private fun OrbitLine.Kind.color() = when (this) {
     OrbitLine.Kind.PERSON -> Space.Violet
-    OrbitLine.Kind.TYPE -> Space.Teal
+    OrbitLine.Kind.TYPE -> Space.Violet
     OrbitLine.Kind.TIME -> Space.Orange
     OrbitLine.Kind.NOTE -> Space.Blue
     OrbitLine.Kind.GROUP, OrbitLine.Kind.FILTER -> Space.TextDim
@@ -62,23 +68,45 @@ private fun OrbitLine.Kind.icon() = when (this) {
  * springs in with its own tick.
  */
 @Composable
-fun OrbitLineChips(line: OrbitLine.Line, onClick: () -> Unit, modifier: Modifier = Modifier, onKeep: (() -> Unit)? = null) {
+fun OrbitLineChips(
+    line: OrbitLine.Line,
+    onClick: (OrbitLine.Chip) -> Unit,
+    modifier: Modifier = Modifier,
+    onKeep: (() -> Unit)? = null,
+    landing: Boolean = false,
+    personColor: androidx.compose.ui.graphics.Color? = null,
+) {
+    // Chips present at the first frame come loose one after another (60 ms apart), later ones at once.
+    var born by remember { androidx.compose.runtime.mutableStateOf(true) }
+    LaunchedEffect(Unit) { born = false }
+    val drop = remember { Animatable(0f) }
+    LaunchedEffect(landing) { if (landing) drop.animateTo(1f, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) else drop.snapTo(0f) }
     Row(
-        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.Gutter).padding(top = Spacing.S)
+            .graphicsLayer {
+                // Enter: the chips fall into the row below and dissolve.
+                translationY = drop.value * 56.dp.toPx()
+                alpha = 1f - drop.value
+                scaleX = 1f - 0.15f * drop.value
+                scaleY = 1f - 0.15f * drop.value
+            },
+        horizontalArrangement = Arrangement.spacedBy(Spacing.S),
     ) {
-        line.chips.forEach { chip ->
-            key(chip.kind, chip.text) { LooseChip(chip, onClick) }
+        line.chips.forEachIndexed { i, chip ->
+            key(chip.kind, chip.text) {
+                LooseChip(chip, if (born) i * STAGGER_MS else 0L, if (chip.kind == OrbitLine.Kind.PERSON) personColor else null) { onClick(chip) }
+            }
         }
         if (onKeep != null) SpaceChip("Merken", false, onKeep, leading = Icons.Rounded.BookmarkAdd, accent = Space.Violet)
     }
 }
 
 @Composable
-private fun LooseChip(chip: OrbitLine.Chip, onClick: () -> Unit) {
+private fun LooseChip(chip: OrbitLine.Chip, delayMs: Long, color: androidx.compose.ui.graphics.Color?, onClick: () -> Unit) {
     val haptics = rememberHaptics()
     val pop = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(delayMs)
         haptics.perform(Haptic.Tick)
         pop.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
     }
@@ -91,9 +119,11 @@ private fun LooseChip(chip: OrbitLine.Chip, onClick: () -> Unit) {
             translationY = (1f - pop.value) * -10.dp.toPx()
         },
         leading = chip.kind.icon(),
-        accent = chip.kind.color(),
+        accent = color ?: chip.kind.color(),
     )
 }
+
+private const val STAGGER_MS = 60L
 
 /**
  * Enter on a captured line: a time ahead → a planned meeting; otherwise an entry (default kind

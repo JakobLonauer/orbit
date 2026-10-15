@@ -169,6 +169,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
     val typed = search.text.toString()
+    var landing by remember { mutableStateOf(false) }
+    val lineScope = rememberCoroutineScope()
     // PLAN 9 E1 Orbit-Zeile: fixed patterns become chips; with a person + kind/time Enter creates.
     val line = remember(typed, data) {
         io.github.thelony97.orbit.core.domain.OrbitLine.parse(typed, data.contacts, data.entryTypes, java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone()))
@@ -338,9 +340,21 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
                         search.clearText()
                     }
-                    if (line.capture && commitLine(line, data) != null) {
-                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
-                        search.clearText()
+                    val landed = if (line.capture && !landing) commitLine(line, data) else null
+                    if (landed != null) {
+                        // Moment: the chips drop into the row, which flares; Confirm on the landing.
+                        landing = true
+                        Session.flash = landed
+                        lineScope.launch {
+                            kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                            kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                            search.clearText()
+                            landing = false
+                            // Let the row's flare run out before the flag goes (it would cancel the fade).
+                            kotlinx.coroutines.delay(Motion.MAX_MS.toLong())
+                            Session.flash = null
+                        }
                     }
                 },
             )
@@ -350,7 +364,17 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         activeEvent(data)?.let { ev -> EventBar(ev, data) }
         AnimatedVisibility(line.chips.isNotEmpty()) {
             OrbitLineChips(
-                line, onClick = {},
+                line,
+                // Tap on a chip takes its words out of the line again.
+                onClick = { chip ->
+                    val rest = Regex(Regex.escape(chip.text), RegexOption.IGNORE_CASE).replaceFirst(typed, "").replace(Regex("\\s+"), " ").trim()
+                    if (rest != typed.trim()) {
+                        haptics.perform(Haptic.Tick)
+                        search.setTextAndPlaceCursorAtEnd(if (rest.isEmpty()) "" else "$rest ")
+                    }
+                },
+                landing = landing,
+                personColor = line.personId?.let { id -> data.contacts.firstOrNull { it.id == id } }?.let { contactColor(it, idx) },
                 // PLAN 9 E15: a search with operators can be kept as a Smart-Gruppe.
                 onKeep = if (!line.capture && !line.filters.isEmpty && data.settings.smartGroups.none { it.query == typed.trim() }) {
                     {
@@ -813,6 +837,14 @@ private fun ContactRow(
         if (afterglow.value > 0f) {
             Session.lastOpened = null
             kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+            afterglow.animateTo(0f, tween(Motion.MAX_MS))
+        }
+    }
+    // PLAN 9 E1: the chips of the Orbit-Zeile land on this row – it flares up and fades.
+    val flashing = Session.flash == contact.id
+    androidx.compose.runtime.LaunchedEffect(flashing) {
+        if (flashing) {
+            afterglow.animateTo(1f, tween(Motion.FAST_MS))
             afterglow.animateTo(0f, tween(Motion.MAX_MS))
         }
     }

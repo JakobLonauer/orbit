@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,7 +94,7 @@ fun TopicStackScreen(data: OrbitData, idx: Index, nav: Nav, modifier: Modifier =
             if (list.isEmpty()) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { EmptyHint("Alles besprochen", "", action = "Schließen" to { nav.back() }) }
             } else {
-                Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.Gutter), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.Gutter), contentAlignment = Alignment.Center) {
                     list.take(3).withIndex().reversed().forEach { (depth, t) ->
                         key(t.topic.id) { TopicCard(t, depth, data, idx, nav) }
                     }
@@ -113,6 +114,16 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
     val drag = remember { Animatable(0f) }
     val top = depth == 0
     val canCall = t.contact.phones.any { it.value.isNotBlank() }
+    // Swipe right and the right icon do the same; swipe left and the check do the same.
+    val go = {
+        haptics.perform(Haptic.Confirm)
+        if (canCall) ContactActions.call(ctx, t.contact, null, data.settings) else nav.open(Route.Detail(t.contact.id))
+    }
+    val done = {
+        haptics.perform(Haptic.Confirm)
+        setDone(t, true)
+        Undo.offer("Besprochen") { setDone(t, false) }
+    }
 
     Box(
         Modifier
@@ -127,26 +138,19 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
                 rotationZ = drag.value / 60f
             }
             .then(
-                if (!top) Modifier else Modifier.stackSwipe(t.topic.id, drag, scope, onRight = {
-                    haptics.perform(Haptic.Confirm)
-                    if (canCall) ContactActions.call(ctx, t.contact, null, data.settings) else nav.open(Route.Detail(t.contact.id))
-                }, onLeft = {
-                    haptics.perform(Haptic.Confirm)
-                    setDone(t, true)
-                    Undo.offer("Besprochen") { setDone(t, false) }
-                }),
+                if (!top) Modifier else Modifier.stackSwipe(t.topic.id, drag, scope, onRight = { go() }, onLeft = { done() }),
             )
             .background(Space.Deep, Corners.Card)
             .glass(Corners.Card, tint = Space.PanelHigh, border = Space.Line)
             .clickable(enabled = top) { nav.open(Route.Detail(t.contact.id)) }
             .padding(Spacing.L),
     ) {
-        TopicCardContent(t, idx, canCall, top)
+        TopicCardContent(t, idx, canCall, top, onDone = { done() }, onGo = { go() })
     }
 }
 
 @Composable
-private fun TopicCardContent(t: OpenTopic, idx: Index, canCall: Boolean, top: Boolean) {
+private fun TopicCardContent(t: OpenTopic, idx: Index, canCall: Boolean, top: Boolean, onDone: () -> Unit, onGo: () -> Unit) {
     val content by animateFloatAsState(if (top) 1f else 0f, tween(Motion.MEDIUM_MS), label = "content")
     Column(Modifier.graphicsLayer { alpha = content }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -158,9 +162,9 @@ private fun TopicCardContent(t: OpenTopic, idx: Index, canCall: Boolean, top: Bo
         Text(t.topic.text, style = MaterialTheme.typography.headlineSmall, color = Space.Text, maxLines = 4, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(Spacing.L))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Check, "Besprochen", tint = Space.TextFaint, modifier = Modifier.size(22.dp))
+            StackAction(Icons.Rounded.Check, "Besprochen", Space.TextDim, enabled = top, onClick = onDone)
             Spacer(Modifier.weight(1f))
-            Icon(if (canCall) Icons.Rounded.Call else Icons.AutoMirrored.Rounded.Chat, if (canCall) "Anrufen" else "Öffnen", tint = Space.Teal, modifier = Modifier.size(22.dp))
+            StackAction(if (canCall) Icons.Rounded.Call else Icons.AutoMirrored.Rounded.Chat, if (canCall) "Anrufen" else "Öffnen", Space.Violet, enabled = top, onClick = onGo)
         }
     }
 }
@@ -195,4 +199,13 @@ private fun Modifier.stackSwipe(
         change.consume()
         scope.launch { drag.snapTo(drag.value + delta) }
     }
+}
+
+/** A round action at the foot of the card – the same as the swipe in its direction. */
+@Composable
+private fun StackAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: androidx.compose.ui.graphics.Color, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(tint.copy(alpha = 0.14f)).clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, label, tint = tint, modifier = Modifier.size(22.dp)) }
 }

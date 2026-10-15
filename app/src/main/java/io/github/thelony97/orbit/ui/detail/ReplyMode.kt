@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -40,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,10 +70,11 @@ import io.github.thelony97.orbit.ui.theme.Space
 
 /** Where the reply line sends. */
 internal enum class ReplyMode(val label: String, val icon: ImageVector, val color: Color) {
-    SMS("SMS", Icons.Rounded.Sms, Space.Teal),
-    CHAT("WhatsApp", Icons.AutoMirrored.Rounded.Chat, Space.Teal),
+    // Each way its own colour – Teal stays reserved for „läuft“ (PLAN 9.2).
+    SMS("SMS", Icons.Rounded.Sms, Space.Violet),
+    CHAT("WhatsApp", Icons.AutoMirrored.Rounded.Chat, Color(0xFF3DDC84)),
     MAIL("Mail", Icons.Rounded.Email, Space.Blue),
-    NOTE("Notiz", Icons.AutoMirrored.Rounded.Notes, Space.Violet),
+    NOTE("Notiz", Icons.AutoMirrored.Rounded.Notes, Space.Text),
 }
 
 /** The modes a contact offers: SMS/WhatsApp with a number, Mail with an address, a note always. */
@@ -121,7 +126,7 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
         }
     }
 
-    Column(modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column(modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = io.github.thelony97.orbit.core.designsystem.Spacing.Gutter, vertical = 8.dp)) {
         PlannedRow(c)
         SnippetRow(text, c, data.settings.snippets)
         MentionRow(text, data)
@@ -213,8 +218,11 @@ private fun ReplyField(text: androidx.compose.foundation.text.input.TextFieldSta
 @Composable
 private fun MicOrb(onDown: () -> Boolean, onUp: () -> Unit) {
     var held by remember { mutableStateOf(false) }
+    // Grows by scale, not by layout – the reply line never changes height (W2); Teal = recording runs.
+    val grow by androidx.compose.animation.core.animateFloatAsState(if (held) 44f / 36f else 1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "mic")
+    val fill by androidx.compose.animation.animateColorAsState(if (held) Space.Teal else Space.Violet.copy(alpha = 0.18f), label = "micFill")
     Box(
-        Modifier.size(if (held) 44.dp else 36.dp).clip(CircleShape).background(if (held) Space.Coral else Space.Violet.copy(alpha = 0.18f))
+        Modifier.size(36.dp).graphicsLayer { scaleX = grow; scaleY = grow }.clip(CircleShape).background(fill)
             .pointerInput(Unit) {
                 detectTapGestures(onPress = {
                     held = onDown()
@@ -229,8 +237,9 @@ private fun MicOrb(onDown: () -> Boolean, onUp: () -> Unit) {
 
 @Composable
 private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, onHold: (() -> Unit)?) {
+    val fill by androidx.compose.animation.animateColorAsState(if (ready) color else color.copy(alpha = 0f), label = "sendFill")
     Box(
-        Modifier.size(36.dp).clip(CircleShape).background(if (ready) color else Color.Transparent)
+        Modifier.size(36.dp).clip(CircleShape).background(fill)
             .combinedClickable(onClick = onSend, onLongClick = onHold),
         contentAlignment = Alignment.Center,
     ) {
@@ -248,18 +257,60 @@ private fun PlannedRow(c: Contact) {
     mine.forEach { p ->
         androidx.compose.runtime.key(p.id) {
             val at = java.time.Instant.ofEpochMilli(p.at).atZone(io.github.thelony97.orbit.domain.zone()).toLocalDateTime()
-            io.github.thelony97.orbit.ui.components.SpaceChip(
-                io.github.thelony97.orbit.core.domain.SendLater.label(at, now) + " · " + p.text.take(PREVIEW_CHARS),
-                true,
-                {
-                    io.github.thelony97.orbit.live.Scheduled.cancel(ctx, p.id)
-                    io.github.thelony97.orbit.ui.components.Undo.offer("Zurückgeholt") { io.github.thelony97.orbit.live.Scheduled.plan(ctx, p) }
-                },
-                modifier = Modifier.padding(bottom = 6.dp),
-                leading = Icons.Rounded.Schedule,
-                accent = Space.Orange,
-            )
+            PlannedChip(io.github.thelony97.orbit.core.domain.SendLater.label(at, now) + " · " + p.text.take(PREVIEW_CHARS), at) {
+                io.github.thelony97.orbit.live.Scheduled.cancel(ctx, p.id)
+                io.github.thelony97.orbit.ui.components.Undo.offer("Zurückgeholt") { io.github.thelony97.orbit.live.Scheduled.plan(ctx, p) }
+            }
         }
+    }
+}
+
+/**
+ * E4 Moment: the planned message lands as a little clock – the chip grows in from the send orb's
+ * side, the hands run from 12 to the target time and click into place (Confirm).
+ */
+@Composable
+private fun PlannedChip(text: String, at: java.time.LocalDateTime, onClick: () -> Unit) {
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
+    val arrive = remember { androidx.compose.animation.core.Animatable(0f) }
+    val hands = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        arrive.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
+        hands.animateTo(1f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized))
+        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+    }
+    val minute = at.minute / 60f
+    val hour = (at.hour % 12 + minute) / 12f
+    Row(
+        Modifier
+            .padding(bottom = 8.dp)
+            .graphicsLayer {
+                val k = 0.6f + 0.4f * arrive.value
+                scaleX = k
+                scaleY = k
+                alpha = arrive.value.coerceIn(0f, 1f)
+                translationX = (1f - arrive.value) * 48.dp.toPx()
+            }
+            .height(30.dp)
+            .clip(CircleShape)
+            .background(Space.Orange.copy(alpha = 0.16f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.size(16.dp)) {
+            val r = size.minDimension / 2f
+            val stroke = 1.5.dp.toPx()
+            drawCircle(Space.Orange, r - stroke / 2f, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            fun hand(turns: Float, len: Float) {
+                val a = (turns * 2f * Math.PI - Math.PI / 2).toFloat()
+                drawLine(Space.Orange, center, center + androidx.compose.ui.geometry.Offset(kotlin.math.cos(a) * len, kotlin.math.sin(a) * len), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+            hand(hour * hands.value, r * 0.5f)
+            hand(minute * hands.value, r * 0.75f)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = Space.Text, maxLines = 1)
     }
 }
 
