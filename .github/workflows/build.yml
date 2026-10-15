@@ -103,6 +103,7 @@ jobs:
               --build-upon-default-config --config config/detekt/detekt.yml $PLUG \
               --create-baseline --baseline "$RUNNER_TEMP/analysis/baseline.xml" >> "$RUNNER_TEMP/analysis/detekt.log" 2>&1 || true
           fi
+          { echo "plugins: ${PLUGS#:}"; ls -l cr-*.jar 2>/dev/null; grep -n "retry\|compose rules\|NoClassDefFoundError\|Exception" "$RUNNER_TEMP/analysis/detekt.log" | head -20; } > "$RUNNER_TEMP/analysis/detekt-setup.txt" 2>&1 || true
           tail -c 20000 "$RUNNER_TEMP/analysis/detekt.log" > "$RUNNER_TEMP/analysis/detekt.log.tail" 2>/dev/null || true
 
       - name: Publish build log to ci-log branch
@@ -121,6 +122,7 @@ jobs:
           mkdir -p analysis
           cp "$RUNNER_TEMP"/analysis/lint.txt "$RUNNER_TEMP"/analysis/detekt.md "$RUNNER_TEMP"/analysis/detekt.xml "$RUNNER_TEMP"/analysis/baseline.xml analysis/ 2>/dev/null || true
           cp "$RUNNER_TEMP"/analysis/detekt.log.tail analysis/detekt.log 2>/dev/null || true
+          cp "$RUNNER_TEMP"/analysis/detekt-setup.txt analysis/ 2>/dev/null || true
           tail -c 20000 "$RUNNER_TEMP"/analysis/lint.log > analysis/lint.log 2>/dev/null || true
           echo "run ${{ github.run_number }} sha ${{ github.sha }} outcome ${{ job.status }}" > meta.txt
           if [ "$GITHUB_REF_NAME" = "main" ]; then LOGBRANCH=ci-log; else LOGBRANCH="ci-log-$GITHUB_REF_NAME"; fi
