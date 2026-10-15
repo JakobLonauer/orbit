@@ -3,6 +3,7 @@ package io.github.thelony97.orbit.ui.verlauf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -71,8 +72,24 @@ import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import java.time.LocalDate
 
+/** A Verlauf line: an entry of a contact, or calls the filter silenced (PLAN 9 B8). */
+internal sealed interface VerlaufLine {
+    val at: Long
+}
+
 /** One Verlauf row with its contact. */
-internal data class VerlaufItem(val contact: Contact, val entry: Entry)
+internal data class VerlaufItem(val contact: Contact, val entry: Entry) : VerlaufLine {
+    override val at: Long get() = entry.at
+}
+
+/** Calls of one number the filter silenced on one day: one thin coral trace with the rules. */
+internal data class SilencedTrace(val number: String, override val at: Long, val count: Int, val rules: List<String>) : VerlaufLine
+
+/** Silenced calls merged per number and day, newest first. */
+internal fun silencedTraces(rows: List<io.github.thelony97.orbit.call.Silenced.Row>): List<SilencedTrace> =
+    rows.groupBy { it.number to it.at.toLocalDate() }
+        .map { (_, g) -> SilencedTrace(g.first().number, g.maxOf { it.at }, g.size, g.map { it.rule }.distinct()) }
+        .sortedByDescending { it.at }
 
 /**
  * All entries of all visible contacts, newest first (PLAN 3.4). Archived contacts never appear,
@@ -143,6 +160,14 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     val callbacks by androidx.compose.runtime.produceState(0, permissionTick, data.settings.dismissedGhosts) {
         value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data).size
     }
+    // PLAN 9 B8: calls the filter silenced – thin coral traces between the day's rows.
+    val silenced by androidx.compose.runtime.produceState(emptyList<SilencedTrace>(), permissionTick) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { silencedTraces(io.github.thelony97.orbit.call.Silenced.all(ctx)) }
+    }
+    val lines: List<VerlaufLine> = remember(rows, silenced, query, typeFilter) {
+        if (query.isNotEmpty() || typeFilter != null || rows.isEmpty()) rows else (rows + silenced).sortedByDescending { it.at }
+    }
+    val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -202,8 +227,8 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
             }
         }
         var lastDay: LocalDate? = null
-        rows.forEach { r ->
-            val day = r.entry.at.toLocalDate()
+        lines.forEach { line ->
+            val day = line.at.toLocalDate()
             if (day != lastDay) {
                 lastDay = day
                 item(key = "d-$day") {
@@ -215,10 +240,51 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                     )
                 }
             }
-            item(key = "e-${r.contact.id}-${r.entry.id}") {
-                VerlaufRow(r, idx, fresh = r.entry.at > openedAt, onOpen = { nav.open(Route.Detail(r.contact.id)) }, modifier = Modifier.animateItem())
+            when (line) {
+                is VerlaufItem -> item(key = "e-${line.contact.id}-${line.entry.id}") {
+                    VerlaufRow(line, idx, fresh = line.entry.at > openedAt, onOpen = { nav.open(Route.Detail(line.contact.id)) }, modifier = Modifier.animateItem())
+                }
+                is SilencedTrace -> item(key = "s-${line.number}-${line.at}") {
+                    SilencedRow(line, iso, Modifier.animateItem())
+                }
             }
         }
+    }
+}
+
+/** PLAN 9 B8: a silenced call – a thin coral trace where a face would be, the rule as a stamp. */
+@Composable
+private fun SilencedRow(t: SilencedTrace, iso: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(36.dp).height(22.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(2.dp).height(22.dp).background(Space.Coral.copy(alpha = 0.6f), RoundedCornerShape(1.dp)))
+        }
+        Spacer(Modifier.width(12.dp))
+        val number = if (t.number.any(Char::isDigit)) io.github.thelony97.orbit.domain.Phones.pretty(t.number, iso) else t.number
+        Text(
+            number + if (t.count > 1) " · ${t.count}×" else "",
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+            color = Space.TextFaint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        t.rules.forEach { rule ->
+            Spacer(Modifier.width(6.dp))
+            Text(
+                rule,
+                style = MaterialTheme.typography.labelSmall,
+                color = Space.Coral,
+                modifier = Modifier
+                    .border(1.dp, Space.Coral.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(Fmt.time(t.at), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextFaint)
     }
 }
 

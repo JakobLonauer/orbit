@@ -5,6 +5,7 @@ import android.provider.CallLog
 import io.github.thelony97.orbit.core.domain.CallbackStack
 import io.github.thelony97.orbit.core.domain.Herold
 import io.github.thelony97.orbit.core.domain.NumberInfo
+import io.github.thelony97.orbit.core.domain.Screening
 import io.github.thelony97.orbit.data.Contact
 import io.github.thelony97.orbit.data.OrbitData
 import io.github.thelony97.orbit.domain.PhoneMatcher
@@ -40,15 +41,12 @@ object Callbacks {
         val now = System.currentTimeMillis()
         val since = now - CallbackStack.DAYS * 86_400_000L
         val iso = Phones.countryIso(ctx)
+        // PLAN 9 B8: what the filter silenced as spam (series, country, premium) waits for nobody;
+        // an unknown caller silenced only for the night does – the card is there in the morning.
+        val spam = Silenced.all(ctx).filter { it.at >= since && it.rule != Screening.NIGHT }.mapNotNull { Phones.normalize(it.number, iso) }.toSet()
         val calls = SyncEngine.callsSince(ctx, since).mapNotNull { c ->
-            val type = when (c.type) {
-                CallLog.Calls.MISSED_TYPE -> CallbackStack.CallType.MISSED
-                CallLog.Calls.REJECTED_TYPE, CallLog.Calls.BLOCKED_TYPE -> CallbackStack.CallType.REJECTED
-                CallLog.Calls.OUTGOING_TYPE -> CallbackStack.CallType.OUTGOING
-                CallLog.Calls.INCOMING_TYPE, CallLog.Calls.ANSWERED_EXTERNALLY_TYPE -> CallbackStack.CallType.INCOMING
-                else -> null
-            }
-            val n = c.number?.takeIf { it.isNotBlank() }
+            val type = callType(c.type)
+            val n = c.number?.takeIf { it.isNotBlank() && Phones.normalize(it, iso) !in spam }
             if (type == null || n == null) null else CallbackStack.Call(n, c.date, type)
         }
         val sms = if (SyncEngine.canReadSms(ctx)) {
@@ -59,16 +57,27 @@ object Callbacks {
         val done = data.settings.dismissedGhosts.filter { it.startsWith("cb:") }.toSet()
         val cards = CallbackStack.build(calls, sms, LaterCalls.all(ctx), done, now) { Phones.normalize(it, iso) }
         val matcher = PhoneMatcher(data.contacts.filter { it.deletedAt == null && !it.archived }, iso)
-        cards.map { card ->
-            val contact = matcher.match(card.number)?.let { id -> data.contacts.firstOrNull { it.id == id } }
-            val info = runCatching { NumberInfo.of(card.number, iso) }.getOrNull()
-            val hit = if (contact == null) info?.let { CallerLookup.known(ctx, it.e164)?.hit } else null
-            val title = contact?.let { io.github.thelony97.orbit.domain.Logic.displayName(it, data.settings.sortByLastName) }
-                ?: hit?.name
-                ?: Phones.pretty(card.number, iso)
-            val ping = NumberInfo.pingSuspect(info, known = contact != null, missed = card.source == CallbackStack.Source.MISSED)
-            Item(card, contact, title, info, hit, warn = ping || info?.costs == true)
-        }
+        cards.map { card -> item(ctx, data, card, matcher, iso) }
+    }
+
+    private fun callType(type: Int): CallbackStack.CallType? = when (type) {
+        CallLog.Calls.MISSED_TYPE -> CallbackStack.CallType.MISSED
+        CallLog.Calls.REJECTED_TYPE, CallLog.Calls.BLOCKED_TYPE -> CallbackStack.CallType.REJECTED
+        CallLog.Calls.OUTGOING_TYPE -> CallbackStack.CallType.OUTGOING
+        CallLog.Calls.INCOMING_TYPE, CallLog.Calls.ANSWERED_EXTERNALLY_TYPE -> CallbackStack.CallType.INCOMING
+        else -> null
+    }
+
+    /** Who the card is: the contact, else the Herold hit, else the number itself. */
+    private fun item(ctx: Context, data: OrbitData, card: CallbackStack.Card, matcher: PhoneMatcher, iso: String): Item {
+        val contact = matcher.match(card.number)?.let { id -> data.contacts.firstOrNull { it.id == id } }
+        val info = runCatching { NumberInfo.of(card.number, iso) }.getOrNull()
+        val hit = if (contact == null) info?.let { CallerLookup.known(ctx, it.e164)?.hit } else null
+        val title = contact?.let { io.github.thelony97.orbit.domain.Logic.displayName(it, data.settings.sortByLastName) }
+            ?: hit?.name
+            ?: Phones.pretty(card.number, iso)
+        val ping = NumberInfo.pingSuspect(info, known = contact != null, missed = card.source == CallbackStack.Source.MISSED)
+        return Item(card, contact, title, info, hit, warn = ping || info?.costs == true)
     }
 }
 
@@ -144,9 +153,9 @@ class CallbackNudgeWorker(ctx: Context, params: androidx.work.WorkerParameters) 
         )?.use { c ->
             while (c.moveToNext()) {
                 val end = c.getLong(0)
-                val allDay = c.getInt(1) == 1
+                val timed = c.getInt(1) != 1
                 val busy = c.getInt(2) == android.provider.CalendarContract.Events.AVAILABILITY_BUSY
-                if (!allDay && busy && end in from..to && (latest == null || end > latest!!)) latest = end
+                if (timed && busy && end in from..to) latest = maxOf(latest ?: end, end)
             }
         }
         latest

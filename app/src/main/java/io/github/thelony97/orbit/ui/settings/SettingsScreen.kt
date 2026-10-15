@@ -100,6 +100,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Euro
+import androidx.compose.material.icons.rounded.FormatListNumbered
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
@@ -294,6 +299,13 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         permissionTick++
         if (result.values.all { it }) calendarOn() else permissionDenied = true
     }
+    // PLAN 9 B8: Anruf-Filter – the system's role dialog decides, then the rules apply.
+    val screeningLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        io.github.thelony97.orbit.call.ScreeningRole.tidy(ctx)
+        permissionTick++
+        if (io.github.thelony97.orbit.call.ScreeningRole.held(ctx)) OrbitRepository.editSettings { it.copy(screening = true) }
+    }
+    var screenListDialog by remember { mutableStateOf<String?>(null) }
     // Orbit als Telefon-App (PLAN 3.12): the system's own role dialog decides.
     val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
@@ -527,6 +539,52 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                             ctx.startActivity(ctx.getSystemService(android.telecom.TelecomManager::class.java).createManageBlockedNumbersIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         }.onFailure { toast("Nicht möglich") }
                     })
+                }
+            }
+        }
+
+        // PLAN 9 B8: Abwehr ohne Verlust – silence by fixed rules, never reject.
+        if (area == "capture" && io.github.thelony97.orbit.call.ScreeningRole.available(ctx)) item(key = "screening") {
+            val held = remember(permissionTick) { io.github.thelony97.orbit.call.ScreeningRole.held(ctx) }
+            val on = s.screening && held
+            SettingsGroup("") {
+                SettingItem(
+                    Icons.Rounded.Shield, "Anruf-Filter", subtitle = if (on) "Stumm statt abweisen" else null, iconTint = Space.Coral,
+                    trailing = {
+                        SpaceSwitch(on) { v ->
+                            if (!v) {
+                                OrbitRepository.editSettings { it.copy(screening = false) }
+                            } else if (held) {
+                                OrbitRepository.editSettings { it.copy(screening = true) }
+                            } else {
+                                io.github.thelony97.orbit.call.ScreeningRole.requestIntent(ctx)?.let { runCatching { screeningLauncher.launch(it) } }
+                            }
+                        }
+                    },
+                )
+                if (on) {
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Bedtime, "Unbekannt nachts (22–7)", iconTint = Space.Coral,
+                        trailing = { SpaceSwitch(s.screenNight) { v -> OrbitRepository.editSettings { it.copy(screenNight = v) } } },
+                    )
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Euro, "Mehrwertnummern", iconTint = Space.Coral,
+                        trailing = { SpaceSwitch(s.screenPremium) { v -> OrbitRepository.editSettings { it.copy(screenPremium = v) } } },
+                    )
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Public, "Länder",
+                        subtitle = s.screenCountries.joinToString(", ").ifBlank { null },
+                        iconTint = Space.Coral, onClick = { screenListDialog = "countries" },
+                    )
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.FormatListNumbered, "Nummernserien",
+                        subtitle = s.screenSeries.joinToString(", ").ifBlank { null },
+                        iconTint = Space.Coral, onClick = { screenListDialog = "series" },
+                    )
                 }
             }
         }
@@ -912,6 +970,10 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         )
     }
 
+    screenListDialog?.let { which ->
+        ScreenListDialog(countries = which == "countries", s, onDismiss = { screenListDialog = null })
+    }
+
     if (phoneDialog) {
         // PLAN 3.12: one sentence when turning it on.
         AlertDialog(
@@ -1047,3 +1109,58 @@ private fun BackupPasswordDialog(
 /** The one „Was ist neu“ line (PLAN 3.13), kept with the release that brings it. */
 internal const val WHATS_NEW =
     "Anlässe mit Jahresrad · Orbit als Telefon-App · Organisationen mit Portalen · E-Mails im Verlauf · Fotos-Seite · Ich-Karte"
+
+/**
+ * PLAN 9 B8: the filter's lists. Countries: the usual ping-call origins as chips, any other by its
+ * code; number series as typed („0900, +43 720“).
+ */
+@Composable
+private fun ScreenListDialog(countries: Boolean, s: io.github.thelony97.orbit.core.model.Settings, onDismiss: () -> Unit) {
+    var picked by remember { mutableStateOf(s.screenCountries.map { it.uppercase() }) }
+    val typed = androidx.compose.foundation.text.input.rememberTextFieldState(if (countries) "" else s.screenSeries.joinToString(", "))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text(if (countries) "Länder" else "Nummernserien") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (countries) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        (io.github.thelony97.orbit.core.domain.Screening.pingCountries + picked).distinct().forEach { code ->
+                            SpaceChip(countryName(code), code in picked, { picked = if (code in picked) picked - code else picked + code }, accent = Space.Coral)
+                        }
+                    }
+                }
+                androidx.compose.material3.OutlinedTextField(
+                    state = typed,
+                    lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
+                    placeholder = { Text(if (countries) "RS, BA" else "0900, +43 720") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        capitalization = if (countries) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
+                        keyboardType = if (countries) androidx.compose.ui.text.input.KeyboardType.Text else androidx.compose.ui.text.input.KeyboardType.Phone,
+                    ),
+                    shape = io.github.thelony97.orbit.core.designsystem.Corners.Row,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = {
+                val text = typed.text.toString()
+                if (countries) {
+                    val list = (picked + io.github.thelony97.orbit.core.domain.Screening.countriesOf(text)).distinct()
+                    OrbitRepository.editSettings { it.copy(screenCountries = list) }
+                } else {
+                    OrbitRepository.editSettings { it.copy(screenSeries = io.github.thelony97.orbit.core.domain.Screening.seriesOf(text)) }
+                }
+                onDismiss()
+            }) { Text("Speichern") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
+/** „Nigeria“ for NG – the system's German country names. */
+private fun countryName(code: String): String =
+    runCatching { java.util.Locale.Builder().setRegion(code).build().getDisplayCountry(java.util.Locale.GERMAN) }.getOrNull()
+        ?.takeIf { it.isNotBlank() && it != code } ?: code

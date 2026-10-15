@@ -27,7 +27,15 @@ data class CallerCard(
     val birthday: io.github.thelony97.orbit.core.model.CalendarDay? = null,
     /** First group colour (ARGB), so the caller has the same colour as in the list. */
     val color: Long? = null,
+    /** PLAN 9 B7 „Familie im Blick“: partner and children, with birthdays for „wird 7 am Freitag“. */
+    val family: List<FamilyMember> = emptyList(),
+    /** PLAN 9 B7: how to address them – „Sie · Frau Mag.a Huber“, „Du · Hansi“; empty when nothing special. */
+    val anrede: String = "",
 )
+
+/** PLAN 9 B7: a partner („partner“) or a child („child“) of the caller. */
+@Serializable
+data class FamilyMember(val name: String, val kind: String, val birthday: io.github.thelony97.orbit.core.model.CalendarDay? = null)
 
 @Serializable
 data class CallerPrefix(val prefix: String, val card: CallerCard)
@@ -43,6 +51,8 @@ data class CallerIndex(
     val exact: Map<String, CallerCard> = emptyMap(),
     val members: Map<String, CallerCard> = emptyMap(),
     val prefixes: List<CallerPrefix> = emptyList(),
+    /** PLAN 9 B8: the call filter's rules, copied here so screening needs no full load; null = off. */
+    val screening: Screening.Rules? = null,
 ) {
     fun lookup(raw: String, normalize: (String) -> String?): CallerCard? {
         val n = normalize(raw) ?: return null
@@ -96,6 +106,8 @@ data class CallerIndex(
                     topics = if (doc.settings.topicsDuringCall) c.topics.filterNot { it.done }.map { it.text }.take(TOPICS) else emptyList(),
                     birthday = if (c.isOrg) null else c.birthday,
                     color = c.groupIds.firstNotNullOfOrNull { groupColors[it] },
+                    family = if (c.isOrg) emptyList() else familyOf(c, doc, byId),
+                    anrede = if (c.isOrg) "" else anrede(c),
                 )
                 for (p in c.phones) {
                     val n = normalize(p.value) ?: continue
@@ -128,7 +140,44 @@ data class CallerIndex(
                 }
             }
             prefixes.sortByDescending { it.prefix.length }
-            return CallerIndex(doc.settings.callerInfo, exact, members, prefixes)
+            val s = doc.settings
+            val rules = if (s.screening) {
+                Screening.Rules(
+                    night = s.screenNight,
+                    premium = s.screenPremium,
+                    countries = s.screenCountries.map { it.trim().uppercase() }.filter { it.length == 2 },
+                    series = s.screenSeries.mapNotNull { p -> p.takeIf { it.count(Char::isDigit) >= 3 }?.let { normalize(it.trim() + "0000")?.takeIf { n -> n.endsWith("0000") }?.dropLast(4) } },
+                )
+            } else {
+                null
+            }
+            return CallerIndex(s.callerInfo, exact, members, prefixes, rules)
+        }
+
+        private val PARTNER_KINDS = setOf("partner", "spouse")
+
+        /** Partners (either side) and children („<c> ist Elternteil von <x>“), visible ones only. */
+        private fun familyOf(c: Contact, doc: OrbitDoc, byId: Map<String, Contact>): List<FamilyMember> {
+            fun ok(id: String) = byId[id]?.takeIf { it.deletedAt == null && !it.archived && !it.isMe && !it.isOrg }
+            fun short(x: Contact) = x.nickname.ifBlank { x.firstName }.ifBlank { nameOf(x) }
+            val partners = doc.relations.filter { it.kind in PARTNER_KINDS && (it.fromId == c.id || it.toId == c.id) }
+                .mapNotNull { ok(if (it.fromId == c.id) it.toId else it.fromId) }
+                .distinctBy { it.id }.map { FamilyMember(short(it), "partner", it.birthday) }
+            val children = doc.relations.filter { it.kind == "parent" && it.fromId == c.id }
+                .mapNotNull { ok(it.toId) }
+                .distinctBy { it.id }.map { FamilyMember(short(it), "child", it.birthday) }
+            return partners + children
+        }
+
+        /**
+         * PLAN 9 B7: „Sie · Frau Mag.a Huber“ for people Jakob says Sie to, „Du · Hansi“ when there is
+         * a Rufname; empty otherwise (W5).
+         */
+        fun anrede(c: Contact): String = when {
+            c.greeting?.formal == true -> "Sie · " + listOf(c.salutation, c.title, c.lastName.ifBlank { c.firstName })
+                .filter { it.isNotBlank() }.joinToString(" ")
+            c.nickname.isNotBlank() -> "Du · " + c.nickname
+            else -> ""
         }
 
         /** Organisations keep their name in `company` (edit page, 1.0.7 data); older test data in firstName. */

@@ -35,6 +35,12 @@ class OrbitInCallService : InCallService() {
         override fun onStateChanged(call: Call, state: Int) = safe {
             CallSession.changed()
             CallNotification.update(this@OrbitInCallService)
+            // PLAN 9 B4 „Makro wählen“: answered – the hotline gets a moment, then the keys.
+            val p = MacroPlayer.pending
+            if (state == Call.STATE_ACTIVE && p != null && io.github.thelony97.orbit.core.domain.Herold.sameNumber(p.number, CallSession.numberOf(call))) {
+                MacroPlayer.pending = null
+                MacroPlayer.start(p.macro, p.org, p.me, delayFirst = 1_500)
+            }
         }
 
         override fun onDetailsChanged(call: Call, details: Call.Details) = safe { CallSession.changed() }

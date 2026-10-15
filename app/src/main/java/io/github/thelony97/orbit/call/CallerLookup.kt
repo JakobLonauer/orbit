@@ -53,11 +53,12 @@ object CallerLookup {
     suspend fun enabled(): Boolean = runCatching { OrbitRepository.snapshot().settings.callerLookup }.getOrDefault(true)
 
     /**
-     * Who is [e164]? From the week's cache, else from Herold (businesses first, then people).
-     * Null: not Austrian, switched off, nobody found, or no network (then not remembered).
+     * Who is [e164]? From the week's cache, else from Herold (businesses first, then people). The
+     * answer's hit is null when Herold knows nobody; the answer itself is null when Orbit did not
+     * ask (not Austrian, switched off) or Herold was not reached (then nothing is remembered).
      */
-    suspend fun lookup(ctx: Context, e164: String): Herold.Hit? {
-        known(ctx, e164)?.let { return it.hit }
+    suspend fun lookup(ctx: Context, e164: String): Entry? {
+        known(ctx, e164)?.let { return it }
         if (!enabled()) return null
         val national = Herold.national(e164) ?: return null
         var reached = false
@@ -69,8 +70,8 @@ object CallerLookup {
                 }
             }
         }
-        if (reached) store(ctx, e164, Entry(System.currentTimeMillis(), hit))
-        return hit
+        if (!reached) return null
+        return Entry(System.currentTimeMillis(), hit).also { store(ctx, e164, it) }
     }
 
     private suspend fun store(ctx: Context, e164: String, entry: Entry) {

@@ -235,7 +235,7 @@ class PhoneStateReceiver : BroadcastReceiver() {
                                 // Herold while it still rings; the card sharpens when the answer comes.
                                 if (info?.region == "AT") {
                                     val hit = kotlinx.coroutines.withTimeoutOrNull(6_000) {
-                                        io.github.thelony97.orbit.call.CallerLookup.lookup(context, info.e164)
+                                        io.github.thelony97.orbit.call.CallerLookup.lookup(context, info.e164)?.hit
                                     }
                                     if (hit != null && stillRinging()) Notifications.unknownCaller(context, history, number, info, hit)
                                 }

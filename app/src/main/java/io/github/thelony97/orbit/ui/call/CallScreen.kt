@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.PhoneInTalk
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Unarchive
@@ -119,6 +120,19 @@ data class UnknownCaller(
     val found: Boolean get() = name.isNotBlank()
 }
 
+/** PLAN 9 B4: a macro of the organisation on the line. */
+data class MacroChip(val id: String, val label: String)
+
+/** PLAN 9 B4: a macro playing – the key now, a running pause, or the wait for „Weiter“. */
+data class MacroPlaying(
+    val name: String,
+    val key: Char? = null,
+    val fromField: Boolean = false,
+    val pauseMs: Long = 0,
+    val pauseSince: Long = 0,
+    val waiting: Boolean = false,
+)
+
 /** What the call screen shows (PLAN 3.12). Built from the caller index; no telecom types here. */
 data class CallUi(
     val number: String,
@@ -159,6 +173,15 @@ data class CallUi(
     val unknown: UnknownCaller? = null,
     /** PLAN 9 B2: an organisation reached through its number range – „Durchwahl 410“. */
     val extension: String? = null,
+    /** PLAN 9 B4: the organisation's macros (as the phone app, while talking). */
+    val macros: List<MacroChip> = emptyList(),
+    val playing: MacroPlaying? = null,
+    /** PLAN 9 B4 after the call: what was typed, as a macro line („1 · 4 s · 3 · Kundennummer“). */
+    val recorded: String? = null,
+    /** PLAN 9 B7: numbers to read out in the call (label, value) – the caller's and Jakob's own. */
+    val dictation: List<Pair<String, String>> = emptyList(),
+    /** PLAN 9 B7 „Tastenfeld schreibt mit“: Vorgangsnummern typed in the call. */
+    val cases: List<String> = emptyList(),
 )
 
 enum class AudioRoute { EARPIECE, SPEAKER, WIRED, BLUETOOTH }
@@ -193,6 +216,11 @@ interface CallActions {
     fun close() {}
     /** After a call with an unknown number: create it as a person or an organisation (PLAN 3.12). */
     fun createContact(org: Boolean) {}
+    /** PLAN 9 B4: play a macro, „Weiter“, take over, keep what was typed. */
+    fun playMacro(id: String) {}
+    fun macroNext() {}
+    fun macroStop() {}
+    fun saveMacro() {}
 }
 
 /** The caller's colour: a stable pick per contact, violet for unknown numbers. */
@@ -222,6 +250,16 @@ fun CallScreen(
 ) {
     var templates by remember { mutableStateOf(smsOpen) }
     var keys by remember { mutableStateOf(false) }
+    // PLAN 9 B7: a number read out big while talking.
+    var dictating by remember { mutableStateOf<Pair<String, String>?>(null) }
+    dictating?.let { (label, value) ->
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { dictating = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            io.github.thelony97.orbit.ui.components.DictationView(label, value, onClose = { dictating = null })
+        }
+    }
     val color = callerColor(ui.card, ui.phoneUnlocked)
     val notice = remember(ui.card, now / 3_600_000L) { ui.card?.let { CallerNotice.of(it, now, java.time.ZoneId.systemDefault()) } }
     val mode = when {
@@ -288,15 +326,17 @@ fun CallScreen(
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+            // The SMS templates (ringing) and the keypad (talking) take the cards' place, so everything
+            // fits without scrolling.
+            val roomy = !(templates && !ui.active) && !(keys && ui.active && !ui.ended)
             // PLAN 9 B1: who an unknown number belongs to – the card is there at once, the hit sharpens in.
-            val u = ui.unknown
-            if (ui.card == null && u != null && (u.searching || u.found) && !ui.ended && !(templates && !ui.active) && !(keys && ui.active)) {
+            val herold = ui.unknown?.takeIf { ui.card == null && !ui.ended && (it.searching || it.found) }
+            if (herold != null && roomy) {
                 Spacer(Modifier.height(16.dp))
-                HeroldCard(u)
+                HeroldCard(herold)
             }
             // Details only on an unlocked phone (PLAN 3.12); the lock screen sees name and role.
-            // The templates take the details' place, so everything fits without scrolling.
-            if (ui.phoneUnlocked && notice != null && !(templates && !ui.active) && !(keys && ui.active && !ui.ended)) {
+            if (ui.phoneUnlocked && notice != null && roomy) {
                 Spacer(Modifier.height(16.dp))
                 Details(notice, ui, actions)
             }
@@ -313,7 +353,15 @@ fun CallScreen(
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             if (m == CallMode.ENDED) {
                 // The note needs a contact to land on, and an unlocked phone.
-                AfterCall(ui.phoneUnlocked && ui.card != null, actions, unknown = ui.card == null && ui.phoneUnlocked, initial = ui.draft, found = ui.unknown?.takeIf { it.found })
+                AfterCall(
+                    ui.phoneUnlocked && ui.card != null, actions,
+                    unknown = ui.card == null && ui.phoneUnlocked,
+                    // B7: a Vorgangsnummer typed in the call is already in the note.
+                    initial = ui.draft.ifBlank { ui.cases.firstOrNull()?.let { "Vorgang $it" }.orEmpty() },
+                    cases = ui.cases,
+                    found = ui.unknown?.takeIf { it.found },
+                    recorded = ui.recorded?.takeIf { ui.phoneUnlocked },
+                )
             } else if (m == CallMode.ACTIVE) {
                 ui.otherCall?.let { other ->
                     Row(
@@ -339,9 +387,42 @@ fun CallScreen(
                     }
                     Spacer(Modifier.height(20.dp))
                 }
-                if (keys) {
-                    Keypad(onKey = actions::dtmf)
+                val playing = ui.playing
+                if (playing != null) {
+                    // PLAN 9 B4 Moment: the keypad plays itself; any key Jakob presses takes over.
+                    MacroBar(playing, onNext = actions::macroNext)
+                    Spacer(Modifier.height(12.dp))
+                    Keypad(onKey = { d -> actions.macroStop(); actions.dtmf(d) }, lit = playing.key, spark = playing.fromField)
                     Spacer(Modifier.height(20.dp))
+                } else {
+                    // Macros to play (B4) and numbers to read out (B7) – one row of chips.
+                    val dictation = if (ui.phoneUnlocked) ui.dictation else emptyList()
+                    val chips = ui.macros.isNotEmpty() || dictation.isNotEmpty()
+                    if (chips && !ui.ended && !keys) {
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ui.macros.forEach { m ->
+                                io.github.thelony97.orbit.ui.components.SpaceChip(
+                                    m.label, false, { actions.playMacro(m.id) },
+                                    leading = Icons.Rounded.Dialpad,
+                                    accent = Space.Teal,
+                                )
+                            }
+                            dictation.forEach { d ->
+                                io.github.thelony97.orbit.ui.components.SpaceChip(
+                                    d.first, false, { dictating = d },
+                                    leading = Icons.Rounded.RecordVoiceOver,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (keys) {
+                        Keypad(onKey = actions::dtmf)
+                        Spacer(Modifier.height(20.dp))
+                    }
                 }
                 ActiveControls(ui, actions, keys) { keys = !keys; actions.dialpad() }
             } else {
@@ -434,6 +515,60 @@ private fun HeroldCard(u: UnknownCaller) {
     }
 }
 
+/**
+ * PLAN 9 B4: what the macro does now – a segment bar running through a pause (Takt each second),
+ * or a pulsing „Weiter“ while it waits for the hotline.
+ */
+@Composable
+private fun MacroBar(p: MacroPlaying, onNext: () -> Unit) {
+    val haptics = rememberHaptics()
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(p.name, style = MaterialTheme.typography.labelLarge, color = Space.Teal)
+        Spacer(Modifier.height(8.dp))
+        when {
+            p.waiting -> {
+                // Pulses while it waits – frozen in battery saver (PLAN 1.1).
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val saver = remember { ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true }
+                val pulse = if (saver) null else rememberInfiniteTransition(label = "weiter").animateFloat(
+                    1f, 1.06f, infiniteRepeatable(tween(Motion.EMPHASIZED_MS, easing = LinearEasing), RepeatMode.Reverse), label = "pulse",
+                )
+                GlowButton(
+                    "Weiter", { haptics.perform(Haptic.Confirm); onNext() },
+                    modifier = Modifier.graphicsLayer { val v = pulse?.value ?: 1f; scaleX = v; scaleY = v },
+                    color = Space.Teal,
+                )
+            }
+            p.pauseMs > 0 -> {
+                var progress by remember(p.pauseSince) { androidx.compose.runtime.mutableFloatStateOf(0f) }
+                LaunchedEffect(p.pauseSince) {
+                    var lastSecond = -1L
+                    while (true) {
+                        val t = (System.currentTimeMillis() - p.pauseSince).coerceAtLeast(0)
+                        progress = (t.toFloat() / p.pauseMs).coerceIn(0f, 1f)
+                        val second = t / 1_000
+                        if (second != lastSecond && lastSecond >= 0) haptics.perform(Haptic.Segment)
+                        lastSecond = second
+                        if (progress >= 1f) break
+                        androidx.compose.runtime.withFrameMillis { }
+                    }
+                }
+                // One segment per second, filling as the pause runs.
+                val segments = (p.pauseMs / 1_000).toInt().coerceIn(1, 12)
+                Row(Modifier.fillMaxWidth(0.7f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(segments) { i ->
+                        val fill = (progress * segments - i).coerceIn(0f, 1f)
+                        Box(Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(50)).background(Space.PanelHighest)) {
+                            Box(Modifier.fillMaxWidth(fill).height(6.dp).background(Space.Teal))
+                        }
+                    }
+                }
+            }
+            else -> Spacer(Modifier.height(6.dp))
+        }
+    }
+}
+
 /** The running time; only this text recomposes every second. */
 @Composable
 private fun CallTimer(clock: () -> Long, onHold: Boolean) {
@@ -478,6 +613,8 @@ private fun AfterCall(
     unknown: Boolean = false,
     initial: String = "",
     found: UnknownCaller? = null,
+    recorded: String? = null,
+    cases: List<String> = emptyList(),
 ) {
     val note = rememberTextFieldState(initial)
     LaunchedEffect(note) { snapshotFlow { note.text.toString() }.collect { actions.noteDraft(it) } }
@@ -496,6 +633,16 @@ private fun AfterCall(
             androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MEDIUM_MS)),
     ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // PLAN 9 B7 „Tastenfeld schreibt mit“: every Vorgangsnummer as a chip into the note.
+        if (unlocked && cases.size > 1) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                cases.forEach { c ->
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Vorgang $c", note.text.contains(c), {
+                        if (!note.text.contains(c)) note.edit { append(if (length == 0) "Vorgang $c" else " · Vorgang $c") }
+                    }, accent = Space.Teal)
+                }
+            }
+        }
         if (unlocked) {
             OutlinedTextField(
                 state = note,
@@ -511,6 +658,28 @@ private fun AfterCall(
                 shape = io.github.thelony97.orbit.core.designsystem.Corners.Row,
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
+        }
+        if (recorded != null) {
+            // PLAN 9 B4: „einmal selbst durchwählen = aufgenommen“ – kept with one tap.
+            io.github.thelony97.orbit.ui.components.Ghost(
+                source = "Im Gespräch getippt",
+                onAccept = actions::saveMacro,
+                onDismiss = null,
+                modifier = Modifier.fillMaxWidth(),
+                accent = Space.Teal,
+                dismissAxis = null,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(36.dp).background(Space.Teal.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Dialpad, null, tint = Space.Teal, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Als Makro speichern", style = MaterialTheme.typography.titleSmallEmphasized, color = Space.Text)
+                        Text(recorded, style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
         }
         if (unknown && found != null) {
             // PLAN 9 B1: Herold knew the number – a ghost with everything, ready to keep.
@@ -637,6 +806,21 @@ private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean, size
     }
 }
 
+/** „Luki · Mia (7)“ – partner first, then the children with their age (PLAN 9 B7). */
+private fun familyLine(f: List<io.github.thelony97.orbit.core.domain.FamilyMember>, today: java.time.LocalDate): String =
+    f.joinToString(" · ") { m ->
+        val age = m.birthday?.let { b ->
+            io.github.thelony97.orbit.core.domain.DateMath.turning(b, today)?.let { t ->
+                if (io.github.thelony97.orbit.core.domain.DateMath.daysUntil(b, today) == 0L) t else t - 1
+            }
+        }
+        if (m.kind == "child" && age != null && age >= 0) "${m.name} ($age)" else m.name
+    }
+
+/** A family birthday within two weeks: „Mia: Geburtstag am Freitag · wird 7“. */
+private fun familyBirthday(f: List<io.github.thelony97.orbit.core.domain.FamilyMember>, today: java.time.LocalDate): String? =
+    f.firstNotNullOfOrNull { m -> m.birthday?.let { b -> CallerNotice.occasion(b, today)?.let { "${m.name}: $it" } } }
+
 @Composable
 private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
     Column(
@@ -653,6 +837,13 @@ private fun Details(notice: CallerNotice, ui: CallUi, actions: CallActions) {
                 Text("Im Archiv", style = MaterialTheme.typography.labelLarge, color = Space.TextDim, modifier = Modifier.weight(1f))
                 GhostButton("Zurückholen", actions::unarchive, icon = Icons.Rounded.Unarchive, color = Space.Teal)
             }
+        }
+        // PLAN 9 B7: how to address them and who belongs to them.
+        ui.card?.anrede?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Space.Text) }
+        ui.card?.family?.takeIf { it.isNotEmpty() }?.let { f ->
+            val today = java.time.LocalDate.now()
+            Text(familyLine(f, today), style = MaterialTheme.typography.labelLarge, color = Space.TextDim)
+            familyBirthday(f, today)?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Space.Orange) }
         }
         if (notice.line.isNotBlank() && notice.line != notice.publicLine) {
             Text(

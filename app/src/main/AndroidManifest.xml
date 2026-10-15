@@ -216,6 +216,16 @@
             enabled by the switch in Einstellungen › Mitschreiben (call/PhoneRole.kt), so nothing
             changes on the phone until Jakob turns it on. The system keeps ringing.
         -->
+        <!-- PLAN 9 B8: Anruf-Filter – off until Jakob switches it on (role dialog). -->
+        <service
+            android:name=".call.OrbitScreeningService"
+            android:enabled="false"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
         <service
             android:name=".call.OrbitInCallService"
             android:enabled="false"

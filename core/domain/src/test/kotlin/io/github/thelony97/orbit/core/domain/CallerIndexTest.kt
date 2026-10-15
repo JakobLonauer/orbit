@@ -1,12 +1,17 @@
 package io.github.thelony97.orbit.core.domain
 
+import io.github.thelony97.orbit.core.model.CalendarDay
 import io.github.thelony97.orbit.core.model.Contact
 import io.github.thelony97.orbit.core.model.ContactKind
 import io.github.thelony97.orbit.core.model.CustomField
+import io.github.thelony97.orbit.core.model.Greeting
 import io.github.thelony97.orbit.core.model.LabeledValue
 import io.github.thelony97.orbit.core.model.Member
+import io.github.thelony97.orbit.core.model.Occasion
+import io.github.thelony97.orbit.core.model.OccasionKind
 import io.github.thelony97.orbit.core.model.OrbitDoc
 import io.github.thelony97.orbit.core.model.OrgLink
+import io.github.thelony97.orbit.core.model.Relation
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -71,6 +76,21 @@ class CallerIndexTest {
         assertEquals("99", idx.extension("0732 2468 99", at))
         assertNull(idx.extension("0732 246812", at))
         assertNull(idx.extension("0664 2", at))
+    }
+
+    @Test fun familyAndAnrede() {
+        // PLAN 9 B7: „Sie · Frau Mag.a Huber“, partner and children with their birthdays.
+        val huber = Contact("h", firstName = "Anna", lastName = "Huber", title = "Mag.a", salutation = "Frau", greeting = Greeting(formal = true), phones = listOf(ph("0664 70")))
+        val partner = Contact("p", firstName = "Lukas", lastName = "Huber", nickname = "Luki", phones = listOf(ph("0664 71")))
+        val kid = Contact("k", firstName = "Mia", dates = listOf(Occasion("o", OccasionKind.BIRTHDAY, date = CalendarDay(3, 4, 2019))))
+        val d = OrbitDoc(contacts = listOf(huber, partner, kid), relations = listOf(Relation("r1", "p", "h", "partner"), Relation("r2", "h", "k", "parent")))
+        val i = CallerIndex.build(d, at)
+        val card = i.lookup("0664 70", at)!!
+        assertEquals("Sie · Frau Mag.a Huber", card.anrede)
+        assertEquals(listOf("Luki" to "partner", "Mia" to "child"), card.family.map { it.name to it.kind })
+        assertEquals(CalendarDay(3, 4, 2019), card.family.last().birthday)
+        assertEquals("Du · Luki", i.lookup("0664 71", at)!!.anrede)
+        assertEquals("", idx.lookup("0664 2", at)!!.anrede)
     }
 
     @Test fun fallbackRoleAndMeExcluded() {

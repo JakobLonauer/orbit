@@ -156,6 +156,53 @@ private fun unknownLine(doc: io.github.thelony97.orbit.data.OrbitData?, number: 
     return listOfNotNull(times, u.lastAt.takeIf { it > 0 }?.let { "zuletzt " + io.github.thelony97.orbit.core.domain.AtFormat.ago(days) }).joinToString(" · ")
 }
 
+/** The organisation on the line (macros live there). */
+private fun orgOf(doc: io.github.thelony97.orbit.data.OrbitData?, card: io.github.thelony97.orbit.core.domain.CallerCard?): io.github.thelony97.orbit.data.Contact? =
+    card?.takeIf { it.org }?.let { cd -> doc?.contacts?.firstOrNull { it.id == cd.contactId && it.isOrg && it.deletedAt == null } }
+
+private fun macroLabel(doc: io.github.thelony97.orbit.data.OrbitData?, card: io.github.thelony97.orbit.core.domain.CallerCard?, steps: List<io.github.thelony97.orbit.core.model.MacroStep>): String {
+    val org = orgOf(doc, card)
+    val me = doc?.contacts?.firstOrNull { it.isMe }
+    return io.github.thelony97.orbit.core.domain.Macros.label(steps) { id ->
+        (org?.fields.orEmpty() + me?.fields.orEmpty()).firstOrNull { it.id == id }?.label
+    }
+}
+
+/** PLAN 9 B7: what can be read out in this call – the caller's own fields, then Jakob's (ICH). */
+private fun dictationOf(doc: io.github.thelony97.orbit.data.OrbitData?, card: io.github.thelony97.orbit.core.domain.CallerCard?): List<Pair<String, String>> {
+    if (doc == null || card == null) return emptyList()
+    val theirs = doc.contacts.firstOrNull { it.id == card.contactId }?.fields.orEmpty()
+    val mine = doc.contacts.firstOrNull { it.isMe }?.fields.orEmpty()
+    return (theirs + mine).filter { it.value.isNotBlank() }.map { it.label.ifBlank { "Feld" } to it.value.trim() }.distinct().take(6)
+}
+
+/** PLAN 9 B7: Vorgangsnummern typed in the call (not an own field). */
+private fun casesOf(doc: io.github.thelony97.orbit.data.OrbitData?, e: CallSession.Ended): List<String> {
+    if (e.keys.isEmpty()) return emptyList()
+    val theirs = e.card?.let { cd -> doc?.contacts?.firstOrNull { it.id == cd.contactId }?.fields }.orEmpty()
+    val mine = doc?.contacts?.firstOrNull { it.isMe }?.fields.orEmpty()
+    return io.github.thelony97.orbit.core.domain.Macros.cases(e.keys, theirs + mine)
+}
+
+/** PLAN 9 B4: the keys typed in a call to an organisation, as the line the ghost offers. */
+private fun recordedLabel(doc: io.github.thelony97.orbit.data.OrbitData?, e: CallSession.Ended): String? {
+    if (!io.github.thelony97.orbit.core.domain.Macros.worthKeeping(e.keys)) return null
+    val org = orgOf(doc, e.card) ?: return null
+    val me = doc?.contacts?.firstOrNull { it.isMe }
+    val fields = org.fields + me?.fields.orEmpty()
+    val steps = io.github.thelony97.orbit.core.domain.Macros.record(e.keys, fields)
+    // The same sequence is already a macro: nothing to offer.
+    if (org.macros.any { it.steps == steps }) return null
+    return io.github.thelony97.orbit.core.domain.Macros.label(steps) { id -> fields.firstOrNull { it.id == id }?.label }
+}
+
+private fun playingUi(s: MacroPlayer.State): io.github.thelony97.orbit.ui.call.MacroPlaying = when (val step = s.step) {
+    is io.github.thelony97.orbit.core.domain.Macros.Play.Tone -> io.github.thelony97.orbit.ui.call.MacroPlaying(s.name, key = step.char, fromField = step.fromField)
+    is io.github.thelony97.orbit.core.domain.Macros.Play.Wait -> io.github.thelony97.orbit.ui.call.MacroPlaying(s.name, pauseMs = step.ms, pauseSince = s.since)
+    io.github.thelony97.orbit.core.domain.Macros.Play.AwaitTap -> io.github.thelony97.orbit.ui.call.MacroPlaying(s.name, waiting = true)
+    null -> io.github.thelony97.orbit.ui.call.MacroPlaying(s.name)
+}
+
 /** PLAN 9 B1/B2: the call screen's view of an unknown number. */
 private fun unknownUi(u: Materialize.Unknown?): io.github.thelony97.orbit.ui.call.UnknownCaller? {
     if (u == null) return null
@@ -181,6 +228,9 @@ private fun CallRoute(onDone: () -> Unit) {
     val ended by CallSession.ended.collectAsState()
     val cards by CallSession.cards.collectAsState()
     val unknowns by Materialize.unknown.collectAsState()
+    val macroState by MacroPlayer.state.collectAsState()
+    // PLAN 9 B4: a recording kept once is not offered again.
+    var macroSaved by remember { mutableStateOf(false) }
     val doc by OrbitRepository.data.collectAsState()
     // A system call: worked out off the main thread, the button appears once it is known.
     var canBlock by remember { mutableStateOf(false) }
@@ -211,7 +261,7 @@ private fun CallRoute(onDone: () -> Unit) {
         call?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: after?.connectedAt ?: 0L
     }
     val clock = remember(connectedAt) { { if (connectedAt > 0) ((now - connectedAt) / 1000).coerceAtLeast(0) else 0L } }
-    val ui = remember(version, call, after, audio, cards, unknowns, doc, phoneUnlocked, done, canBlock) {
+    val ui = remember(version, call, after, audio, cards, unknowns, macroState, macroSaved, doc, phoneUnlocked, done, canBlock) {
     if (call != null) {
         val state = CallSession.stateOf(call)
         val number = CallSession.numberOf(call)
@@ -251,6 +301,11 @@ private fun CallRoute(onDone: () -> Unit) {
             canMerge = CallSession.canMerge(),
             unknown = if (cards[number] == null) unknownUi(unknowns[number]) else null,
             extension = CallSession.extensions.value[number],
+            macros = orgOf(doc, cards[number])?.macros.orEmpty().map { m ->
+                io.github.thelony97.orbit.ui.call.MacroChip(m.id, m.name.ifBlank { macroLabel(doc, cards[number], m.steps) })
+            },
+            playing = macroState?.let { playingUi(it) },
+            dictation = dictationOf(doc, cards[number]),
             accounts = if (state == Call.STATE_SELECT_PHONE_ACCOUNT) {
                 CallSession.accounts(ctx, call).mapIndexed { i, h -> CallSession.accountLabel(ctx, h, i) }
             } else emptyList(),
@@ -267,6 +322,8 @@ private fun CallRoute(onDone: () -> Unit) {
             doneTopics = done,
             draft = CallSession.draft,
             unknown = if (after.card == null) unknownUi(unknowns[after.number]) else null,
+            recorded = if (macroSaved) null else recordedLabel(doc, after),
+            cases = casesOf(doc, after),
         )
     }
     }
@@ -342,6 +399,21 @@ private fun CallRoute(onDone: () -> Unit) {
             CallSession.draft = ""
             e.card?.contactId?.let { CallSession.noteHandled = it to System.currentTimeMillis() }
             if (text.isNotBlank()) CallNoteWorker.enqueue(ctx, e, text)
+            // PLAN 9 B7: the Vorgangsnummer also sits at the organisation (one field, the latest).
+            val case = Regex("Vorgang (\\d{4,})").findAll(text).lastOrNull()?.groupValues?.get(1)
+            val org = orgOf(doc, e.card)
+            if (case != null && org != null) {
+                AppWork.launch {
+                    OrbitRepository.update { d ->
+                        d.copy(contacts = d.contacts.map { c ->
+                            if (c.id != org.id) c
+                            else if (c.fields.any { it.label == "Vorgang" }) c.copy(fields = c.fields.map { if (it.label == "Vorgang") it.copy(value = case) else it })
+                            else c.copy(fields = c.fields + io.github.thelony97.orbit.core.model.CustomField(io.github.thelony97.orbit.data.newId(), "Vorgang", case))
+                        })
+                    }
+                    OrbitRepository.flush()
+                }
+            }
         }
         override fun close() = finishAfter(null)
         override fun createContact(org: Boolean) {
@@ -358,6 +430,31 @@ private fun CallRoute(onDone: () -> Unit) {
             }
         }
         override fun noteDraft(text: String) { CallSession.draft = text }
+        override fun playMacro(id: String) {
+            val org = orgOf(doc, ui.card) ?: return
+            val macro = org.macros.firstOrNull { it.id == id } ?: return
+            MacroPlayer.start(macro, org, doc?.contacts?.firstOrNull { it.isMe })
+        }
+        override fun macroNext() = MacroPlayer.next()
+        override fun macroStop() = MacroPlayer.stop()
+        override fun saveMacro() {
+            val e = CallSession.ended.value ?: return
+            val orgId = orgOf(doc, e.card)?.id ?: return
+            val me = doc?.contacts?.firstOrNull { it.isMe }
+            AppWork.launch {
+                OrbitRepository.update { d ->
+                    d.copy(contacts = d.contacts.map { c ->
+                        if (c.id != orgId) c
+                        else c.copy(macros = c.macros + io.github.thelony97.orbit.core.model.Macro(
+                            id = io.github.thelony97.orbit.data.newId(),
+                            steps = io.github.thelony97.orbit.core.domain.Macros.record(e.keys, c.fields + me?.fields.orEmpty()),
+                        ))
+                    })
+                }
+                OrbitRepository.flush()
+            }
+            macroSaved = true
+        }
     }
     CallScreen(ui, actions, stamp, clock = clock)
 }

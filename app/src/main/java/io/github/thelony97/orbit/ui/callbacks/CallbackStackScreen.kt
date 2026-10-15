@@ -97,7 +97,7 @@ internal fun markDone(card: CallbackStack.Card) {
  * wants a second swipe (B2). The next card moves up when one goes.
  */
 @Composable
-fun CallbackStackScreen(data: OrbitData, idx: Index, nav: Nav, preview: List<Callbacks.Item>? = null) {
+fun CallbackStackScreen(data: OrbitData, idx: Index, nav: Nav, modifier: Modifier = Modifier, preview: List<Callbacks.Item>? = null) {
     val ctx = LocalContext.current
     var tick by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
@@ -107,7 +107,7 @@ fun CallbackStackScreen(data: OrbitData, idx: Index, nav: Nav, preview: List<Cal
     val items by produceState(preview, data.settings.dismissedGhosts, tick) {
         if (preview == null) value = Callbacks.load(ctx, data)
     }
-    SpaceBackground {
+    SpaceBackground(modifier) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                 OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", { nav.back() })
@@ -224,7 +224,10 @@ private fun StackCard(item: Callbacks.Item, depth: Int, data: OrbitData, idx: In
                 if (c != null) {
                     Avatar(c, contactColor(c, idx), 56.dp)
                 } else {
-                    Box(Modifier.size(56.dp).background(Space.Violet.copy(alpha = 0.18f), CircleShape).border(1.5.dp, Space.Violet.copy(alpha = 0.7f), CircleShape), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(56.dp).background(Space.Violet.copy(alpha = 0.18f), CircleShape).border(1.5.dp, Space.Violet.copy(alpha = 0.7f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text("?", fontFamily = Grotesk, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, color = Space.Text)
                     }
                 }
@@ -246,7 +249,11 @@ private fun StackCard(item: Callbacks.Item, depth: Int, data: OrbitData, idx: In
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 val left = (-toward / 300f).coerceIn(0f, 1f)
                 val right = (toward / 300f).coerceIn(0f, 1f)
-                Icon(Icons.Rounded.Check, "Erledigt", tint = lerpColor(Space.TextFaint, Space.Text, left), modifier = Modifier.size(22.dp).graphicsLayer { scaleX = 1f + 0.4f * left; scaleY = 1f + 0.4f * left })
+                Icon(
+                    Icons.Rounded.Check, "Erledigt",
+                    tint = lerpColor(Space.TextFaint, Space.Text, left),
+                    modifier = Modifier.size(22.dp).graphicsLayer { scaleX = 1f + 0.4f * left; scaleY = 1f + 0.4f * left },
+                )
                 Spacer(Modifier.weight(1f))
                 if (armed) Text("Nochmal wischen · " + (item.info?.line ?: "kostet"), style = MaterialTheme.typography.labelMedium, color = Space.Orange)
                 Spacer(Modifier.weight(1f))

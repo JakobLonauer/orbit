@@ -243,8 +243,12 @@ private val KEYS = listOf(
     listOf('*' to "", '0' to "+", '#' to ""),
 )
 
+/**
+ * The twelve keys. [lit]: the key a macro plays right now lights up (PLAN 9 B4 „das Tastenfeld
+ * spielt sich selbst“), [spark] when its digit comes from an own field (Kundennummer).
+ */
 @Composable
-internal fun Keypad(onKey: (Char) -> Unit, onVoicemail: (() -> Unit)? = null) {
+internal fun Keypad(onKey: (Char) -> Unit, onVoicemail: (() -> Unit)? = null, lit: Char? = null, spark: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         KEYS.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -255,7 +259,7 @@ internal fun Keypad(onKey: (Char) -> Unit, onVoicemail: (() -> Unit)? = null) {
                         '1' -> onVoicemail
                         else -> null
                     }
-                    Key(d, letters, { onKey(d) }, long, voicemail = d == '1' && onVoicemail != null)
+                    Key(d, letters, { onKey(d) }, long, voicemail = d == '1' && onVoicemail != null, lit = lit == d, spark = spark && lit == d)
                 }
             }
         }
@@ -263,13 +267,21 @@ internal fun Keypad(onKey: (Char) -> Unit, onVoicemail: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun Key(digit: Char, letters: String, onTap: () -> Unit, onLong: (() -> Unit)?, voicemail: Boolean = false) {
+private fun Key(digit: Char, letters: String, onTap: () -> Unit, onLong: (() -> Unit)?, voicemail: Boolean = false, lit: Boolean = false, spark: Boolean = false) {
     val haptics = rememberHaptics()
+    // Light trail: the played key glows teal (läuft), field digits as a brighter spark.
+    val glow by androidx.compose.animation.core.animateFloatAsState(
+        if (lit) 1f else 0f,
+        androidx.compose.animation.core.tween(if (lit) io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS else io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS),
+        label = "keyGlow",
+    )
+    val keyLight = if (spark) Space.Violet else Space.Teal
     Column(
         Modifier
             .size(width = 96.dp, height = 64.dp)
+            .then(if (glow > 0.01f) Modifier.glow(keyLight, 18.dp, RoundedCornerShape(50), 0.6f * glow) else Modifier)
             .clip(RoundedCornerShape(50))
-            .background(Space.Panel.copy(alpha = 0.55f))
+            .background(androidx.compose.ui.graphics.lerp(Space.Panel.copy(alpha = 0.55f), keyLight.copy(alpha = 0.45f), glow))
             .spotlight()
             .combinedClickable(
                 onClick = { haptics.perform(Haptic.Tick); onTap() },

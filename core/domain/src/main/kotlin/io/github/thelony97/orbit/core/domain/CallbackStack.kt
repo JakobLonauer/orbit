@@ -44,37 +44,45 @@ object CallbackStack {
         key: (String) -> String?,
     ): List<Card> {
         val since = now - DAYS * DAY
-        // The last time Jakob was in touch with each number: answered or own calls, sent SMS.
-        val touched = HashMap<String, Long>()
-        fun touch(n: String, at: Long) {
-            val k = key(n) ?: return
-            if (at > (touched[k] ?: Long.MIN_VALUE)) touched[k] = at
-        }
-        calls.filter { it.type == CallType.OUTGOING || it.type == CallType.INCOMING }.forEach { touch(it.number, it.at) }
-        sms.filter { it.sent }.forEach { touch(it.address, it.at) }
+        val open = Opens(since, lastTouch(calls, sms, key), key)
+        // „Später“ first: such a card stays a „Später“ card even when more calls were missed.
+        later.forEach { open.add(it.number, it.at, Source.LATER) }
+        calls.filter { it.type == CallType.MISSED }.sortedBy { it.at }.forEach { open.add(it.number, it.at, Source.MISSED) }
+        sms.filter { !it.sent }.forEach { s -> mailboxNumber(s.body)?.let { open.add(it, s.at, Source.MAILBOX) } }
+        return open.cards().filter { it.key !in done }.sortedByDescending { it.lastAt }
+    }
 
-        data class Open(val number: String, val source: Source, var count: Int, var lastAt: Long)
-        val open = LinkedHashMap<String, Open>()
+    /** The last time Jakob was in touch with each number: answered or own calls, sent SMS. */
+    private fun lastTouch(calls: List<Call>, sms: List<Sms>, key: (String) -> String?): Map<String, Long> {
+        val touched = HashMap<String, Long>()
+        val events = calls.filter { it.type == CallType.OUTGOING || it.type == CallType.INCOMING }.map { it.number to it.at } +
+            sms.filter { it.sent }.map { it.address to it.at }
+        events.forEach { (n, at) ->
+            val k = key(n) ?: return@forEach
+            touched[k] = maxOf(at, touched[k] ?: Long.MIN_VALUE)
+        }
+        return touched
+    }
+
+    /** The cards being collected: one per number, events before the last contact don't count. */
+    private class Opens(private val since: Long, private val touched: Map<String, Long>, private val key: (String) -> String?) {
+        private class Open(val number: String, val source: Source, var count: Int, var lastAt: Long)
+
+        private val open = LinkedHashMap<String, Open>()
+
         fun add(number: String, at: Long, source: Source) {
             val k = key(number) ?: return
             if (at < since || at <= (touched[k] ?: Long.MIN_VALUE)) return
             val o = open[k]
-            when {
-                o == null -> open[k] = Open(number, source, 1, at)
-                else -> {
-                    if (source == Source.MISSED && o.source == Source.MISSED) o.count++
-                    if (at > o.lastAt) o.lastAt = at
-                }
+            if (o == null) {
+                open[k] = Open(number, source, 1, at)
+                return
             }
+            if (source == Source.MISSED && o.source == Source.MISSED) o.count++
+            if (at > o.lastAt) o.lastAt = at
         }
-        // „Später“ first: such a card stays a „Später“ card even when more calls were missed.
-        later.forEach { add(it.number, it.at, Source.LATER) }
-        calls.filter { it.type == CallType.MISSED }.sortedBy { it.at }.forEach { add(it.number, it.at, Source.MISSED) }
-        sms.filter { !it.sent }.forEach { s -> mailboxNumber(s.body)?.let { add(it, s.at, Source.MAILBOX) } }
 
-        return open.map { (k, o) -> Card("cb:$k:${o.lastAt}", o.number, o.source, o.count, o.lastAt) }
-            .filter { it.key !in done }
-            .sortedByDescending { it.lastAt }
+        fun cards(): List<Card> = open.map { (k, o) -> Card("cb:$k:${o.lastAt}", o.number, o.source, o.count, o.lastAt) }
     }
 
     private val mailboxWords = Regex("""(?i)\b(mobilbox|mailbox|sprachnachricht|sprachbox|voicemail|nachricht hinterlassen)""")

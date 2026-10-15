@@ -285,6 +285,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var qrDialog by remember { mutableStateOf(false) }
     var shareSheet by remember { mutableStateOf(false) }
     var dictate by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var macroEdit by remember { mutableStateOf<io.github.thelony97.orbit.core.model.Macro?>(null) }
     var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
@@ -750,6 +751,13 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                             )
                         }
                     }
+                }
+            }
+
+            // PLAN 9 B4: Hotline-Makros – tap dials and plays, hold edits.
+            if (c.isOrg && c.macros.isNotEmpty() && c.phones.isNotEmpty()) {
+                item(key = "macros") {
+                    MacroSection(c, data, onEdit = { macroEdit = it })
                 }
             }
 
@@ -1251,6 +1259,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
     qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }, withFields = true) }
     if (shareSheet) ShareFieldsSheet(c, color, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
+    macroEdit?.let { m -> MacroEditSheet(c, data, m, onDismiss = { macroEdit = null }) }
     dictate?.let { (label, value) ->
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { dictate = null },

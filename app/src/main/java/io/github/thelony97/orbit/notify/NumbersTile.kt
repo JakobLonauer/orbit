@@ -113,6 +113,12 @@ class NumbersTile : TileService() {
 }
 
 class NumbersActivity : ComponentActivity() {
+    companion object {
+        /** PLAN 9 B7: straight into the Diktier-Ansicht for one number (caller notification). */
+        const val EXTRA_LABEL = "dictate_label"
+        const val EXTRA_VALUE = "dictate_value"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
             statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -120,7 +126,13 @@ class NumbersActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         OrbitRepository.init(applicationContext)
-        setContent { OrbitTheme { NumbersDrawer(onClose = { finish() }) } }
+        val value = intent?.getStringExtra(EXTRA_VALUE)
+        val label = intent?.getStringExtra(EXTRA_LABEL).orEmpty()
+        setContent {
+            OrbitTheme {
+                if (value != null) DictationView(label, value, onClose = { finish() }) else NumbersDrawer(onClose = { finish() })
+            }
+        }
     }
 
     override fun finish() {

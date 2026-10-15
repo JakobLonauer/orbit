@@ -235,11 +235,15 @@ object Notifications {
             .setContentIntent(openContact(ctx, card.contactId, ID_CALLER))
             .setTimeoutAfter(3 * 60 * 60 * 1000L)
         if (photo != null) builder.setLargeIcon(photo)
-        // Archived (PLAN 3.11): the hint is in the title, „Zurückholen“ is one tap away.
-        if (card.archived) builder.addAction(0, "Zurückholen", unarchiveIntent(ctx, card.contactId, number))
-        // „Später zurückrufen“ (PLAN 3.12/3.13a): one tap while it rings, a reminder later.
-        builder.addAction(0, "In 15 Min erinnern", callbackIntent(ctx, card.name, number, card.contactId, 15))
-        builder.addAction(0, "In 1 Std erinnern", callbackIntent(ctx, card.name, number, card.contactId, 60))
+        // At most three buttons: Zurückholen (archived, PLAN 3.11), Diktieren (PLAN 9 B7 without the
+        // phone role), then „Später zurückrufen“ (PLAN 3.12/3.13a).
+        val actions = buildList {
+            if (card.archived) add("Zurückholen" to unarchiveIntent(ctx, card.contactId, number))
+            if (card.customerNo.isNotBlank()) add("Diktieren" to dictateIntent(ctx, "Kundennummer", card.customerNo))
+            add("In 15 Min erinnern" to callbackIntent(ctx, card.name, number, card.contactId, 15))
+            add("In 1 Std erinnern" to callbackIntent(ctx, card.name, number, card.contactId, 60))
+        }
+        actions.take(3).forEach { (label, intent) -> builder.addAction(0, label, intent) }
         if (stillValid()) post(ctx, ID_CALLER, builder)
     }
 
@@ -290,6 +294,16 @@ object Notifications {
             .addAction(0, "In 1 Std erinnern", callbackIntent(ctx, title, number, null, 60))
         post(ctx, ID_CALLER, builder)
     }
+
+    /** PLAN 9 B7: the Diktier-Ansicht for one number, over whatever runs (the call keeps going). */
+    private fun dictateIntent(ctx: Context, label: String, value: String): PendingIntent = PendingIntent.getActivity(
+        ctx, ID_CALLER * 10 + 7,
+        Intent(ctx, io.github.thelony97.orbit.notify.NumbersActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(io.github.thelony97.orbit.notify.NumbersActivity.EXTRA_LABEL, label)
+            .putExtra(io.github.thelony97.orbit.notify.NumbersActivity.EXTRA_VALUE, value),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private fun callbackIntent(ctx: Context, name: String, number: String, contactId: String?, minutes: Int): PendingIntent {
         val intent = Intent(ctx, NotificationActionReceiver::class.java).apply {

@@ -120,6 +120,26 @@ data class CustomField(
     val value: String,
 )
 
+/** PLAN 9 B4: one step of a Hotline-Makro. */
+@Serializable
+enum class MacroStepKind {
+    /** [MacroStep.value] = the keys („1“, „#“). */
+    KEY,
+    /** [MacroStep.ms] = how long to wait. */
+    PAUSE,
+    /** Until Jakob taps „Weiter“ (dial string „;“). */
+    WAIT,
+    /** [MacroStep.value] = id of an own field whose digits are typed (Kundennummer …). */
+    FIELD,
+}
+
+@Serializable
+data class MacroStep(val kind: MacroStepKind, val value: String = "", val ms: Long = 0)
+
+/** PLAN 9 B4: a recorded or edited key sequence for a hotline („Kundenservice“). */
+@Serializable
+data class Macro(val id: String, val name: String = "", val steps: List<MacroStep> = emptyList())
+
 /** How „Gratulieren“ greets one person: [formal] = Sie, [language] an ISO 639-1 code. */
 @Serializable
 data class Greeting(
@@ -191,6 +211,8 @@ data class Contact(
     val mapsUrl: String? = null,
     /** OSM opening_hours syntax, e.g. "Mo-Fr 08:00-12:00". */
     val openingHours: String = "",
+    /** PLAN 9 B4: Hotline-Makros – keys, pauses, „Warten auf Weiter“ and own fields, played in a call. */
+    val macros: List<Macro> = emptyList(),
     /**
      * In memory only: this contact's Verlauf, newest first. Stored in SQLite, never in the JSON
      * core (ADR 0003); the repository fills it on load and writes the difference on save.
@@ -338,6 +360,19 @@ data class Settings(
     val dismissedGhosts: List<String> = emptyList(),
     /** PLAN 9 B1: unknown Austrian callers looked up on the Herold website (once per number and week). */
     val callerLookup: Boolean = true,
+    /**
+     * PLAN 9 B8 „Abwehr ohne Verlust“: Orbit as the call filter silences unknown callers by fixed
+     * rules – never rejects. Works only while Jakob gave Orbit the call-filter role.
+     */
+    val screening: Boolean = false,
+    /** B8 rule „Unbekannt nachts (22–7)“. */
+    val screenNight: Boolean = true,
+    /** B8 rule „Mehrwert“: premium and shared-cost numbers. */
+    val screenPremium: Boolean = true,
+    /** B8 rule „Land“: region codes („RS“, „NG“) whose unknown callers are silenced. */
+    val screenCountries: List<String> = emptyList(),
+    /** B8 rule „Nummernserie“: number beginnings („0720 99“, „+44 7“) that are silenced when unknown. */
+    val screenSeries: List<String> = emptyList(),
 ) {
     companion object {
         val DEFAULT_SMS_TEMPLATES = listOf(

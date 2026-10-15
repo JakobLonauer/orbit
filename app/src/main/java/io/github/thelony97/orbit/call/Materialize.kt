@@ -55,22 +55,27 @@ object Materialize {
         put(number, Unknown(null, Lookup.Off))
         scope.launch {
             val info = withContext(Dispatchers.Default) { info(app, number) }
-            val austrian = info?.region == "AT"
-            val cached = info?.let { CallerLookup.known(app, it.e164) }
-            val first = when {
-                info == null || !austrian -> Lookup.Off
-                cached != null -> cached.hit?.let { Lookup.Found(it) } ?: Lookup.None
-                !CallerLookup.enabled() -> Lookup.Off
-                else -> Lookup.Searching
-            }
+            val first = firstLookup(app, info)
             put(number, Unknown(info, first))
             onChange()
             if (first == Lookup.Searching && info != null) {
-                val hit = CallerLookup.lookup(app, info.e164)
-                put(number, Unknown(info, hit?.let { Lookup.Found(it) } ?: Lookup.None))
+                // No network: the card simply stays without Herold (Off), the next call asks again.
+                put(number, Unknown(info, CallerLookup.lookup(app, info.e164).asLookup()))
                 onChange()
             }
         }
+    }
+
+    /** What is known before asking: the week's answer, or „searching“ when Orbit may ask. */
+    private suspend fun firstLookup(ctx: Context, info: NumberInfo.Info?): Lookup {
+        if (info == null || info.region != "AT") return Lookup.Off
+        CallerLookup.known(ctx, info.e164)?.let { return it.asLookup() }
+        return if (CallerLookup.enabled()) Lookup.Searching else Lookup.Off
+    }
+
+    private fun CallerLookup.Entry?.asLookup(): Lookup {
+        val entry = this ?: return Lookup.Off
+        return entry.hit?.let { Lookup.Found(it) } ?: Lookup.None
     }
 
     fun of(number: String?): Unknown? = number?.let { _unknown.value[it] }

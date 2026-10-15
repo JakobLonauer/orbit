@@ -2,7 +2,14 @@ package io.github.thelony97.orbit.call
 
 import android.telecom.Call
 import io.github.thelony97.orbit.core.domain.CallerCard
+import io.github.thelony97.orbit.core.domain.Macros
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -70,8 +77,17 @@ object CallSession {
     )
     val audio = MutableStateFlow(Audio())
 
-    /** A call that connected and just ended: the screen stays for the note line (PLAN 3.12 „Danach“). */
-    data class Ended(val number: String, val card: CallerCard?, val connectedAt: Long, val endedAt: Long)
+    /**
+     * A call that connected and just ended: the screen stays for the note line (PLAN 3.12 „Danach“).
+     * [keys]: what Jakob typed in it (PLAN 9 B4 „einmal selbst durchwählen = aufgenommen“).
+     */
+    data class Ended(
+        val number: String,
+        val card: CallerCard?,
+        val connectedAt: Long,
+        val endedAt: Long,
+        val keys: List<Macros.Key> = emptyList(),
+    )
     val ended = MutableStateFlow<Ended?>(null)
 
     /** Caller cards per number, looked up once when the call arrives. */
@@ -109,6 +125,8 @@ object CallSession {
 
     fun add(call: Call) {
         lastCallAddedAt = android.os.SystemClock.elapsedRealtime()
+        // A new call on its own starts a new recording; call waiting keeps the running one.
+        if (_calls.value.isEmpty()) synchronized(typed) { typed.clear() }
         // The after-call screen of an earlier call stays until it is closed; a new call shows first.
         _calls.value = _calls.value + call
         changed()
@@ -121,8 +139,9 @@ object CallSession {
         // notification takes over (never a stale „Beendet“ screen for a later call).
         if (_calls.value.isEmpty() && connectedAt > 0 && screenVisible) {
             keepDraft()
-            ended.value = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis())
+            ended.value = Ended(numberOf(call), card, connectedAt, System.currentTimeMillis(), synchronized(typed) { typed.toList() })
         }
+        if (_calls.value.isEmpty()) MacroPlayer.stop()
         changed()
     }
 
@@ -188,10 +207,41 @@ object CallSession {
         if (stateOf(c) == Call.STATE_HOLDING) c.unhold() else c.hold()
     }
 
-    fun dtmf(digit: Char) = runCatching {
-        val c = primary() ?: return@runCatching
-        c.playDtmfTone(digit)
-        c.stopDtmfTone()
+    // ---------------------------------------------------------------- DTMF (PLAN 9 B4)
+
+    /** Long enough for every hotline (≥ 200 ms), one tone after the other, never cut short. */
+    const val TONE_MS = 230L
+    const val TONE_GAP_MS = 90L
+
+    private val tones = Channel<Char>(capacity = 64)
+    private val toneScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    init {
+        toneScope.launch {
+            for (d in tones) {
+                val c = primary() ?: continue
+                runCatching { c.playDtmfTone(d) }
+                delay(TONE_MS)
+                runCatching { c.stopDtmfTone() }
+                delay(TONE_GAP_MS)
+            }
+        }
+    }
+
+    /** Keys Jakob typed in the current call, ms after it was answered. */
+    private val typed = ArrayList<Macros.Key>()
+
+    /** A key Jakob typed: played in full and recorded for „Als Makro speichern“. */
+    fun dtmf(digit: Char) {
+        val c = primary()
+        val connected = c?.let { runCatching { it.details.connectTimeMillis }.getOrDefault(0L) } ?: 0L
+        if (connected > 0) synchronized(typed) { typed += Macros.Key(digit, System.currentTimeMillis() - connected) }
+        tones.trySend(digit)
+    }
+
+    /** A key a macro plays: same tone, not recorded. */
+    fun playTone(digit: Char) {
+        tones.trySend(digit)
     }
 
     /**
