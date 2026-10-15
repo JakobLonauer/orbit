@@ -50,7 +50,10 @@ object CalendarGhosts {
         val out = ArrayList<Event>()
         ctx.contentResolver.query(
             uri,
-            arrayOf(CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN, CalendarContract.Instances.END, CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.CALENDAR_DISPLAY_NAME),
+            arrayOf(
+                CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN,
+                CalendarContract.Instances.END, CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.CALENDAR_DISPLAY_NAME,
+            ),
             null, null, null,
         )?.use { c ->
             while (c.moveToNext()) {

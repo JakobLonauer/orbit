@@ -29,18 +29,23 @@ object Twins {
             val k = key(a, b)
             if (k !in dismissed && k !in out) out[k] = Twin(a, b, why)
         }
-        group(live) { c -> c.phones.mapNotNull { p -> normalize(p.value)?.filter(Char::isDigit)?.takeIf { it.length >= TAIL }?.takeLast(TAIL) } }
-            .forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.NUMBER) } }
-        group(live) { c -> c.emails.map { it.value.trim().lowercase() }.filter { '@' in it } }
-            .forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.MAIL) } }
-        group(live.filter { !it.isOrg }) { c ->
-            val name = Fold.fold(listOf(c.firstName, c.lastName).joinToString(" ").trim())
-            val b = c.birthday
-            if (name.isBlank() || b == null) emptyList() else listOf("$name|${b.day}.${b.month}.${b.year ?: 0}")
-        }.forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.NAME_BIRTHDAY) } }
+        group(live) { phoneKeys(it, normalize) }.forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.NUMBER) } }
+        group(live) { mailKeys(it) }.forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.MAIL) } }
+        group(live.filter { !it.isOrg }) { nameKeys(it) }.forEach { ids -> ids.zipWithNext().forEach { (x, y) -> add(x, y, Why.NAME_BIRTHDAY) } }
         // A person and an organisation are never the same.
         val byId = live.associateBy { it.id }
         return out.values.filter { p -> byId[p.a]?.isOrg == byId[p.b]?.isOrg }
+    }
+
+    private fun phoneKeys(c: Contact, normalize: (String) -> String?) =
+        c.phones.mapNotNull { p -> normalize(p.value)?.filter(Char::isDigit)?.takeIf { it.length >= TAIL }?.takeLast(TAIL) }
+
+    private fun mailKeys(c: Contact) = c.emails.map { it.value.trim().lowercase() }.filter { '@' in it }
+
+    private fun nameKeys(c: Contact): List<String> {
+        val name = Fold.fold(listOf(c.firstName, c.lastName).joinToString(" ").trim())
+        val b = c.birthday ?: return emptyList()
+        return if (name.isBlank()) emptyList() else listOf("$name|${b.day}.${b.month}.${b.year ?: 0}")
     }
 
     fun key(a: String, b: String): String = if (a < b) "twin:$a:$b" else "twin:$b:$a"
@@ -92,10 +97,18 @@ object Twins {
     }
 
     /** The merged contact: [keep] with what [gone] adds; [fromGone] = conflicting fields taken from [gone]. */
-    fun merged(keep: Contact, gone: Contact, fromGone: Set<String>, now: Long): Contact {
+    /** One birthday after the merge: the chosen one; every other occasion of both. */
+    private fun dates(keep: Contact, gone: Contact, fromGone: Set<String>): List<io.github.thelony97.orbit.core.model.Occasion> {
         val birthdayFromGone = "birthday" in fromGone || keep.birthday == null
         val keepDates = if (birthdayFromGone && gone.birthday != null) keep.dates.filter { it.kind != OccasionKind.BIRTHDAY } else keep.dates
         val goneDates = if (!birthdayFromGone && keep.birthday != null) gone.dates.filter { it.kind != OccasionKind.BIRTHDAY } else gone.dates
+        return join(keepDates, goneDates) { it.kind to it.date.let { d: CalendarDay -> "${d.day}.${d.month}" } }
+    }
+
+    private fun photo(keep: Contact, gone: Contact, fromGone: Set<String>) =
+        if ("photo" in fromGone || keep.photo == null) gone.photo ?: keep.photo else keep.photo
+
+    fun merged(keep: Contact, gone: Contact, fromGone: Set<String>, now: Long): Contact {
         return keep.copy(
             firstName = pick("firstName", keep.firstName, gone.firstName, fromGone),
             lastName = pick("lastName", keep.lastName, gone.lastName, fromGone),
@@ -107,7 +120,7 @@ object Twins {
             howWeMet = pick("howWeMet", keep.howWeMet, gone.howWeMet, fromGone),
             notes = pick("notes", keep.notes, gone.notes, fromGone),
             pinnedNote = pick("pinnedNote", keep.pinnedNote, gone.pinnedNote, fromGone),
-            photo = if ("photo" in fromGone || keep.photo == null) gone.photo ?: keep.photo else keep.photo,
+            photo = photo(keep, gone, fromGone),
             phones = values(keep.phones, gone.phones),
             emails = values(keep.emails, gone.emails),
             addresses = values(keep.addresses, gone.addresses),
@@ -116,7 +129,7 @@ object Twins {
             archived = keep.archived && gone.archived,
             topics = join(keep.topics, gone.topics) { Fold.fold(it.text) },
             gifts = join(keep.gifts, gone.gifts) { Fold.fold(it.text) },
-            dates = join(keepDates, goneDates) { it.kind to it.date.let { d: CalendarDay -> "${d.day}.${d.month}" } },
+            dates = dates(keep, gone, fromGone),
             links = join(keep.links, gone.links) { it.url },
             fields = join(keep.fields, gone.fields) { Fold.fold(it.label) + "=" + it.value },
             members = join(keep.members, gone.members) { it.id },

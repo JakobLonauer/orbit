@@ -100,9 +100,10 @@ fun MergeSheet(a: Contact, b: Contact, onDismiss: () -> Unit) {
             Undo.offer("Zusammengeführt") {
                 val old = before ?: return@offer
                 val byId = old.contacts.associateBy { it.id }
+                fun touched(o: Contact, c: Contact) = c.id == keep.id || c.id == gone.id || o.dates != c.dates || o.entries != c.entries || o.vacationSubstitute != c.vacationSubstitute
                 OrbitRepository.edit { d ->
                     d.copy(
-                        contacts = d.contacts.map { c -> byId[c.id]?.takeIf { o -> o !== c && (c.id == keep.id || c.id == gone.id || o.dates != c.dates || o.entries != c.entries || o.vacationSubstitute != c.vacationSubstitute) } ?: c },
+                        contacts = d.contacts.map { c -> byId[c.id]?.takeIf { o -> o !== c && touched(o, c) } ?: c },
                         relations = old.relations, orgLinks = old.orgLinks, meetings = old.meetings,
                     )
                 }
