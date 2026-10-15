@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.VCardTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:14:22.118Z" hostname="runnervmmprz5" time="0.019">
+  <properties/>
+  <testcase name="safeFileName" classname="io.github.thelony97.orbit.core.domain.VCardTest" time="0.01"/>
+  <testcase name="businessCardFieldsAndEscaping" classname="io.github.thelony97.orbit.core.domain.VCardTest" time="0.001"/>
+  <testcase name="privateThingsNeverLeave" classname="io.github.thelony97.orbit.core.domain.VCardTest" time="0.003"/>
+  <testcase name="personKnownOnlyByCompanyStillHasAName" classname="io.github.thelony97.orbit.core.domain.VCardTest" time="0.0"/>
+  <testcase name="birthdayWithoutYearAndOrganisation" classname="io.github.thelony97.orbit.core.domain.VCardTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

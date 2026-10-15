@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.data.OccasionEditTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:16:10.462Z" hostname="runnervmmprz5" time="0.0">
+  <properties/>
+  <testcase name="aSecondBirthdayReplacesTheFirst" classname="io.github.thelony97.orbit.data.OccasionEditTest" time="0.0"/>
+  <testcase name="newOneIsAddedSharedStoredOnce" classname="io.github.thelony97.orbit.data.OccasionEditTest" time="0.0"/>
+  <testcase name="editKeepsPlaceAndOthers" classname="io.github.thelony97.orbit.data.OccasionEditTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

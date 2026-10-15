@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.domain.SearchTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:16:10.552Z" hostname="runnervmmprz5" time="0.008">
+  <properties/>
+  <testcase name="cachedAndFreshContactsAgree" classname="io.github.thelony97.orbit.domain.SearchTest" time="0.008"/>
+  <testcase name="findsOwnFieldsPinnedNoteAndUmlautFree" classname="io.github.thelony97.orbit.domain.SearchTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

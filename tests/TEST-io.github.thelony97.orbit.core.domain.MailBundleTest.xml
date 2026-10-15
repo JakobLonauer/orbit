@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.MailBundleTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:14:21.810Z" hostname="runnervmmprz5" time="0.021">
+  <properties/>
+  <testcase name="incomingToSenderOutgoingToEachKnownRecipient" classname="io.github.thelony97.orbit.core.domain.MailBundleTest" time="0.006"/>
+  <testcase name="oldEntryJsonHasNoMails" classname="io.github.thelony97.orbit.core.domain.MailBundleTest" time="0.004"/>
+  <testcase name="oneEntryPerDayAndDirectionNewestFirst" classname="io.github.thelony97.orbit.core.domain.MailBundleTest" time="0.009"/>
+  <testcase name="knownMailsAreSkippedAndExistingDaysGrow" classname="io.github.thelony97.orbit.core.domain.MailBundleTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

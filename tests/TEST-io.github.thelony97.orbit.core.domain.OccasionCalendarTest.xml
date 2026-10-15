@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.OccasionCalendarTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:14:21.879Z" hostname="runnervmmprz5" time="0.006">
+  <properties/>
+  <testcase name="sharedWeddingNamesBothAndKeepsTheNote" classname="io.github.thelony97.orbit.core.domain.OccasionCalendarTest" time="0.004"/>
+  <testcase name="leapDayAndOneOffs" classname="io.github.thelony97.orbit.core.domain.OccasionCalendarTest" time="0.002"/>
+  <testcase name="birthdayRepeatsYearlyFromTheNextOne" classname="io.github.thelony97.orbit.core.domain.OccasionCalendarTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.backup.BackupFormatTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:16:09.712Z" hostname="runnervmmprz5" time="0.172">
+  <properties/>
+  <testcase name="oldBackupIsConvertedWithItsHistory" classname="io.github.thelony97.orbit.backup.BackupFormatTest" time="0.154"/>
+  <testcase name="newBackupNeedsItsHistoryFile" classname="io.github.thelony97.orbit.backup.BackupFormatTest" time="0.014"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

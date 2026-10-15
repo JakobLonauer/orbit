@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.CallerIndexTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-15T06:14:21.554Z" hostname="runnervmmprz5" time="0.058">
+  <properties/>
+  <testcase name="orgNumberLabelAndCustomerNumber" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.007"/>
+  <testcase name="fallbackRoleAndMeExcluded" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.001"/>
+  <testcase name="lastContactTopicsAndOrgNameFromCompany" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.005"/>
+  <testcase name="memberAndRange" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.0"/>
+  <testcase name="groupColourGoesOnTheCard" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.001"/>
+  <testcase name="personWithAssignmentAndNote" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.0"/>
+  <testcase name="birthdayGoesOnThePersonCardOnly" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.001"/>
+  <testcase name="survivesJson" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.037"/>
+  <testcase name="oldIndexFileStillReads" classname="io.github.thelony97.orbit.core.domain.CallerIndexTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
