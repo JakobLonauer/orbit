@@ -165,7 +165,16 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val haptics = rememberHaptics()
     BackHandler(enabled = selection != null) { selection = null }
     val lastFirst = data.settings.sortByLastName
-    val query = search.text.toString()
+    val typed = search.text.toString()
+    // PLAN 9 E1 Orbit-Zeile: fixed patterns become chips; with a person + kind/time Enter creates.
+    val line = remember(typed, data) {
+        io.github.thelony97.orbit.core.domain.OrbitLine.parse(typed, data.contacts, data.entryTypes, java.time.LocalDateTime.now(io.github.thelony97.orbit.domain.zone()))
+    }
+    // What the list searches: the person of a capture, otherwise the text without the operators.
+    val query = if (line.capture) "" else line.rest
+    val lineFilter: (io.github.thelony97.orbit.data.Contact) -> Boolean = { c ->
+        (if (line.capture) c.id == line.personId else true) && io.github.thelony97.orbit.core.domain.OrbitLine.accepts(c, line.filters, data.groups)
+    }
     val quickPull = remember { androidx.compose.animation.core.Animatable(0f) }
     var drawer by remember { mutableStateOf(false) }
     val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
@@ -184,14 +193,14 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val status = Session.status
     val groups = Session.groups.intersect(idx.groups.keys)
 
-    val sections = remember(data, query, audience, status, groups) {
-        val list = ListQuery.filter(data, idx, audience, status, groups, query, todayDate)
+    val sections = remember(data, line, audience, status, groups) {
+        val list = ListQuery.filter(data, idx, audience, status, groups, query, todayDate).filter(lineFilter)
         val exact = ListQuery.sections(list, idx, sort, reversed, lastFirst, todayDate)
         // PLAN 9 A11: names that only sound alike (Maier → Mayr) come after the exact hits.
-        val alike = ListQuery.soundsLike(data, idx, audience, status, groups, query).sortedBy { Logic.sortKey(it, lastFirst) }
+        val alike = if (line.capture) emptyList() else ListQuery.soundsLike(data, idx, audience, status, groups, query).filter(lineFilter).sortedBy { Logic.sortKey(it, lastFirst) }
         if (alike.isEmpty()) exact else exact + io.github.thelony97.orbit.domain.ListSection("Klingt ähnlich", alike)
     }
-    val hiddenOrgHits = remember(data, query, audience, status, groups) {
+    val hiddenOrgHits = remember(data, line, audience, status, groups) {
         if (audience != Audience.PEOPLE || query.isBlank()) 0
         else ListQuery.filter(data, idx, Audience.ORGS, status, groups, query, todayDate).size
     }
@@ -202,7 +211,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
     val total = remember(data, audience) { Logic.others(data).count { !it.archived && audience.accepts(it) } }
     // Nobody in the Orbit yet (whatever the filter): no counter, no search, no filter (W5/W6).
     val nobody = remember(data) { Logic.others(data).none { !it.archived } }
-    val defaultView = status == StatusFilter.ALL && groups.isEmpty() && query.isEmpty()
+    val defaultView = status == StatusFilter.ALL && groups.isEmpty() && typed.isEmpty()
     val pinned = data.groups.filter { it.pinned }
     val activeCount = activeFilterCount(data)
 
@@ -318,9 +327,17 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 placeholder = if (audience == Audience.ORGS) "Organisationen durchsuchen …" else "Suchen in Namen, Notizen, Verlauf …",
                 leading = Icons.Rounded.Search,
                 modifier = Modifier.weight(1f),
+                onSubmit = {
+                    if (line.capture && commitLine(line, data) != null) {
+                        haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+                        search.clearText()
+                    }
+                },
             )
             BadgeOrb(Icons.Rounded.Tune, "Filter & Sortierung", activeCount, { filterSheet = true })
         }
+
+        AnimatedVisibility(line.chips.isNotEmpty()) { OrbitLineChips(line, onClick = {}) }
 
         // Feedback bar: pinned groups + whatever is active. Invisible when there is nothing to show.
         val showBar = pinned.isNotEmpty() || activeCount > 0
@@ -408,7 +425,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             out
         }
         // A–Z only where it means something: name order, no search, enough sections.
-        val showRail = sort == SortMode.NAME && query.isEmpty() && letterIndex.size >= 6
+        val showRail = sort == SortMode.NAME && typed.isEmpty() && letterIndex.size >= 6
         // The rail's room is reserved inside rows and headers for the whole name sort, so typing
         // never shifts them (W2); cards and banners keep the full 16-dp gutter.
         val railPad = if (sort == SortMode.NAME) 18.dp else 0.dp
@@ -471,7 +488,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                 item(key = "empty") {
                     // W6/W7: one line, one action – no instructions.
                     Box(Modifier.animateItem()) { when {
-                        query.isNotEmpty() -> EmptyHint("Kein Treffer", "", action = "Suche leeren" to { search.clearText() })
+                        typed.isNotEmpty() -> EmptyHint("Kein Treffer", "", action = "Suche leeren" to { search.clearText() })
                         audience == Audience.ORGS && status == StatusFilter.ALL && groups.isEmpty() ->
                             EmptyHint("Keine Organisationen", "", action = "Organisation anlegen" to {
                                 nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), Contact(id = io.github.thelony97.orbit.data.newId(), kind = io.github.thelony97.orbit.data.ContactKind.ORG))))
