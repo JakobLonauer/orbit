@@ -28,6 +28,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object PhoneImport : Route
 
+    /** PLAN 9 A1 „Neu im Telefonbuch“: only these phone-book contacts, all picked. */
+    @Serializable
+    data class PhoneImportPick(val contactIds: List<Long>) : Route
+
     @Serializable
     data object Groups : Route
 

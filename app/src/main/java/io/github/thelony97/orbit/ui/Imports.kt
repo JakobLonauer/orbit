@@ -87,6 +87,20 @@ object PhoneImport {
                 }
             }
         }
+        // PLAN 9 A1: people only in Orbit's own phone-book account are Orbit's already – not offered.
+        val foreign = HashSet<Long>()
+        val ours = HashSet<Long>()
+        runCatching {
+            resolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.ACCOUNT_TYPE),
+                "${ContactsContract.RawContacts.DELETED} = 0", null, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    if (c.getString(1) == io.github.thelony97.orbit.phonebook.PhoneBookSync.ACCOUNT_TYPE) ours += c.getLong(0) else foreign += c.getLong(0)
+                }
+            }
+        }
         val items = mutableListOf<Item>()
         runCatching {
             resolver.query(
@@ -95,8 +109,10 @@ object PhoneImport {
                 ContactsContract.Contacts.DISPLAY_NAME_PRIMARY + " COLLATE LOCALIZED ASC",
             )?.use { c ->
                 while (c.moveToNext()) {
+                    val id = c.getLong(0)
+                    if (id in ours && id !in foreign) continue
                     val name = c.getString(1)?.trim().orEmpty()
-                    if (name.isNotEmpty()) items += Item(c.getLong(0), name, numbers[c.getLong(0)].orEmpty())
+                    if (name.isNotEmpty()) items += Item(id, name, numbers[id].orEmpty())
                 }
             }
         }

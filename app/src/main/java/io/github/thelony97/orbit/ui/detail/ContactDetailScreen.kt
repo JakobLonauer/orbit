@@ -55,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Forum
@@ -108,7 +109,6 @@ import io.github.thelony97.orbit.core.model.Link as LinkTile
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Share
-import io.github.thelony97.orbit.actions.ShareContact
 import io.github.thelony97.orbit.data.Anniversary
 import io.github.thelony97.orbit.data.CheckItem
 import io.github.thelony97.orbit.data.Contact
@@ -274,6 +274,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     var showAllHistory by remember { mutableStateOf(false) }
     var linkDialog by remember { mutableStateOf(false) }
     var qrDialog by remember { mutableStateOf(false) }
+    var shareSheet by remember { mutableStateOf(false) }
+    var qrPart by remember { mutableStateOf<Contact?>(null) }
     var fieldDialog by remember { mutableStateOf(false) }
     var noteDialog by remember { mutableStateOf<NoteTarget?>(null) }
     // Sections opened from the add row while still empty (topics, gifts).
@@ -399,10 +401,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                                 leadingIcon = { Icon(Icons.Rounded.QrCode2, null) },
                                 onClick = { menu = false; qrDialog = true },
                             )
+                            // PLAN 9 A12: Weitergeben mit Feldwahl (text, vCard or QR of the picked fields).
                             DropdownMenuItem(
-                                text = { Text("Als vCard teilen") },
+                                text = { Text("Teilen") },
                                 leadingIcon = { Icon(Icons.Rounded.Share, null) },
-                                onClick = { menu = false; ShareContact.vcard(ctx, c) },
+                                onClick = { menu = false; shareSheet = true },
                             )
                             // Only on request, each value confirmed (PLAN 3.8).
                             if (c.isOrg) DropdownMenuItem(
@@ -453,7 +456,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         // Long names shrink cleanly instead of being cut (PLAN 1.4).
                         val nameStyle = MaterialTheme.typography.headlineSmallEmphasized
                         androidx.compose.foundation.text.BasicText(
-                            Logic.displayName(c, false),
+                            // PLAN 9 A10: the head carries the title („Mag.a Anna Huber“).
+                            Logic.titledName(c),
                             modifier = Modifier.sharedContact("name-${c.id}", text = true),
                             // Relative line height so shrinking also tightens the lines.
                             style = nameStyle.copy(color = Space.Text, lineHeight = 1.18.em),
@@ -469,7 +473,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         val age = c.birthday?.let { b ->
                             b.year?.let { y -> java.time.Period.between(DateMath.inYear(b, y), todayDate).years.takeIf { it in 0..130 } }
                         }?.let { "$it Jahre" }
-                        val line = listOfNotNull(job.takeIf { it.isNotBlank() }, age).joinToString(" · ")
+                        // Rufname first (PLAN 9 A10): „„Hansi“ · Installateur · 34 Jahre“.
+                        val nick = if (c.isOrg) null else c.nickname.trim().takeIf { it.isNotEmpty() }?.let { "„$it“" }
+                        val line = listOfNotNull(nick, job.takeIf { it.isNotBlank() }, age).joinToString(" · ")
                         // PLAN 3.3: the work field leads to the organisation when it is one of yours.
                         val employer = remember(c.company, data.contacts) {
                             if (c.isOrg || c.company.isBlank()) null
@@ -549,6 +555,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             val texting = textNumber != null
             // W5: the row only exists when at least one action applies.
             if (!c.isMe && (number != null || email != null || c.address.isNotBlank())) item(key = "actions") {
+                // PLAN 9 A7: WhatsApp/Signal chat and calls through their own phone-book rows.
+                val messengers by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.actions.Messengers.Action>(), textNumber, data.settings.phoneBook) {
+                    value = io.github.thelony97.orbit.actions.Messengers.forNumber(ctx, textNumber)
+                }
+                var messengerMenu by remember { mutableStateOf(false) }
                 Row(
                     // 7 + (64 − 46) / 2 = 16: the first orb sits on the gutter.
                     Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 4.dp),
@@ -567,7 +578,50 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     // W5: no SMS/WhatsApp for a landline (fixed rule, NumberKind).
                     if (number != null && texting) {
                         ActionOrb(Icons.Rounded.Sms, "SMS", true, onClick = { ContactActions.sms(ctx, c, textNumber) }, onLongClick = { chooser = Chooser.Sms })
-                        ActionOrb(Icons.Rounded.Forum, "WhatsApp", true, onClick = { ContactActions.whatsapp(ctx, c, textNumber) }, onLongClick = { chooser = Chooser.WhatsApp })
+                        Box {
+                            val waChat = messengers.firstOrNull { it.kind == io.github.thelony97.orbit.actions.Messengers.Kind.WA_CHAT }
+                            val extra = messengers.filter { it.kind != io.github.thelony97.orbit.actions.Messengers.Kind.WA_CHAT }
+                            ActionOrb(
+                                Icons.Rounded.Forum, "WhatsApp", true,
+                                onClick = {
+                                    if (waChat != null) io.github.thelony97.orbit.actions.Messengers.open(ctx, waChat, c.id)
+                                    else ContactActions.whatsapp(ctx, c, textNumber)
+                                },
+                                // Halten: WhatsApp-Anruf, Video, Signal – else the number choice as before.
+                                onLongClick = { if (extra.isNotEmpty()) messengerMenu = true else chooser = Chooser.WhatsApp },
+                            )
+                            DropdownMenu(
+                                expanded = messengerMenu,
+                                onDismissRequest = { messengerMenu = false },
+                                containerColor = Space.PanelHigh,
+                                shape = RoundedCornerShape(16.dp),
+                            ) {
+                                extra.forEach { a ->
+                                    DropdownMenuItem(
+                                        text = { Text(a.kind.label) },
+                                        leadingIcon = {
+                                            Icon(
+                                                when (a.kind) {
+                                                    io.github.thelony97.orbit.actions.Messengers.Kind.WA_VIDEO -> Icons.Rounded.Videocam
+                                                    io.github.thelony97.orbit.actions.Messengers.Kind.WA_CALL, io.github.thelony97.orbit.actions.Messengers.Kind.SIGNAL_CALL -> Icons.Rounded.Call
+                                                    else -> Icons.Rounded.Forum
+                                                },
+                                                null,
+                                                tint = Space.Teal,
+                                            )
+                                        },
+                                        onClick = {
+                                            messengerMenu = false
+                                            io.github.thelony97.orbit.actions.Messengers.open(ctx, a, c.id)
+                                        },
+                                    )
+                                }
+                                if (c.phones.count { it.value.isNotBlank() } > 1) {
+                                    HorizontalDivider(color = Space.Line)
+                                    DropdownMenuItem(text = { Text("Andere Nummer") }, onClick = { messengerMenu = false; chooser = Chooser.WhatsApp })
+                                }
+                            }
+                        }
                     }
                     if (email != null) {
                         ActionOrb(
@@ -1161,6 +1215,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     }
 
     if (qrDialog) QrDialog(c, onDismiss = { qrDialog = false })
+    qrPart?.let { part -> QrDialog(part, onDismiss = { qrPart = null }) }
+    if (shareSheet) ShareFieldsSheet(c, onDismiss = { shareSheet = false }, onQr = { qrPart = it })
 
     linkEdit?.let { l ->
         LinkEditDialog(l, onDismiss = { linkEdit = null }) { changed ->

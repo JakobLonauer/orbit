@@ -18,6 +18,12 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Screen off at the ear during a call (proximity sensor). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- PLAN 9 A1: Orbit's own account in the address book (asked when Jakob turns it on). -->
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <!-- Haptik-Vokabular (PLAN 9.2): „Materialisieren“ is a composed vibration. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- „Gratulieren“ opens WhatsApp only if it is installed (else SMS): Orbit must be allowed to see it. -->
     <queries>
@@ -62,6 +68,103 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
                 <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
+
+        <!-- PLAN 9 A2: „Kontakt hinzufügen“ from any app, vCard files and scanned vCard QRs. -->
+        <activity
+            android:name=".actions.ContactIntakeActivity"
+            android:exported="true"
+            android:label="Orbit"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Orbit.Invisible">
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/contact" />
+                <data android:mimeType="vnd.android.cursor.dir/person" />
+                <data android:mimeType="vnd.android.cursor.dir/raw_contact" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT_OR_EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/contact" />
+                <data android:mimeType="vnd.android.cursor.item/person" />
+                <data android:mimeType="vnd.android.cursor.item/raw_contact" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/vcard" />
+                <data android:mimeType="text/x-vcard" />
+                <data android:mimeType="text/directory" />
+            </intent-filter>
+        </activity>
+
+        <!-- PLAN 9 A4: „Orbit“ in the text-selection menu of every app. -->
+        <activity
+            android:name=".actions.ProcessTextActivity"
+            android:exported="true"
+            android:label="Orbit"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Orbit.Invisible">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- PLAN 9 A1: the account „Orbit“ and its (empty) sync adapter for the address book. -->
+        <service
+            android:name=".phonebook.OrbitAuthenticatorService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
+        <service
+            android:name=".phonebook.OrbitSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/sync_contacts" />
+            <meta-data
+                android:name="android.provider.CONTACTS_STRUCTURE"
+                android:resource="@xml/contacts" />
+        </service>
+
+        <!-- PLAN 9 A3: „In Orbit öffnen“ / own-field rows in a system contact card. -->
+        <activity
+            android:name=".phonebook.PhoneBookRowActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Orbit.Invisible">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.profile" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.io.github.thelony97.orbit.field" />
             </intent-filter>
         </activity>
 
@@ -220,6 +323,25 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/favorites_widget_info" />
         </receiver>
+
+        <!-- Nummern-Schublade (PLAN 9 A9): Jakob's numbers over any app. -->
+        <service
+            android:name=".notify.NumbersTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_numbers"
+            android:label="@string/tile_numbers"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".notify.NumbersActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="io.github.thelony97.orbit.numbers"
+            android:theme="@style/Theme.Orbit.Invisible" />
 
         <!-- Schnelleinstellungs-Kachel „Notiz zum letzten Anruf“ (PLAN 3.14). -->
         <service

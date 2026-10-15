@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -60,8 +61,18 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** What came in through „Teilen“: parsed text and/or pictures (read while Orbit is in front). */
-data class PendingShare(val item: ShareIn.Item?, val images: List<Uri>, val documents: Boolean = false)
+/**
+ * What came in through „Teilen“: parsed text and/or pictures (read while Orbit is in front).
+ * [targetId]: shared straight to a person from the system share sheet (PLAN 9 A5) – no picking.
+ */
+data class PendingShare(
+    val item: ShareIn.Item?,
+    val images: List<Uri>,
+    val documents: Boolean = false,
+    val targetId: String? = null,
+    /** PLAN 9 A2 (INSERT_OR_EDIT): everything the other app handed over, for „Neuer Kontakt“. */
+    val draft: Contact? = null,
+)
 
 /**
  * Teilen-Eingang (PLAN 3.8): a place from Maps → new organisation or an existing contact; a page →
@@ -78,6 +89,18 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
     val search = rememberTextFieldState()
     val q = search.text.toString()
     val wantsOrg = item is ShareIn.Item.Place
+    // PLAN 9 A4: a marked number or address – who has it already (organisation ranges included).
+    val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
+    val owner: Contact? = remember(item, data.contacts) {
+        when (item) {
+            is ShareIn.Item.Number -> io.github.thelony97.orbit.domain.PhoneMatcher(data.contacts, iso).matchCall(item.number)
+                ?.let { m -> data.contacts.firstOrNull { it.id == m.contactId && it.deletedAt == null && !it.archived } }
+            is ShareIn.Item.Email -> item.address.lowercase().let { a ->
+                data.contacts.firstOrNull { c -> c.deletedAt == null && !c.archived && !c.isMe && (c.emails.any { it.value.trim().lowercase() == a } || c.emailDomains.any { d -> a.endsWith("@" + d.trim().removePrefix("@").lowercase()) }) }
+            }
+            else -> null
+        }
+    }
     val targets = Logic.active(data)
         .filter { !it.archived && !it.isMe && Logic.matches(it, q, idx) }
         // A place most likely belongs to an organisation: those first.
@@ -106,10 +129,41 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                 if (asTopic) c.copy(topics = c.topics + CheckItem(newId(), item.text.take(200), createdAt = now()))
                 else c.copy(notes = listOf(c.notes, item.text).filter { it.isNotBlank() }.joinToString("\n"))
             }
+            // PLAN 9 A4: the number or address joins the contact (nothing replaced, Undo).
+            item is ShareIn.Item.Number -> {
+                val landline = io.github.thelony97.orbit.domain.Phones.normalize(item.number, iso)?.let { io.github.thelony97.orbit.core.domain.NumberKind.isLandline(it) } == true
+                val label = when {
+                    target.isOrg -> "Zentrale"
+                    landline -> "Privat"
+                    else -> "Mobil"
+                }
+                val key = item.number.filter(Char::isDigit).takeLast(9)
+                OrbitRepository.editContact(target.id) { c ->
+                    if (c.phones.any { it.value.filter(Char::isDigit).takeLast(9) == key }) c else c.copy(phones = c.phones + LabeledValue(label, item.number))
+                }
+                io.github.thelony97.orbit.ui.components.Undo.offer("Nummer bei $name") {
+                    OrbitRepository.editContact(target.id) { c -> c.copy(phones = c.phones.filterNot { it.value == item.number }) }
+                }
+            }
+            item is ShareIn.Item.Email -> {
+                OrbitRepository.editContact(target.id) { c ->
+                    if (c.emails.any { it.value.equals(item.address, ignoreCase = true) }) c else c.copy(emails = c.emails + LabeledValue(if (target.isOrg) "Arbeit" else "Privat", item.address))
+                }
+                io.github.thelony97.orbit.ui.components.Undo.offer("E-Mail bei $name") {
+                    OrbitRepository.editContact(target.id) { c -> c.copy(emails = c.emails.filterNot { it.value == item.address }) }
+                }
+            }
         }
-        Toast.makeText(ctx, "Bei $name gespeichert", Toast.LENGTH_SHORT).show()
+        if (item !is ShareIn.Item.Number && item !is ShareIn.Item.Email) Toast.makeText(ctx, "Bei $name gespeichert", Toast.LENGTH_SHORT).show()
         onDone()
         nav.open(Route.Detail(target.id))
+    }
+
+    // PLAN 9 A5: shared straight to a person – nothing to pick, it lands there at once.
+    val direct = share.targetId?.let { id -> data.contacts.firstOrNull { it.id == id && it.deletedAt == null } }
+    if (direct != null) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { apply(direct) }
+        return
     }
 
     ModalBottomSheet(onDismissRequest = onDone, sheetState = state, containerColor = Space.PanelHigh) {
@@ -123,6 +177,8 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                 item is ShareIn.Item.Place -> item.name.ifBlank { "Ort" } to item.address
                 item is ShareIn.Item.Page -> item.title to io.github.thelony97.orbit.ui.detail.linkHost(item.url)
                 item is ShareIn.Item.Text -> item.text to ""
+                item is ShareIn.Item.Number -> item.number to ""
+                item is ShareIn.Item.Email -> item.address to ""
                 else -> "" to ""
             }
             Text(title, style = MaterialTheme.typography.titleLargeEmphasized, color = Space.Text, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -136,6 +192,32 @@ fun ShareSheet(share: PendingShare, data: OrbitData, idx: Index, nav: Nav, onDon
                     onDone()
                     nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), draft)))
                 }, icon = Icons.Rounded.Business, color = Space.Blue)
+            }
+            // PLAN 9 A4: number or address – „gehört zu …“ as a ghost, or a new contact with it.
+            if ((item is ShareIn.Item.Number || item is ShareIn.Item.Email) && share.images.isEmpty()) {
+                if (owner != null) {
+                    io.github.thelony97.orbit.ui.components.Ghost(
+                        source = if (owner.isOrg) "Nummer oder Bereich der Organisation" else "Gleiche Nummer bzw. Adresse",
+                        onAccept = { onDone(); nav.open(Route.Detail(owner.id)) },
+                        onDismiss = null,
+                        accent = if (owner.isOrg) Space.Blue else Space.Violet,
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Avatar(owner, contactColor(owner, idx), 34.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Text("gehört zu " + Logic.displayName(owner, data.settings.sortByLastName), style = MaterialTheme.typography.bodyLarge, color = Space.Text)
+                        }
+                    }
+                }
+                GlowButton("Neuer Kontakt", {
+                    val draft = share.draft ?: when (item) {
+                        is ShareIn.Item.Number -> Contact(id = newId(), phones = listOf(LabeledValue("Mobil", item.number)))
+                        is ShareIn.Item.Email -> Contact(id = newId(), emails = listOf(LabeledValue("Privat", item.address)))
+                        else -> Contact(id = newId())
+                    }
+                    onDone()
+                    nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), draft)))
+                }, icon = Icons.Rounded.PersonAdd)
             }
             if (item is ShareIn.Item.Text && share.images.isEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

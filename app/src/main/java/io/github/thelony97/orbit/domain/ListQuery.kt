@@ -69,6 +69,26 @@ object ListQuery {
             Logic.matches(c, query, idx)
     }
 
+    /** PLAN 9 A11: same filters, but contacts that only sound like the query (Kölner Phonetik). */
+    fun soundsLike(
+        data: OrbitData,
+        idx: Index,
+        audience: Audience,
+        status: StatusFilter,
+        groups: Set<String>,
+        query: String,
+    ): List<Contact> {
+        if (query.isBlank()) return emptyList()
+        return Logic.others(data).filter { c ->
+            audience.accepts(c) &&
+                !c.archived &&
+                (status != StatusFilter.FAVORITES || c.favorite) &&
+                (groups.isEmpty() || c.groupIds.any { it in groups }) &&
+                !Logic.matches(c, query, idx) &&
+                Logic.soundsLike(c, query, idx)
+        }
+    }
+
     fun sections(
         contacts: List<Contact>,
         idx: Index,

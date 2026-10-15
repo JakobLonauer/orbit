@@ -148,6 +148,14 @@ data class Contact(
     val isMe: Boolean = false,
     val firstName: String = "",
     val lastName: String = "",
+    /** PLAN 9 A10: academic title before the name („Mag.a“, „Dr.in“, „DI“). */
+    val title: String = "",
+    /** PLAN 9 A10: Rufname („Hansi“) – found by search and the dialpad, used in sentences. */
+    val nickname: String = "",
+    /** PLAN 9 A10/B7: Anrede word („Frau“, „Herr“); empty = none. Du/Sie lives in [greeting]. */
+    val salutation: String = "",
+    /** PLAN 9 A8: ringtone (content URI) in the phone book; null = the group's, else the phone's. */
+    val ringtone: String? = null,
     val phones: List<LabeledValue> = emptyList(),
     val defaultPhone: Int = 0,
     /** PLAN 3.12 „Dual-SIM pro Kontakt“: the SIM (phone account id) Orbit calls this contact with; null = the phone decides. */
@@ -232,6 +240,8 @@ data class Group(
     val name: String,
     val color: Long,
     val pinned: Boolean = false,
+    /** PLAN 9 A8: ringtone for every member without an own one (phone book). */
+    val ringtone: String? = null,
 )
 
 @Serializable
@@ -318,6 +328,12 @@ data class Settings(
     val giftTracking: Boolean = true,
     /** PLAN 3.12 „Ablehnen mit SMS-Vorlage“: the replies offered while it rings. */
     val smsTemplates: List<String> = DEFAULT_SMS_TEMPLATES,
+    /** PLAN 9 A1: Orbit writes its contacts into the phone's address book (own account „Orbit“). */
+    val phoneBook: Boolean = false,
+    /** PLAN 9 A1: organisations go into the phone book too. */
+    val phoneBookOrgs: Boolean = true,
+    /** PLAN 9.2 Geist: stable keys of suggestions Jakob swiped away – they never come back. */
+    val dismissedGhosts: List<String> = emptyList(),
 ) {
     companion object {
         val DEFAULT_SMS_TEMPLATES = listOf(

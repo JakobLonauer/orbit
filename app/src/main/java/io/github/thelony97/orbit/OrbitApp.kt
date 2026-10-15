@@ -32,7 +32,11 @@ class OrbitApp : Application() {
             OrbitWidget.refresh(ctx)
             io.github.thelony97.orbit.widget.LinksWidget.refresh(ctx)
             io.github.thelony97.orbit.widget.FavoritesWidget.refresh(ctx)
-            OrbitRepository.data.value?.let { io.github.thelony97.orbit.actions.AppShortcuts.update(ctx, it) }
+            OrbitRepository.data.value?.let {
+                io.github.thelony97.orbit.actions.AppShortcuts.update(ctx, it)
+                // PLAN 9 A1: the phone book follows every save (debounced, only Orbit's own rows).
+                io.github.thelony97.orbit.phonebook.PhoneBookSync.onSaved(ctx, it)
+            }
         }
         Notifications.createChannels(this)
         scope.launch {
@@ -45,6 +49,8 @@ class OrbitApp : Application() {
             }
             orphanPhotos.forEach { OrbitRepository.photoFile(it).delete() }
             runCatching { io.github.thelony97.orbit.actions.AppShortcuts.update(this@OrbitApp, OrbitRepository.snapshot()) }
+            // Catch up once per start (a contacts app may have deleted rows, Orbit writes them again).
+            if (OrbitRepository.snapshot().settings.phoneBook) io.github.thelony97.orbit.phonebook.PhoneBookSync.request(this@OrbitApp)
             DigestScheduler.schedule(this@OrbitApp)
             Sync.schedulePeriodic(this@OrbitApp)
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only

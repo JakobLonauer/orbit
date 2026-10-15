@@ -7,6 +7,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,10 +102,32 @@ import io.github.thelony97.orbit.ui.theme.Space
 import io.github.thelony97.orbit.util.Fmt
 import kotlinx.coroutines.launch
 
-private class ValueRow(label: String, value: String) {
+/** [fresh]: handed over by another app or the phone book – lights up teal once (PLAN 9 A2). */
+private class ValueRow(label: String, value: String, val fresh: Boolean = false) {
     var label by mutableStateOf(label)
     val state = TextFieldState(value)
 }
+
+/**
+ * „Zu bestehendem Kontakt“ (PLAN 9 A2, INSERT_OR_EDIT): what another app handed over joins the
+ * contact – new numbers, mails and addresses are added, nothing is replaced.
+ */
+internal fun mergeIncoming(base: Contact, incoming: Contact): Contact {
+    fun add(old: List<LabeledValue>, new: List<LabeledValue>, key: (String) -> String) =
+        old + new.filter { n -> n.value.isNotBlank() && old.none { key(it.value) == key(n.value) } }
+            .distinctBy { key(it.value) }
+    return base.copy(
+        phones = add(base.phones, incoming.phones) { v -> v.filter(Char::isDigit).takeLast(9) },
+        emails = add(base.emails, incoming.emails) { v -> v.trim().lowercase() },
+        addresses = add(base.addresses, incoming.addresses) { v -> v.trim().lowercase() },
+        company = base.company.ifBlank { incoming.company },
+        position = base.position.ifBlank { incoming.position },
+        notes = listOf(base.notes, incoming.notes).filter { it.isNotBlank() }.distinct().joinToString("\n"),
+    )
+}
+
+/** Title suggestions (PLAN 9 A10) – Austrian forms, female forms included. */
+private val titleSuggestions = listOf("Mag.a", "Mag.", "Dr.in", "Dr.", "DI", "Ing.", "BEd", "MSc")
 
 /** Two free-text halves (link title + address, field label + value) of one editable row. */
 private class PairRow(val id: String, first: String, second: String) {
@@ -114,10 +139,22 @@ private class PairRow(val id: String, first: String, second: String) {
 fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index, nav: Nav) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val incoming: Contact? = remember(prefill) {
+        prefill?.let { runCatching { OrbitRepository.json.decodeFromString(Contact.serializer(), it) }.getOrNull() }
+    }
     val original: Contact = remember(id, prefill) {
-        id?.let { idx.contacts[it] }
-            ?: prefill?.let { runCatching { OrbitRepository.json.decodeFromString(Contact.serializer(), it) }.getOrNull() }
-            ?: Contact(id = newId())
+        val existing = id?.let { idx.contacts[it] }
+        when {
+            // INSERT_OR_EDIT / „Zu … hinzufügen“: the handed-over values join the existing contact.
+            existing != null && incoming != null -> mergeIncoming(existing, incoming)
+            existing != null -> existing
+            incoming != null -> incoming
+            else -> Contact(id = newId())
+        }
+    }
+    /** Values that came from outside light up once (PLAN 9 A2). */
+    val freshValues = remember(prefill) {
+        incoming?.let { inc -> (inc.phones + inc.emails).map { it.value.trim() }.filter { it.isNotEmpty() }.toSet() }.orEmpty()
     }
     val isNew = id == null
     // The page edits a copy taken now; an undo tapped afterwards would be overwritten by Save.
@@ -125,6 +162,20 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
     val first = remember { TextFieldState(original.firstName) }
     val last = remember { TextFieldState(original.lastName) }
+    // PLAN 9 A10: Titel, Rufname, Anrede and Du/Sie.
+    val titleField = remember { TextFieldState(original.title) }
+    val nickname = remember { TextFieldState(original.nickname) }
+    var salutation by remember { mutableStateOf(original.salutation) }
+    var formal by remember { mutableStateOf(original.greeting?.formal == true) }
+    // PLAN 9 A8: own ringtone in the phone book (null = the group's, else the phone's).
+    var ringtone by remember { mutableStateOf(original.ringtone) }
+    val ringtonePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val picked = result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, android.net.Uri::class.java)
+            // „Standard“ means: no own tone, the group's or the phone's applies.
+            ringtone = picked?.takeIf { !android.media.RingtoneManager.isDefault(it) }?.toString()
+        }
+    }
     val company = remember { TextFieldState(original.company) }
     val position = remember { TextFieldState(original.position) }
     val address = remember { TextFieldState(original.address) }
@@ -140,8 +191,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     var orgCategory by remember { mutableStateOf(original.orgCategory ?: Defaults.orgCategories.first().key) }
     val isOrg = kind == ContactKind.ORG
     val isMe = original.isMe
-    val phones = remember { mutableStateListOf<ValueRow>().apply { original.phones.forEach { add(ValueRow(it.label, it.value)) } } }
-    val emails = remember { mutableStateListOf<ValueRow>().apply { original.emails.forEach { add(ValueRow(it.label, it.value)) } } }
+    val phones = remember { mutableStateListOf<ValueRow>().apply { original.phones.forEach { add(ValueRow(it.label, it.value, it.value.trim() in freshValues)) } } }
+    val emails = remember { mutableStateListOf<ValueRow>().apply { original.emails.forEach { add(ValueRow(it.label, it.value, it.value.trim() in freshValues)) } } }
     var defaultPhone by remember { mutableStateOf(original.defaultPhone) }
     var simId by remember { mutableStateOf(original.simId) }
     val sims = remember { io.github.thelony97.orbit.call.Sims.list(ctx) }
@@ -173,6 +224,15 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             orgCategory = if (kind == ContactKind.ORG) orgCategory else null,
             firstName = first.text.toString().trim(),
             lastName = last.text.toString().trim(),
+            title = if (kind == ContactKind.ORG) original.title else titleField.text.toString().trim(),
+            nickname = if (kind == ContactKind.ORG) original.nickname else nickname.text.toString().trim(),
+            salutation = if (kind == ContactKind.ORG) original.salutation else salutation,
+            greeting = when {
+                kind == ContactKind.ORG -> original.greeting
+                formal -> (original.greeting ?: io.github.thelony97.orbit.core.model.Greeting()).copy(formal = true)
+                else -> original.greeting?.copy(formal = false)
+            },
+            ringtone = ringtone,
             company = company.text.toString().trim(),
             position = position.text.toString().trim(),
             howWeMet = howWeMet.text.toString().trim(),
@@ -218,8 +278,10 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             Toast.makeText(ctx, "Bitte einen Namen eingeben", Toast.LENGTH_SHORT).show()
             return false
         }
+        // Compared with what is stored – merged-in numbers (PLAN 9 A2) count as new.
+        val stored = idx.contacts[contact.id]
         if (!duplicateOk) {
-            val newNumbers = contact.phones.filter { p -> original.phones.none { it.value == p.value } || isNew }
+            val newNumbers = contact.phones.filter { p -> stored == null || stored.phones.none { it.value == p.value } }
             io.github.thelony97.orbit.core.domain.Duplicates.sameNumber(contact.copy(phones = newNumbers), data.contacts) { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }
                 ?.let { duplicate = it; return false }
         }
@@ -228,7 +290,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             Photos.delete(oldPhoto)
             PhotoCache.evict(oldPhoto)
         }
-        val phonesChanged = contact.phones.map { it.value } != original.phones.map { it.value } || isNew
+        val phonesChanged = stored == null || contact.phones.map { it.value } != stored.phones.map { it.value }
         OrbitRepository.edit { d -> Mutations.upsertContact(d, contact) }
         if (phonesChanged && contact.phones.isNotEmpty()) Sync.backfill(ctx, contact.id)
         savedId = contact.id
@@ -345,6 +407,35 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     )
                 }
 
+                // PLAN 9 A10: Titel and Rufname; Anrede and Du/Sie for everyone but yourself.
+                if (!isOrg) {
+                    GlassCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SpaceField(titleField, "", Modifier.weight(0.42f), placeholder = "Titel")
+                            SpaceField(nickname, "", Modifier.weight(0.58f), placeholder = "Rufname", keyboardOptions = caps)
+                        }
+                        // Suggestions only while no title is entered (W5).
+                        if (titleField.text.isEmpty()) {
+                            Row(
+                                Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                titleSuggestions.forEach { t -> SpaceChip(t, false, { titleField.setTextAndPlaceCursorAtEnd(t) }) }
+                            }
+                        }
+                        if (!isMe) {
+                            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                listOf("Frau", "Herr").forEach { s ->
+                                    SpaceChip(s, salutation == s, { salutation = if (salutation == s) "" else s })
+                                }
+                                Spacer(Modifier.weight(1f))
+                                SpaceChip("Du", !formal, { formal = false }, accent = Space.Teal)
+                                SpaceChip("Sie", formal, { formal = true }, accent = Space.Teal)
+                            }
+                        }
+                    }
+                }
+
                 if (!isMe) {
                     GlassCard {
                         SectionTitle("Art")
@@ -391,6 +482,39 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SpaceChip("Automatisch", simId == null || sims.none { it.id == simId }, { simId = null })
                             sims.forEach { sim -> SpaceChip(sim.label, simId == sim.id, { simId = sim.id }) }
+                        }
+                    }
+                    // Klingel-Signatur (PLAN 9 A8): lives in the phone book, so only with it (W5).
+                    if (data.settings.phoneBook && !isMe) {
+                        Spacer(Modifier.size(8.dp))
+                        val toneName by androidx.compose.runtime.produceState<String?>(null, ringtone) {
+                            value = ringtone?.let { uri ->
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    runCatching { android.media.RingtoneManager.getRingtone(ctx, android.net.Uri.parse(uri))?.getTitle(ctx) }.getOrNull()
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SpaceChip(
+                                if (ringtone == null) "Klingelton" else toneName ?: "Klingelton",
+                                ringtone != null,
+                                {
+                                    AppLock.allowExternal()
+                                    ringtonePicker.launch(
+                                        android.content.Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+                                            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_RINGTONE)
+                                            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                            .putExtra(
+                                                android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                                                ringtone?.let { android.net.Uri.parse(it) } ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI,
+                                            ),
+                                    )
+                                },
+                                leading = Icons.Rounded.MusicNote,
+                                accent = Space.Teal,
+                            )
+                            if (ringtone != null) SpaceChip("entfernen", false, { ringtone = null })
                         }
                     }
                     Spacer(Modifier.size(8.dp))
@@ -568,9 +692,27 @@ private fun ValueList(
     addLabel: String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        rows.forEachIndexed { i, row ->
+        rows.forEachIndexed { i, row -> androidx.compose.runtime.key(row) {
             var menu by remember { mutableStateOf(false) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Handed-over values light up teal once, then settle (PLAN 9 A2).
+            val glow = remember { androidx.compose.animation.core.Animatable(if (row.fresh) 1f else 0f) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (row.fresh) {
+                    kotlinx.coroutines.delay(300)
+                    glow.animateTo(0f, androidx.compose.animation.core.tween(900))
+                }
+            }
+            Row(
+                Modifier.drawBehind {
+                    if (glow.value > 0f) {
+                        drawRoundRect(
+                            Space.Teal.copy(alpha = 0.24f * glow.value),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                        )
+                    }
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box {
                     SpaceChip(row.label, false, { menu = true })
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Space.PanelHigh) {
@@ -602,7 +744,7 @@ private fun ValueList(
                         .padding(7.dp),
                 )
             }
-        }
+        } }
         SpaceChip(addLabel, false, { rows.add(ValueRow(labels.first(), "")) }, leading = Icons.Rounded.Add)
     }
 }

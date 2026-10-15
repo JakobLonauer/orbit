@@ -46,7 +46,16 @@ class MainActivity : FragmentActivity() {
 
         /** App-Shortcut or QS tile action (see [io.github.thelony97.orbit.actions.AppShortcuts]). */
         val pendingShortcut = MutableStateFlow<String?>(null)
+
+        /** PLAN 9 A2: a contact handed over by another app (JSON), or several from a vCard file. */
+        const val EXTRA_INTAKE = "intake"
+        const val EXTRA_INTAKE_PICK = "intake_pick"
+        const val EXTRA_INTAKE_CARDS = "intake_cards"
+        val pendingIntake = MutableStateFlow<Intake?>(null)
     }
+
+    /** [pick]: „zu bestehendem Kontakt“ first (INSERT_OR_EDIT). */
+    data class Intake(val drafts: List<io.github.thelony97.orbit.data.Contact>, val pick: Boolean)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -115,7 +124,9 @@ class MainActivity : FragmentActivity() {
                 intent.getStringExtra(Intent.EXTRA_TEXT), intent.getStringExtra(Intent.EXTRA_SUBJECT),
             )
             val pdf = intent.type == "application/pdf"
-            if (images.isNotEmpty() || item != null) pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(if (pdf) null else item, images, documents = pdf)
+            // PLAN 9 A5: shared straight to a person from the system share sheet.
+            val target = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID)?.takeIf { it.startsWith("share-") }?.removePrefix("share-")
+            if (images.isNotEmpty() || item != null) pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(if (pdf) null else item, images, documents = pdf, targetId = target)
             // Handled once: a rotation must not bring the sheet back.
             intent.action = Intent.ACTION_MAIN
             return
@@ -132,6 +143,21 @@ class MainActivity : FragmentActivity() {
                 intent.action = Intent.ACTION_MAIN
                 return
             }
+        }
+        // PLAN 9 A2: another app wants a contact created or extended.
+        val json = io.github.thelony97.orbit.data.OrbitRepository.json
+        intent?.getStringExtra(EXTRA_INTAKE)?.let { raw ->
+            runCatching { json.decodeFromString(io.github.thelony97.orbit.data.Contact.serializer(), raw) }.getOrNull()?.let { draft ->
+                pendingIntake.value = Intake(listOf(draft), intent.getBooleanExtra(EXTRA_INTAKE_PICK, false))
+            }
+            intent.removeExtra(EXTRA_INTAKE)
+            return
+        }
+        intent?.getStringExtra(EXTRA_INTAKE_CARDS)?.let { raw ->
+            runCatching { json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(io.github.thelony97.orbit.data.Contact.serializer()), raw) }.getOrNull()
+                ?.takeIf { it.isNotEmpty() }?.let { pendingIntake.value = Intake(it, false) }
+            intent.removeExtra(EXTRA_INTAKE_CARDS)
+            return
         }
         intent?.getStringExtra(EXTRA_NEW_NUMBER)?.let { number ->
             pendingNew.value = number to intent.getBooleanExtra(EXTRA_NEW_ORG, false)

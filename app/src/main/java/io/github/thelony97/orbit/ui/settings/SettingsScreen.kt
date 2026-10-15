@@ -46,6 +46,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.Email
 import io.github.thelony97.orbit.mail.MailAccounts
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -272,6 +275,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
         } else {
             Sync.requestNow(ctx)
         }
+    }
+    // PLAN 9 A1: Orbit im Telefonbuch – contacts permission first, then the account.
+    fun phoneBookOn() {
+        OrbitRepository.editSettings { it.copy(phoneBook = true) }
+        io.github.thelony97.orbit.ui.components.AppWork.launch {
+            io.github.thelony97.orbit.phonebook.PhoneBookFresh.start(ctx.applicationContext)
+            io.github.thelony97.orbit.phonebook.PhoneBookSync.request(ctx.applicationContext)
+        }
+    }
+    val phoneBookPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        permissionTick++
+        if (result.values.all { it }) phoneBookOn() else permissionDenied = true
     }
     // Orbit als Telefon-App (PLAN 3.12): the system's own role dialog decides.
     val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -581,6 +596,50 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     Icons.Rounded.Event, "Treffen am Morgen",
                     trailing = { SpaceSwitch(s.meetingBrief) { v -> OrbitRepository.editSettings { it.copy(meetingBrief = v) } } },
                 )
+            }
+        }
+
+        // PLAN 9 A1/A8: Orbit im Telefonbuch des Handys, Durchklingeln.
+        if (area == "contacts") item(key = "phonebook") {
+            val count by io.github.thelony97.orbit.phonebook.PhoneBookSync.count.collectAsState()
+            LaunchedEffect(s.phoneBook) { if (s.phoneBook) io.github.thelony97.orbit.phonebook.PhoneBookSync.request(ctx) }
+            SettingsGroup("") {
+                SettingItem(
+                    Icons.Rounded.Contacts, "Im Telefonbuch des Handys",
+                    subtitle = if (s.phoneBook) count?.let { if (it == 1) "1 Kontakt" else "$it Kontakte" } else null,
+                    iconTint = Space.Teal,
+                    trailing = {
+                        SpaceSwitch(s.phoneBook) { on ->
+                            if (on) {
+                                val need = listOf(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.WRITE_CONTACTS)
+                                    .filter { ctx.checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+                                if (need.isEmpty()) phoneBookOn() else phoneBookPermission.launch(need.toTypedArray())
+                            } else {
+                                OrbitRepository.editSettings { it.copy(phoneBook = false) }
+                                io.github.thelony97.orbit.phonebook.PhoneBookSync.remove(ctx)
+                            }
+                        }
+                    },
+                )
+                if (s.phoneBook) {
+                    Hairline()
+                    SettingItem(
+                        Icons.Rounded.Business, "Auch Organisationen", iconTint = Space.Teal,
+                        trailing = {
+                            SpaceSwitch(s.phoneBookOrgs) { v ->
+                                OrbitRepository.editSettings { it.copy(phoneBookOrgs = v) }
+                                io.github.thelony97.orbit.phonebook.PhoneBookSync.request(ctx)
+                            }
+                        },
+                    )
+                    Hairline()
+                    // Favourites are „markiert“ in the phone book; the system lets them through.
+                    SettingItem(Icons.Rounded.DoNotDisturbOn, "Favoriten bei Nicht stören", iconTint = Space.Teal, onClick = {
+                        AppLock.allowExternal()
+                        val tries = listOf("android.settings.ZEN_MODE_PRIORITY_SETTINGS", "android.settings.ZEN_MODE_SETTINGS", android.provider.Settings.ACTION_SOUND_SETTINGS)
+                        tries.firstOrNull { action -> runCatching { ctx.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess }
+                    })
+                }
             }
         }
 

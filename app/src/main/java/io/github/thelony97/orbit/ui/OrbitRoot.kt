@@ -176,6 +176,36 @@ private fun MainNavigation(data: OrbitData) {
         MainActivity.pendingNew.value = null
     }
 
+    // PLAN 9 A2: „Kontakt hinzufügen“ from another app lands here.
+    val intake by MainActivity.pendingIntake.collectAsStateWithLifecycle()
+    LaunchedEffect(intake) {
+        val (drafts, pick) = intake ?: return@LaunchedEffect
+        MainActivity.pendingIntake.value = null
+        val json = io.github.thelony97.orbit.data.OrbitRepository.json
+        val one = drafts.singleOrNull()
+        when {
+            // Zu bestehendem: the number (or address) picks its contact in the share sheet.
+            one != null && pick && (one.phones.isNotEmpty() || one.emails.isNotEmpty()) -> {
+                val item = one.phones.firstOrNull()?.let { io.github.thelony97.orbit.core.domain.ShareIn.Item.Number(it.value) }
+                    ?: io.github.thelony97.orbit.core.domain.ShareIn.Item.Email(one.emails.first().value)
+                MainActivity.pendingShare.value = io.github.thelony97.orbit.ui.sheets.PendingShare(item, emptyList(), draft = one)
+            }
+            one != null -> {
+                if (backStack.none { it is Route.Edit }) while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                backStack.add(Route.Edit(prefill = json.encodeToString(io.github.thelony97.orbit.data.Contact.serializer(), one)))
+            }
+            drafts.isNotEmpty() -> {
+                // A .vcf with several cards: all in, one undo.
+                val ids = drafts.map { it.id }.toSet()
+                io.github.thelony97.orbit.data.OrbitRepository.edit { d -> drafts.fold(d) { acc, c -> io.github.thelony97.orbit.data.Mutations.upsertContact(acc, c) } }
+                io.github.thelony97.orbit.ui.components.Undo.offer("${drafts.size} Kontakte übernommen") {
+                    io.github.thelony97.orbit.data.OrbitRepository.edit { d -> ids.fold(d) { acc, id -> io.github.thelony97.orbit.data.Mutations.purge(acc, id) } }
+                }
+                nav.home(io.github.thelony97.orbit.ui.home.HomeTab.CONTACTS)
+            }
+        }
+    }
+
     // App-Shortcuts and the QS tile (PLAN 3.14).
     val shortcut by MainActivity.pendingShortcut.collectAsStateWithLifecycle()
     LaunchedEffect(shortcut) {
@@ -252,6 +282,9 @@ private fun MainNavigation(data: OrbitData) {
             }
             entry<Route.PhoneImport> {
                 io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav)
+            }
+            entry<Route.PhoneImportPick> { key ->
+                io.github.thelony97.orbit.ui.list.PhoneImportScreen(data = data, nav = nav, initialSelection = key.contactIds.toSet(), only = key.contactIds.toSet())
             }
             entry<Route.Photos> { key ->
                 io.github.thelony97.orbit.ui.detail.PhotosScreen(contactId = key.contactId, data = data, idx = idx, nav = nav)

@@ -106,6 +106,14 @@ class T9Test {
         assertEquals(0, T9.search(listOf(two), "111", ::name).single().phoneIndex)
     }
 
+    @Test fun rufnameDialsToo() {
+        val hansi = Contact(id = "h", firstName = "Johann", lastName = "Huber", nickname = "Hansi", phones = listOf(LabeledValue("Mobil", "+43 660 999")))
+        // 4-2-6-7-4 = H-A-N-S-I
+        val hit = T9.search(listOf(hansi), "42674", ::name).single()
+        assertEquals(T9.How.WORD, hit.how)
+        assertEquals("Johann Huber", hit.name)
+    }
+
     @Test fun emptyOrNonDigitInputFindsNothing() {
         assertTrue(T9.search(listOf(anna), "", ::name).isEmpty())
         assertTrue(T9.search(listOf(anna), "*#", ::name).isEmpty())

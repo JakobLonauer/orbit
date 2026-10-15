@@ -24,6 +24,27 @@ class SearchTest {
         assertFalse(Logic.matches(tom, "cello", idx))
     }
 
+    @Test fun soundsAlikeOnlyBehindExactHits() {
+        val mayr = Contact("m", firstName = "Sepp", lastName = "Mayr", nickname = "Peppi")
+        val i = Index(OrbitData(contacts = listOf(anna, tom, mayr)))
+        // Not an exact hit, but sounds alike (Kölner Phonetik).
+        assertFalse(Logic.matches(mayr, "Maier", i))
+        assertTrue(Logic.soundsLike(mayr, "Maier", i))
+        // Mixed: one word found, one only alike.
+        assertTrue(Logic.soundsLike(mayr, "Sepp Meier", i))
+        // Exact hits are never „alike“; unrelated names neither.
+        assertFalse(Logic.soundsLike(mayr, "Mayr", i))
+        assertFalse(Logic.soundsLike(tom, "Maier", i))
+        // Rufname and title are found exactly.
+        assertTrue(Logic.matches(mayr, "peppi", i))
+        assertTrue(Logic.matches(anna.copy(title = "Mag.a"), "mag.a", i))
+    }
+
+    @Test fun shortNamePrefersTheRufname() {
+        assertTrue(Logic.shortName(Contact("h", firstName = "Johann", nickname = "Hansi")) == "Hansi")
+        assertTrue(Logic.titledName(Contact("x", firstName = "Anna", lastName = "Huber", title = "Dr.in")) == "Dr.in Anna Huber")
+    }
+
     @Test fun cachedAndFreshContactsAgree() {
         // Same answer on repeat (cached) and for an edited copy that is not in this Index.
         assertTrue(Logic.matches(anna, "cello", idx))

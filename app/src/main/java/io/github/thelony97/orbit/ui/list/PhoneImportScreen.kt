@@ -69,12 +69,24 @@ import kotlinx.coroutines.launch
  * („Diese Nummer gibt es schon“) and are never pre-selected. One pick opens the edit page as before.
  */
 @Composable
-fun PhoneImportScreen(data: OrbitData, nav: Nav, preview: List<PhoneImport.Item>? = null, initialSelection: Set<Long> = emptySet()) {
+fun PhoneImportScreen(
+    data: OrbitData,
+    nav: Nav,
+    preview: List<PhoneImport.Item>? = null,
+    initialSelection: Set<Long> = emptySet(),
+    /** PLAN 9 A1: show only these phone-book contacts (the ones other apps just added). */
+    only: Set<Long>? = null,
+) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
     var items by remember { mutableStateOf(preview) }
-    LaunchedEffect(Unit) { if (preview == null) items = PhoneImport.list(ctx) }
+    LaunchedEffect(Unit) {
+        if (preview == null) {
+            val all = PhoneImport.list(ctx)
+            items = if (only == null) all else all.filter { it.id in only }
+        }
+    }
     var selected by remember { mutableStateOf(initialSelection) }
     var busy by remember { mutableStateOf(false) }
 

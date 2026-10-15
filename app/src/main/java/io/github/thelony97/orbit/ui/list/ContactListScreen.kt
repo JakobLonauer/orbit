@@ -186,13 +186,18 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
 
     val sections = remember(data, query, audience, status, groups) {
         val list = ListQuery.filter(data, idx, audience, status, groups, query, todayDate)
-        ListQuery.sections(list, idx, sort, reversed, lastFirst, todayDate)
+        val exact = ListQuery.sections(list, idx, sort, reversed, lastFirst, todayDate)
+        // PLAN 9 A11: names that only sound alike (Maier → Mayr) come after the exact hits.
+        val alike = ListQuery.soundsLike(data, idx, audience, status, groups, query).sortedBy { Logic.sortKey(it, lastFirst) }
+        if (alike.isEmpty()) exact else exact + io.github.thelony97.orbit.domain.ListSection("Klingt ähnlich", alike)
     }
     val hiddenOrgHits = remember(data, query, audience, status, groups) {
         if (audience != Audience.PEOPLE || query.isBlank()) 0
         else ListQuery.filter(data, idx, Audience.ORGS, status, groups, query, todayDate).size
     }
     val suggestions = remember(data) { data.unknownNumbers.count { !it.dismissed && it.calls + it.sms >= 2 } }
+    // Heute (PLAN 9 C1): ghosts and cards for today; empty = no row at all.
+    val todayCards = io.github.thelony97.orbit.ui.today.rememberTodayCards(data)
     val me = remember(data) { Logic.me(data) }
     val total = remember(data, audience) { Logic.others(data).count { !it.archived && audience.accepts(it) } }
     // Nobody in the Orbit yet (whatever the filter): no counter, no search, no filter (W5/W6).
@@ -383,8 +388,10 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             }
         }
         // Index of each letter's header: must follow the item order below exactly.
-        val letterIndex = remember(sections, suggestions, defaultView, me, audience) {
+        val showToday = todayCards.isNotEmpty() && defaultView && selection == null
+        val letterIndex = remember(sections, suggestions, defaultView, me, audience, showToday) {
             var i = 1 // update banner
+            if (showToday) i++
             if (suggestions > 0 && defaultView) i++
             if (me != null && defaultView && audience != Audience.ORGS) i++
             if (sections.all { it.contacts.isEmpty() }) i++
@@ -418,6 +425,9 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner() }
+            if (showToday) item(key = "today") {
+                io.github.thelony97.orbit.ui.today.TodayRow(todayCards, nav, Modifier.padding(bottom = 10.dp))
+            }
             // „gehört zu Arzt Müller“ (PLAN 1.3): a pasted Durchwahl or a number in an
             // organisation's range – a hidden member shows only as the organisation.
             belongsTo?.let { org ->

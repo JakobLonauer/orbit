@@ -20,10 +20,12 @@ object VCard {
             line("ORG:${esc(name)}")
             if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
         } else {
-            line("N:${esc(c.lastName)};${esc(c.firstName)};;;")
+            // PLAN 9 A10: the title goes into the name's prefix part, the Rufname into NICKNAME.
+            line("N:${esc(c.lastName)};${esc(c.firstName)};;${esc(c.title)};")
             // FN must not be empty: a person known only by the company is shown under it.
             val fn = listOf(c.firstName, c.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { c.company }
             line("FN:${esc(fn.ifBlank { "Kontakt" })}")
+            if (c.nickname.isNotBlank()) line("NICKNAME:${esc(c.nickname)}")
             if (c.company.isNotBlank()) line("ORG:${esc(c.company)}")
             if (c.position.isNotBlank()) line("TITLE:${esc(c.position)}")
         }

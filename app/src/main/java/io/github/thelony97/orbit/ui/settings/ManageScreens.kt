@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.outlined.PushPin
@@ -148,6 +149,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
         GroupDialog(
             initial = Group(newId(), "", Defaults.groupColors[data.groups.size % Defaults.groupColors.size]),
             isNew = true,
+            ringtones = data.settings.phoneBook,
             onDismiss = { creating = false },
             onSave = { g -> OrbitRepository.edit { d -> Mutations.upsertGroup(d, g) } },
             onDelete = null,
@@ -157,6 +159,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
         GroupDialog(
             initial = g,
             isNew = false,
+            ringtones = data.settings.phoneBook,
             onDismiss = { editing = null },
             onSave = { updated -> OrbitRepository.edit { d -> Mutations.upsertGroup(d, updated) } },
             onDelete = { OrbitRepository.edit { d -> Mutations.deleteGroup(d, g.id) } },
@@ -168,12 +171,29 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
 private fun GroupDialog(
     initial: Group,
     isNew: Boolean,
+    /** PLAN 9 A8: a ringtone for the group's members – only with Orbit in the phone book. */
+    ringtones: Boolean,
     onDismiss: () -> Unit,
     onSave: (Group) -> Unit,
     onDelete: (() -> Unit)?,
 ) {
     val name = rememberTextFieldState(initial.name)
     var color by remember { mutableStateOf(initial.color) }
+    var ringtone by remember { mutableStateOf(initial.ringtone) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val picked = result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, android.net.Uri::class.java)
+            ringtone = picked?.takeIf { !android.media.RingtoneManager.isDefault(it) }?.toString()
+        }
+    }
+    val toneName by androidx.compose.runtime.produceState<String?>(null, ringtone) {
+        value = ringtone?.let { uri ->
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { android.media.RingtoneManager.getRingtone(ctx, android.net.Uri.parse(uri))?.getTitle(ctx) }.getOrNull()
+            }
+        }
+    }
     var confirmDelete by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -202,6 +222,30 @@ private fun GroupDialog(
                         )
                     }
                 }
+                if (ringtones) {
+                    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        io.github.thelony97.orbit.ui.components.SpaceChip(
+                            if (ringtone == null) "Klingelton" else toneName ?: "Klingelton",
+                            ringtone != null,
+                            {
+                                io.github.thelony97.orbit.security.AppLock.allowExternal()
+                                picker.launch(
+                                    android.content.Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+                                        .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_RINGTONE)
+                                        .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                        .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                        .putExtra(
+                                            android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                                            ringtone?.let { android.net.Uri.parse(it) } ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI,
+                                        ),
+                                )
+                            },
+                            leading = Icons.Rounded.MusicNote,
+                            accent = Color(color),
+                        )
+                        if (ringtone != null) io.github.thelony97.orbit.ui.components.SpaceChip("entfernen", false, { ringtone = null })
+                    }
+                }
                 if (onDelete != null) {
                     TextButton(onClick = { confirmDelete = true }) { Text("Gruppe löschen", color = MaterialTheme.colorScheme.error) }
                 }
@@ -211,7 +255,7 @@ private fun GroupDialog(
             io.github.thelony97.orbit.ui.components.DialogConfirm(
                 enabled = name.text.isNotBlank(),
                 onClick = {
-                    onSave(initial.copy(name = name.text.toString().trim(), color = color))
+                    onSave(initial.copy(name = name.text.toString().trim(), color = color, ringtone = ringtone))
                     onDismiss()
                 },
             ) { Text("Speichern") }

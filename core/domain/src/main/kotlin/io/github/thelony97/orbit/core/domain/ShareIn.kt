@@ -11,9 +11,17 @@ object ShareIn {
         data class Place(val name: String, val address: String, val mapsUrl: String) : Item
         data class Page(val title: String, val url: String) : Item
         data class Text(val text: String) : Item
+
+        /** PLAN 9 A4: a marked or shared phone number on its own. */
+        data class Number(val number: String) : Item
+
+        /** PLAN 9 A4: a marked or shared mail address on its own. */
+        data class Email(val address: String) : Item
     }
 
     private val URL = Regex("https?://\\S+")
+    private val PHONE = Regex("^(tel:)?\\+?[0-9 ()/.\\-]{5,26}$")
+    private val MAIL = Regex("^(mailto:)?[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$")
 
     fun isMaps(url: String): Boolean {
         val u = url.lowercase()
@@ -24,6 +32,9 @@ object ShareIn {
         val t = text?.trim().orEmpty()
         val s = subject?.trim().orEmpty()
         if (t.isEmpty() && s.isEmpty()) return null
+        // A number or an address alone (fixed patterns): it belongs to someone or becomes a contact.
+        if (PHONE.matches(t) && t.count(Char::isDigit) in 6..15) return Item.Number(t.removePrefix("tel:").trim())
+        if (MAIL.matches(t)) return Item.Email(t.removePrefix("mailto:").trim())
         val url = URL.find(t)?.value?.trimEnd('.', ',', ')')
         if (url != null && isMaps(url)) {
             val lines = t.replace(url, "").lines().map { it.trim() }.filter { it.isNotEmpty() }

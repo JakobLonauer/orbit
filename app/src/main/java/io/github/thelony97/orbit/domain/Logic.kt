@@ -34,6 +34,12 @@ class Index(val data: OrbitData) {
 
     fun haystack(c: Contact, build: (Contact) -> String): String =
         if (contacts[c.id] === c) haystacks.getOrPut(c.id) { build(c) } else build(c)
+
+    /** Kölner-Phonetik codes of the name words (PLAN 9 A11), cached like [haystack]. */
+    private val phonetics = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
+
+    fun phonetic(c: Contact): Set<String> =
+        if (contacts[c.id] === c) phonetics.getOrPut(c.id) { Logic.phoneticCodes(c) } else Logic.phoneticCodes(c)
 }
 
 object Logic {
@@ -53,9 +59,13 @@ object Logic {
         }
     }
 
-    /** Short name for sentences ("Kontakt mit Anna"). */
+    /** Short name for sentences ("Kontakt mit Anna"); the Rufname first (PLAN 9 A10). */
     fun shortName(c: Contact): String =
-        if (c.isOrg) displayName(c, false) else c.firstName.trim().ifBlank { displayName(c, false) }
+        if (c.isOrg) displayName(c, false) else c.nickname.trim().ifBlank { c.firstName.trim() }.ifBlank { displayName(c, false) }
+
+    /** Name with the academic title for heads and the phone book („Mag.a Anna Huber“). */
+    fun titledName(c: Contact): String =
+        if (c.isOrg || c.title.isBlank()) displayName(c, false) else c.title.trim() + " " + displayName(c, false)
 
     fun sortKey(c: Contact, lastNameFirst: Boolean): String {
         if (c.isOrg) return fold(displayName(c, false))
@@ -124,9 +134,30 @@ object Logic {
         return q.split(' ').filter { it.isNotBlank() }.all { folded.contains(it) }
     }
 
+    fun phoneticCodes(c: Contact): Set<String> =
+        io.github.thelony97.orbit.core.domain.Phonetic.codes(listOf(c.firstName, c.lastName, c.nickname, c.company).joinToString(" "))
+
+    /**
+     * „Klingt ähnlich“ (PLAN 9 A11): no exact hit, but every word is either found or sounds like a
+     * name word (Kölner Phonetik) – and at least one only sounds alike. Shown behind the exact hits.
+     */
+    fun soundsLike(c: Contact, query: String, idx: Index): Boolean {
+        val words = fold(query.trim()).split(' ').filter { it.isNotBlank() }
+        if (words.isEmpty() || words.none { w -> w.count { it.isLetter() } >= 4 }) return false
+        val folded = idx.haystack(c) { fold(haystackOf(it, idx)) }
+        val codes = idx.phonetic(c)
+        var alike = false
+        for (w in words) {
+            if (folded.contains(w)) continue
+            if (io.github.thelony97.orbit.core.domain.Phonetic.matches(w, codes)) alike = true else return false
+        }
+        return alike
+    }
+
     private fun haystackOf(c: Contact, idx: Index): String {
         return buildString {
             append(c.firstName).append(' ').append(c.lastName).append(' ')
+            append(c.title).append(' ').append(c.nickname).append(' ')
             append(c.company).append(' ').append(c.position).append(' ').append(c.website).append(' ')
             if (c.isOrg) append(io.github.thelony97.orbit.data.Defaults.orgCategory(c.orgCategory).label).append(' ')
             append(c.howWeMet).append(' ').append(c.notes).append(' ').append(c.pinnedNote).append(' ').append(c.address).append(' ')

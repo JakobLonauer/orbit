@@ -19,6 +19,15 @@ class ShareInTest {
         assertEquals(Item.Page("Spannender Artikel", "https://example.at/a"), ShareIn.parse("Spannender Artikel https://example.at/a", ""))
     }
 
+    @Test fun numberAndMailAlone() {
+        assertEquals(Item.Number("+43 660 1234567"), ShareIn.parse(" +43 660 1234567 ", null))
+        assertEquals(Item.Number("0732/2468-12"), ShareIn.parse("tel:0732/2468-12", null))
+        assertEquals(Item.Email("anna@jku.at"), ShareIn.parse("mailto:anna@jku.at", null))
+        // Too short for a number, or more than a number: stays text.
+        assertEquals(Item.Text("1234"), ShareIn.parse("1234", null))
+        assertEquals(Item.Text("Ruf 0660 1234567 an"), ShareIn.parse("Ruf 0660 1234567 an", null))
+    }
+
     @Test fun plainTextAndNothing() {
         assertEquals(Item.Text("Kaffee mitbringen"), ShareIn.parse("Kaffee mitbringen", null))
         assertNull(ShareIn.parse("  ", null))

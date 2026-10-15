@@ -8,4 +8,5 @@
     <string name="widget_favorites_label">Orbit – Favoriten</string>
     <string name="widget_favorites_description">Favoriten anrufen oder schreiben mit einem Tipp</string>
     <string name="tile_last_call">Notiz zum Anruf</string>
+    <string name="tile_numbers">Nummern</string>
 </resources>

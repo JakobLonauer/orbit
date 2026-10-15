@@ -84,6 +84,12 @@ object T9 {
                 hits += Hit(c.id, n, dial, byName.first, nameMarks = byName.second) to c
                 continue
             }
+            // PLAN 9 A11: the Rufname dials too („Hansi“ for Johann Huber) – no marks in the shown name.
+            val nick = c.nickname.trim()
+            if (nick.isNotEmpty() && nameMatch(nick, d) != null) {
+                hits += Hit(c.id, n, dial, How.WORD) to c
+                continue
+            }
             phones.firstNotNullOfOrNull { (i, p) -> numberMarks(p.value, d, homeCc)?.let { i to it } }?.let { (i, marks) ->
                 hits += Hit(c.id, n, i, How.NUMBER, numberMarks = marks) to c
             }
