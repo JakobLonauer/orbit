@@ -1,0 +1,195 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:BirthdayTab.kt:BirthdayTab$t.contains('.') || t.contains('/') || t.contains('-') || t.contains(' ')</ID>
+    <ID>ComplexCondition:CallScreen.kt:!enabled || sm == null || sensor == null || saver</ID>
+    <ID>ComplexCondition:CallScreen.kt:ui.phoneUnlocked &amp;&amp; notice != null &amp;&amp; !(templates &amp;&amp; !ui.active) &amp;&amp; !(keys &amp;&amp; ui.active &amp;&amp; !ui.ended)</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:!c.isMe &amp;&amp; !c.archived &amp;&amp; c.topics.isEmpty() &amp;&amp; "topics" !in opened</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:!c.isMe &amp;&amp; (number != null || email != null || c.address.isNotBlank())</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:!c.isOrg &amp;&amp; !c.isMe &amp;&amp; !c.archived &amp;&amp; c.gifts.isEmpty() &amp;&amp; "gifts" !in opened</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:!c.isOrg &amp;&amp; !c.isMe &amp;&amp; (c.gifts.isNotEmpty() || "gifts" in opened)</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:c.isOrg &amp;&amp; c.members.isEmpty() &amp;&amp; "members" !in opened &amp;&amp; !c.archived</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:c.phones.isNotEmpty() || c.emails.isNotEmpty() || c.address.isNotBlank() || c.fields.isNotEmpty()</ID>
+    <ID>ComplexCondition:ContactDetailScreen.kt:c.pinnedNote.isNotBlank() || notes.isNotEmpty() || people.isNotEmpty() || next != null</ID>
+    <ID>ComplexCondition:ContactEditScreen.kt:(contact.isOrg &amp;&amp; contact.company.isBlank()) || (contact.firstName.isBlank() &amp;&amp; contact.lastName.isBlank() &amp;&amp; contact.company.isBlank())</ID>
+    <ID>ComplexCondition:MailBundle.kt:MailBundle$old.account == r.account &amp;&amp; old.folder == r.folder &amp;&amp; (old.uidValidity != r.uidValidity || old.uid != r.uid)</ID>
+    <ID>ComplexCondition:Mutations.kt:Mutations$d.orgLinks.any { it.personId == personId &amp;&amp; it.orgId == orgId &amp;&amp; it.role == role &amp;&amp; it.label == text }</ID>
+    <ID>ComplexCondition:Mutations.kt:Mutations$person == null || org == null || person.isOrg || !org.isOrg</ID>
+    <ID>ComplexCondition:NetworkScreen.kt:hit != null &amp;&amp; dist != null &amp;&amp; radius != null &amp;&amp; dist &lt;= radius</ID>
+    <ID>ComplexCondition:OpeningHours.kt:OpeningHours$h &gt; 24 || min &gt; 59 || (h == 24 &amp;&amp; min != 0)</ID>
+    <ID>ComplexCondition:OrbitRoot.kt:wideNow.value &amp;&amp; backStack.size == 1 &amp;&amp; route is Route.Detail &amp;&amp; route.entryId == null</ID>
+    <ID>ComplexCondition:SettingsScreen.kt:current == null &amp;&amp; (missing.isNotEmpty() || backupIssue != null || brokenMail.isNotEmpty())</ID>
+    <ID>ComplexCondition:Sync.kt:PhoneStateReceiver$contact != null &amp;&amp; !contact.archived &amp;&amp; contact.deletedAt == null &amp;&amp; data.settings.topicsDuringCall &amp;&amp; stillRinging()</ID>
+    <ID>ComplexCondition:SyncEngine.kt:SyncEngine$snapshot.settings.callSyncedUntil == 0L &amp;&amp; canReadCalls(ctx) || snapshot.settings.smsSyncedUntil == 0L &amp;&amp; canReadSms(ctx)</ID>
+    <ID>ComplexCondition:T9.kt:T9$homeCc != null &amp;&amp; d.length &gt; 1 &amp;&amp; d[0] == '0' &amp;&amp; value.trimStart().startsWith("+")</ID>
+    <ID>ComplexCondition:VCard.kt:VCard$"arbeit" in l || "dienst" in l || "uni" in l || "schule" in l</ID>
+    <ID>ComposableNaming:ContactDetailScreen.kt:@Composable fun links</ID>
+    <ID>ComposableParamOrder:EntrySheet.kt:@Composable fun EntrySheet</ID>
+    <ID>ComposableParamOrder:Placeholder.kt:@Composable fun PlaceholderLine</ID>
+    <ID>ComposableParamOrder:Space.kt:@Composable fun SectionTitle</ID>
+    <ID>CyclomaticComplexMethod:BirthdayTab.kt:BirthdayTab$fun build: Result</ID>
+    <ID>CyclomaticComplexMethod:BirthdayTab.kt:BirthdayTab$fun parseDay: io.github.thelony97.orbit.core.model.CalendarDay?</ID>
+    <ID>CyclomaticComplexMethod:CallerIndex.kt:CallerIndex.Companion$fun build: CallerIndex</ID>
+    <ID>CyclomaticComplexMethod:Common.kt:fun entryIcon: ImageVector</ID>
+    <ID>CyclomaticComplexMethod:ExcelExport.kt:ExcelExport$fun sheets: List&lt;Xlsx.Sheet&gt;</ID>
+    <ID>CyclomaticComplexMethod:Imports.kt:PhoneImport$suspend fun read: Contact?</ID>
+    <ID>CyclomaticComplexMethod:ListQuery.kt:ListQuery$fun sections: List&lt;ListSection&gt;</ID>
+    <ID>CyclomaticComplexMethod:MailBundle.kt:MailBundle$fun merge: List&lt;HistoryEntry&gt;</ID>
+    <ID>CyclomaticComplexMethod:MailClient.kt:MailClient$private fun imagesLocked: Result&lt;List&lt;java.io.File&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:MailClient.kt:MailClient$private fun text: String?</ID>
+    <ID>CyclomaticComplexMethod:MailSync.kt:MailSync$private suspend fun runLocked: Outcome</ID>
+    <ID>CyclomaticComplexMethod:MailSync.kt:MailSync$private suspend fun syncAccount: Outcome</ID>
+    <ID>CyclomaticComplexMethod:MainActivity.kt:MainActivity$private fun handleIntent</ID>
+    <ID>CyclomaticComplexMethod:MatchSentence.kt:fun matchSentence: Hit?</ID>
+    <ID>CyclomaticComplexMethod:Mutations.kt:Mutations$fun memberToContact: Pair&lt;OrbitData, String?&gt;</ID>
+    <ID>CyclomaticComplexMethod:Network.kt:NetworkLayout$fun build: Network</ID>
+    <ID>CyclomaticComplexMethod:Notifications.kt:Notifications$fun occasions</ID>
+    <ID>CyclomaticComplexMethod:OccasionList.kt:OccasionList$fun build: List&lt;Group&gt;</ID>
+    <ID>CyclomaticComplexMethod:OrbitInCallService.kt:CallNotification$@android.annotation.SuppressLint("MissingPermission") fun update</ID>
+    <ID>CyclomaticComplexMethod:PhotoAccent.kt:PhotoAccent$fun hue: Float?</ID>
+    <ID>CyclomaticComplexMethod:Receivers.kt:DigestScheduler$suspend fun run</ID>
+    <ID>CyclomaticComplexMethod:Receivers.kt:NotificationActionReceiver$override fun onReceive</ID>
+    <ID>CyclomaticComplexMethod:Sync.kt:PhoneStateReceiver$@Suppress("DEPRECATION") override fun onReceive</ID>
+    <ID>CyclomaticComplexMethod:Sync.kt:SyncWorker$override suspend fun doWork: Result</ID>
+    <ID>CyclomaticComplexMethod:SyncEngine.kt:SyncEngine$private fun apply: OrbitData</ID>
+    <ID>CyclomaticComplexMethod:SyncEngine.kt:SyncEngine$suspend fun syncAll: List&lt;NewCall&gt;</ID>
+    <ID>CyclomaticComplexMethod:T9.kt:T9$fun search: List&lt;Hit&gt;</ID>
+    <ID>EmptyFunctionBlock:CallScreen.kt:&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:CallSession.kt:CallSession.&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:MapScreen.kt:&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:Tilt.kt:&lt;no name provided&gt;${}</ID>
+    <ID>ForEachOnRange:NetworkScreen.kt:1..4</ID>
+    <ID>FunctionParameterNaming:PhotoActions.kt:PhotoActions$as_: String</ID>
+    <ID>LambdaParameterEventTrailing:BirthdaysScreen.kt:onOpen: () -&gt; Unit</ID>
+    <ID>LambdaParameterInRestartableEffect:CallActivity.kt:onDone: () -&gt; Unit</ID>
+    <ID>LambdaParameterInRestartableEffect:Gallery.kt:onDismiss: () -&gt; Unit</ID>
+    <ID>LambdaParameterInRestartableEffect:OnboardingScreen.kt:onDone: () -&gt; Unit</ID>
+    <ID>LambdaParameterInRestartableEffect:OnboardingScreen.kt:onItems: (List&lt;PhoneImport.Item&gt;) -&gt; Unit</ID>
+    <ID>LambdaParameterInRestartableEffect:StarMoments.kt:onPlayed: () -&gt; Unit</ID>
+    <ID>LongMethod:Imports.kt:PhoneImport$suspend fun read: Contact?</ID>
+    <ID>LongMethod:OrbitInCallService.kt:CallNotification$@android.annotation.SuppressLint("MissingPermission") fun update</ID>
+    <ID>LongMethod:Receivers.kt:NotificationActionReceiver$override fun onReceive</ID>
+    <ID>LongMethod:SyncEngine.kt:SyncEngine$private fun apply: OrbitData</ID>
+    <ID>LoopWithTooManyJumpStatements:Logos.kt:Logos$for</ID>
+    <ID>LoopWithTooManyJumpStatements:MailSync.kt:MailSync$for</ID>
+    <ID>LoopWithTooManyJumpStatements:MatchSentence.kt:for</ID>
+    <ID>LoopWithTooManyJumpStatements:PhotoAccent.kt:PhotoAccent$for</ID>
+    <ID>LoopWithTooManyJumpStatements:SyncEngine.kt:SyncEngine$for</ID>
+    <ID>LoopWithTooManyJumpStatements:T9.kt:T9$for</ID>
+    <ID>MatchingDeclarationName:DialpadScreen.kt:DialRow</ID>
+    <ID>MatchingDeclarationName:MatchSentence.kt:Hit</ID>
+    <ID>MatchingDeclarationName:OccasionFilterSheet.kt:OccasionView : Serializable</ID>
+    <ID>MatchingDeclarationName:OrbitRoot.kt:Nav</ID>
+    <ID>MatchingDeclarationName:Routes.kt:Route : NavKey</ID>
+    <ID>MatchingDeclarationName:ShareSheet.kt:PendingShare</ID>
+    <ID>MatchingDeclarationName:Theme.kt:Space</ID>
+    <ID>MatchingDeclarationName:VerlaufScreen.kt:VerlaufItem</ID>
+    <ID>MatchingDeclarationName:YearRingView.kt:RingDot</ID>
+    <ID>MaxLineLength:BirthdaysScreen.kt:io.github.thelony97.orbit.ui.components.SpaceChip(idea.text, false, { onIdea(idea, with, date) }, leading = androidx.compose.material.icons.Icons.Rounded.CardGiftcard, accent = Space.Orange)</ID>
+    <ID>MaxLineLength:CallScreen.kt:drawCircle(Brush.radialGradient(listOf(Space.Orange.copy(alpha = 0.55f + 0.35f * near), Space.Orange.copy(alpha = 0f)), sun, capture * (1.4f + 0.4f * near)), radius = capture * (1.4f + 0.4f * near), center = sun)</ID>
+    <ID>MaxLineLength:ContactListScreen.kt:nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), Contact(id = io.github.thelony97.orbit.data.newId(), kind = io.github.thelony97.orbit.data.ContactKind.ORG))))</ID>
+    <ID>MaxLineLength:DialpadScreen.kt:Text(if (r.hit.name.isBlank()) AnnotatedString("Ohne Namen") else marked(r.hit.name, r.hit.nameMarks), style = MaterialTheme.typography.titleMedium, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>MaxLineLength:ExcelExport.kt:ExcelExport$listOf("Art", "Vorname", "Nachname", "Firma", "Position", "Gruppen", "Telefon", "E-Mail", "Adresse", "Geburtstag", "Anlässe", "Kennengelernt", "Notiz oben", "Notizen", "Links", "Favorit", "Archiviert", "Angelegt")</ID>
+    <ID>MaxLineLength:Gallery.kt:android.widget.Toast.makeText(ctx, "Auch im Ordner von " + (data?.contacts?.firstOrNull { it.id == toId }?.let { io.github.thelony97.orbit.domain.Logic.shortName(it) } ?: ""), android.widget.Toast.LENGTH_SHORT).show()</ID>
+    <ID>MaxLineLength:Gallery.kt:androidx.compose.material3.DropdownMenuItem(text = { Text("Teilen") }, onClick = { menu = false; scope.launch { io.github.thelony97.orbit.actions.PhotoActions.share(ctx, d.file, d.mime, d.name) } })</ID>
+    <ID>MaxLineLength:MailAccounts.kt:MailProviders$hint = "Microsoft lässt seit September 2024 keine Anmeldung mit Passwort mehr zu (nur noch OAuth). Tipp: Mails in Outlook automatisch an ein Gmail-/GMX-Konto weiterleiten und das verbinden."</ID>
+    <ID>MaxLineLength:MailSection.kt:io.github.thelony97.orbit.data.OrbitRepository.editContact(contactId) { it.copy(gallery = added.asReversed().map { a -&gt; a.copy(contactId = contactId) } + it.gallery) }</ID>
+    <ID>MaxLineLength:MapScreen.kt:Text(Logic.displayName(c, false), style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))</ID>
+    <ID>MaxLineLength:MemberScreen.kt:OrbitRepository.update { d -&gt; d.copy(contacts = d.contacts + io.github.thelony97.orbit.data.Contact(id = id, firstName = first, lastName = last, createdAt = io.github.thelony97.orbit.data.now())) }</ID>
+    <ID>MaxLineLength:MemberScreen.kt:OutlinedTextField(state = note, label = { Text("Notiz") }, lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:MemberScreen.kt:OutlinedTextField(state = search, placeholder = { Text("Person") }, lineLimits = TextFieldLineLimits.SingleLine, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:MemberScreen.kt:Text("Zuletzt gesprochen " + Fmt.ago(java.time.temporal.ChronoUnit.DAYS.between(java.time.Instant.ofEpochMilli(at).atZone(io.github.thelony97.orbit.domain.zone()).toLocalDate(), io.github.thelony97.orbit.domain.today())), style = MaterialTheme.typography.labelMedium, color = Space.TextFaint)</ID>
+    <ID>MaxLineLength:NetworkScreen.kt:Text(Logic.displayName(c, false), style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>MaxLineLength:NetworkScreen.kt:Text(Logic.displayName(c, false), style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))</ID>
+    <ID>MaxLineLength:NetworkScreen.kt:if (chain.size &gt; 1) glow.animateTo(1f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.MAX_MS * 2, easing = io.github.thelony97.orbit.core.designsystem.Motion.Emphasized))</ID>
+    <ID>MaxLineLength:OccasionDialog.kt:SpaceChip(date?.let { Fmt.dayOfYear(it) } ?: "Datum", date != null, { pickDate = true }, leading = Icons.Rounded.CalendarMonth, accent = if (needsYear) Space.Coral else Space.Violet)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:"Spam-Warnung, Anruf-Filter und visuelle Mailbox der Google-Telefon-App entfallen; Android verlangt eventuell zuerst „Eingeschränkte Einstellungen zulassen“; zurück jederzeit unter Standard-Apps."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:Brush.radialGradient(listOf(Space.Coral.copy(alpha = a), Space.Coral.copy(alpha = 0f)), center = Offset(size.width * 0.12f, size.height * 0.2f), radius = size.maxDimension * 0.7f)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:SettingItem(Icons.Rounded.Archive, "Archiv", if (archiveCount == 0) "leer" else if (archiveCount == 1) "1 Kontakt" else "$archiveCount Kontakte", iconTint = Space.TextDim, onClick = { nav.open(Route.Archive) })</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:SettingItem(Icons.Rounded.Delete, "Papierkorb", if (trashCount == 0) "leer" else if (trashCount == 1) "1 Kontakt" else "$trashCount Kontakte", iconTint = Space.Coral, onClick = { nav.open(Route.Trash) })</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:SettingsArea("capture", "Mitschreiben", Icons.Rounded.Timer, Space.Teal, "Anrufe ab ${s.minCallSeconds} s" + when (mailAccounts.size) { 0 -&gt; ""; 1 -&gt; " · 1 Mail-Konto"; else -&gt; " · ${mailAccounts.size} Mail-Konten" })</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:Text("${acc.email}: ${acc.lastError}", style = MaterialTheme.typography.bodyMedium, color = Space.Text, modifier = Modifier.weight(1f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)</ID>
+    <ID>MayBeConstant:MapScreen.kt:private val EMPTY = """{"type":"FeatureCollection","features":[]}"""</ID>
+    <ID>ModifierMissing:ArchiveScreen.kt:@Composable fun ArchiveScreen</ID>
+    <ID>ModifierMissing:Banner.kt:@Composable fun Banner</ID>
+    <ID>ModifierMissing:BirthdaysScreen.kt:@Composable fun BirthdaysScreen</ID>
+    <ID>ModifierMissing:CallScreen.kt:@Composable fun CallScreen</ID>
+    <ID>ModifierMissing:ContactDetailScreen.kt:@Composable fun ContactDetailScreen</ID>
+    <ID>ModifierMissing:ContactEditScreen.kt:@Composable fun ContactEditScreen</ID>
+    <ID>ModifierMissing:ContactListScreen.kt:@Composable fun ContactFabMenu</ID>
+    <ID>ModifierMissing:ContactListScreen.kt:@Composable fun ContactListScreen</ID>
+    <ID>ModifierMissing:DetailExtras.kt:@Composable fun CopyButton</ID>
+    <ID>ModifierMissing:DetailSections.kt:@Composable fun ActionOrb</ID>
+    <ID>ModifierMissing:DetailSections.kt:@Composable fun Checklist</ID>
+    <ID>ModifierMissing:DetailSections.kt:@Composable fun EntryRow</ID>
+    <ID>ModifierMissing:DialpadScreen.kt:@Composable fun DialpadContent</ID>
+    <ID>ModifierMissing:Gallery.kt:@Composable fun GallerySection</ID>
+    <ID>ModifierMissing:HomeScreen.kt:@Composable fun HomeScreen</ID>
+    <ID>ModifierMissing:LinkGrid.kt:@OptIn(ExperimentalFoundationApi::class) @Composable fun QuickLinkChip</ID>
+    <ID>ModifierMissing:LoadErrorScreen.kt:@Composable fun LoadErrorScreen</ID>
+    <ID>ModifierMissing:LockScreen.kt:@Composable fun LockScreen</ID>
+    <ID>ModifierMissing:MailAccountsScreen.kt:@Composable fun MailAccountsScreen</ID>
+    <ID>ModifierMissing:MailSection.kt:@Composable fun MailSection</ID>
+    <ID>ModifierMissing:ManageScreens.kt:@Composable fun EntryTypesScreen</ID>
+    <ID>ModifierMissing:ManageScreens.kt:@Composable fun GroupsScreen</ID>
+    <ID>ModifierMissing:ManageScreens.kt:@Composable fun TrashScreen</ID>
+    <ID>ModifierMissing:MapScreen.kt:@Composable fun MapScreen</ID>
+    <ID>ModifierMissing:MemberScreen.kt:@Composable fun MemberScreen</ID>
+    <ID>ModifierMissing:NetworkScreen.kt:@Composable fun NetworkScreen</ID>
+    <ID>ModifierMissing:OnboardingScreen.kt:@Composable fun OnboardingScreen</ID>
+    <ID>ModifierMissing:OrbitRoot.kt:@Composable fun OrbitRoot</ID>
+    <ID>ModifierMissing:PhotosScreen.kt:@Composable fun PhotosScreen</ID>
+    <ID>ModifierMissing:Pickers.kt:@Composable fun TimeDialog</ID>
+    <ID>ModifierMissing:Placeholder.kt:@Composable fun ListPlaceholder</ID>
+    <ID>ModifierMissing:Placeholder.kt:@Composable fun MailRowPlaceholder</ID>
+    <ID>ModifierMissing:SaveButton.kt:@Composable fun SaveMorphButton</ID>
+    <ID>ModifierMissing:SettingsScreen.kt:@Composable fun Hairline</ID>
+    <ID>ModifierMissing:SettingsScreen.kt:@Composable fun SettingItem</ID>
+    <ID>ModifierMissing:SettingsScreen.kt:@Composable fun SettingsGroup</ID>
+    <ID>ModifierMissing:SettingsScreen.kt:@Composable fun SettingsScreen</ID>
+    <ID>ModifierMissing:SharedProbe.kt:@Composable fun SharedAvatarProbe</ID>
+    <ID>ModifierMissing:Space.kt:@Composable fun CheckDot</ID>
+    <ID>ModifierMissing:Space.kt:@Composable fun RowScope.CountStat</ID>
+    <ID>ModifierMissing:Space.kt:@Composable fun RowScope.Stat</ID>
+    <ID>ModifierMissing:StarMoments.kt:@Composable fun StarRain</ID>
+    <ID>ModifierMissing:StorageCard.kt:@Composable fun StorageCard</ID>
+    <ID>ModifierMissing:SuggestionsScreen.kt:@Composable fun SuggestionsScreen</ID>
+    <ID>ModifierMissing:VerlaufScreen.kt:@Composable fun VerlaufScreen</ID>
+    <ID>ModifierNaming:DetailSections.kt:/** For a shared transition on the value (Datumskachel → Anlass, PLAN W3). */ valueModifier: Modifier = Modifier</ID>
+    <ID>ModifierWithoutDefault:Gallery.kt:modifier: Modifier</ID>
+    <ID>ModifierWithoutDefault:LinkGrid.kt:modifier: Modifier</ID>
+    <ID>ModifierWithoutDefault:NetworkScreen.kt:modifier: Modifier</ID>
+    <ID>MultipleEmitters:OnboardingScreen.kt:@Composable private fun MeStep</ID>
+    <ID>MultipleEmitters:SettingsScreen.kt:@Composable fun SettingsGroup</ID>
+    <ID>MutableStateAutoboxing:DetailDialogs.kt:mutableStateOf(120)</ID>
+    <ID>MutableStateAutoboxing:PhoneImportScreen.kt:mutableStateOf(initialSelection)</ID>
+    <ID>NestedBlockDepth:Backups.kt:Backups$private fun readPlain: OrbitData</ID>
+    <ID>NestedBlockDepth:MailSync.kt:MailSync$private suspend fun syncAccount: Outcome</ID>
+    <ID>NestedBlockDepth:Sync.kt:SyncWorker$override suspend fun doWork: Result</ID>
+    <ID>NestedBlockDepth:Updates.kt:Updates$private fun download: File</ID>
+    <ID>ParameterNaming:DetailSections.kt:onClearDone: () -&gt; Unit</ID>
+    <ID>ParameterNaming:OnboardingScreen.kt:onSelected: (Set&lt;Long&gt;) -&gt; Unit</ID>
+    <ID>ParameterNaming:PhoneImportScreen.kt:onSelected: (Set&lt;Long&gt;) -&gt; Unit</ID>
+    <ID>ParameterNaming:StarMoments.kt:onPlayed: () -&gt; Unit</ID>
+    <ID>StateParam:Placeholder.kt:breath: State&lt;Float&gt;</ID>
+    <ID>SwallowedException:AppLock.kt:AppLock$e: Exception</ID>
+    <ID>SwallowedException:BackupCrypto.kt:BackupCrypto$e: AEADBadTagException</ID>
+    <ID>SwallowedException:BackupCrypto.kt:BackupCrypto$e: EOFException</ID>
+    <ID>SwallowedException:DialerActivity.kt:DialerActivity$e: Exception</ID>
+    <ID>SwallowedException:HistoryDb.kt:HistoryDb$e: SQLiteException</ID>
+    <ID>SwallowedException:ShareContact.kt:ShareContact$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AppLock.kt:AppLock$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Backups.kt:Backups$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:DialerActivity.kt:DialerActivity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:OrbitInCallService.kt:OrbitInCallService$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:OrbitRepository.kt:OrbitRepository$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:OrbitRepository.kt:OrbitRepository$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ShareContact.kt:ShareContact$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SyncEngine.kt:SyncEngine$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Updates.kt:InstallResultReceiver$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Updates.kt:Updates$e: Exception</ID>
+    <ID>UnusedParameter:DetailDialogs.kt:contact: Contact</ID>
+    <ID>UnusedParameter:ListQuery.kt:ListQuery$idx: Index</ID>
+  </CurrentIssues>
+</SmellBaseline>

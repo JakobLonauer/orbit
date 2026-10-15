@@ -13,6 +13,13 @@ Wird von jeder nächtlichen Sitzung gelesen und am Ende aktualisiert. Neueste Na
 
 ## Stand
 
+### 15.10.2026 morgens (Tagsitzung, nur `dev`, nichts veröffentlicht)
+
+- **Test-App für den Gerätetest:** Branch `release-r7` (= `dev` nach der Nacht, 89e1cc1), CI-Lauf 217 grün, signierte APK 1.0.217 als Artefakt „orbit-apk“. Gerätetest-Checkliste (R1–R7, 35 Punkte) als Seite für Jakob; seine Häkchen und Notizen liest die nächste Sitzung mit (siehe Notizbuch).
+- **Statische Prüfung (PLAN 8):** detekt mit Compose-Regeln und Android Lint laufen bei jedem Build als Bericht (`ci-log-*/analysis/`), Altbestand als Baseline – neue Funde in neuem Code beheben. Lint: 0 Fehler.
+- Kleinigkeiten aus Lint: Boot-Empfänger reagiert nur auf System-Aktionen; benutzte App-Shortcuts werden dem Launcher gemeldet.
+- **Nächster Schritt:** Ergebnisse aus der Gerätetest-Seite lesen, Funde auf `dev` beheben, in `release-r7` übernehmen; Release erst mit Jakobs Zusage.
+
 ### Nacht 15.10.2026 (00:00–05:00, Nachtsitzung, nur `dev`, nichts veröffentlicht)
 
 - **Erledigt (R6/R7-Abschluss + Feinschliff-Durchgang):**
