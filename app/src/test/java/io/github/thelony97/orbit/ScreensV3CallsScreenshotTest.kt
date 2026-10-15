@@ -284,7 +284,14 @@ class ScreensV3CallsScreenshotTest {
     }
 
     /** B2: dialling a premium number – orange line, the call button wants a second tap. */
-    @Test fun dialpadCosts() = moment("v3b_dialpad_costs", 400) {
-        io.github.thelony97.orbit.ui.call.Dialpad(data, idx, onCall = {}, onClose = {}, initial = "0900123456")
+    @Test fun dialpadCosts() {
+        compose.setContent {
+            OrbitTheme { Box(Modifier.fillMaxSize().background(Space.Void)) { io.github.thelony97.orbit.ui.call.Dialpad(data, idx, onCall = {}, onClose = {}, initial = "0900123456") } }
+        }
+        // The number's kind is worked out off the main thread.
+        compose.waitForIdle()
+        Thread.sleep(600)
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/screen_v3b_dialpad_costs.png")
     }
 }

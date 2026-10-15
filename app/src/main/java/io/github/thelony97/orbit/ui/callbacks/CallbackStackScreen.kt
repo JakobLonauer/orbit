@@ -219,6 +219,8 @@ private fun StackCard(item: Callbacks.Item, depth: Int, data: OrbitData, idx: In
                     }
                 },
             )
+            // Solid underneath: the cards behind must not shine through the glass.
+            .background(Space.Deep, Corners.Card)
             .glass(Corners.Card, tint = Space.PanelHigh, border = if (item.warn) Space.Orange.copy(alpha = 0.45f) else Space.Line)
             .clickable(enabled = top) {
                 val c = item.contact
@@ -226,7 +228,9 @@ private fun StackCard(item: Callbacks.Item, depth: Int, data: OrbitData, idx: In
             }
             .padding(Spacing.L),
     ) {
-        Column {
+        // The cards behind are only their edges peeking out; their content fades in as they move up.
+        val content by animateFloatAsState(if (top) 1f else 0f, tween(Motion.MEDIUM_MS), label = "content")
+        Column(Modifier.graphicsLayer { alpha = content }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val c = item.contact
                 if (c != null) {

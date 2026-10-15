@@ -61,17 +61,6 @@ import io.github.thelony97.orbit.ui.theme.Grotesk
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.delay
 
-/** PLAN 9 B5: what the Dranbleiben screens show – no telecom types here. */
-data class PersistUi(
-    val name: String,
-    val number: String,
-    /** Tries placed so far. */
-    val tries: Int,
-    /** The next try (pause), 0 while one is being placed. */
-    val nextAt: Long = 0L,
-    /** How the last try ended: „Besetzt“, „Bandansage“. */
-    val last: String = "",
-)
 
 private fun initials(name: String): String =
     name.split(' ').filter { it.isNotBlank() && it.first().isLetter() }.take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "#" }

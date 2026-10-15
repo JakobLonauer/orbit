@@ -120,23 +120,7 @@ data class CallerIndex(
                     exact.putIfAbsent(n, if (c.isOrg) base.copy(role = p.label) else base)
                 }
                 if (!c.isOrg) continue
-                for (m in c.members) {
-                    val talk = c.entries.filter { it.memberId == m.id }.maxByOrNull { it.at }
-                    val card = CallerCard(
-                        contactId = c.id,
-                        name = m.name,
-                        photo = m.photo,
-                        role = listOf(m.role, nameOf(c)).filter { it.isNotBlank() }.joinToString(" · "),
-                        note = m.note.trim().take(NOTE_CHARS),
-                        customerNo = base.customerNo,
-                        archived = c.archived,
-                        memberId = m.id,
-                        org = true,
-                        lastAt = talk?.at,
-                        lastKind = talk?.let { kinds[it.typeId] }.orEmpty(),
-                    )
-                    for (p in m.phones) normalize(p.value)?.let { members.putIfAbsent(it, card) }
-                }
+                addMembers(c, base, kinds, normalize, members)
                 for (p in c.numberPrefixes) {
                     val digits = p.count { it.isDigit() }
                     if (digits < 3) continue
@@ -147,6 +131,33 @@ data class CallerIndex(
             prefixes.sortByDescending { it.prefix.length }
             val s = doc.settings
             return CallerIndex(s.callerInfo, exact, members, prefixes, rulesOf(s), s.motionGestures)
+        }
+
+        /** Hidden members of an organisation by their own numbers (PLAN 3.6). */
+        private fun addMembers(
+            c: Contact,
+            base: CallerCard,
+            kinds: Map<String, String>,
+            normalize: (String) -> String?,
+            members: MutableMap<String, CallerCard>,
+        ) {
+            for (m in c.members) {
+                val talk = c.entries.filter { it.memberId == m.id }.maxByOrNull { it.at }
+                val card = CallerCard(
+                    contactId = c.id,
+                    name = m.name,
+                    photo = m.photo,
+                    role = listOf(m.role, nameOf(c)).filter { it.isNotBlank() }.joinToString(" · "),
+                    note = m.note.trim().take(NOTE_CHARS),
+                    customerNo = base.customerNo,
+                    archived = c.archived,
+                    memberId = m.id,
+                    org = true,
+                    lastAt = talk?.at,
+                    lastKind = talk?.let { kinds[it.typeId] }.orEmpty(),
+                )
+                for (p in m.phones) normalize(p.value)?.let { members.putIfAbsent(it, card) }
+            }
         }
 
         /** PLAN 9 B8: the filter's rules while it is on; series kept as typed (see Screening.prefix). */

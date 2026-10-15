@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -77,27 +78,33 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
     ) { padding ->
         if (list.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                EmptyHint("Keine Vorschläge", "Nummern, mit denen du öfter telefonierst oder schreibst, tauchen hier auf.")
+                EmptyHint("Keine Vorschläge", "")
             }
             return@Scaffold
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = 32.dp)) {
-            item {
-                Text(
-                    "Diese Nummern sind nicht in Orbit, tauchen aber öfter in Anrufliste oder SMS auf.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
-            }
             items(list, key = { it.key }) { u ->
                 val days = ChronoUnit.DAYS.between(u.lastAt.toLocalDate(), today())
+                // PLAN 9 B1: what the number tells offline, and Herold's answer if Orbit already asked.
+                val known by androidx.compose.runtime.produceState<Pair<io.github.thelony97.orbit.core.domain.NumberInfo.Info?, io.github.thelony97.orbit.core.domain.Herold.Hit?>?>(null, u.key) {
+                    value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val info = runCatching { io.github.thelony97.orbit.core.domain.NumberInfo.of(u.display, iso) }.getOrNull()
+                        info to info?.let { io.github.thelony97.orbit.call.CallerLookup.known(ctx, it.e164)?.hit }
+                    }
+                }
+                val info = known?.first
+                val hit = known?.second
+                val title = u.cachedName ?: hit?.name
                 Box(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp).glass(RoundedCornerShape(20.dp)),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(u.cachedName ?: Phones.pretty(u.display, iso), style = MaterialTheme.typography.titleMediumEmphasized)
-                        if (u.cachedName != null) Text(Phones.pretty(u.display, iso), style = MaterialTheme.typography.bodyMedium)
+                        Text(title ?: Phones.pretty(u.display, iso), style = MaterialTheme.typography.titleMediumEmphasized)
+                        val line = listOfNotNull(
+                            Phones.pretty(u.display, iso).takeIf { title != null },
+                            hit?.category?.takeIf { it.isNotBlank() } ?: info?.line?.takeIf { it.isNotBlank() },
+                        ).joinToString(" · ")
+                        if (line.isNotBlank()) Text(line, style = MaterialTheme.typography.bodyMedium, color = if (info?.costs == true) Space.Orange else Space.TextDim)
                         Text(
                             listOfNotNull(
                                 u.calls.takeIf { it > 0 }?.let { if (it == 1) "1 Anruf" else "$it Anrufe" },
@@ -121,12 +128,17 @@ fun SuggestionsScreen(data: OrbitData, nav: Nav) {
                                 nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), prefill)))
                             }) { Text("Mensch") }
                             FilledTonalButton(onClick = {
-                                val prefill = Contact(
-                                    id = newId(),
-                                    kind = ContactKind.ORG,
-                                    company = u.cachedName.orEmpty().trim(),
-                                    phones = listOf(LabeledValue("Arbeit", u.display)),
-                                )
+                                // Herold's name, address and trade come along (PLAN 9 B1).
+                                val prefill = if (hit != null) {
+                                    io.github.thelony97.orbit.call.HeroldDraft.of(u.display, org = true, hit = hit)
+                                } else {
+                                    Contact(
+                                        id = newId(),
+                                        kind = ContactKind.ORG,
+                                        company = u.cachedName.orEmpty().trim(),
+                                        phones = listOf(LabeledValue("Arbeit", u.display)),
+                                    )
+                                }
                                 nav.open(Route.Edit(prefill = OrbitRepository.json.encodeToString(Contact.serializer(), prefill)))
                             }) { Text("Organisation") }
                             TextButton(onClick = { ContactActions.dialNumber(ctx, u.display) }) { Text("Anrufen") }
