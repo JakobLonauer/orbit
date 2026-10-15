@@ -43,6 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -169,9 +172,15 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
         if (query.isNotEmpty() || typeFilter != null || rows.isEmpty()) rows else (rows + silenced).sortedByDescending { it.at }
     }
     val iso = remember { io.github.thelony97.orbit.domain.Phones.countryIso(ctx) }
+    // PLAN 9 E19: pinch – Tag → Woche → Monat → Jahr (spread back in).
+    var zoom by rememberSaveable { mutableStateOf(io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) }
+    val haptics = io.github.thelony97.orbit.core.designsystem.rememberHaptics()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        modifier = Modifier.fillMaxSize().statusBarsPadding().pinch(
+            onOut = { zoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomOut(zoom).also { if (it != zoom) haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold) } },
+            onIn = { zoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(zoom).also { if (it != zoom) haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Threshold) } },
+        ),
         contentPadding = PaddingValues(bottom = BottomBarSpace + 16.dp),
     ) {
         item(key = "header") {
@@ -241,6 +250,14 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                     else -> EmptyHint("Noch kein Verlauf", "", action = "Zu den Kontakten" to { nav.home(io.github.thelony97.orbit.ui.home.HomeTab.CONTACTS) })
                 }
             }
+        }
+        if (zoom != io.github.thelony97.orbit.core.domain.TimeZoom.Level.DAY) {
+            spans(rows, zoom, todayDate, idx).forEach { sp ->
+                item(key = "z-${sp.key}") {
+                    SpanRow(sp, Modifier.animateItem()) { zoom = io.github.thelony97.orbit.core.domain.TimeZoom.zoomIn(zoom) }
+                }
+            }
+            return@LazyColumn
         }
         var lastDay: LocalDate? = null
         lines.forEach { line ->
@@ -374,3 +391,53 @@ private fun VerlaufRow(r: VerlaufItem, idx: Index, fresh: Boolean, onOpen: () ->
         }
     }
 }
+
+/** One span above the day (PLAN 9 E19). */
+internal data class Span(val key: String, val label: String, val summary: String, val people: Int)
+
+internal fun spans(rows: List<VerlaufItem>, level: io.github.thelony97.orbit.core.domain.TimeZoom.Level, today: LocalDate, idx: Index): List<Span> =
+    rows.groupBy { io.github.thelony97.orbit.core.domain.TimeZoom.key(it.at.toLocalDate(), level) }.map { (k, list) ->
+        Span(
+            k,
+            io.github.thelony97.orbit.core.domain.TimeZoom.label(list.first().at.toLocalDate(), level, today),
+            io.github.thelony97.orbit.core.domain.TimeZoom.summary(list.map { idx.types[it.entry.typeId]?.name ?: "Eintrag" }),
+            list.map { it.contact.id }.distinct().size,
+        )
+    }
+
+@Composable
+private fun SpanRow(sp: Span, modifier: Modifier = Modifier, onOpen: () -> Unit) {
+    Column(
+        modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(sp.label, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
+            Text(if (sp.people == 1) "1 Mensch" else "${sp.people} Menschen", style = MaterialTheme.typography.labelMedium, color = Space.TextDim)
+        }
+        Text(sp.summary, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"), color = Space.TextDim)
+    }
+}
+
+/** Two fingers closer = [onOut], apart = [onIn]; once per gesture, one finger is left to the list. */
+private fun Modifier.pinch(onOut: () -> Unit, onIn: () -> Unit): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var start = 0f
+        var done = false
+        do {
+            val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            val pressed = ev.changes.filter { it.pressed }
+            if (pressed.size == 2 && !done) {
+                val d = (pressed[0].position - pressed[1].position).getDistance()
+                when {
+                    start == 0f -> start = d
+                    d / start < PINCH_OUT -> { onOut(); done = true }
+                    d / start > PINCH_IN -> { onIn(); done = true }
+                }
+            }
+        } while (ev.changes.any { it.pressed })
+    }
+}
+
+private const val PINCH_OUT = 0.7f
+private const val PINCH_IN = 1.4f
