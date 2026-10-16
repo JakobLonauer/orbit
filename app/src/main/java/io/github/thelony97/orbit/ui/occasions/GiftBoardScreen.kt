@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.focus.focusRequester
 import io.github.thelony97.orbit.core.designsystem.Corners
 import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.Motion
@@ -72,6 +74,9 @@ private fun GiftBoard.Stage.color() = when (this) {
 /** Drop hand-over between columns: gift id → where the new card starts (px, relative to its slot). */
 private val arriving = HashMap<String, Offset>()
 
+/** Ideas just noted on the board: their card grows into its slot instead of appearing (W2). */
+private val noted = HashSet<String>()
+
 /** Moves a gift; „Verschenkt“ also writes the Geschenk entry (with its price), Rückgängig takes both back. */
 private fun moveGift(card: GiftBoard.Card, to: GiftBoard.Stage) {
     val from = GiftBoard.stageOf(card.gift)
@@ -103,9 +108,11 @@ private fun moveGift(card: GiftBoard.Card, to: GiftBoard.Stage) {
  * into the next column; each card names the person, the price and their budget.
  */
 @Composable
-fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
+fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier, initialAdd: String? = null) {
     val cols = GiftBoard.columns(data.contacts)
     var editing by remember { mutableStateOf<GiftBoard.Card?>(null) }
+    // Neue Idee: first who (picker), then what – „“ = picking, an id = typing the idea for them.
+    var adding by remember { mutableStateOf(initialAdd) }
     // The column of a lifted card is drawn on top, so the card glides over its neighbours.
     var liftedColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     // The column a lifted card would land in – its head lights up.
@@ -116,12 +123,13 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                 OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", { nav.back() })
                 Spacer(Modifier.width(Spacing.M))
-                Text("Geschenke", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text)
+                Text("Geschenke", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
+                OrbButton(Icons.Rounded.Add, "Idee", { adding = "" })
             }
             // The budget once per person: on their first card (board order Idee → Verschenkt).
             val budgetOn = remember(cols) { cols.values.flatten().distinctBy { it.contact.id }.mapTo(HashSet()) { it.gift.id } }
             // 12 + 4 per column = the 16-dp gutter outside, 8 dp between the columns.
-            if (cols.values.all { it.isEmpty() }) io.github.thelony97.orbit.ui.components.EmptyHint("Keine Geschenkideen", "")
+            if (cols.values.all { it.isEmpty() }) io.github.thelony97.orbit.ui.components.EmptyHint("Keine Geschenkideen", "", action = "Idee notieren" to { adding = "" })
             else BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = Spacing.Gutter - Spacing.XS)) {
                 val colWidth = maxWidth / GiftBoard.Stage.entries.size
                 // One scroll for the board: a card pulled across is never cut off by its column.
@@ -157,6 +165,62 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
         }
     }
     editing?.let { card -> GiftEditDialog(card, onDismiss = { editing = null }) }
+    when (val who = adding) {
+        null -> Unit
+        "" -> io.github.thelony97.orbit.ui.detail.ContactPickDialog(
+            "Für wen?", exclude = emptySet(),
+            // The picker closes itself after a pick – only a dismiss without a pick ends the flow.
+            onDismiss = { if (adding == "") adding = null },
+            onPick = { adding = it },
+        )
+        else -> data.contacts.firstOrNull { it.id == who }?.let { c -> GiftAddDialog(c, onDismiss = { adding = null }) }
+    }
+}
+
+/** A new idea for [contact]: text and (optional) price; the card grows into the Idee column. */
+@Composable
+private fun GiftAddDialog(contact: io.github.thelony97.orbit.data.Contact, onDismiss: () -> Unit) {
+    val idea = androidx.compose.foundation.text.input.rememberTextFieldState()
+    val price = androidx.compose.foundation.text.input.rememberTextFieldState()
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    fun save() {
+        val text = idea.text.toString().trim()
+        if (text.isEmpty()) return
+        val gift = io.github.thelony97.orbit.core.model.CheckItem(
+            newId(), text, createdAt = System.currentTimeMillis(), priceCents = Jobs.parseAmount(price.text.toString()),
+        )
+        noted += gift.id
+        OrbitRepository.editContact(contact.id) { it.copy(gifts = it.gifts + gift) }
+        onDismiss()
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Space.PanelHigh,
+        title = { Text("Idee für " + Logic.shortName(contact)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                io.github.thelony97.orbit.ui.components.SpaceField(
+                    idea, "", modifier = Modifier.focusRequester(focus),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                    ),
+                )
+                io.github.thelony97.orbit.ui.components.SpaceField(
+                    price, "Preis €",
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    ),
+                )
+            }
+        },
+        confirmButton = {
+            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = { save() }, enabled = idea.text.isNotBlank()) { Text("Hinzufügen") }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Abbrechen", color = Space.TextDim) } },
+    )
 }
 
 /** Price of the gift and the person's yearly budget, as typed („25“, „19,90“). */
@@ -201,6 +265,9 @@ private fun GiftCard(
     // A card that was just dropped here starts where the finger let go and glides into its slot (W2).
     val drag = remember { Animatable(arriving.remove(card.gift.id) ?: Offset.Zero, Offset.VectorConverter) }
     LaunchedEffect(Unit) { if (drag.value != Offset.Zero) drag.animateTo(Offset.Zero, Motion.snappy()) }
+    // A freshly noted idea grows into its slot.
+    val grow = remember { Animatable(if (noted.remove(card.gift.id)) 0f else 1f) }
+    LaunchedEffect(Unit) { if (grow.value < 1f) grow.animateTo(1f, Motion.snappy()) }
     // The gesture outlives recompositions (keyed by id) – it reads the card as it is now.
     val current by androidx.compose.runtime.rememberUpdatedState(card)
     val currentStage by androidx.compose.runtime.rememberUpdatedState(stage)
@@ -219,9 +286,10 @@ private fun GiftCard(
             .graphicsLayer {
                 translationX = drag.value.x
                 translationY = drag.value.y
-                val s = 1f + 0.06f * lift
+                val s = (1f + 0.06f * lift) * (0.8f + 0.2f * grow.value)
                 scaleX = s
                 scaleY = s
+                alpha = grow.value.coerceIn(0f, 1f)
                 shadowElevation = 16.dp.toPx() * lift
             }
             .pointerInput(card.gift.id) {
