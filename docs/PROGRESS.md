@@ -24,7 +24,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
-| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | fertig, Release folgt | Nachtsitzung 16.10. (orbit-79) |
+| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300** (16.10. ~02:40) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
@@ -42,6 +42,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
   - Themen-Stapel mittig, Knöpfe nehmen den Weg des Wischens, Einrasten an der Wischschwelle.
   - Avatar-Initialen optisch zentriert (alle Größen).
   - Offene E-Reste: **E19** Kneifen jetzt auch im Faden der Kontaktseite; **E20** Kontakt auf Gruppe ziehen (Langdruck-Vorschau trägt Gruppen-Chips, Loslassen ordnet zu/ab, Rückgängig); **E8** Themen beim Eintragen eines Treffens/Anrufs abhaken → „Besprochen: …“.
+- **Veröffentlicht als v1.0.300** (main fast-forward auf dev b7ca909, Release-Lauf 300, Zertifikat a549f16d…d81f geprüft).
 - **Prüfungen:** zwei Code-Review-Subagenten (12 + 4 Funde, alle relevanten behoben: Rad plante ohne Bewegung/bei Systemabbruch, Hinweise hinter Dialogen, Themen-Rückgängig, hängendes Aufleuchten …), zwei Wow-Review-Subagenten (Runde 1: 15, Runde 2: 10 Funde), detekt ohne neue Funde, CI grün.
 - **Wow-Gate 3.0-F (PLAN 1.5):**
   - [x] 1. Momente: Chips landen in der Zeile; Rad um den Daumen mit Magnet; Uhr-Zeiger laufen ein; Gruppe per Ziehen.
