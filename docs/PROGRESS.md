@@ -26,9 +26,28 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 | Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
-| 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | in Arbeit (17.10. ab 00:05) | Nachtsitzung |
+| 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht** (17.10. nachts, siehe unten) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
+
+- **Keine Gerätetest-Rückmeldungen** auf der Checkliste – also die offenen 3.0-Punkte abgearbeitet:
+  - **E21** Kontaktseite wächst aus ihrer Zeile und schrumpft beim Zurück (auch bei der Vorschau-Geste) wieder hinein: `Modifier.sharedPage` (Container-Übergang, Kopf gleitet in die Zeile, 350 ms). Nur am Gerät sichtbar.
+  - **E9** Fotos aus dem Termin: neue Automatik „Termin → Fotos“ (aus; fragt Kalender + Fotos beim Einschalten). Der Geist „Treffen mit Anna“ zeigt die Fotos des Termins (15 Min vorher bis 30 Min danach) als Kacheln – Antippen lässt eins weg, unlesbare fallen weg; Übernehmen trägt Treffen + Fotos in Annas Ordner mit einem Rückgängig ein.
+  - **E14** Unzustellbare Mails: Rückläufer nach festen Regeln (mailer-daemon/postmaster bzw. Rückläufer-Betreff, Zustellbericht „Action: failed“) markieren die Adresse orange „nicht erreicht“; eine neuere Mail von der Adresse nimmt es zurück. Der E-Mail-Knopf nimmt die erreichbare Adresse.
+  - **Geschenke:** Leerzustand mit einer Aktion; neue Idee in einem Sheet (Personen nach nächstem Geburtstag, „Andere“, Idee + Preis, „Hinzufügen“ morpht zum Häkchen), die Karte wächst ins Board.
+  - **Zahlen rollen:** `RollingText` (core:designsystem), das Mitternachts-Rad rollt die Zeit in Laufrichtung.
+  - Leerzustände: Stern violett statt orange (Licht-Code).
+- **Prüfungen:** Code-Review-Subagent zweimal (Funde: Rückgängig erst nach dem Kopieren, Rückläufer bei Verbindungsabbruch verloren, „0 Fotos“, Fokus, „+N“-Kachel zu schmal, Rad-Richtung – alle behoben), Wow-Review-Subagent (9 Funde: rückwärts rollende Zeit, doppelte Aktion im Leerzustand, Standard-Dialog statt Sheet, zwei Dialoge, ungleiche Kartenbreite, tote Kacheln, Orange als Deko, tote Adresse im Mail-Knopf – behoben; „0×“-Zähler bleiben sichtbar wie in 3.0-F entschieden), detekt-Funde behoben, Unit-Tests `BouncesTest`, `GiftBoardTest.suggestPeople`, `CalendarBridgeTest.photoWindow`, Screenshots `screen_v3g_*`.
+- **Wow-Gate 3.0-G (PLAN 1.5):**
+  - [x] 1. Momente: Seite wächst aus der Zeile/schrumpft zurück; Ziffern rollen; neue Geschenk-Karte wächst ein, Hinzufügen morpht; Foto-Kacheln dimmen beim Weglassen (Tick).
+  - [x] 2. Berührte Screens gegen W1–W9: Heute (Treffen-Geist), Geschenke, Mitternachts-Rad, Kontaktseite (tote Mail), Automatiken, Leerzustände.
+  - [x] 3. Screenshots angesehen + Wow-Review-Subagent, Funde behoben.
+  - [x] 4. Kein Ruckeln: Fotos/Thumbnails im Hintergrund, Rückläufer nur bei neuen Mails, Schreiben nur bei Änderung.
+  - [x] 5. Etwa die Hälfte der Nacht Feinschliff.
+- **Entscheidungen:** „Termin → Fotos“ standardmäßig aus (braucht Foto-Berechtigung, die erst beim Einschalten gefragt wird). Rückläufer nur aus neuen Mails (alte Rückläufer aus 12 Monaten würden längst reparierte Adressen markieren). Tote Adresse wird durch jede neuere Mail von ihr wieder lebendig.
+- **Für Jakob zum Testen:** Kontakt öffnen und mit der Zurück-Geste langsam ziehen (Seite schrumpft zur Zeile); Automatiken › „Termin → Fotos“ einschalten, nach einem Termin mit Fotos den Geist auf Heute ansehen.
 
 ### 16.10.2026 früh – Hotfix: Kontaktseiten öffnen wieder (v1.0.310)
 

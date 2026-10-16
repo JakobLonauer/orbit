@@ -267,7 +267,7 @@ object MailSync {
             // A malformed bounce counts as none.
             val read = runCatching { m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) } }
             val err = read.exceptionOrNull()
-            if (err != null && (err !is javax.mail.MessagingException || err is javax.mail.FolderClosedException || err is javax.mail.StoreClosedException)) throw err
+            if (err != null && !malformed(err)) throw err
             val text = read.getOrNull() ?: continue
             for (a in Bounces.failedRecipients(text)) out[a] = maxOf(out[a] ?: 0L, h.at)
         }
@@ -370,6 +370,10 @@ object MailSync {
             }.getOrNull()
         }
     }
+
+    /** A mail that cannot be parsed – not a lost connection or anything else. */
+    private fun malformed(e: Throwable): Boolean =
+        e is javax.mail.MessagingException && e !is javax.mail.FolderClosedException && e !is javax.mail.StoreClosedException
 
     /** The mail of a ref, for MailClient.body / images. */
     fun header(r: MailRef): MailHeader = MailHeader(r.account, "", r.folder, r.uid, r.messageId, r.address, r.address, r.subject, r.at, r.uidValidity)
