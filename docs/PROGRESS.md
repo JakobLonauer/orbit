@@ -50,7 +50,8 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
   - [x] 3. Screenshots angesehen (`screen_v3e_*`, `screen_v3f_*`), zwei Wow-Review-Subagenten.
   - [x] 4. Kein Ruckeln: Doppelstern/Erwähnungen/Feld-Geister abseits des Hauptthreads, Animationen in Zeichenphase.
   - [x] 5. Etwa die Hälfte der Nacht Feinschliff.
-- **Bewusst offen:** Geschenk-Karte federt beim Spaltenwechsel nicht in die Zielspalte (springt), Leerzustand Geschenke ohne Aktion, Ziffern im Rad rollen nicht, E9 Fotos aus dem Termin-Zeitfenster, E14 unzustellbare Mails, E21 Kontaktseite schrumpft beim Zurück zur Zeile, „Bitte einen Namen eingeben“ als Feld-Hinweis statt Text.
+- **Nachtrag (nach v1.0.300, eigenes Release):** Geschenk-Karte gleitet beim Ablegen in die Zielspalte, Tick je Spaltengrenze, Kopf der Zielspalte leuchtet, Anheben federt; fehlender Name: Namensfeld scrollt ins Bild und wackelt (Abwehr) statt Hinweissatz; „Keine Kalender-App“ kurz. Code-Review-Subagent: 3 kleine Funde behoben.
+- **Bewusst offen:** Leerzustand Geschenke ohne Aktion, Ziffern im Rad rollen nicht, E9 Fotos aus dem Termin-Zeitfenster, E14 unzustellbare Mails, E21 Kontaktseite schrumpft beim Zurück zur Zeile, „Bitte einen Namen eingeben“ als Feld-Hinweis statt Text.
 
 ### 16.10.2026 nachts (Tagsitzung, Teil 3) – 3.0-D veröffentlicht, 3.0-E fertig
 
