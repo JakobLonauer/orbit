@@ -49,8 +49,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -101,7 +103,7 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         value = io.github.thelony97.orbit.util.quietly("Rückrufe", emptyList()) { io.github.thelony97.orbit.call.Callbacks.load(ctx, data) }
     }
     // PLAN 9 E9: appointments with someone that are over → „Treffen mit Anna“ ghosts.
-    val calendar by produceState(emptyList<io.github.thelony97.orbit.phonebook.CalendarGhosts.Item>(), tick, s.dismissedGhosts, data.contacts) {
+    val calendar by produceState(emptyList<io.github.thelony97.orbit.phonebook.CalendarGhosts.Item>(), tick, s.dismissedGhosts, s.meetPhotos, data.contacts) {
         value = io.github.thelony97.orbit.util.quietly("Kalender-Brücke", emptyList()) { io.github.thelony97.orbit.phonebook.CalendarGhosts.load(ctx, data) }
     }
     // PLAN 9 E5: Doppelsterne (fixed rules), at most three at a time.
@@ -265,33 +267,137 @@ fun TodayRow(cards: List<TodayCard>, nav: Nav, modifier: Modifier = Modifier) {
     }
 }
 
-/** PLAN 9 E9: „Treffen mit Anna“ from the calendar – tap logs it (at its time, with its length), hold puts it away. */
+/**
+ * PLAN 9 E9: „Treffen mit Anna“ from the calendar – tap logs it (at its time, with its length),
+ * hold puts it away. With „Termin → Fotos“ the photos of the appointment sit in the card as a
+ * suggestion: tapping a thumbnail leaves it out, the rest go into Anna's folder with the Treffen.
+ */
 @Composable
 private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
     val g = card.item
+    val ctx = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val name = io.github.thelony97.orbit.domain.Logic.shortName(card.contact)
+    var left by remember(g.key) { androidx.compose.runtime.mutableStateOf(emptyList<Long>()) }
+    val chosen = g.photos.filterNot { it in left }
     Ghost(
         source = "Kalender · " + g.title,
-        onAccept = {
-            val e = io.github.thelony97.orbit.core.model.HistoryEntry(
-                io.github.thelony97.orbit.data.newId(), card.contact.id, io.github.thelony97.orbit.core.model.BuiltinTypes.MEET, g.begin,
-                note = g.title, durationSec = (g.end - g.begin) / 1_000,
-            )
-            OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.addEntry(d, card.contact.id, e) }
-            dismiss(g.key)
-            io.github.thelony97.orbit.ui.components.Undo.offer("Treffen eingetragen") {
-                OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.deleteEntry(d, card.contact.id, e.id) }
-                OrbitRepository.editSettings { it.copy(dismissedGhosts = it.dismissedGhosts - g.key) }
-            }
-        },
+        onAccept = { acceptMeet(ctx, card, chosen) },
         onDismiss = { dismiss(g.key) },
         dismissAxis = null,
     ) {
-        CardBody(
-            planet = { People(listOf(name to card.contact.id)) },
-            title = "Treffen mit $name",
-            line = io.github.thelony97.orbit.util.Fmt.whenShort(g.begin, System.currentTimeMillis()),
-        )
+        Column {
+            CardBody(
+                planet = { People(listOf(name to card.contact.id)) },
+                title = "Treffen mit $name",
+                line = io.github.thelony97.orbit.util.Fmt.whenShort(g.begin, System.currentTimeMillis()) +
+                    if (g.photos.isEmpty()) "" else " · " + if (chosen.size == 1) "1 Foto" else "${chosen.size} Fotos",
+            )
+            if (g.photos.isNotEmpty()) {
+                MeetPhotoStrip(g.photos, left, onToggle = { id -> left = if (id in left) left - id else left + id })
+            }
+        }
+    }
+}
+
+/** Logs the Treffen and copies the chosen photos into the contact's folder – one Rückgängig for both. */
+private fun acceptMeet(ctx: android.content.Context, card: TodayCard.CalendarMeet, photos: List<Long>) {
+    val g = card.item
+    val id = card.contact.id
+    val e = io.github.thelony97.orbit.core.model.HistoryEntry(
+        io.github.thelony97.orbit.data.newId(), id, io.github.thelony97.orbit.core.model.BuiltinTypes.MEET, g.begin,
+        note = g.title, durationSec = (g.end - g.begin) / 1_000,
+    )
+    OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.addEntry(d, id, e) }
+    dismiss(g.key)
+    if (photos.isEmpty()) {
+        io.github.thelony97.orbit.ui.components.Undo.offer("Treffen eingetragen") { undoMeet(id, e.id, g.key, emptyList()) }
+        return
+    }
+    // Copying takes a moment: finished even if the list leaves the screen (PLAN 8.2).
+    io.github.thelony97.orbit.ui.components.AppWork.launch {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            val added = io.github.thelony97.orbit.ui.detail.GalleryStore.import(ctx, photos.map { io.github.thelony97.orbit.phonebook.CalendarGhosts.uri(it) })
+                .map { it.copy(contactId = id) }
+            if (added.isEmpty()) return@withContext
+            OrbitRepository.update { d -> d.copy(contacts = d.contacts.map { c -> if (c.id == id) c.copy(gallery = added.asReversed() + c.gallery) else c }) }
+            io.github.thelony97.orbit.live.AutoCount.bump(ctx, io.github.thelony97.orbit.live.AutoCount.MEET_PHOTOS)
+            val text = if (added.size == 1) "Treffen · 1 Foto" else "Treffen · ${added.size} Fotos"
+            io.github.thelony97.orbit.ui.components.Undo.offer(text) { undoMeet(id, e.id, g.key, added.map { it.id }) }
+        }
+    }
+}
+
+private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galleryIds: List<String>) {
+    io.github.thelony97.orbit.ui.components.AppWork.launch {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            val files = OrbitRepository.snapshot().contacts.firstOrNull { it.id == contactId }?.gallery.orEmpty()
+                .filter { it.id in galleryIds }.map { it.file }
+            OrbitRepository.update { d ->
+                val x = io.github.thelony97.orbit.data.Mutations.deleteEntry(d, contactId, entryId)
+                x.copy(
+                    contacts = x.contacts.map { c -> if (c.id == contactId) c.copy(gallery = c.gallery.filterNot { it.id in galleryIds }) else c },
+                    settings = x.settings.copy(dismissedGhosts = x.settings.dismissedGhosts - ghostKey),
+                )
+            }
+            // Only files nothing else points to (a photo may have been reused meanwhile).
+            io.github.thelony97.orbit.data.Mutations.unreferenced(OrbitRepository.snapshot(), files)
+                .forEach { io.github.thelony97.orbit.ui.detail.GalleryStore.delete(it) }
+        }
+    }
+}
+
+/** The appointment's photos as small tiles; a left-out one dims and shrinks, a tick answers each tap. */
+@Composable
+private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -> Unit) {
+    val haptics = rememberHaptics()
+    androidx.compose.foundation.lazy.LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = Spacing.M, end = Spacing.M, bottom = Spacing.M),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(Spacing.XS),
+        modifier = Modifier.width(260.dp),
+    ) {
+        items(ids.size, key = { ids[it] }) { i ->
+            val id = ids[i]
+            val out = id in left
+            val k by animateFloatAsState(if (out) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "photoOut")
+            MeetThumb(
+                id,
+                Modifier
+                    .size(44.dp)
+                    .graphicsLayer {
+                        val s = 1f - 0.12f * k
+                        scaleX = s
+                        scaleY = s
+                        alpha = 1f - 0.65f * k
+                    }
+                    .clip(Corners.Row)
+                    .clickable {
+                        haptics.perform(Haptic.Tick)
+                        onToggle(id)
+                    },
+            )
+        }
+    }
+}
+
+/** One gallery thumbnail; the exact tile is there at once (Platzhalter in Endform), the picture fades in. */
+@Composable
+private fun MeetThumb(id: Long, modifier: Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val bmp by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, id) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                ctx.contentResolver.loadThumbnail(io.github.thelony97.orbit.phonebook.CalendarGhosts.uri(id), android.util.Size(144, 144), null).asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    val shown by animateFloatAsState(if (bmp != null) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.medium(), label = "thumbIn")
+    Box(modifier.background(Space.PanelHigh)) {
+        bmp?.let {
+            androidx.compose.foundation.Image(
+                it, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.matchParentSize().graphicsLayer { alpha = shown },
+            )
+        }
     }
 }
 

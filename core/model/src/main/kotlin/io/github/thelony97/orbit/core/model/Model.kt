@@ -474,6 +474,8 @@ data class Settings(
     val autoBusyGroups: List<String> = emptyList(),
     /** PLAN 9 E17 „Termin endet → Rückruf-Stapel“: a nudge when a busy appointment ends and callbacks wait. */
     val callbackNudge: Boolean = true,
+    /** PLAN 9 E9: a calendar ghost „Treffen mit Anna“ also offers the photos taken during the appointment. */
+    val meetPhotos: Boolean = false,
     /** PLAN 9 E15: saved searches of the Orbit-Zeile, shown as chips next to the groups. */
     val smartGroups: List<SmartGroup> = emptyList(),
     /** PLAN 9 E24 Event-Modus: the event of the day („Hochzeit Tom“) and its ISO day; off otherwise. */

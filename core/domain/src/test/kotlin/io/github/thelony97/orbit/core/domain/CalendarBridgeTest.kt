@@ -23,5 +23,13 @@ class CalendarBridgeTest {
         assertEquals("tom2", CalendarBridge.match("Laufen – Tomi", emptyList(), contacts))
     }
 
+    @Test fun photoWindow() {
+        val w = CalendarBridge.photoWindow(1_000_000L, 4_600_000L)
+        assertEquals(1_000_000L - 15 * 60_000L, w.first)
+        assertEquals(4_600_000L + 30 * 60_000L, w.last)
+        // A broken appointment ending before it starts still gets a window after its start.
+        assertEquals(1_000_000L + 30 * 60_000L, CalendarBridge.photoWindow(1_000_000L, 0L).last)
+    }
+
     @Test fun noWordInside() = assertNull(CalendarBridge.match("Annahme Paket", emptyList(), contacts))
 }

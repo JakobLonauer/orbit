@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
+import android.provider.MediaStore
 import io.github.thelony97.orbit.core.domain.CalendarBridge
 import io.github.thelony97.orbit.core.model.BuiltinTypes
 import io.github.thelony97.orbit.data.OrbitData
@@ -16,7 +17,8 @@ import kotlinx.coroutines.withContext
  */
 object CalendarGhosts {
 
-    data class Item(val key: String, val contactId: String, val title: String, val begin: Long, val end: Long)
+    /** [photos]: MediaStore ids of the pictures taken during it (E9), oldest first; empty when off. */
+    data class Item(val key: String, val contactId: String, val title: String, val begin: Long, val end: Long, val photos: List<Long> = emptyList())
 
     /** An entry this close to the appointment counts as already logged. */
     private const val NEAR_MS = 3 * 3_600_000L
@@ -36,7 +38,33 @@ object CalendarGhosts {
             val logged = c.entries.any { it.at in (e.begin - NEAR_MS)..(e.end + NEAR_MS) && it.typeId != BuiltinTypes.CALL } ||
                 data.meetings.any { it.contactId == id && it.start in (e.begin - NEAR_MS)..(e.end + NEAR_MS) }
             if (logged) null else Item(key, id, e.title, e.begin, e.end)
-        }.distinctBy { it.contactId to it.begin }
+        }.distinctBy { it.contactId to it.begin }.let { items ->
+            if (!photosOn(ctx, data)) items
+            else items.map { it.copy(photos = runCatching { photos(ctx, it.begin, it.end) }.getOrDefault(emptyList())) }
+        }
+    }
+
+    /** „Termin → Fotos“ is on and the photos may be read. */
+    fun photosOn(ctx: Context, data: OrbitData): Boolean =
+        data.settings.meetPhotos && ctx.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+
+    /** The content Uri of a photo id from [Item.photos]. */
+    fun uri(id: Long): android.net.Uri = android.content.ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+
+    /** Photos taken in the appointment's window (fixed rule: [CalendarBridge.photoWindow]), oldest first. */
+    private fun photos(ctx: Context, begin: Long, end: Long): List<Long> {
+        val w = CalendarBridge.photoWindow(begin, end)
+        val out = ArrayList<Long>()
+        ctx.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            "${MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${MediaStore.Images.Media.DATE_TAKEN} <= ?",
+            arrayOf(w.first.toString(), w.last.toString()),
+            "${MediaStore.Images.Media.DATE_TAKEN} ASC",
+        )?.use { c ->
+            while (c.moveToNext() && out.size < CalendarBridge.PHOTOS_MAX) out += c.getLong(0)
+        }
+        return out
     }
 
     private data class Event(val id: Long, val title: String, val begin: Long, val end: Long)

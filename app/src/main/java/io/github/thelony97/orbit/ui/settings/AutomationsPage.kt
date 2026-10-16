@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.EventBusy
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Numbers
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.SimCard
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ fun activeAutomations(data: OrbitData): Int {
         s.screening && s.screenNight,
         s.autoBusySms,
         s.callbackNudge,
+        s.meetPhotos,
         data.groups.any { it.simId != null },
         data.groups.any { it.ringtone != null },
         data.contacts.any { it.numberPrefixes.isNotEmpty() },
@@ -55,7 +57,7 @@ fun activeAutomations(data: OrbitData): Int {
 fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val s = data.settings
-    val counts = remember { listOf(AutoCount.SCREEN, AutoCount.NUDGE, AutoCount.BUSY_SMS).associateWith { AutoCount.get(ctx, it) } }
+    val counts = remember { listOf(AutoCount.SCREEN, AutoCount.NUDGE, AutoCount.BUSY_SMS, AutoCount.MEET_PHOTOS).associateWith { AutoCount.get(ctx, it) } }
     // The SMS goes out by itself and the appointment comes from the calendar – both asked when switched on.
     val busyPermissions = arrayOf(android.Manifest.permission.SEND_SMS, android.Manifest.permission.READ_CALENDAR)
     val askBusy = rememberLauncherForActivityResult(
@@ -71,6 +73,15 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
     fun setNudge(on: Boolean) {
         val missing = ctx.checkSelfPermission(android.Manifest.permission.READ_CALENDAR) != android.content.pm.PackageManager.PERMISSION_GRANTED
         if (on && missing) calendar.launch(android.Manifest.permission.READ_CALENDAR) else OrbitRepository.editSettings { it.copy(callbackNudge = on) }
+    }
+    // The photos of an appointment come from the calendar and the gallery – both asked when switched on.
+    val photoPermissions = arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.READ_MEDIA_IMAGES)
+    val askPhotos = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result -> if (result.values.all { it }) OrbitRepository.editSettings { it.copy(meetPhotos = true) } }
+    fun setPhotos(on: Boolean) {
+        val missing = photoPermissions.filter { ctx.checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (on && missing.isNotEmpty()) askPhotos.launch(missing.toTypedArray()) else OrbitRepository.editSettings { it.copy(meetPhotos = on) }
     }
     val busyGroups = data.groups.filter { it.id in s.autoBusyGroups }
     Column(modifier) {
@@ -88,6 +99,13 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
                 subtitle = ran(counts.getValue(AutoCount.NUDGE)),
                 iconTint = if (s.callbackNudge) Space.Teal else Space.TextDim,
                 trailing = { SpaceSwitch(s.callbackNudge) { v -> setNudge(v) } },
+            )
+            Hairline()
+            SettingItem(
+                Icons.Rounded.PhotoLibrary, "Termin → Fotos",
+                subtitle = ran(counts.getValue(AutoCount.MEET_PHOTOS)),
+                iconTint = if (s.meetPhotos) Space.Teal else Space.TextDim,
+                trailing = { SpaceSwitch(s.meetPhotos) { v -> setPhotos(v) } },
             )
             Hairline()
             SettingItem(

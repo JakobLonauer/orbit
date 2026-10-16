@@ -27,6 +27,16 @@ object CalendarBridge {
         return words.mapNotNull { w -> byWord[w]?.singleOrNull() }.distinct().singleOrNull()
     }
 
+    /** Photos of an appointment (E9): taken from a quarter of an hour before to half an hour after it. */
+    const val PHOTOS_BEFORE_MS = 15 * 60_000L
+    const val PHOTOS_AFTER_MS = 30 * 60_000L
+
+    /** At most this many photos are offered with one appointment. */
+    const val PHOTOS_MAX = 24
+
+    /** The time window whose photos belong to the appointment [begin]–[end]. */
+    fun photoWindow(begin: Long, end: Long): LongRange = (begin - PHOTOS_BEFORE_MS)..(maxOf(begin, end) + PHOTOS_AFTER_MS)
+
     /** „Treffen mit Anna“ unless the title says more. */
     fun title(eventTitle: String, name: String): String = eventTitle.trim().ifBlank { "Treffen mit $name" }
 }

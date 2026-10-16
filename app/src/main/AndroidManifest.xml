@@ -26,6 +26,8 @@
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <!-- PLAN 9 A13: Orbit's own calendar with the occasions (asked when Jakob turns it on). -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- PLAN 9 E9: photos taken during an appointment, only after switching on „Termin → Fotos“. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- Haptik-Vokabular (PLAN 9.2): „Materialisieren“ is a composed vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />

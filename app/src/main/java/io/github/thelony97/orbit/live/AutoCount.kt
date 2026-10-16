@@ -7,6 +7,7 @@ object AutoCount {
     const val SCREEN = "screen"
     const val NUDGE = "nudge"
     const val BUSY_SMS = "busy-sms"
+    const val MEET_PHOTOS = "meet-photos"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("auto-count", Context.MODE_PRIVATE)
 
