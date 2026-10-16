@@ -734,7 +734,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     if (email != null) {
                         ActionOrb(
                             Icons.Rounded.Email, "E-Mail", true,
-                            onClick = { if (c.emails.count { it.value.isNotBlank() } > 1) chooser = Chooser.Mail else ContactActions.email(ctx, c, null) },
+                            // E14: a bounced address does not count – with one live address the mail opens directly.
+                            onClick = { if (c.emails.count { it.value.isNotBlank() && it.value !in c.dead } > 1) chooser = Chooser.Mail else ContactActions.email(ctx, c, null) },
                         )
                     }
                     if (c.address.isNotBlank()) {

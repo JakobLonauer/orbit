@@ -147,7 +147,9 @@ object ContactActions {
     }
 
     fun email(ctx: Context, c: Contact, address: String?) {
-        val target = address ?: c.emails.firstOrNull { it.value.isNotBlank() }?.value
+        // E14: an address that bounced is the last choice.
+        val target = address ?: c.emails.firstOrNull { it.value.isNotBlank() && it.value !in c.dead }?.value
+            ?: c.emails.firstOrNull { it.value.isNotBlank() }?.value
             ?: return toast(ctx, "Keine E-Mail hinterlegt")
         val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", target, null))
         if (start(ctx, intent)) log(c.id, TypeIds.EMAIL, "E-Mail aus Orbit")
