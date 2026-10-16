@@ -16,14 +16,14 @@ object Loans {
     /** Money still open: positive = they owe Jakob, negative = Jakob owes them (cents). */
     fun balance(c: Contact): Long = open(c).sumOf { l -> (l.amountCents ?: 0L) * if (l.toThem) 1 else -1 }
 
-    /** „seit 3 Wo“ – how long it has been out. */
+    /** „seit 3 W“ (same units as the list: T/W/M/J) – how long it has been out. */
     fun since(l: Loan, today: LocalDate): String {
         val d = Contracts.day(l.since) ?: return ""
         val days = ChronoUnit.DAYS.between(d, today)
         return when {
             days < 1 -> "seit heute"
             days < WEEK -> "seit $days T"
-            days < MONTH -> "seit ${days / WEEK} Wo"
+            days < MONTH -> "seit ${days / WEEK} W"
             days < YEAR -> "seit ${days / MONTH} M"
             else -> "seit ${days / YEAR} J"
         }

@@ -403,7 +403,8 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
             // Top bar
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                // The one 16-dp gutter (W9): bar buttons line up with the cards below.
+                Modifier.fillMaxWidth().padding(horizontal = io.github.thelony97.orbit.core.designsystem.Spacing.Gutter, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OrbButton(Icons.Rounded.Close, "Abbrechen", { confirmDiscard = true }, size = 38.dp)

@@ -1010,11 +1010,13 @@ private fun timer(sec: Long): String = "%d:%02d".format(sec / 60, sec % 60)
 @Composable
 private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean, size: androidx.compose.ui.unit.Dp = 132.dp) {
     val photo = rememberPhoto(card?.photo)
+    // Organisations keep their rounded square here too – a planet is a person (PLAN 3.0).
+    val shape = if (card?.org == true) RoundedCornerShape(size * 0.28f) else CircleShape
     Box(
         Modifier
             .size(size)
-            .glow(color, 40.dp, CircleShape, 0.55f)
-            .clip(CircleShape)
+            .glow(color, 40.dp, shape, 0.55f)
+            .clip(shape)
             // Inside the clip, so the glow outside is not cut by the layer.
             .then(
                 if (faded) Modifier.graphicsLayer {
@@ -1024,11 +1026,15 @@ private fun CallerPortrait(card: CallerCard?, color: Color, faded: Boolean, size
                 } else Modifier,
             )
             .background(Brush.linearGradient(listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.22f))))
-            .border(2.5.dp, color, CircleShape),
+            .border(2.5.dp, color, shape),
         contentAlignment = Alignment.Center,
     ) {
         if (photo != null) {
             Image(photo, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else if (card?.org == true) {
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Rounded.Business, null, tint = Space.Text, modifier = Modifier.size(size * 0.42f),
+            )
         } else {
             val initials = card?.name?.split(' ')?.filter { it.isNotBlank() }?.take(2)?.joinToString("") { it.take(1).uppercase() }
             Text(initials?.ifBlank { null } ?: "?", fontFamily = Grotesk, fontWeight = FontWeight.SemiBold, fontSize = (size.value * 0.35f).sp, color = Space.Text)

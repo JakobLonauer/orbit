@@ -294,7 +294,7 @@ private fun Drawer(
                     items.isEmpty() -> Column(Modifier.fillMaxWidth().padding(Spacing.L), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Keine eigenen Nummern", style = MaterialTheme.typography.titleMedium, color = Space.Text)
                         Spacer(Modifier.height(Spacing.M))
-                        GlowButton("Bei Ich anlegen", onAddMine)
+                        GlowButton("Zur Ich-Karte", onAddMine)
                     }
                     else -> Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
                         items.groupBy { it.owner }.forEach { (owner, group) ->

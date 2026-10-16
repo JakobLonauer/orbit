@@ -160,6 +160,8 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
         Row(
             Modifier
                 .fillMaxWidth()
+                // Opaque under the glass: the thread scrolling beneath never shows through the text.
+                .background(Space.Void, RoundedCornerShape(26.dp))
                 .glass(RoundedCornerShape(26.dp), tint = Space.PanelHighest, border = modeColor.copy(alpha = 0.45f))
                 .padding(6.dp),
             verticalAlignment = Alignment.CenterVertically,

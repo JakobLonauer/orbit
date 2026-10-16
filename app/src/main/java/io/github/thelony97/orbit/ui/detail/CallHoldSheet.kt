@@ -113,7 +113,7 @@ internal fun CallHoldSheet(c: Contact, data: OrbitData, onDismiss: () -> Unit, o
                     }
                     if (phones.size > 1) {
                         IconButton(onClick = { haptics.perform(Haptic.Tick); onSetDefault(i) }) {
-                            Icon(if (c.defaultPhone == i) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Als Standard", tint = Space.Teal)
+                            Icon(if (c.defaultPhone == i) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Als Standard", tint = Space.Violet)
                         }
                     }
                 }

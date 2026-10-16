@@ -238,7 +238,7 @@ fun ValueChooserDialog(
                                 Icon(
                                     if (defaultIndex == i) Icons.Rounded.Star else Icons.Rounded.StarBorder,
                                     "Als Standard",
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = io.github.thelony97.orbit.ui.theme.Space.Violet,
                                 )
                             }
                         }

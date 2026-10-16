@@ -23,7 +23,7 @@ class LoansTest {
 
     @Test fun sinceWords() {
         val today = LocalDate.of(2026, 10, 15)
-        assertEquals("seit 2 Wo", Loans.since(anna.loans[0], today))
+        assertEquals("seit 2 W", Loans.since(anna.loans[0], today))
         assertEquals("seit 5 T", Loans.since(anna.loans[1], today))
         assertEquals("seit 2 M", Loans.since(anna.loans[2], today))
     }
