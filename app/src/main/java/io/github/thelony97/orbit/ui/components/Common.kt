@@ -337,7 +337,8 @@ fun EmptyHint(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            Modifier.size(14.dp).glow(Space.Orange, 12.dp).background(Space.Orange, CircleShape),
+            // Licht-Code: an empty place is no deadline – a quiet violet star, not orange.
+            Modifier.size(14.dp).glow(Space.Violet, 12.dp).background(Space.Violet, CircleShape),
         )
         Text(title, style = MaterialTheme.typography.titleMediumEmphasized, color = Space.Text, modifier = Modifier.padding(top = 8.dp))
         if (text.isNotEmpty()) {

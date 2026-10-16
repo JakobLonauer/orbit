@@ -24,13 +24,20 @@ import androidx.compose.ui.text.TextStyle
  * nothing beside a rolling digit moves.
  */
 @Composable
-fun RollingText(text: String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, color: Color = Color.Unspecified) {
+fun RollingText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = LocalTextStyle.current,
+    color: Color = Color.Unspecified,
+    /** > 0 the value went up (everything rolls up), < 0 down; 0 = each digit by itself. */
+    direction: Int = 0,
+) {
     val tnum = style.copy(fontFeatureSettings = "tnum")
     val parts = rollingParts(text)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         // Slots counted from the right: „9:55“ → „10:00“ keeps the minutes on their slots.
         parts.forEachIndexed { i, part ->
-            androidx.compose.runtime.key(parts.size - i) { RollingPart(part, tnum, color) }
+            androidx.compose.runtime.key(parts.size - i) { RollingPart(part, tnum, color, direction) }
         }
     }
 }
@@ -52,22 +59,26 @@ fun rollingParts(text: String): List<String> {
 }
 
 @Composable
-private fun RollingPart(part: String, style: TextStyle, color: Color) {
+private fun RollingPart(part: String, style: TextStyle, color: Color, direction: Int) {
     AnimatedContent(
         targetState = part,
         transitionSpec = {
             val a = initialState.singleOrNull()?.takeIf { it.isDigit() }
             val b = targetState.singleOrNull()?.takeIf { it.isDigit() }
             val roll = Motion.fast<androidx.compose.ui.unit.IntOffset>()
-            when {
-                // Up also for 9 → 0: a counter going over.
-                a != null && b != null && (b > a || a == '9' && b == '0') ->
-                    (slideInVertically(roll) { it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { -it } + fadeOut(tween(Motion.FAST_MS)))
-                a != null && b != null ->
-                    (slideInVertically(roll) { -it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { it } + fadeOut(tween(Motion.FAST_MS)))
-                // Words roll as a whole (heute → morgen) – never two words on top of each other.
-                else -> (slideInVertically(roll) { it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { -it } + fadeOut(tween(Motion.FAST_MS)))
-            }.using(SizeTransform(clip = true) { _, _ -> tween(Motion.FAST_MS, easing = Motion.Standard) })
+            // One direction for the whole value when it is known (23:55 → 00:00 runs forward).
+            val up = when {
+                direction > 0 -> true
+                direction < 0 -> false
+                else -> a == null || b == null || b > a || a == '9' && b == '0'
+            }
+            // Digits and words (heute → morgen) roll the same way – never two on top of each other.
+            val move = if (up) {
+                (slideInVertically(roll) { it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { -it } + fadeOut(tween(Motion.FAST_MS)))
+            } else {
+                (slideInVertically(roll) { -it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { it } + fadeOut(tween(Motion.FAST_MS)))
+            }
+            move.using(SizeTransform(clip = true) { _, _ -> tween(Motion.FAST_MS, easing = Motion.Standard) })
         },
         label = "roll",
     ) { shown ->

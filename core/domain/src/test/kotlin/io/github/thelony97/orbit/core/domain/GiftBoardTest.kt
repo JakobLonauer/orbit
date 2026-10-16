@@ -30,4 +30,25 @@ class GiftBoardTest {
         assertEquals("65 / 60 €", line)
         assertTrue(over)
     }
+
+    @Test fun suggestPeopleByNextBirthdayThenIdeas() {
+        val today = java.time.LocalDate.of(2026, 12, 20)
+        val cs = listOf(
+            io.github.thelony97.orbit.core.model.Contact("zoe", firstName = "Zoe"),
+            io.github.thelony97.orbit.core.model.Contact("ida", firstName = "Ida", gifts = listOf(CheckItem("g", "Buch"))),
+            io.github.thelony97.orbit.core.model.Contact(
+                "jan", firstName = "Jan",
+                dates = listOf(io.github.thelony97.orbit.core.model.Occasion("b", io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY, date = io.github.thelony97.orbit.core.model.CalendarDay(3, 1))),
+            ),
+            io.github.thelony97.orbit.core.model.Contact(
+                "eva", firstName = "Eva",
+                dates = listOf(io.github.thelony97.orbit.core.model.Occasion("b", io.github.thelony97.orbit.core.model.OccasionKind.BIRTHDAY, date = io.github.thelony97.orbit.core.model.CalendarDay(24, 12))),
+            ),
+            io.github.thelony97.orbit.core.model.Contact("me", isMe = true, firstName = "Jakob"),
+            io.github.thelony97.orbit.core.model.Contact("alt", firstName = "Alt", archived = true),
+        )
+        // Over the new year: 24.12. before 3.1.; then ideas, then the name.
+        org.junit.Assert.assertEquals(listOf("eva", "jan", "ida", "zoe"), GiftBoard.suggestPeople(cs, today).map { it.id })
+        org.junit.Assert.assertEquals(listOf("eva", "jan"), GiftBoard.suggestPeople(cs, today, max = 2).map { it.id })
+    }
 }

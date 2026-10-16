@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
@@ -91,11 +92,35 @@ class ScreensV3GScreenshotTest {
 
     /** A new idea for Anna (after „Für wen?“). */
     @Test fun giftAdd() = screen("v3g_gift_add") {
+        // Anna picked in the row of next birthdays.
         io.github.thelony97.orbit.ui.occasions.GiftBoardScreen(data, nav, initialAdd = "anna")
     }
 
     /** E9: a finished appointment with its photos as a suggestion (tiles in their final form). */
-    @Test fun meetWithPhotos() = moment("v3g_meet_photos", 600) {
+    @Test fun meetWithPhotos() {
+        // Seven „photos“: soft gradients in different hues; the third cannot be read (left out).
+        io.github.thelony97.orbit.ui.today.MeetThumbs.load = { _, id ->
+            if (id == 3L) null
+            else {
+                val bmp = android.graphics.Bitmap.createBitmap(144, 144, android.graphics.Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(bmp)
+                val hue = (id * 47f) % 360f
+                val paint = android.graphics.Paint().apply {
+                    shader = android.graphics.LinearGradient(
+                        0f, 0f, 144f, 144f,
+                        android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.45f, 0.85f)),
+                        android.graphics.Color.HSVToColor(floatArrayOf((hue + 40f) % 360f, 0.6f, 0.45f)),
+                        android.graphics.Shader.TileMode.CLAMP,
+                    )
+                }
+                canvas.drawRect(0f, 0f, 144f, 144f, paint)
+                bmp.asImageBitmap()
+            }
+        }
+        meetShot()
+    }
+
+    private fun meetShot() = screen("v3g_meet_photos") {
         val now = System.currentTimeMillis()
         val item = CalendarGhosts.Item("cal:1:1", "anna", "Kaffee mit Anna", now - 3 * 3_600_000L, now - 2 * 3_600_000L, photos = (1L..7L).toList())
         val plain = CalendarGhosts.Item("cal:2:2", "tom", "Laufen mit Tom", now - 26 * 3_600_000L, now - 25 * 3_600_000L)
@@ -127,7 +152,7 @@ class ScreensV3GScreenshotTest {
         }
         Box(Modifier.padding(top = 120.dp, start = 32.dp)) {
             io.github.thelony97.orbit.core.designsystem.RollingText(
-                text, style = androidx.compose.material3.MaterialTheme.typography.displaySmall, color = Space.Text,
+                text, style = androidx.compose.material3.MaterialTheme.typography.displaySmall, color = Space.Text, direction = 1,
             )
         }
     }

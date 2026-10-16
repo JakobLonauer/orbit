@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -111,8 +112,9 @@ private fun moveGift(card: GiftBoard.Card, to: GiftBoard.Stage) {
 fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier, initialAdd: String? = null) {
     val cols = GiftBoard.columns(data.contacts)
     var editing by remember { mutableStateOf<GiftBoard.Card?>(null) }
-    // Neue Idee: first who (picker), then what – „“ = picking, an id = typing the idea for them.
+    // Neue Idee: null = closed, „“ = open without a person picked yet, an id = for them.
     var adding by remember { mutableStateOf(initialAdd) }
+    val empty = cols.values.all { it.isEmpty() }
     // The column of a lifted card is drawn on top, so the card glides over its neighbours.
     var liftedColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     // The column a lifted card would land in – its head lights up.
@@ -124,12 +126,13 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier, in
                 OrbButton(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück", { nav.back() })
                 Spacer(Modifier.width(Spacing.M))
                 Text("Geschenke", style = MaterialTheme.typography.headlineSmallEmphasized, color = Space.Text, modifier = Modifier.weight(1f))
-                OrbButton(Icons.Rounded.Add, "Idee", { adding = "" })
+                // W6: while the board is empty its one action sits in the middle, not up here as well.
+                if (!empty) OrbButton(Icons.Rounded.Add, "Idee", { adding = "" })
             }
             // The budget once per person: on their first card (board order Idee → Verschenkt).
             val budgetOn = remember(cols) { cols.values.flatten().distinctBy { it.contact.id }.mapTo(HashSet()) { it.gift.id } }
             // 12 + 4 per column = the 16-dp gutter outside, 8 dp between the columns.
-            if (cols.values.all { it.isEmpty() }) io.github.thelony97.orbit.ui.components.EmptyHint("Keine Geschenkideen", "", action = "Idee notieren" to { adding = "" })
+            if (empty) io.github.thelony97.orbit.ui.components.EmptyHint("Keine Geschenkideen", "", action = "Idee notieren" to { adding = "" })
             else BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = Spacing.Gutter - Spacing.XS)) {
                 val colWidth = maxWidth / GiftBoard.Stage.entries.size
                 // One scroll for the board: a card pulled across is never cut off by its column.
@@ -165,63 +168,95 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier, in
         }
     }
     editing?.let { card -> GiftEditDialog(card, onDismiss = { editing = null }) }
-    when (val who = adding) {
-        null -> Unit
-        "" -> io.github.thelony97.orbit.ui.detail.ContactPickDialog(
-            "Für wen?", exclude = emptySet(),
-            // The picker closes itself after a pick – only a dismiss without a pick ends the flow.
-            onDismiss = { if (adding == "") adding = null },
-            onPick = { adding = it },
-        )
-        else -> data.contacts.firstOrNull { it.id == who }?.let { c -> GiftAddDialog(c, onDismiss = { adding = null }) }
-    }
+    adding?.let { who -> GiftAddSheet(data, preselected = who.ifEmpty { null }, onDismiss = { adding = null }) }
 }
 
-/** A new idea for [contact]: text and (optional) price; the card grows into the Idee column. */
+/**
+ * Neue Idee in one sheet: who (the people whose birthday comes next, „…“ for anyone else), what,
+ * and – optionally – the price. „Hinzufügen“ morphs into a tick and the card grows into the board.
+ */
 @Composable
-private fun GiftAddDialog(contact: io.github.thelony97.orbit.data.Contact, onDismiss: () -> Unit) {
+private fun GiftAddSheet(data: OrbitData, preselected: String?, onDismiss: () -> Unit) {
+    val haptics = rememberHaptics()
+    val today = remember { java.time.LocalDate.now() }
+    val suggested = remember(data.contacts) { GiftBoard.suggestPeople(data.contacts, today) }
+    var who by remember { mutableStateOf(preselected ?: suggested.firstOrNull()?.id) }
+    var picking by remember { mutableStateOf(false) }
+    // Someone picked via „…“ joins the front of the row.
+    val people = remember(suggested, who) {
+        val c = data.contacts.firstOrNull { it.id == who }
+        if (c != null && suggested.none { it.id == c.id }) listOf(c) + suggested else suggested
+    }
     val idea = androidx.compose.foundation.text.input.rememberTextFieldState()
     val price = androidx.compose.foundation.text.input.rememberTextFieldState()
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
-    fun save() {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    fun save(): Boolean {
+        val id = who ?: return false
         val text = idea.text.toString().trim()
-        if (text.isEmpty()) return
+        if (text.isEmpty()) return false
         val gift = io.github.thelony97.orbit.core.model.CheckItem(
             newId(), text, createdAt = System.currentTimeMillis(), priceCents = Jobs.parseAmount(price.text.toString()),
         )
         noted += gift.id
-        OrbitRepository.editContact(contact.id) { it.copy(gifts = it.gifts + gift) }
-        onDismiss()
+        OrbitRepository.editContact(id) { it.copy(gifts = it.gifts + gift) }
+        return true
     }
-    androidx.compose.material3.AlertDialog(
+    androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = Space.PanelHigh,
-        title = { Text("Idee für " + Logic.shortName(contact)) },
-        text = {
-            // Inside the dialog's own window: the field is attached when the request runs.
-            LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    ) {
+        LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+        Column(
+            Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(bottom = Spacing.L),
+            verticalArrangement = Arrangement.spacedBy(Spacing.M),
+        ) {
+            androidx.compose.foundation.lazy.LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.Gutter),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.S),
+            ) {
+                items(people.size, key = { people[it].id }) { i ->
+                    val c = people[i]
+                    val color = fallbackColor(c.id)
+                    io.github.thelony97.orbit.ui.components.SpaceChip(
+                        Logic.shortName(c), c.id == who,
+                        {
+                            haptics.perform(Haptic.Tick)
+                            who = c.id
+                        },
+                        dot = color, accent = color,
+                    )
+                }
+                item(key = "more") {
+                    io.github.thelony97.orbit.ui.components.SpaceChip("…", false, { picking = true })
+                }
+            }
+            Row(Modifier.padding(horizontal = Spacing.Gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                 io.github.thelony97.orbit.ui.components.SpaceField(
-                    idea, "Idee", modifier = Modifier.focusRequester(focus),
+                    idea, "", modifier = Modifier.weight(1f).focusRequester(focus), placeholder = "Idee",
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
                         imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                     ),
                 )
                 io.github.thelony97.orbit.ui.components.SpaceField(
-                    price, "Preis €",
+                    price, "", modifier = Modifier.width(96.dp), placeholder = "€",
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
                         imeAction = androidx.compose.ui.text.input.ImeAction.Done,
                     ),
                 )
             }
-        },
-        confirmButton = {
-            io.github.thelony97.orbit.ui.components.DialogConfirm(onClick = { save() }, enabled = idea.text.isNotBlank()) { Text("Hinzufügen") }
-        },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Abbrechen", color = Space.TextDim) } },
-    )
+            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter), horizontalArrangement = Arrangement.End) {
+                io.github.thelony97.orbit.ui.components.SaveMorphButton(onSave = { save() }, onDone = onDismiss, label = "Hinzufügen")
+            }
+        }
+    }
+    if (picking) {
+        io.github.thelony97.orbit.ui.detail.ContactPickDialog("Für wen?", exclude = emptySet(), onDismiss = { picking = false }, onPick = { who = it })
+    }
 }
 
 /** Price of the gift and the person's yearly budget, as typed („25“, „19,90“). */

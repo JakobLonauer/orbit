@@ -37,4 +37,18 @@ object GiftBoard {
         val spent = spent(c)
         return "${Jobs.format(spent).removeSuffix(" €")} / ${Jobs.format(budget)}" to (spent > budget)
     }
+
+    /**
+     * Who a new idea is most likely for (feste Regel): people whose birthday comes next, then people
+     * who already have ideas, then by name – never organisations, Ich, Archiv or Papierkorb.
+     */
+    fun suggestPeople(contacts: List<Contact>, today: java.time.LocalDate, max: Int = 12): List<Contact> {
+        val people = contacts.filter { it.deletedAt == null && !it.archived && !it.isMe && !it.isOrg }
+        fun daysTo(c: Contact): Long = c.birthday?.let { java.time.temporal.ChronoUnit.DAYS.between(today, DateMath.nextOccurrence(it, today)) } ?: Long.MAX_VALUE
+        return people.sortedWith(
+            compareBy<Contact> { daysTo(it) }
+                .thenBy { if (it.gifts.any { g -> !g.done }) 0 else 1 }
+                .thenBy { (it.firstName + " " + it.lastName).trim().lowercase() },
+        ).take(max)
+    }
 }

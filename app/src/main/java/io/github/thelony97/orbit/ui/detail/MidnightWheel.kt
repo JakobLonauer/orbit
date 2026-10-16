@@ -123,6 +123,12 @@ internal fun MidnightWheelOverlay(
         if (pick?.magnet == true) Space.Orange else Space.Text,
         androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS), label = "wheelText",
     )
+    // The time rolls the way it moved: turning on past midnight rolls everything up.
+    val at = pick?.at
+    val lastAt = remember { androidx.compose.runtime.mutableStateOf(at) }
+    val before = lastAt.value
+    val direction = if (at != null && before != null) at.compareTo(before).coerceIn(-1, 1) else 0
+    androidx.compose.runtime.SideEffect { lastAt.value = at }
     val r = RADIUS_DP.dp
     Box(modifier.fillMaxSize().background(Space.Void.copy(alpha = 0.55f * open.value))) {
         Box(
@@ -142,6 +148,7 @@ internal fun MidnightWheelOverlay(
                     if (pick == null) "–" else SendLater.label(pick.at, now),
                     style = MaterialTheme.typography.titleLarge,
                     color = accentText,
+                    direction = direction,
                 )
                 if (pick?.magnet == true && occasion != null) {
                     Text(ReminderPlan.phrase(occasion) { id -> data.contacts.firstOrNull { it.id == id }?.let { Logic.shortName(it) }.orEmpty() },

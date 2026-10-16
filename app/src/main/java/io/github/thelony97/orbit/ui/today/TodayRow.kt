@@ -278,7 +278,10 @@ private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
     val ctx = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val name = io.github.thelony97.orbit.domain.Logic.shortName(card.contact)
     var left by remember(g.key) { androidx.compose.runtime.mutableStateOf(emptyList<Long>()) }
-    val chosen = g.photos.filterNot { it in left }
+    // A photo that cannot be read (deleted meanwhile, cloud only) is no photo (W5).
+    var broken by remember(g.key) { androidx.compose.runtime.mutableStateOf(emptySet<Long>()) }
+    val usable = g.photos.filterNot { it in broken }
+    val chosen = usable.filterNot { it in left }
     Ghost(
         source = "Kalender · " + g.title,
         onAccept = { acceptMeet(ctx, card, chosen) },
@@ -295,8 +298,12 @@ private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
                     else -> " · ${chosen.size} Fotos"
                 },
             )
-            if (g.photos.isNotEmpty()) {
-                MeetPhotoStrip(g.photos, left, onToggle = { id -> left = if (id in left) left - id else left + id })
+            if (usable.isNotEmpty()) {
+                MeetPhotoStrip(
+                    usable, left,
+                    onToggle = { id -> left = if (id in left) left - id else left + id },
+                    onBroken = { id -> broken = broken + id },
+                )
             }
         }
     }
@@ -364,49 +371,68 @@ private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galle
     }
 }
 
-/** The appointment's photos as small tiles; a left-out one dims and shrinks, a tick answers each tap. */
+/**
+ * The appointment's photos as small tiles – five at most, the rest as „+N“ (they come along); a
+ * left-out tile dims and shrinks, a tick answers each tap.
+ */
 @Composable
-private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -> Unit) {
+private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -> Unit, onBroken: (Long) -> Unit) {
     val haptics = rememberHaptics()
-    androidx.compose.foundation.lazy.LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = Spacing.M, end = Spacing.M, bottom = Spacing.M),
+    val shown = ids.take(MEET_TILES)
+    Row(
+        Modifier.padding(start = Spacing.M, end = Spacing.M, bottom = Spacing.M),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(Spacing.XS),
-        modifier = Modifier.width(260.dp),
     ) {
-        items(ids.size, key = { ids[it] }) { i ->
-            val id = ids[i]
-            val out = id in left
-            val k by animateFloatAsState(if (out) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "photoOut")
-            MeetThumb(
-                id,
-                Modifier
-                    .size(44.dp)
-                    .graphicsLayer {
-                        val s = 1f - 0.12f * k
-                        scaleX = s
-                        scaleY = s
-                        alpha = 1f - 0.65f * k
-                    }
-                    .clip(Corners.Row)
-                    .clickable {
-                        haptics.perform(Haptic.Tick)
-                        onToggle(id)
-                    },
-            )
+        shown.forEach { id ->
+            androidx.compose.runtime.key(id) {
+                val out = id in left
+                val k by animateFloatAsState(if (out) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "photoOut")
+                MeetThumb(
+                    id,
+                    onBroken = { onBroken(id) },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .graphicsLayer {
+                            val sc = 1f - 0.14f * k
+                            scaleX = sc
+                            scaleY = sc
+                            alpha = 1f - 0.72f * k
+                        }
+                        .clip(Corners.Row)
+                        .clickable {
+                            haptics.perform(Haptic.Tick)
+                            onToggle(id)
+                        },
+                )
+            }
         }
+        val more = ids.size - shown.size
+        if (more > 0) {
+            Box(Modifier.size(44.dp).clip(Corners.Row).background(Space.TextFaint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                Text("+$more", style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"), color = Space.TextDim)
+            }
+        }
+    }
+}
+
+private const val MEET_TILES = 5
+
+/** Where the tiles come from – the gallery; screenshot tests put pictures of their own here. */
+internal object MeetThumbs {
+    var load: (android.content.Context, Long) -> androidx.compose.ui.graphics.ImageBitmap? = { ctx, id ->
+        ctx.contentResolver.loadThumbnail(io.github.thelony97.orbit.phonebook.CalendarGhosts.uri(id), android.util.Size(144, 144), null).asImageBitmap()
     }
 }
 
 /** One gallery thumbnail; the exact tile is there at once (Platzhalter in Endform), the picture fades in. */
 @Composable
-private fun MeetThumb(id: Long, modifier: Modifier) {
+private fun MeetThumb(id: Long, onBroken: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val bmp by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, id) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                ctx.contentResolver.loadThumbnail(io.github.thelony97.orbit.phonebook.CalendarGhosts.uri(id), android.util.Size(144, 144), null).asImageBitmap()
-            }.getOrNull()
+            runCatching { MeetThumbs.load(ctx, id) }.getOrNull()
         }
+        if (value == null) onBroken()
     }
     val shown by animateFloatAsState(if (bmp != null) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.medium(), label = "thumbIn")
     Box(modifier.background(Space.TextFaint.copy(alpha = 0.14f))) {
