@@ -24,9 +24,32 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
-| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | in Arbeit | Nachtsitzung 16.10. (orbit-79) |
+| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | fertig, Release folgt | Nachtsitzung 16.10. (orbit-79) |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 16.10.2026 nachts (Nachtsitzung 00:00–05:00) – Review 3.0-E, 3.0-F Feinschliff
+
+- **Parallelbetrieb:** Die Tagsitzung baute bis ~01:00 an 3.0-E und veröffentlichte v1.0.282. Die Nachtsitzung hat die Stufe nicht angefasst, sondern ein Code-Review über main..dev laufen lassen und nur dessen Funde als eigene Commits beigesteuert (im Release 282 enthalten): Zusammenführen behielt Org-Felder nicht (Nummernserie, Telefonzeiten, Urlaub …), „Zurück“ im Änderungsprotokoll überschrieb neuere Werte, Sprachnotizen fehlten im Backup, geplante Nachrichten konnten sich gegenseitig überschreiben, Geschenk-Ziehen setzte den Preis zurück, Archivierte in @-Erwähnungen/Orbit-Zeile/Doppelstern, Scan ging beim Drehen verloren, Flugmodus markierte Nummern tot.
+- **3.0-F Feinschliff** (Wow-Review-Subagent über 3.0-E: 15 Funde, davon umgesetzt):
+  - Orbit-Zeile: Enter → Chips fallen in die Kontaktzeile, die beim Aufschlag aufleuchtet (Bestätigen); Personen-Chip in Personenfarbe, Chips gestaffelt, antippen nimmt den Chip heraus, Rand blendet aus.
+  - Mitternachts-Rad jetzt wie geplant **um den Daumen**: Senden halten → Rad erscheint, derselbe Finger dreht, Loslassen plant, Mitte oder ohne Bewegung = abbrechen; Magnet saugt den Zeiger an, Rad sinkt beim Loslassen weg, bleibt über der Tastatur.
+  - Geplante Nachricht landet als kleine Uhr, deren Zeiger auf die Zielzeit laufen (nur beim Planen, nicht bei jedem Öffnen); Zeile darunter gleitet.
+  - Antwortzeile: 16-dp-Rinne, eigene Farbe je Weg (WhatsApp-Token), Mikrofon wächst per Skalierung (kein Höhensprung), Senden gibt unter dem Finger nach, leer = Abwehr-Wackeln.
+  - **Null-Text:** System-Toasts in App-Oberfläche und Aktionen ersetzt durch Hinweise in Orbits Rückgängig-Leiste (Häkchen violett, Fehler coral, Haptik); in Dialogen und außerhalb der App weiter System-Hinweis.
+  - Automatiken: jede Zeile Schalter oder Pfeil, Zähler immer sichtbar, „Termin endet → Rückruf-Stapel“ abschaltbar (neues optionales Feld `callbackNudge`, Standard an), Licht-Code nur wenn an, Berechtigungen beim Einschalten.
+  - Geschenke-Board: 16-dp-Rinne, Budget einmal je Person in Orange, Preise orange, „Verschenkt“ ruhig, Leerzustand.
+  - Themen-Stapel mittig, Knöpfe nehmen den Weg des Wischens, Einrasten an der Wischschwelle.
+  - Avatar-Initialen optisch zentriert (alle Größen).
+  - Offene E-Reste: **E19** Kneifen jetzt auch im Faden der Kontaktseite; **E20** Kontakt auf Gruppe ziehen (Langdruck-Vorschau trägt Gruppen-Chips, Loslassen ordnet zu/ab, Rückgängig); **E8** Themen beim Eintragen eines Treffens/Anrufs abhaken → „Besprochen: …“.
+- **Prüfungen:** zwei Code-Review-Subagenten (12 + 4 Funde, alle relevanten behoben: Rad plante ohne Bewegung/bei Systemabbruch, Hinweise hinter Dialogen, Themen-Rückgängig, hängendes Aufleuchten …), zwei Wow-Review-Subagenten (Runde 1: 15, Runde 2: 10 Funde), detekt ohne neue Funde, CI grün.
+- **Wow-Gate 3.0-F (PLAN 1.5):**
+  - [x] 1. Momente: Chips landen in der Zeile; Rad um den Daumen mit Magnet; Uhr-Zeiger laufen ein; Gruppe per Ziehen.
+  - [x] 2. Berührte Screens gegen W1–W9: Kontaktliste (Orbit-Zeile, Vorschau), Akte (Antwortzeile, Faden), Themen-Stapel, Geschenke, Automatiken, Eintrag-Sheet, Rückgängig-Leiste.
+  - [x] 3. Screenshots angesehen (`screen_v3e_*`, `screen_v3f_*`), zwei Wow-Review-Subagenten.
+  - [x] 4. Kein Ruckeln: Doppelstern/Erwähnungen/Feld-Geister abseits des Hauptthreads, Animationen in Zeichenphase.
+  - [x] 5. Etwa die Hälfte der Nacht Feinschliff.
+- **Bewusst offen:** Geschenk-Karte federt beim Spaltenwechsel nicht in die Zielspalte (springt), Leerzustand Geschenke ohne Aktion, Ziffern im Rad rollen nicht, E9 Fotos aus dem Termin-Zeitfenster, E14 unzustellbare Mails, E21 Kontaktseite schrumpft beim Zurück zur Zeile, „Bitte einen Namen eingeben“ als Feld-Hinweis statt Text.
 
 ### 16.10.2026 nachts (Tagsitzung, Teil 3) – 3.0-D veröffentlicht, 3.0-E fertig
 

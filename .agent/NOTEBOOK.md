@@ -40,6 +40,13 @@
 - Nacht 16.10. (Nachtsitzung orbit-79): Tagsitzung arbeitete parallel an 3.0-E (Commits alle ~10 min) → nicht die Stufe angefasst, sondern Code-Review-Subagent über main..dev laufen lassen und NUR dessen Funde als eigene fix-Commits gepusht (rebase vor Push). Funde-Muster 3.0-E: Zusammenführen vergisst neue Contact-Felder (bei jedem neuen Feld Twins.merged + Test erweitern!), „Zurück“/Undo schreibt ganze Alt-Stände zurück (nur Feld + nur wenn noch neuer Wert), neue Dateiarten (audio) nicht in Mutations.files → fehlen im Backup, PendingIntent-Requestcode-Hash 0xFFF kollidiert → Daten-URI setzen, pointerInput(id) + veraltete Karte → rememberUpdatedState.
 - !! Python-Ersetzen mit s.index(A)…s.index(B): B kam später als gedacht → zwei Composables gelöscht. Immer `git diff --stat` direkt danach prüfen (Zeilenbilanz plausibel?) und `assert s.count(old)==1` nutzen.
 - Delegierte Properties (`val x by produceState`) sind nicht smart-castbar → `val shown = x; if (shown != null)`.
+- 16.10. Nacht (3.0-F) Bausteine/Lehren:
+  - `Undo.note(ctx, text, ok)` = Null-Text-Hinweis in der Rückgängig-Leiste (nie über einem Rückgängig; in Dialogen → `DialogMark()` in den Dialog-Inhalt setzen, dann System-Toast). Neue Hinweise NIE mit Toast.makeText bauen (außer call/, notify/, update/).
+  - Geste „Tippen = senden, Halten = Overlay mit demselben Finger“: eigenes `awaitEachGesture` mit `withTimeoutOrNull(longPressTimeout) { waitForUpOrCancellation() }` + Flag `released`; Loslassen echt nur wenn `!pressed && !isConsumed`, `finally` schließt immer. Overlay als `Popup(popupPositionProvider = WindowOrigin)` in Fensterkoordinaten (`positionInWindow`). Fenstergröße: `LocalView.current.rootView` minus `WindowInsets.ime` (Import `androidx.compose.foundation.layout.ime`!). `LocalWindowInfo.containerSize` vermieden.
+  - Icons aus material-icons-extended brauchen den Import `androidx.compose.material.icons.rounded.X`, voll qualifiziert `Icons.Rounded.X` allein reicht nicht.
+  - `animateFloatAsState` für Winkel → läuft beim Überlauf 355→5 rückwärts; Animatable + kürzester Weg.
+  - Zweig `night-wow` (Test-Build per workflow_dispatch) lässt sich nicht löschen (403) – harmlos, liegen lassen.
+  - detekt-Compose: Lambda-Parameter im Präsens (`onClose`, `onDiscuss`), Lambdas in LaunchedEffect über `rememberUpdatedState`.
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.
