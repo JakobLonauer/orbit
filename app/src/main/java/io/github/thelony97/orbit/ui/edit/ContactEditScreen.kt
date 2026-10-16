@@ -479,7 +479,10 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                         modifier = Modifier
                             .padding(start = 26.dp)
                             .clip(RoundedCornerShape(50))
-                            .clickable { scope.launch { io.github.thelony97.orbit.links.Logos.asPhoto(logoLink.logo!!)?.let { photo = it } } }
+                            .clickable {
+                                val logo = logoLink.logo ?: return@clickable
+                                scope.launch { io.github.thelony97.orbit.util.quietly("Logo als Bild", null) { io.github.thelony97.orbit.links.Logos.asPhoto(logo) }?.let { photo = it } }
+                            }
                             .padding(horizontal = 6.dp, vertical = 4.dp),
                     )
                 }

@@ -14,6 +14,11 @@ import java.time.format.DateTimeFormatter
  */
 class ErrorLog(private val file: File, private val maxBytes: Int = 1024 * 1024) {
 
+    companion object {
+        /** The app's log, for places without a context (set in OrbitApp.onCreate). */
+        @Volatile var shared: ErrorLog? = null
+    }
+
     private val stamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
 
     @Synchronized

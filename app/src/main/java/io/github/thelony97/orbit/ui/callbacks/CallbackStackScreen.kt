@@ -111,7 +111,7 @@ fun CallbackStackScreen(data: OrbitData, idx: Index, nav: Nav, modifier: Modifie
         onPauseOrDispose { }
     }
     val items by produceState(preview, data.settings.dismissedGhosts, tick) {
-        if (preview == null) value = Callbacks.load(ctx, data)
+        if (preview == null) value = io.github.thelony97.orbit.util.quietly("Rückrufe", emptyList()) { Callbacks.load(ctx, data) }
     }
     SpaceBackground(modifier) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {

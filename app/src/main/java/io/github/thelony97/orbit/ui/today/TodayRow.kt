@@ -93,16 +93,16 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
     }
     val s = data.settings
     val fresh by produceState(emptyList<PhoneBookFresh.Item>(), s.phoneBook, s.dismissedGhosts, tick, data.contacts.size) {
-        value = PhoneBookFresh.list(ctx, data)
+        value = io.github.thelony97.orbit.util.quietly("Neu im Telefonbuch", emptyList()) { PhoneBookFresh.list(ctx, data) }
     }
     val live by PhoneBookSync.live.collectAsState()
     // PLAN 9 B3: the Rückruf-Stapel, read again whenever Orbit comes to the front.
     val callbacks by produceState(emptyList<io.github.thelony97.orbit.call.Callbacks.Item>(), tick, s.dismissedGhosts) {
-        value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data)
+        value = io.github.thelony97.orbit.util.quietly("Rückrufe", emptyList()) { io.github.thelony97.orbit.call.Callbacks.load(ctx, data) }
     }
     // PLAN 9 E9: appointments with someone that are over → „Treffen mit Anna“ ghosts.
     val calendar by produceState(emptyList<io.github.thelony97.orbit.phonebook.CalendarGhosts.Item>(), tick, s.dismissedGhosts, data.contacts) {
-        value = io.github.thelony97.orbit.phonebook.CalendarGhosts.load(ctx, data)
+        value = io.github.thelony97.orbit.util.quietly("Kalender-Brücke", emptyList()) { io.github.thelony97.orbit.phonebook.CalendarGhosts.load(ctx, data) }
     }
     // PLAN 9 E5: Doppelsterne (fixed rules), at most three at a time.
     // Off the main thread: libphonenumber over every number (PLAN 8.2); organisations only when shown (PLAN 9.1).
@@ -110,10 +110,12 @@ fun rememberTodayCards(data: OrbitData): List<TodayCard> {
         val contacts = data.contacts
         val dismissed = s.dismissedGhosts.toSet()
         val showOrgs = s.showOrgs
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            val iso = io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
-            val visible = contacts.filter { io.github.thelony97.orbit.core.domain.Visibility.inLists(it, showOrgs) }
-            io.github.thelony97.orbit.core.domain.Twins.pairs(visible, { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }, dismissed).take(3)
+        value = io.github.thelony97.orbit.util.quietly("Doppelsterne", emptyList()) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val iso = io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
+                val visible = contacts.filter { io.github.thelony97.orbit.core.domain.Visibility.inLists(it, showOrgs) }
+                io.github.thelony97.orbit.core.domain.Twins.pairs(visible, { io.github.thelony97.orbit.domain.Phones.normalize(it, iso) }, dismissed).take(3)
+            }
         }
     }
     val exportable = remember(data.contacts, s.phoneBookOrgs) { data.contacts.count { PhoneBook.exported(it, s.phoneBookOrgs) } }

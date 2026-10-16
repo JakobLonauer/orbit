@@ -23,7 +23,24 @@ object RealPhotos {
     private const val MIN_PX = 192
     private const val MAX_BYTES = 2_000_000
     private const val TIMEOUT_MS = 5_000
-    private val tried = ConcurrentHashMap<String, Found?>()
+    /** Contacts already asked in this run (each once) and what was found for them. */
+    private val asked = ConcurrentHashMap.newKeySet<String>()
+    // A ConcurrentHashMap takes no null values – „nothing found“ is simply no entry (15.10.: the
+    // null put crashed every contact page without a photo on the phone; Robolectric skipped the path).
+    private val found = ConcurrentHashMap<String, Found>()
+
+    /** Tests turn the network on with a fake [fetch]; Robolectric has none by default. */
+    @androidx.annotation.VisibleForTesting
+    internal var offline: Boolean = android.os.Build.FINGERPRINT == "robolectric"
+
+    @androidx.annotation.VisibleForTesting
+    internal var fetch: (String) -> ByteArray? = ::download
+
+    @androidx.annotation.VisibleForTesting
+    internal fun reset() {
+        asked.clear()
+        found.clear()
+    }
 
     private fun md5(s: String): String = MessageDigest.getInstance("MD5").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
@@ -38,26 +55,29 @@ object RealPhotos {
 
     /** The first picture that is big enough, stored as a candidate file; null when there is none (asked once per run). */
     suspend fun find(c: Contact): Found? = withContext(Dispatchers.IO) {
-        if (android.os.Build.FINGERPRINT == "robolectric" || c.photo != null) return@withContext null
-        if (tried.containsKey(c.id)) return@withContext tried[c.id]
-        val found = candidates(c).firstNotNullOfOrNull { (url, source) ->
-            val bmp = runCatching { download(url)?.let(::decode) }.getOrNull() ?: return@firstNotNullOfOrNull null
-            if (minOf(bmp.width, bmp.height) < MIN_PX) return@firstNotNullOfOrNull null
-            val name = "cand-${c.id}.jpg"
-            val side = minOf(bmp.width, bmp.height)
-            val square = Bitmap.createBitmap(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side)
-            OrbitRepository.photoFile(name).outputStream().use { square.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-            Found(name, source)
-        }
-        tried[c.id] = found
-        found
+        if (offline || c.photo != null) return@withContext null
+        if (!asked.add(c.id)) return@withContext found[c.id]
+        // Never allowed to break the contact page: any failure is „no picture“.
+        val hit = runCatching { search(c) }.getOrNull()
+        if (hit != null) found[c.id] = hit
+        hit
+    }
+
+    private fun search(c: Contact): Found? = candidates(c).firstNotNullOfOrNull { (url, source) ->
+        val bmp = runCatching { fetch(url)?.let(::decode) }.getOrNull() ?: return@firstNotNullOfOrNull null
+        if (minOf(bmp.width, bmp.height) < MIN_PX) return@firstNotNullOfOrNull null
+        val name = "cand-${c.id}.jpg"
+        val side = minOf(bmp.width, bmp.height)
+        val square = Bitmap.createBitmap(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side)
+        OrbitRepository.photoFile(name).outputStream().use { square.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        Found(name, source)
     }
 
     /** Taken: the candidate becomes the profile picture (its own file name). */
     fun take(c: Contact, f: Found) {
         val name = "p-" + io.github.thelony97.orbit.data.newId() + ".jpg"
         runCatching { OrbitRepository.photoFile(f.file).renameTo(OrbitRepository.photoFile(name)) }
-        tried.remove(c.id)
+        found.remove(c.id)
         OrbitRepository.editContact(c.id) { it.copy(photo = name) }
     }
 
@@ -78,5 +98,5 @@ object RealPhotos {
 
     private fun decode(bytes: ByteArray): Bitmap? = runCatching {
         ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { d, _, _ -> d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE }
-    }.getOrNull()
+    }.getOrNull() ?: runCatching { android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
 }

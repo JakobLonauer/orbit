@@ -239,14 +239,16 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     }
     val changes = rememberChanges(contact.id)
     val realPhoto by androidx.compose.runtime.produceState<io.github.thelony97.orbit.links.RealPhotos.Found?>(null, contact.photo, contact.emails, data.settings.dismissedGhosts) {
-        value = if (contact.isMe || "photo:${contact.id}" in data.settings.dismissedGhosts) null else io.github.thelony97.orbit.links.RealPhotos.find(contact)
+        // Extras of the page (ghosts, mentions) never take the page down: a failure shows nothing.
+        value = if (contact.isMe || "photo:${contact.id}" in data.settings.dismissedGhosts) null
+        else io.github.thelony97.orbit.util.quietly("Echtes Bild", null) { io.github.thelony97.orbit.links.RealPhotos.find(contact) }
     }
     // Both scan every note / the whole Verlauf – off the main thread (PLAN 8.2).
     val mentions by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts) {
         val id = contact.id
         val all = data.contacts
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            io.github.thelony97.orbit.core.domain.Mentions.backlinks(id, all).take(8)
+            io.github.thelony97.orbit.util.quietly("Erwähnungen", emptyList()) { io.github.thelony97.orbit.core.domain.Mentions.backlinks(id, all).take(8) }
         }
     }
     val fieldGhosts by androidx.compose.runtime.produceState(
@@ -256,7 +258,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         val c = contact
         val dismissed = data.settings.dismissedGhosts.toSet()
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            io.github.thelony97.orbit.core.domain.FieldGhosts.find(c, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, dismissed).take(3)
+            io.github.thelony97.orbit.util.quietly("Geister aus SMS", emptyList()) {
+                io.github.thelony97.orbit.core.domain.FieldGhosts.find(c, { io.github.thelony97.orbit.domain.Phones.normalize(it, phoneIso) }, dismissed).take(3)
+            }
         }
     }
     val landlines = remember(contact.phones, phoneIso) {
@@ -298,7 +302,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         val addresses = mailAddresses
         if (addresses.isNotEmpty()) {
             // Off the main thread: it reads the small sync state file.
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx, addresses) }
+            io.github.thelony97.orbit.util.quietly("Mail-Abgleich", Unit) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { io.github.thelony97.orbit.mail.MailSync.requestSoon(ctx, addresses) }
+            }
         }
     }
     // Anlass bearbeiten: owner id + the occasion (null = a new one at this contact).
@@ -640,7 +646,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 // PLAN 9 A7: WhatsApp/Signal chat and calls through their own phone-book rows.
                 // null = still looking (a page opened again knows it at once from the last answer).
                 val found by androidx.compose.runtime.produceState(io.github.thelony97.orbit.actions.Messengers.cached(textNumber), textNumber, data.settings.phoneBook) {
-                    value = io.github.thelony97.orbit.actions.Messengers.forNumber(ctx, textNumber)
+                    value = io.github.thelony97.orbit.util.quietly("Messenger", emptyList()) { io.github.thelony97.orbit.actions.Messengers.forNumber(ctx, textNumber) }
                 }
                 val messengers = found.orEmpty()
                 var messengerMenu by remember { mutableStateOf(false) }

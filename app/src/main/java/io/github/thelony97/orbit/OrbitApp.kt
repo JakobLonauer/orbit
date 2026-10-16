@@ -26,6 +26,7 @@ class OrbitApp : Application() {
     override fun onCreate() {
         super.onCreate()
         errorLog.installUncaughtHandler()
+        ErrorLog.shared = errorLog
         OrbitRepository.init(this)
         MailAccounts.init(this)
         OrbitRepository.onSaved = { ctx ->
@@ -66,10 +67,11 @@ class OrbitApp : Application() {
             io.github.thelony97.orbit.call.CallbackNudgeWorker.schedule(this@OrbitApp)
             // PLAN 9 B5: planned Dranbleiben calls keep their alarms.
             io.github.thelony97.orbit.call.Persist.restore(this@OrbitApp)
-            io.github.thelony97.orbit.live.MeetingLive.schedule(this@OrbitApp, OrbitRepository.snapshot())
-            io.github.thelony97.orbit.live.Arrive.load(this@OrbitApp)
-            io.github.thelony97.orbit.live.Scheduled.all(this@OrbitApp)
-            io.github.thelony97.orbit.live.Arrive.sync(this@OrbitApp, OrbitRepository.snapshot())
+            // Each on its own: one failing never stops the start (nor the steps after it).
+            io.github.thelony97.orbit.util.quietly("Start: Treffen live", Unit) { io.github.thelony97.orbit.live.MeetingLive.schedule(this@OrbitApp, OrbitRepository.snapshot()) }
+            io.github.thelony97.orbit.util.quietly("Start: Ankommen", Unit) { io.github.thelony97.orbit.live.Arrive.load(this@OrbitApp) }
+            io.github.thelony97.orbit.util.quietly("Start: Geplante Nachrichten", Unit) { io.github.thelony97.orbit.live.Scheduled.all(this@OrbitApp); Unit }
+            io.github.thelony97.orbit.util.quietly("Start: Orte", Unit) { io.github.thelony97.orbit.live.Arrive.sync(this@OrbitApp, OrbitRepository.snapshot()) }
             // E-Mail v2 (PLAN 3.9): every 6 hours with network, growing pause after errors – only
             // with an account at all.
             if (io.github.thelony97.orbit.mail.MailAccounts.accounts.value.isNotEmpty()) io.github.thelony97.orbit.mail.MailSync.schedulePeriodic(this@OrbitApp)

@@ -162,11 +162,13 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
     val openedAt = remember { System.currentTimeMillis() - 60_000 }
     // PLAN 9 B3: the Rückruf-Stapel, at the top of the Verlauf while someone waits.
     val callbacks by androidx.compose.runtime.produceState(0, permissionTick, data.settings.dismissedGhosts) {
-        value = io.github.thelony97.orbit.call.Callbacks.load(ctx, data).size
+        value = io.github.thelony97.orbit.util.quietly("Rückrufe", 0) { io.github.thelony97.orbit.call.Callbacks.load(ctx, data).size }
     }
     // PLAN 9 B8: calls the filter silenced – thin coral traces between the day's rows.
     val silenced by androidx.compose.runtime.produceState(emptyList<SilencedTrace>(), permissionTick) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { silencedTraces(io.github.thelony97.orbit.call.Silenced.all(ctx)) }
+        value = io.github.thelony97.orbit.util.quietly("Gefilterte Anrufe", emptyList()) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { silencedTraces(io.github.thelony97.orbit.call.Silenced.all(ctx)) }
+        }
     }
     val lines: List<VerlaufLine> = remember(rows, silenced, query, typeFilter) {
         if (query.isNotEmpty() || typeFilter != null || rows.isEmpty()) rows else (rows + silenced).sortedByDescending { it.at }

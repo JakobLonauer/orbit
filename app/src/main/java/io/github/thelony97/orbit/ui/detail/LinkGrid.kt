@@ -121,7 +121,7 @@ private fun LinkTileView(
     // Echtes Logo (PLAN 1.3): loaded once, then from the file.
     androidx.compose.runtime.LaunchedEffect(l.id, l.url, l.logo == null) {
         if (l.logo == null) {
-            io.github.thelony97.orbit.links.Logos.fetch(l.id, l.url)?.let { name ->
+            io.github.thelony97.orbit.util.quietly("Logo", null) { io.github.thelony97.orbit.links.Logos.fetch(l.id, l.url) }?.let { name ->
                 io.github.thelony97.orbit.data.OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.setLinkLogo(d, ownerId, l.id, name) }
             }
         }
