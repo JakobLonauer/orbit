@@ -241,7 +241,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     val realPhoto by androidx.compose.runtime.produceState<io.github.thelony97.orbit.links.RealPhotos.Found?>(null, contact.photo, contact.emails, data.settings.dismissedGhosts) {
         // Extras of the page (ghosts, mentions) never take the page down: a failure shows nothing.
         value = if (contact.isMe || "photo:${contact.id}" in data.settings.dismissedGhosts) null
-        else io.github.thelony97.orbit.util.quietly("Echtes Bild", null) { io.github.thelony97.orbit.links.RealPhotos.find(contact) }
+        else io.github.thelony97.orbit.links.RealPhotos.find(contact)
     }
     // Both scan every note / the whole Verlauf – off the main thread (PLAN 8.2).
     val mentions by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts) {

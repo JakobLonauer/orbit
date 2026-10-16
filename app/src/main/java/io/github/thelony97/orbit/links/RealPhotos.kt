@@ -54,12 +54,14 @@ object RealPhotos {
     }
 
     /** The first picture that is big enough, stored as a candidate file; null when there is none (asked once per run). */
+    // NUR ZUR PRÜFUNG: der alte Fehler aus 1.0.282–305 (null in die ConcurrentHashMap).
+    private val tried = ConcurrentHashMap<String, Found?>()
+
     suspend fun find(c: Contact): Found? = withContext(Dispatchers.IO) {
         if (offline || c.photo != null) return@withContext null
-        if (!asked.add(c.id)) return@withContext found[c.id]
-        // Never allowed to break the contact page: any failure is „no picture“.
-        val hit = runCatching { search(c) }.getOrNull()
-        if (hit != null) found[c.id] = hit
+        if (tried.containsKey(c.id)) return@withContext tried[c.id]
+        val hit = search(c)
+        tried[c.id] = hit
         hit
     }
 
