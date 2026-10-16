@@ -60,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -341,6 +342,12 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     }
 
     var savedId by remember { mutableStateOf<String?>(null) }
+    var nameShake by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val shake = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(nameShake) {
+        if (nameShake > 0) for (k in listOf(1f, -1f, 0.6f, -0.6f, 0f)) shake.animateTo(k, androidx.compose.animation.core.tween(45))
+    }
+    val shakeModifier = Modifier.graphicsLayer { translationX = shake.value * 8.dp.toPx() }
     // „Diese Nummer gibt es schon“ (PLAN 3.14): asked once per save, then it is Jakob's call.
     var duplicate by remember { mutableStateOf<io.github.thelony97.orbit.core.domain.Duplicates.Hit?>(null) }
     var duplicateOk by remember { mutableStateOf(false) }
@@ -350,7 +357,9 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
     fun save(): Boolean {
         val contact = build()
         if ((contact.isOrg && contact.company.isBlank()) || (contact.firstName.isBlank() && contact.lastName.isBlank() && contact.company.isBlank())) {
-            io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Bitte einen Namen eingeben", ok = false)
+            // Null-Text: the name field itself shakes (Abwehr) – no sentence.
+            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Reject)
+            nameShake++
             return false
         }
         // Compared with what is stored – merged-in numbers (PLAN 9 A2) count as new.
@@ -447,10 +456,10 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (isOrg) {
-                            SpaceField(company, "", placeholder = "Name (z. B. Hausarztpraxis Dr. Huber)", keyboardOptions = caps, singleLine = false, lit = lit("company"))
+                            SpaceField(company, "", shakeModifier, placeholder = "Name (z. B. Hausarztpraxis Dr. Huber)", keyboardOptions = caps, singleLine = false, lit = lit("company"))
                             SpaceField(position, "", placeholder = "Abteilung / Ansprechpartner", keyboardOptions = caps, lit = lit("position"))
                         } else {
-                            SpaceField(first, "", placeholder = if (isMe) "Dein Name" else "Vorname", keyboardOptions = caps, lit = lit("first"))
+                            SpaceField(first, "", shakeModifier, placeholder = if (isMe) "Dein Name" else "Vorname", keyboardOptions = caps, lit = lit("first"))
                             SpaceField(last, "", placeholder = "Nachname", keyboardOptions = caps, lit = lit("last"))
                         }
                     }

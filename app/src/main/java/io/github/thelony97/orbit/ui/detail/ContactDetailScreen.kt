@@ -1334,7 +1334,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     AppLock.allowExternal()
                     ctx.startActivity(intent)
                 } catch (_: Exception) {
-                    io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App gefunden – Treffen ist trotzdem gespeichert", ok = false)
+                    io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App", ok = false)
                 }
             },
         )
@@ -1409,7 +1409,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                         AppLock.allowExternal()
                         ctx.startActivity(intent)
                     } catch (_: Exception) {
-                        io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App gefunden", ok = false)
+                        io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Keine Kalender-App", ok = false)
                     }
                 }
             },
