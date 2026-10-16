@@ -183,7 +183,6 @@ private fun GiftAddDialog(contact: io.github.thelony97.orbit.data.Contact, onDis
     val idea = androidx.compose.foundation.text.input.rememberTextFieldState()
     val price = androidx.compose.foundation.text.input.rememberTextFieldState()
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     fun save() {
         val text = idea.text.toString().trim()
         if (text.isEmpty()) return
@@ -199,9 +198,11 @@ private fun GiftAddDialog(contact: io.github.thelony97.orbit.data.Contact, onDis
         containerColor = Space.PanelHigh,
         title = { Text("Idee für " + Logic.shortName(contact)) },
         text = {
+            // Inside the dialog's own window: the field is attached when the request runs.
+            LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 io.github.thelony97.orbit.ui.components.SpaceField(
-                    idea, "", modifier = Modifier.focusRequester(focus),
+                    idea, "Idee", modifier = Modifier.focusRequester(focus),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
                         imeAction = androidx.compose.ui.text.input.ImeAction.Next,

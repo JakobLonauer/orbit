@@ -20,7 +20,7 @@ import androidx.compose.ui.text.TextStyle
 /**
  * Zahlen rollen (PLAN 1.2 „Typografie in Bewegung“): every digit that changes rolls on its own
  * slot – a digit that grows comes in from below, one that shrinks from above; words in between
- * („heute“ → „morgen“) cross-fade as a whole. Unchanged parts stand still. Tabular figures, so
+ * („heute“ → „morgen“) roll as a whole. Unchanged parts stand still. Tabular figures, so
  * nothing beside a rolling digit moves.
  */
 @Composable
@@ -65,7 +65,8 @@ private fun RollingPart(part: String, style: TextStyle, color: Color) {
                     (slideInVertically(roll) { it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { -it } + fadeOut(tween(Motion.FAST_MS)))
                 a != null && b != null ->
                     (slideInVertically(roll) { -it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { it } + fadeOut(tween(Motion.FAST_MS)))
-                else -> fadeIn(tween(Motion.FAST_MS)) togetherWith fadeOut(tween(Motion.FAST_MS))
+                // Words roll as a whole (heute → morgen) – never two words on top of each other.
+                else -> (slideInVertically(roll) { it } + fadeIn(tween(Motion.FAST_MS))) togetherWith (slideOutVertically(roll) { -it } + fadeOut(tween(Motion.FAST_MS)))
             }.using(SizeTransform(clip = true) { _, _ -> tween(Motion.FAST_MS, easing = Motion.Standard) })
         },
         label = "roll",

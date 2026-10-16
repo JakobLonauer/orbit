@@ -263,7 +263,18 @@ object MailSync {
         val out = HashMap<String, Long>()
         for (h in candidates) {
             val m = byUid[h.uid] as? MimeMessage ?: continue
-            val text = runCatching { m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) } }.getOrNull() ?: continue
+            // A broken connection throws on: the chunk is not committed and comes again next run.
+            val text = try {
+                m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) }
+            } catch (e: javax.mail.FolderClosedException) {
+                throw e
+            } catch (e: javax.mail.StoreClosedException) {
+                throw e
+            } catch (e: java.io.IOException) {
+                throw e
+            } catch (e: javax.mail.MessagingException) {
+                continue
+            }
             for (a in Bounces.failedRecipients(text)) out[a] = maxOf(out[a] ?: 0L, h.at)
         }
         return out
@@ -308,7 +319,7 @@ object MailSync {
                         for (chunk in fresh.chunked(CHUNK)) {
                             val headers = headersOf(a, folder, validity, chunk.toTypedArray())
                             val top = chunk.maxOf { folder.getUID(it) }
-                            val failed = runCatching { bouncesOf(folder, chunk, headers) }.getOrDefault(emptyMap())
+                            val failed = bouncesOf(folder, chunk, headers)
                             commit(ctx, headers, own, match, fresh = true, failed = failed) { s ->
                                 val cur = s.folders[fkey] ?: st
                                 s.copy(folders = s.folders + (fkey to cur.copy(lastUid = maxOf(cur.lastUid, top))))

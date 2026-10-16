@@ -289,8 +289,11 @@ private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
             CardBody(
                 planet = { People(listOf(name to card.contact.id)) },
                 title = "Treffen mit $name",
-                line = io.github.thelony97.orbit.util.Fmt.whenShort(g.begin, System.currentTimeMillis()) +
-                    if (g.photos.isEmpty()) "" else " · " + if (chosen.size == 1) "1 Foto" else "${chosen.size} Fotos",
+                line = io.github.thelony97.orbit.util.Fmt.whenShort(g.begin, System.currentTimeMillis()) + when (chosen.size) {
+                    0 -> ""
+                    1 -> " · 1 Foto"
+                    else -> " · ${chosen.size} Fotos"
+                },
             )
             if (g.photos.isNotEmpty()) {
                 MeetPhotoStrip(g.photos, left, onToggle = { id -> left = if (id in left) left - id else left + id })
@@ -309,29 +312,44 @@ private fun acceptMeet(ctx: android.content.Context, card: TodayCard.CalendarMee
     )
     OrbitRepository.edit { d -> io.github.thelony97.orbit.data.Mutations.addEntry(d, id, e) }
     dismiss(g.key)
-    if (photos.isEmpty()) {
-        io.github.thelony97.orbit.ui.components.Undo.offer("Treffen eingetragen") { undoMeet(id, e.id, g.key, emptyList()) }
-        return
+    // Rückgängig right away (W1); photos still being copied are taken back with it.
+    val copied = MeetPhotos()
+    io.github.thelony97.orbit.ui.components.Undo.offer(
+        if (photos.isEmpty()) "Treffen eingetragen" else if (photos.size == 1) "Treffen · 1 Foto" else "Treffen · ${photos.size} Fotos",
+    ) {
+        copied.undone = true
+        undoMeet(id, e.id, g.key, copied.ids, copied.files)
     }
+    if (photos.isEmpty()) return
     // Copying takes a moment: finished even if the list leaves the screen (PLAN 8.2).
     io.github.thelony97.orbit.ui.components.AppWork.launch {
         kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
             val added = io.github.thelony97.orbit.ui.detail.GalleryStore.import(ctx, photos.map { io.github.thelony97.orbit.phonebook.CalendarGhosts.uri(it) })
                 .map { it.copy(contactId = id) }
+            if (copied.undone) {
+                // Taken back while copying: the copies are not referenced anywhere yet.
+                added.forEach { io.github.thelony97.orbit.ui.detail.GalleryStore.delete(it.file) }
+                return@withContext
+            }
             if (added.isEmpty()) return@withContext
+            copied.ids = added.map { it.id }
+            copied.files = added.map { it.file }
             OrbitRepository.update { d -> d.copy(contacts = d.contacts.map { c -> if (c.id == id) c.copy(gallery = added.asReversed() + c.gallery) else c }) }
             io.github.thelony97.orbit.live.AutoCount.bump(ctx, io.github.thelony97.orbit.live.AutoCount.MEET_PHOTOS)
-            val text = if (added.size == 1) "Treffen · 1 Foto" else "Treffen · ${added.size} Fotos"
-            io.github.thelony97.orbit.ui.components.Undo.offer(text) { undoMeet(id, e.id, g.key, added.map { it.id }) }
         }
     }
 }
 
-private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galleryIds: List<String>) {
+/** What an accepted Treffen copied – read by its Rückgängig. */
+private class MeetPhotos {
+    @Volatile var undone = false
+    @Volatile var ids: List<String> = emptyList()
+    @Volatile var files: List<String> = emptyList()
+}
+
+private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galleryIds: List<String>, files: List<String>) {
     io.github.thelony97.orbit.ui.components.AppWork.launch {
         kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-            val files = OrbitRepository.snapshot().contacts.firstOrNull { it.id == contactId }?.gallery.orEmpty()
-                .filter { it.id in galleryIds }.map { it.file }
             OrbitRepository.update { d ->
                 val x = io.github.thelony97.orbit.data.Mutations.deleteEntry(d, contactId, entryId)
                 x.copy(
@@ -391,7 +409,7 @@ private fun MeetThumb(id: Long, modifier: Modifier) {
         }
     }
     val shown by animateFloatAsState(if (bmp != null) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.medium(), label = "thumbIn")
-    Box(modifier.background(Space.PanelHigh)) {
+    Box(modifier.background(Space.TextFaint.copy(alpha = 0.14f))) {
         bmp?.let {
             androidx.compose.foundation.Image(
                 it, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
