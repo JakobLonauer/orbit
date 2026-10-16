@@ -47,6 +47,7 @@
   - `animateFloatAsState` für Winkel → läuft beim Überlauf 355→5 rückwärts; Animatable + kürzester Weg.
   - Zweig `night-wow` (Test-Build per workflow_dispatch) lässt sich nicht löschen (403) – harmlos, liegen lassen.
   - detekt-Compose: Lambda-Parameter im Präsens (`onClose`, `onDiscuss`), Lambdas in LaunchedEffect über `rememberUpdatedState`.
+  - Nacht-Bilanz: v1.0.300 + v1.0.305 veröffentlicht (Zertifikat ok). Geholfen: bei paralleler Tagsitzung nur Review-Funde als eigene fix-Commits beisteuern; eigene größere Arbeit bis zu deren Release auf Arbeitszweig (`night-wow` + workflow_dispatch) bauen, erst danach auf dev. Pro CI-Runde ~7–9 min; Fehler waren fast nur fehlende Importe (Extension-Icons, setValue, ime, setTextAndPlaceCursorAtEnd) → vor Push bei jeder neuen API den Import prüfen. Wow-Review in zwei Runden lohnt (Runde 2 fand harte Schnitte und Licht-Code-Brüche, die Runde 1 nicht nannte).
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.

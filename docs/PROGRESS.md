@@ -24,7 +24,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-C Heute & Live (C1–C5) | **veröffentlicht als v1.0.246** (15.10. ~22:00) | – |
 | 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
-| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300** (16.10. ~02:40) | – |
+| 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
@@ -50,8 +50,10 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
   - [x] 3. Screenshots angesehen (`screen_v3e_*`, `screen_v3f_*`), zwei Wow-Review-Subagenten.
   - [x] 4. Kein Ruckeln: Doppelstern/Erwähnungen/Feld-Geister abseits des Hauptthreads, Animationen in Zeichenphase.
   - [x] 5. Etwa die Hälfte der Nacht Feinschliff.
-- **Nachtrag (nach v1.0.300, eigenes Release):** Geschenk-Karte gleitet beim Ablegen in die Zielspalte, Tick je Spaltengrenze, Kopf der Zielspalte leuchtet, Anheben federt; fehlender Name: Namensfeld scrollt ins Bild und wackelt (Abwehr) statt Hinweissatz; „Keine Kalender-App“ kurz. Code-Review-Subagent: 3 kleine Funde behoben.
+- **Nachtrag veröffentlicht als v1.0.305** (Zertifikat geprüft): Geschenk-Karte gleitet beim Ablegen in die Zielspalte, Tick je Spaltengrenze, Kopf der Zielspalte leuchtet, Anheben federt; fehlender Name: Namensfeld scrollt ins Bild und wackelt (Abwehr) statt Hinweissatz; „Keine Kalender-App“ kurz. Code-Review-Subagent: 3 kleine Funde behoben.
 - **Bewusst offen:** Leerzustand Geschenke ohne Aktion, Ziffern im Rad rollen nicht, E9 Fotos aus dem Termin-Zeitfenster, E14 unzustellbare Mails, E21 Kontaktseite schrumpft beim Zurück zur Zeile, „Bitte einen Namen eingeben“ als Feld-Hinweis statt Text.
+- **Nächster konkreter Schritt:** Gerätetest der neuen Gesten mit Jakob (Rad um den Daumen beim Senden-Halten, Kontakt in der Langdruck-Vorschau auf Gruppe ziehen, Orbit-Zeile Enter); danach die offenen Punkte oben (E21 Zurück schrumpft zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand mit Aktion).
+- **Entscheidungen:** Hinweise ohne Rückgängig laufen über Orbits eigene Leiste, in Dialogen/außerhalb der App weiter als System-Hinweis (sonst gingen sie verloren). „Termin endet → Rückruf-Stapel“ ist jetzt abschaltbar, Standard an (wie bisher). Rad: loslassen ohne Bewegung = nichts planen (verhindert versehentliches Planen).
 
 ### 16.10.2026 nachts (Tagsitzung, Teil 3) – 3.0-D veröffentlicht, 3.0-E fertig
 
