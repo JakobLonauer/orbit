@@ -119,6 +119,10 @@ internal fun MidnightWheelOverlay(
         if (pick?.magnet == true) Space.Orange else Space.Violet,
         androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS), label = "wheelAccent",
     )
+    val accentText by androidx.compose.animation.animateColorAsState(
+        if (pick?.magnet == true) Space.Orange else Space.Text,
+        androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS), label = "wheelText",
+    )
     val r = RADIUS_DP.dp
     Box(modifier.fillMaxSize().background(Space.Void.copy(alpha = 0.55f * open.value))) {
         Box(
@@ -133,10 +137,11 @@ internal fun MidnightWheelOverlay(
                 drawWheel(shownAngle, accent, pick != null)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
+                // The time rolls digit by digit while the thumb turns (PLAN 1.2: Zahlen rollen).
+                io.github.thelony97.orbit.core.designsystem.RollingText(
                     if (pick == null) "–" else SendLater.label(pick.at, now),
-                    style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
-                    color = if (pick?.magnet == true) Space.Orange else Space.Text,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = accentText,
                 )
                 if (pick?.magnet == true && occasion != null) {
                     Text(ReminderPlan.phrase(occasion) { id -> data.contacts.firstOrNull { it.id == id }?.let { Logic.shortName(it) }.orEmpty() },
