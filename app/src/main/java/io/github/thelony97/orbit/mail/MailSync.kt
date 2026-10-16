@@ -264,17 +264,11 @@ object MailSync {
         for (h in candidates) {
             val m = byUid[h.uid] as? MimeMessage ?: continue
             // A broken connection throws on: the chunk is not committed and comes again next run.
-            val text = try {
-                m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) }
-            } catch (e: javax.mail.FolderClosedException) {
-                throw e
-            } catch (e: javax.mail.StoreClosedException) {
-                throw e
-            } catch (e: java.io.IOException) {
-                throw e
-            } catch (e: javax.mail.MessagingException) {
-                continue
-            }
+            // A malformed bounce counts as none.
+            val read = runCatching { m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) } }
+            val err = read.exceptionOrNull()
+            if (err is javax.mail.FolderClosedException || err is javax.mail.StoreClosedException || err is java.io.IOException) throw err
+            val text = read.getOrNull() ?: continue
             for (a in Bounces.failedRecipients(text)) out[a] = maxOf(out[a] ?: 0L, h.at)
         }
         return out

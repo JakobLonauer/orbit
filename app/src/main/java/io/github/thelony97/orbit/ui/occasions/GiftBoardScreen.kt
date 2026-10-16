@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -230,7 +231,7 @@ private fun GiftAddSheet(data: OrbitData, preselected: String?, onDismiss: () ->
                     )
                 }
                 item(key = "more") {
-                    io.github.thelony97.orbit.ui.components.SpaceChip("…", false, { picking = true })
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Andere", false, { picking = true }, leading = androidx.compose.material.icons.Icons.Rounded.Search)
                 }
             }
             Row(Modifier.padding(horizontal = Spacing.Gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {

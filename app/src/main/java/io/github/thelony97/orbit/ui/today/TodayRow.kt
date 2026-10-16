@@ -302,7 +302,7 @@ private fun CalendarMeetGhost(card: TodayCard.CalendarMeet) {
                 MeetPhotoStrip(
                     usable, left,
                     onToggle = { id -> left = if (id in left) left - id else left + id },
-                    onBroken = { id -> broken = broken + id },
+                    onFail = { id -> broken = broken + id },
                 )
             }
         }
@@ -376,7 +376,7 @@ private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galle
  * left-out tile dims and shrinks, a tick answers each tap.
  */
 @Composable
-private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -> Unit, onBroken: (Long) -> Unit) {
+private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -> Unit, onFail: (Long) -> Unit) {
     val haptics = rememberHaptics()
     val shown = ids.take(MEET_TILES)
     Row(
@@ -389,7 +389,7 @@ private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -
                 val k by animateFloatAsState(if (out) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "photoOut")
                 MeetThumb(
                     id,
-                    onBroken = { onBroken(id) },
+                    onFail = { onFail(id) },
                     modifier = Modifier
                         .size(44.dp)
                         .graphicsLayer {
@@ -426,13 +426,14 @@ internal object MeetThumbs {
 
 /** One gallery thumbnail; the exact tile is there at once (Platzhalter in Endform), the picture fades in. */
 @Composable
-private fun MeetThumb(id: Long, onBroken: () -> Unit, modifier: Modifier = Modifier) {
+private fun MeetThumb(id: Long, onFail: () -> Unit, modifier: Modifier = Modifier) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val fail by androidx.compose.runtime.rememberUpdatedState(onFail)
     val bmp by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, id) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { MeetThumbs.load(ctx, id) }.getOrNull()
         }
-        if (value == null) onBroken()
+        if (value == null) fail()
     }
     val shown by animateFloatAsState(if (bmp != null) 1f else 0f, io.github.thelony97.orbit.core.designsystem.Motion.medium(), label = "thumbIn")
     Box(modifier.background(Space.TextFaint.copy(alpha = 0.14f))) {
