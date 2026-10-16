@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +69,9 @@ private fun GiftBoard.Stage.color() = when (this) {
     GiftBoard.Stage.GIVEN -> Space.TextDim
 }
 
+/** Drop hand-over between columns: gift id → where the new card starts (px, relative to its slot). */
+private val arriving = HashMap<String, Offset>()
+
 /** Moves a gift; „Verschenkt“ also writes the Geschenk entry (with its price), Rückgängig takes both back. */
 private fun moveGift(card: GiftBoard.Card, to: GiftBoard.Stage) {
     val from = GiftBoard.stageOf(card.gift)
@@ -104,6 +108,8 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
     var editing by remember { mutableStateOf<GiftBoard.Card?>(null) }
     // The column of a lifted card is drawn on top, so the card glides over its neighbours.
     var liftedColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    // The column a lifted card would land in – its head lights up.
+    var aimColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     SpaceBackground(modifier) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
@@ -122,14 +128,25 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
                     GiftBoard.Stage.entries.forEachIndexed { i, stage ->
                         Column(Modifier.width(colWidth).zIndex(if (liftedColumn == i) 1f else 0f).padding(horizontal = Spacing.XS), verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
                             val list = cols.getValue(stage)
+                            val aimed by androidx.compose.animation.core.animateFloatAsState(
+                                if (aimColumn == i && liftedColumn != i) 1f else 0f, Motion.snappy(), label = "aim",
+                            )
                             Text(
                                 stage.label + if (list.isNotEmpty()) " · ${list.size}" else "",
                                 style = MaterialTheme.typography.labelLarge, color = stage.color(),
-                                modifier = Modifier.padding(vertical = Spacing.S),
+                                modifier = Modifier.padding(vertical = Spacing.S).graphicsLayer {
+                                    val k = 1f + 0.12f * aimed
+                                    scaleX = k
+                                    scaleY = k
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                                },
                             )
                             list.forEach { card ->
                                 key(card.contact.id + card.gift.id) {
-                                    GiftCard(card, stage, i, colWidth.value, card.gift.id in budgetOn, onEdit = { editing = card }, onLift = { up -> liftedColumn = if (up) i else -1 })
+                                    GiftCard(
+                                        card, stage, i, colWidth.value, card.gift.id in budgetOn, onEdit = { editing = card },
+                                        onLift = { up -> liftedColumn = if (up) i else -1; if (!up) aimColumn = -1 }, onAim = { aimColumn = it },
+                                    )
                                 }
                             }
                         }
@@ -168,15 +185,28 @@ private fun GiftEditDialog(card: GiftBoard.Card, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, colWidthDp: Float, showBudget: Boolean, onEdit: () -> Unit, onLift: (Boolean) -> Unit) {
+private fun GiftCard(
+    card: GiftBoard.Card,
+    stage: GiftBoard.Stage,
+    column: Int,
+    colWidthDp: Float,
+    showBudget: Boolean,
+    onEdit: () -> Unit,
+    onLift: (Boolean) -> Unit,
+    onAim: (Int) -> Unit = {},
+) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
-    val drag = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    // A card that was just dropped here starts where the finger let go and glides into its slot (W2).
+    val drag = remember { Animatable(arriving.remove(card.gift.id) ?: Offset.Zero, Offset.VectorConverter) }
+    LaunchedEffect(Unit) { if (drag.value != Offset.Zero) drag.animateTo(Offset.Zero, Motion.snappy()) }
     // The gesture outlives recompositions (keyed by id) – it reads the card as it is now.
     val current by androidx.compose.runtime.rememberUpdatedState(card)
     val currentStage by androidx.compose.runtime.rememberUpdatedState(stage)
     val currentColumn by androidx.compose.runtime.rememberUpdatedState(column)
     var lifted by remember { mutableStateOf(false) }
+    val lift by androidx.compose.animation.core.animateFloatAsState(if (lifted) 1f else 0f, Motion.snappy(), label = "lift")
+    var aim by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val c = card.contact
     Column(
         Modifier
@@ -185,29 +215,41 @@ private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, 
             .graphicsLayer {
                 translationX = drag.value.x
                 translationY = drag.value.y
-                val s = if (lifted) 1.06f else 1f
+                val s = 1f + 0.06f * lift
                 scaleX = s
                 scaleY = s
-                shadowElevation = if (lifted) 16.dp.toPx() else 0f
+                shadowElevation = 16.dp.toPx() * lift
             }
             .pointerInput(card.gift.id) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { haptics.perform(Haptic.Tick); lifted = true; onLift(true) },
+                    onDragStart = { haptics.perform(Haptic.Tick); lifted = true; aim = currentColumn; onLift(true); onAim(currentColumn) },
                     onDragEnd = {
                         val shift = (drag.value.x / (colWidthDp * density)).roundToInt()
-                        val target = GiftBoard.Stage.entries[(currentColumn + shift).coerceIn(0, GiftBoard.Stage.entries.lastIndex)]
+                        val targetIndex = (currentColumn + shift).coerceIn(0, GiftBoard.Stage.entries.lastIndex)
+                        val target = GiftBoard.Stage.entries[targetIndex]
                         lifted = false
                         onLift(false)
-                        if (target != currentStage) haptics.perform(Haptic.Confirm)
-                        scope.launch {
-                            if (target != currentStage) moveGift(current, target)
-                            drag.animateTo(Offset.Zero, Motion.snappy())
+                        if (target != currentStage) {
+                            haptics.perform(Haptic.Confirm)
+                            // The card in the new column takes over from here (x only; its slot height differs).
+                            arriving[current.gift.id] = Offset(drag.value.x - (targetIndex - currentColumn) * colWidthDp * density, 0f)
+                            moveGift(current, target)
+                        } else {
+                            scope.launch { drag.animateTo(Offset.Zero, Motion.snappy()) }
                         }
                     },
                     onDragCancel = { lifted = false; onLift(false); scope.launch { drag.animateTo(Offset.Zero, Motion.snappy()) } },
                 ) { change, amount ->
                     change.consume()
-                    scope.launch { drag.snapTo(drag.value + amount) }
+                    val next = drag.value + amount
+                    // A tick for every column boundary crossed; the aimed column's head lights.
+                    val now = (currentColumn + (next.x / (colWidthDp * density)).roundToInt()).coerceIn(0, GiftBoard.Stage.entries.lastIndex)
+                    if (now != aim) {
+                        aim = now
+                        haptics.perform(Haptic.Tick)
+                        onAim(now)
+                    }
+                    scope.launch { drag.snapTo(next) }
                 }
             }
             .glass(Corners.Row, tint = Space.Panel, border = stage.color().copy(alpha = 0.35f))
