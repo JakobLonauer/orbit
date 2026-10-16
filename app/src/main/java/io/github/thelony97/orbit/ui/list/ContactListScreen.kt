@@ -506,14 +506,16 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
         Box(Modifier.fillMaxSize()) {
         // E19 Dichte: two fingers together = one line per contact, apart = back (remembered).
         val dense = data.settings.listDense
+        // The pinch gesture lives across recompositions: it reads the density as it is now.
+        val denseNow by androidx.compose.runtime.rememberUpdatedState(dense)
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(pullConnection)
                 .pinch(
-                    onOut = { if (!dense) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = true) } } },
-                    onIn = { if (dense) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = false) } } },
+                    onOut = { if (!denseNow) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = true) } } },
+                    onIn = { if (denseNow) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = false) } } },
                 ),
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
