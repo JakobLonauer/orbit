@@ -27,9 +27,19 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 | Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
 | 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht als v1.0.317** (17.10. ~01:00) | – |
-| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte, B3 Beleg-Flug) | in Arbeit (17.10. ab 01:05) | Nachtsitzung |
+| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte) | **veröffentlicht** (17.10. nachts, siehe unten) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 17.10.2026 nachts (Nachtsitzung, Teil 2) – 3.0-H Reste aus dem Plan
+
+- **A13** Orbit-Kalender trägt jetzt auch die Kündigungsfristen der Verträge ein („Bank · Konto kündigen“ am Fristtag, Nummer und Laufzeitende in der Beschreibung); gekündigte/abgelaufene Verträge nicht; neue Laufzeit verschiebt den Termin.
+- **D8** Ankommen auch per bekanntem WLAN: verbindet sich das Handy mit einem WLAN, das bei einem Ort gespeichert ist (gleicher Name), erscheint die Ankommen-Insel; ein WLAN-Besuch endet beim nächsten fremden WLAN, ein Geofence-Besuch weiter am Zaun. Nur wenn Ankommen an ist.
+- **E19** Kontaktliste: zwei Finger zusammen = dicht (kleinere Planeten, eine Zeile, Buchstabenköpfe enger), auseinander = normal; gemerkt (`listDense`).
+- Banner auf Tokens (Rinne 16, Karte 20, Abstände 12).
+- **Prüfungen:** Code-Review-Subagent (1 Fund: Kneifen konnte nicht zurückschalten – behoben), Wow-Review-Subagent (Köpfe ziehen nicht mit, Fingerwechsel, Kalendertitel – behoben; „Termin buchen“/Ich-Karte im dichten Modus bleiben bewusst gleich), Unit-Tests `CalendarSyncTest.contractDeadlines`, `ArrivalTest.byKnownWifi`, Screenshot `screen_v3g_list_dense`.
+- **Wow-Gate 3.0-H:** [x] Momente (Dichte gleitet, Tick beim Umschalten) · [x] berührte Screens gegen W1–W9 (Kontaktliste, Banner) · [x] Screenshots + Wow-Review · [x] kein Ruckeln (WLAN-Empfänger nur mit gespeichertem WLAN und Ankommen an) · [x] Feinschliff-Runde.
+- **Bewusst offen (KANN):** B3 Beleg-Flug der Rückruf-Karte in den Verlauf (braucht den Anrufbildschirm am Gerät), Diktat-Morph aus der Kontaktseite.
 
 ### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
 
