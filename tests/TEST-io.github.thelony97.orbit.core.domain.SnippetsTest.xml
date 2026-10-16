@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.SnippetsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-16T00:32:20.122Z" hostname="runnervm8k3b6" time="0.01">
+  <properties/>
+  <testcase name="anrede" classname="io.github.thelony97.orbit.core.domain.SnippetsTest" time="0.002"/>
+  <testcase name="fillsPerContact" classname="io.github.thelony97.orbit.core.domain.SnippetsTest" time="0.0"/>
+  <testcase name="slashFinds" classname="io.github.thelony97.orbit.core.domain.SnippetsTest" time="0.004"/>
+  <testcase name="missingValueDropsCleanly" classname="io.github.thelony97.orbit.core.domain.SnippetsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

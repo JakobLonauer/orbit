@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.HeroldTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-16T00:32:19.196Z" hostname="runnervm8k3b6" time="0.04">
+  <properties/>
+  <testcase name="numbers" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.007"/>
+  <testcase name="microdataInAnyAttributeOrder" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.011"/>
+  <testcase name="otherNumbersAreNoHit" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.0"/>
+  <testcase name="jsonLd" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.003"/>
+  <testcase name="headingAroundTheTelLink" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.003"/>
+  <testcase name="vcardLinkOnThePage" classname="io.github.thelony97.orbit.core.domain.HeroldTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

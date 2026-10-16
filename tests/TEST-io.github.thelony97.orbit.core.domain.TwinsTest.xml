@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.TwinsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-16T00:32:20.252Z" hostname="runnervm8k3b6" time="0.029">
+  <properties/>
+  <testcase name="mergeKeepsOrganisationFieldsOfTheOtherOne" classname="io.github.thelony97.orbit.core.domain.TwinsTest" time="0.01"/>
+  <testcase name="findsByNumberMailAndNameBirthday" classname="io.github.thelony97.orbit.core.domain.TwinsTest" time="0.013"/>
+  <testcase name="mergeKeepsEverythingAndMovesReferences" classname="io.github.thelony97.orbit.core.domain.TwinsTest" time="0.002"/>
+  <testcase name="archivedContactsAreNeverTwins" classname="io.github.thelony97.orbit.core.domain.TwinsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

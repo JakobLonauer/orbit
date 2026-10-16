@@ -1,0 +1,2 @@
+tests/TEST-io.github.thelony97.orbit.AppSmokeTest.xml
+tests/TEST-io.github.thelony97.orbit.links.RealPhotosTest.xml

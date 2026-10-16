@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.GreetingsTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-16T00:32:19.153Z" hostname="runnervm8k3b6" time="0.039">
+  <properties/>
+  <testcase name="duUsesFirstNameSieTheFullName" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.009"/>
+  <testcase name="oldDataHasNoGreetingAndGreetsAsBefore" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.012"/>
+  <testcase name="unknownLanguageAndMissingNames" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.001"/>
+  <testcase name="greetingRoundTrips" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.011"/>
+  <testcase name="languageChipCycles" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.0"/>
+  <testcase name="everyLanguageHasBothForms" classname="io.github.thelony97.orbit.core.domain.GreetingsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

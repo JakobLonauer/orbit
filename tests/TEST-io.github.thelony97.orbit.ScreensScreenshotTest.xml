@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensScreenshotTest" tests="48" skipped="0" failures="0" errors="0" timestamp="2026-10-16T03:49:49.598Z" hostname="runnervm8k3b6" time="40.108">
+  <properties/>
+  <testcase name="startMoment" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="3.339"/>
+  <testcase name="firstStartMe" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.844"/>
+  <testcase name="storage" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.389"/>
+  <testcase name="shareSheet" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.935"/>
+  <testcase name="homeOccasionsTab" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.81"/>
+  <testcase name="callArchived" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.795"/>
+  <testcase name="emptyHome" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.525"/>
+  <testcase name="phoneImport" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.903"/>
+  <testcase name="memberPage" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.873"/>
+  <testcase name="occasionsAll" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.69"/>
+  <testcase name="previewCard" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.83"/>
+  <testcase name="fullDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.843"/>
+  <testcase name="birthdays" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.428"/>
+  <testcase name="meCard" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.833"/>
+  <testcase name="callEnded" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.799"/>
+  <testcase name="callPickSim" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.808"/>
+  <testcase name="qrCode" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.56"/>
+  <testcase name="archive" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.601"/>
+  <testcase name="callUnknown" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.109"/>
+  <testcase name="firstStartPeople" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.998"/>
+  <testcase name="photosPage" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.736"/>
+  <testcase name="orbitFillsSettling" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.659"/>
+  <testcase name="archivedDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.858"/>
+  <testcase name="contactListSelecting" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.752"/>
+  <testcase name="homeVerlauf" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.055"/>
+  <testcase name="home" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.974"/>
+  <testcase name="contactList" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.726"/>
+  <testcase name="callIncoming" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.631"/>
+  <testcase name="contactDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.918"/>
+  <testcase name="callBluetoothAndBirthday" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.687"/>
+  <testcase name="emptyVerlauf" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.863"/>
+  <testcase name="longNameDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.975"/>
+  <testcase name="settingsArea" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.496"/>
+  <testcase name="callSms" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.67"/>
+  <testcase name="callWaiting" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.622"/>
+  <testcase name="birthdayDialog" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.63"/>
+  <testcase name="callActive" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.489"/>
+  <testcase name="callDialing" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.593"/>
+  <testcase name="cropPhoto" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.448"/>
+  <testcase name="orgDetail" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.525"/>
+  <testcase name="settings" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.384"/>
+  <testcase name="verlaufTab" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.465"/>
+  <testcase name="callIncomingLocked" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.637"/>
+  <testcase name="dialpadEmpty" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="1.06"/>
+  <testcase name="occasionDialog" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.532"/>
+  <testcase name="occasionFilter" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.532"/>
+  <testcase name="dialpad" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.464"/>
+  <testcase name="orbitFillsInFlight" classname="io.github.thelony97.orbit.ScreensScreenshotTest" time="0.709"/>
+  <system-out><![CDATA[Roborazzi: View.captureToImage Could not find window for view. Falling back to View#draw instead of PixelCopy(If you are using Material3 dialogs, this is expected).
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

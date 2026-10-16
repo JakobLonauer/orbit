@@ -1,0 +1,2 @@
+run 308 sha 499cef82e767a12ae4afc3d07e67c3185f888aa1 outcome failure
+branch check-alte-fotos

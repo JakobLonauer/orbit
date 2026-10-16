@@ -1,0 +1,81 @@
+AppSmokeTest > everyContactEditsAndDiscards FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+AppSmokeTest > pagePartsWorkAsIntended FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+AppSmokeTest > everyContactOpensAndScrolls FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+RealPhotosTest > brokenPictureIsNoCrash FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+RealPhotosTest > brokenNetworkIsNoCrash FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+RealPhotosTest > smallPictureIsNotOffered FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+RealPhotosTest > nothingFoundIsNoCrash FAILED
+    java.lang.NullPointerException
+        at java.base/java.util.concurrent.ConcurrentHashMap.putVal(ConcurrentHashMap.java:1011)
+        at java.base/java.util.concurrent.ConcurrentHashMap.put(ConcurrentHashMap.java:1006)
+        at io.github.thelony97.orbit.links.RealPhotos$find$2.invokeSuspend(RealPhotos.kt:64)
+        at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+        at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+--
+> Task :app:testDebugUnitTest FAILED
+> Task :app:finalizeTestRoborazziDebug
+> Task :app:mergeReleaseComposeMapping
+> Task :app:compileReleaseArtProfile
+> Task :app:convertShrunkResourcesToBinaryRelease
+> Task :app:optimizeReleaseResources
+> Task :app:packageRelease
+--
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///home/runner/work/orbit/orbit/app/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+* Exception is:
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:testDebugUnitTest'.
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:135)
+	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:288)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:133)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:121)
+	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
+	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
