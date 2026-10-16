@@ -12,6 +12,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.sun.mail.imap.IMAPFolder
+import io.github.thelony97.orbit.core.domain.Bounces
 import io.github.thelony97.orbit.core.domain.MailBundle
 import io.github.thelony97.orbit.core.domain.Matcher
 import io.github.thelony97.orbit.core.model.MailRef
@@ -66,6 +67,8 @@ object MailSync {
     private const val BATCH = 10
     private const val CHUNK = 150
     private const val ACCOUNT_BUDGET_MS = 90_000L
+    /** A bounce's report sits near the top; the returned original is not needed. */
+    private const val BOUNCE_BYTES = 64 * 1024
 
     @Serializable
     data class FolderState(val uidValidity: Long, val lastUid: Long)
@@ -210,12 +213,31 @@ object MailSync {
         return false
     }
 
-    /** Entries first (saved to disk), then the sync state – never the other way round. */
-    private suspend fun commit(ctx: Context, headers: List<MailBundle.Header>, own: Set<String>, match: (String) -> MailBundle.Owner?, change: (State) -> State) {
+    /**
+     * Entries first (saved to disk), then the sync state – never the other way round. New mails
+     * ([fresh]) also keep the dead addresses current (PLAN 9 E14): [failed] from bounces marks an
+     * address, a newer mail from it takes the mark away.
+     */
+    private suspend fun commit(
+        ctx: Context,
+        headers: List<MailBundle.Header>,
+        own: Set<String>,
+        match: (String) -> MailBundle.Owner?,
+        fresh: Boolean = false,
+        failed: Map<String, Long> = emptyMap(),
+        change: (State) -> State,
+    ) {
         val refs = headers.flatMap { MailBundle.owners(it, own, match) }.groupBy({ it.first.contactId }, { it.first.memberId to it.second })
-        if (refs.isNotEmpty()) {
+        val heard = if (!fresh) emptyMap()
+        else headers.filter { it.from.contains('@') && !Bounces.isBounce(it.from, it.subject) }
+            .groupBy({ it.from.trim().lowercase() }, { it.at }).mapValues { (_, at) -> at.max() }.filterKeys { it !in own }
+        // Only write when something changes: most new mails touch no dead address.
+        val deadMoves = (failed.isNotEmpty() || heard.isNotEmpty()) &&
+            OrbitRepository.snapshot().contacts.any { Bounces.apply(it, failed, heard) !== it }
+        if (refs.isNotEmpty() || deadMoves) {
             OrbitRepository.update { d ->
-                d.copy(contacts = d.contacts.map { c ->
+                d.copy(contacts = d.contacts.map { c0 ->
+                    val c = if (deadMoves) Bounces.apply(c0, failed, heard) else c0
                     val mine = refs[c.id] ?: return@map c
                     val changed = MailBundle.merge(c, mine, zone(), ::newId)
                     if (changed.isEmpty()) c
@@ -228,6 +250,23 @@ object MailSync {
             OrbitRepository.flush()
         }
         save(ctx, change(load(ctx)))
+    }
+
+    /**
+     * Bounces among new mails (PLAN 9 E14, fixed rules in [Bounces]): failed address → time of the
+     * bounce. Only the first [BOUNCE_BYTES] of a bounce are read; a mail that cannot be read counts as none.
+     */
+    private fun bouncesOf(folder: IMAPFolder, chunk: List<Message>, headers: List<MailBundle.Header>): Map<String, Long> {
+        val candidates = headers.filter { Bounces.isBounce(it.from, it.subject) }
+        if (candidates.isEmpty()) return emptyMap()
+        val byUid = chunk.associateBy { folder.getUID(it) }
+        val out = HashMap<String, Long>()
+        for (h in candidates) {
+            val m = byUid[h.uid] as? MimeMessage ?: continue
+            val text = runCatching { m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) } }.getOrNull() ?: continue
+            for (a in Bounces.failedRecipients(text)) out[a] = maxOf(out[a] ?: 0L, h.at)
+        }
+        return out
     }
 
     private suspend fun syncAccount(
@@ -269,7 +308,8 @@ object MailSync {
                         for (chunk in fresh.chunked(CHUNK)) {
                             val headers = headersOf(a, folder, validity, chunk.toTypedArray())
                             val top = chunk.maxOf { folder.getUID(it) }
-                            commit(ctx, headers, own, match) { s ->
+                            val failed = runCatching { bouncesOf(folder, chunk, headers) }.getOrDefault(emptyMap())
+                            commit(ctx, headers, own, match, fresh = true, failed = failed) { s ->
                                 val cur = s.folders[fkey] ?: st
                                 s.copy(folders = s.folders + (fkey to cur.copy(lastUid = maxOf(cur.lastUid, top))))
                             }
