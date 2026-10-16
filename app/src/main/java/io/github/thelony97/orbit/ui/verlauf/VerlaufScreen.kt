@@ -229,7 +229,7 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
         if (kinds.size > 1) {
             item(key = "kinds") {
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+                    Modifier.animateItem().fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SpaceChip("Alle", typeFilter == null, { typeFilter = null })
@@ -271,7 +271,8 @@ fun VerlaufScreen(data: OrbitData, idx: Index, nav: Nav) {
                         dayHeader(day, todayDate),
                         style = MaterialTheme.typography.labelLargeEmphasized,
                         color = if (day == todayDate) Space.Teal else Space.TextDim,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                        // Moves with its rows on a filter or search change instead of snapping (W2).
+                        modifier = Modifier.animateItem().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
                     )
                 }
             }

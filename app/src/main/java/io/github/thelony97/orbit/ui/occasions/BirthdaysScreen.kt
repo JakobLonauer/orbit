@@ -185,7 +185,14 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 io.github.thelony97.orbit.ui.components.SpaceChip("Geburtstage", shown == 0, { reiter = 0 }, accent = Space.Coral)
-                if (hasPinned) io.github.thelony97.orbit.ui.components.SpaceChip("Angepinnt", shown == 1, { reiter = 1 }, accent = Space.Coral)
+                // Pinning the first occasion slides the chip in; „Alle Anlässe“ glides aside (W2).
+                androidx.compose.animation.AnimatedVisibility(
+                    hasPinned,
+                    enter = androidx.compose.animation.expandHorizontally(io.github.thelony97.orbit.core.designsystem.Motion.medium()) + androidx.compose.animation.fadeIn(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
+                    exit = androidx.compose.animation.shrinkHorizontally(io.github.thelony97.orbit.core.designsystem.Motion.medium()) + androidx.compose.animation.fadeOut(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
+                ) {
+                    io.github.thelony97.orbit.ui.components.SpaceChip("Angepinnt", shown == 1, { reiter = 1 }, accent = Space.Coral)
+                }
                 io.github.thelony97.orbit.ui.components.SpaceChip("Alle Anlässe", shown == 2, { reiter = 2 }, accent = Space.Coral)
             }
         }
@@ -194,7 +201,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 // W6: one way on – drop the quick filters if they emptied the list.
                 val filtered = view.filter(false) != io.github.thelony97.orbit.core.domain.OccasionList.Filter()
                 io.github.thelony97.orbit.ui.components.EmptyHint(
-                    "Keine Anlässe", "",
+                    "Keine Anlässe", "", modifier = Modifier.animateItem(),
                     action = if (filtered) "Alle zeigen" to { viewState = view.copy(kinds = emptySet(), groupId = null, withinDays = null, onlyRound = false) } else null,
                 )
             }
@@ -204,7 +211,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                         g.title,
                         style = MaterialTheme.typography.labelLargeEmphasized,
                         color = if (g.title == "Heute") Space.Orange else Space.TextDim,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                        modifier = Modifier.animateItem().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
                     )
                 }
                 g.rows.forEach { u ->
@@ -231,7 +238,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                     g.title,
                     style = MaterialTheme.typography.labelLargeEmphasized,
                     color = if (g.section == BirthdayTab.Section.TODAY) Space.Orange else Space.TextDim,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                    modifier = Modifier.animateItem().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
                 )
             }
             g.rows.forEach { r ->
@@ -295,7 +302,7 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
         if (shown == 0 && result.withoutBirthday > 0) {
             item(key = "without") {
                 // Looks like what it is: a way in (chip with „+“ as on the contact page), not a footnote.
-                androidx.compose.foundation.layout.Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
+                androidx.compose.foundation.layout.Box(Modifier.animateItem().padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
                     io.github.thelony97.orbit.ui.components.SpaceChip(
                         if (result.withoutBirthday == 1) "1 Kontakt ohne Geburtstag" else "${result.withoutBirthday} Kontakte ohne Geburtstag",
                         filling,

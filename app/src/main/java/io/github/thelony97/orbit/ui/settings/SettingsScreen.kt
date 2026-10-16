@@ -92,6 +92,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -189,7 +190,9 @@ fun SettingsGroup(title: String, status: String? = null, content: @Composable Co
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .glass(RoundedCornerShape(20.dp)),
+            .glass(RoundedCornerShape(20.dp))
+            // Rows that a switch brings or takes glide in and out (W2) – nothing below jumps.
+            .animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.medium()),
         content = content,
     )
 }
@@ -444,9 +447,11 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                 val breath = if (saver) null else io.github.thelony97.orbit.ui.components.rememberBreath()
                 Column(
                     Modifier
+                        .animateItem()
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .glass(RoundedCornerShape(20.dp), tint = Space.Panel, border = Space.Coral.copy(alpha = 0.5f))
+                        .animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.medium())
                         .drawBehind {
                             val a = 0.10f + 0.12f * (breath?.value ?: 0.5f)
                             drawRoundRect(

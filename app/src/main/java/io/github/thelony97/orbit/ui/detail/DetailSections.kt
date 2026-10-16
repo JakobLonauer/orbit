@@ -121,8 +121,8 @@ fun Checklist(
             input.clearText()
         }
     }
-    Column(Modifier.animateContentSize()) {
-        open.forEach { item -> CheckRow(item, onToggle, onDelete, onDate) }
+    Column(Modifier.animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.medium())) {
+        open.forEach { item -> androidx.compose.runtime.key(item.id) { CheckRow(item, onToggle, onDelete, onDate) } }
         SpaceSearchField(
             state = input,
             placeholder = placeholder,
@@ -147,7 +147,8 @@ fun Checklist(
                 Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                // The count rolls when a topic is ticked (PLAN 1.2: Zahlen rollen).
+                io.github.thelony97.orbit.core.designsystem.RollingText(
                     (if (showDone) "▾ " else "▸ ") + "${done.size} $doneLabel",
                     style = MaterialTheme.typography.labelLarge,
                     color = Space.TextDim,
@@ -163,7 +164,7 @@ fun Checklist(
                     )
                 }
             }
-            if (showDone) done.forEach { item -> CheckRow(item, onToggle, onDelete) }
+            if (showDone) done.forEach { item -> androidx.compose.runtime.key(item.id) { CheckRow(item, onToggle, onDelete) } }
         }
     }
 }
@@ -193,7 +194,10 @@ private fun CheckRow(
             )
             .padding(vertical = 4.dp),
     ) {
-        CheckDot(item.done, { onToggle(item) })
+        CheckDot(item.done, {
+            haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
+            onToggle(item)
+        })
         Spacer(Modifier.width(10.dp))
         Text(
             item.text,
@@ -215,7 +219,10 @@ private fun CheckRow(
         Icon(
             Icons.Rounded.Close, "Löschen",
             tint = Space.TextFaint,
-            modifier = Modifier.size(26.dp).clip(CircleShape).clickable { onDelete(item) }.padding(5.dp),
+            modifier = Modifier.size(26.dp).clip(CircleShape).clickable {
+                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                onDelete(item)
+            }.padding(5.dp),
         )
     }
     if (picking && onDate != null) {
