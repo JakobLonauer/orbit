@@ -342,7 +342,8 @@ class AppSmokeTest {
     /** The 3.0 parts of a page do what they promise: Erwähnt, Geister aus SMS, a note from the Faden. */
     @Test fun pagePartsWorkAsIntended() {
         open("tom")
-        waitFor("„Erwähnt“ bei Tom") { runCatching { page().performScrollToNode(hasText("Erwähnt", substring = true)) }.isSuccess }
+        // Section titles are shown in capitals.
+        waitFor("„Erwähnt“ bei Tom") { runCatching { page().performScrollToNode(hasText("Erwähnt", substring = true, ignoreCase = true)) }.isSuccess }
         home()
         open("anna")
         waitFor("Geist aus Annas SMS") { runCatching { page().performScrollToNode(hasText("0664 9876543")) }.isSuccess }

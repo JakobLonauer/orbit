@@ -103,6 +103,12 @@ android {
 tasks.withType<Test>().configureEach {
     // Real hardware-accelerated rendering in Robolectric (blur, shadows, RenderEffect).
     systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+    // A failing test shows its message in the CI log (ci-log-*/build.log), not only its line.
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStackTraces = true
+    }
 }
 
 dependencies {
