@@ -347,12 +347,13 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                     if (landed != null) {
                         // Moment: the chips drop into the row, which flares; Confirm on the landing.
                         landing = true
-                        Session.flash = landed
                         lineScope.launch {
                             try {
+                                // The chips hit the row: flare and Confirm in the same frame.
                                 kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                                Session.flash = landed
                                 haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Confirm)
-                                kotlinx.coroutines.delay(Motion.MEDIUM_MS.toLong())
+                                kotlinx.coroutines.delay(Motion.FAST_MS.toLong())
                                 search.clearText()
                                 landing = false
                                 // Let the row's flare run out before the flag goes (it would cancel the fade).
@@ -868,8 +869,8 @@ private fun ContactRow(
     val flashing = Session.flash == contact.id
     androidx.compose.runtime.LaunchedEffect(flashing) {
         if (flashing) {
-            afterglow.animateTo(1f, tween(Motion.FAST_MS))
-            afterglow.animateTo(0f, tween(Motion.MAX_MS))
+            afterglow.animateTo(1f, tween(100))
+            afterglow.animateTo(0f, tween(Motion.MEDIUM_MS, easing = Motion.Exit))
         }
     }
     val scope = rememberCoroutineScope()

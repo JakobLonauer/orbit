@@ -64,7 +64,8 @@ import kotlin.math.roundToInt
 private fun GiftBoard.Stage.color() = when (this) {
     GiftBoard.Stage.IDEA -> Space.Violet
     GiftBoard.Stage.BOUGHT -> Space.Orange
-    GiftBoard.Stage.GIVEN -> Space.Teal
+    // Licht-Code: given is done – quiet, never Teal (= läuft).
+    GiftBoard.Stage.GIVEN -> Space.TextDim
 }
 
 /** Moves a gift; „Verschenkt“ also writes the Geschenk entry (with its price), Rückgängig takes both back. */
@@ -219,7 +220,8 @@ private fun GiftCard(card: GiftBoard.Card, stage: GiftBoard.Stage, column: Int, 
             Text(Logic.shortName(c), style = MaterialTheme.typography.labelMedium, color = Space.TextDim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(card.gift.text, style = MaterialTheme.typography.bodyMedium, color = Space.Text, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        card.gift.priceCents?.let { Text(Jobs.format(it), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = stage.color()) }
+        // Prices are costs: Orange in every column.
+        card.gift.priceCents?.let { Text(Jobs.format(it), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = Space.Orange.copy(alpha = 0.85f)) }
         // Budget = Kosten (Licht-Code Orange): quiet while under, full once over.
         if (showBudget) GiftBoard.budgetLine(c)?.let { (line, over) ->
             Text(line, style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"), color = if (over) Space.Orange else Space.Orange.copy(alpha = 0.6f))

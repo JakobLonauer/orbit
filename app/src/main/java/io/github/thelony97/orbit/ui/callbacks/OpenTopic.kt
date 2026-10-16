@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,6 +116,7 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
     val top = depth == 0
     val canCall = t.contact.phones.any { it.value.isNotBlank() }
     // Swipe right and the right icon do the same; swipe left and the check do the same.
+    var width by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val go = {
         haptics.perform(Haptic.Confirm)
         if (canCall) ContactActions.call(ctx, t.contact, null, data.settings) else nav.open(Route.Detail(t.contact.id))
@@ -124,10 +126,25 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
         setDone(t, true)
         Undo.offer("Besprochen") { setDone(t, false) }
     }
+    // The buttons take the same path as the swipe: the card leaves first, then the action runs.
+    val doneByButton: () -> Unit = {
+        scope.launch {
+            drag.animateTo(-width * 1.3f, tween(Motion.FAST_MS, easing = Motion.Exit))
+            done()
+        }
+    }
+    val goByButton: () -> Unit = {
+        scope.launch {
+            drag.animateTo(width * 0.4f, tween(Motion.FAST_MS, easing = Motion.Exit))
+            drag.animateTo(0f, Motion.snappy())
+            go()
+        }
+    }
 
     Box(
         Modifier
             .fillMaxWidth()
+            .onSizeChanged { width = it.width.toFloat() }
             .graphicsLayer {
                 translationY = lift * with(density) { 16.dp.toPx() }
                 val s = 1f - 0.05f * lift
@@ -138,14 +155,14 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
                 rotationZ = drag.value / 60f
             }
             .then(
-                if (!top) Modifier else Modifier.stackSwipe(t.topic.id, drag, scope, onRight = { go() }, onLeft = { done() }),
+                if (!top) Modifier else Modifier.stackSwipe(t.topic.id, drag, scope, onRight = { go() }, onLeft = { done() }, onThreshold = { haptics.perform(Haptic.Threshold) }),
             )
             .background(Space.Deep, Corners.Card)
             .glass(Corners.Card, tint = Space.PanelHigh, border = Space.Line)
             .clickable(enabled = top) { nav.open(Route.Detail(t.contact.id)) }
             .padding(Spacing.L),
     ) {
-        TopicCardContent(t, idx, canCall, top, onDone = { done() }, onGo = { go() })
+        TopicCardContent(t, idx, canCall, top, onDone = doneByButton, onGo = goByButton)
     }
 }
 
@@ -176,8 +193,10 @@ private fun Modifier.stackSwipe(
     scope: kotlinx.coroutines.CoroutineScope,
     onRight: () -> Unit,
     onLeft: () -> Unit,
+    onThreshold: () -> Unit = {},
 ): Modifier = pointerInput(key) {
     val limit = size.width * 0.32f
+    var past = false
     detectHorizontalDragGestures(
         onDragEnd = {
             scope.launch {
@@ -197,7 +216,14 @@ private fun Modifier.stackSwipe(
         onDragCancel = { scope.launch { drag.animateTo(0f, Motion.snappy()) } },
     ) { change, delta ->
         change.consume()
-        scope.launch { drag.snapTo(drag.value + delta) }
+        val next = drag.value + delta
+        // Einrasten when the swipe crosses the line where letting go acts.
+        val beyond = kotlin.math.abs(next) > limit
+        if (beyond != past) {
+            past = beyond
+            if (beyond) onThreshold()
+        }
+        scope.launch { drag.snapTo(next) }
     }
 }
 

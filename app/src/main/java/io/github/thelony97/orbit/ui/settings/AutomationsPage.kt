@@ -78,7 +78,7 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
             SettingItem(
                 Icons.Rounded.EventBusy, "Verpasst im Termin → SMS",
                 subtitle = (busyGroups.joinToString(" · ") { it.name }.ifBlank { "Alle" }) + " · " + ran(counts.getValue(AutoCount.BUSY_SMS)),
-                iconTint = Space.Teal,
+                iconTint = if (s.autoBusySms) Space.Teal else Space.TextDim,
                 trailing = { SpaceSwitch(s.autoBusySms) { v -> setBusy(v) } },
             )
             if (s.autoBusySms && data.groups.isNotEmpty()) BusyGroups(data)
@@ -86,14 +86,14 @@ fun AutomationsPage(data: OrbitData, onGroups: () -> Unit, modifier: Modifier = 
             SettingItem(
                 Icons.Rounded.Call, "Termin endet → Rückruf-Stapel",
                 subtitle = ran(counts.getValue(AutoCount.NUDGE)),
-                iconTint = Space.Teal,
+                iconTint = if (s.callbackNudge) Space.Teal else Space.TextDim,
                 trailing = { SpaceSwitch(s.callbackNudge) { v -> setNudge(v) } },
             )
             Hairline()
             SettingItem(
                 Icons.Rounded.Bedtime, "Unbekannt nachts → stumm",
                 subtitle = (if (s.screening) "22–7 Uhr" else "Anruf-Filter aus") + " · " + ran(counts.getValue(AutoCount.SCREEN)),
-                iconTint = Space.Coral,
+                iconTint = if (s.screening && s.screenNight) Space.Coral else Space.TextDim,
                 // Without the call filter the rule cannot run – the switch shows off, not a dimmed „on“.
                 trailing = { SpaceSwitch(s.screening && s.screenNight, enabled = s.screening) { v -> OrbitRepository.editSettings { it.copy(screenNight = v) } } },
             )

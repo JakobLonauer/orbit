@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -65,7 +66,16 @@ internal fun wheelPick(c: Contact, data: OrbitData, now: LocalDateTime, center: 
  * centre cancels. Pure display – the gesture lives on the send orb.
  */
 @Composable
-internal fun MidnightWheelOverlay(c: Contact, data: OrbitData, center: Offset, finger: Offset, modifier: Modifier = Modifier, start: Offset = finger + Offset(1e6f, 0f)) {
+internal fun MidnightWheelOverlay(
+    c: Contact,
+    data: OrbitData,
+    center: Offset,
+    finger: Offset,
+    modifier: Modifier = Modifier,
+    start: Offset = finger + Offset(1e6f, 0f),
+    closing: Boolean = false,
+    onClosed: () -> Unit = {},
+) {
     val haptics = rememberHaptics()
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     val now = remember { LocalDateTime.now(zone()) }
@@ -82,7 +92,24 @@ internal fun MidnightWheelOverlay(c: Contact, data: OrbitData, center: Offset, f
         }
     }
     val open = remember { androidx.compose.animation.core.Animatable(0f) }
-    androidx.compose.runtime.LaunchedEffect(Unit) { open.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy()) }
+    androidx.compose.runtime.LaunchedEffect(closing) {
+        if (closing) {
+            // Letting go: the wheel sinks away (150 ms) instead of vanishing in one frame.
+            open.animateTo(0f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Exit))
+            onClosed()
+        } else {
+            open.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
+        }
+    }
+    // The hand is pulled in by the magnet (spring) and the colour turns with it.
+    val shownAngle by androidx.compose.animation.core.animateFloatAsState(
+        if (pick?.magnet == true) 360f else SendLater.angleOf(minute),
+        io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "wheelAngle",
+    )
+    val accent by androidx.compose.animation.animateColorAsState(
+        if (pick?.magnet == true) Space.Orange else Space.Violet,
+        androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS), label = "wheelAccent",
+    )
     val r = RADIUS_DP.dp
     Box(modifier.fillMaxSize().background(Space.Void.copy(alpha = 0.55f * open.value))) {
         Box(
@@ -94,7 +121,7 @@ internal fun MidnightWheelOverlay(c: Contact, data: OrbitData, center: Offset, f
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 drawCircle(Space.PanelHigh.copy(alpha = 0.92f), size.minDimension / 2f)
-                drawWheel(if (pick?.magnet == true) 360f else SendLater.angleOf(minute), pick?.magnet == true, pick != null)
+                drawWheel(shownAngle, accent, pick != null)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -117,10 +144,9 @@ private fun angleAt(p: Offset, center: Offset): Float {
     return (deg + 360f) % 360f
 }
 
-private fun DrawScope.drawWheel(angle: Float, magnet: Boolean, active: Boolean) {
+private fun DrawScope.drawWheel(angle: Float, accent: androidx.compose.ui.graphics.Color, active: Boolean) {
     val r = size.minDimension / 2 - 18.dp.toPx()
     // Licht-Code: a time is no running thing – Violet to pick, Orange on the magnet (Anlass).
-    val accent = if (magnet) Space.Orange else Space.Violet
     drawCircle(Space.TextFaint.copy(alpha = 0.18f), r, style = Stroke(10.dp.toPx()))
     for (h in 0 until HOURS) {
         val a = (h * 360f / HOURS - 90f) * PI.toFloat() / 180f

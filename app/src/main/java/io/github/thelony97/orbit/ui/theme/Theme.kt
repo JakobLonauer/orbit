@@ -39,6 +39,8 @@ object Space {
     val Orange = Color(0xFFFFB45E)
     val Teal = Color(0xFF5EE6CF)
     val Coral = Color(0xFFFF6B81)
+    /** The WhatsApp way (reply line, quick actions) – recognisable, never a Licht-Code colour. */
+    val WhatsApp = Color(0xFF3DDC84)
     val Blue = Color(0xFF6FB7FF)
 }
 
