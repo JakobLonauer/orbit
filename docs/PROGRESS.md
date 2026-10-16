@@ -25,8 +25,17 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-D Akten & Meine Dienste (D1–D8) | **veröffentlicht als v1.0.256** (15.10. ~23:00) | – |
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
+| Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
+
+### 16.10.2026 früh – Hotfix: Kontaktseiten öffnen wieder (v1.0.310)
+
+- **Jakob 16.10.:** „Ich kann keinen einzigen meiner Kontakte mehr in der Orbit App öffnen. Bitte teste den gesamten Build nochmal auf Fehler, bzw. ob alles auch wirklich so funktioniert wie beabsichtigt.“ Danach ein 4-seitiges PDF der neuen Funktionen.
+- **Ursache:** E16 Echte Bilder – `RealPhotos.find` legte „nichts gefunden“ als `null` in eine `ConcurrentHashMap` → NullPointerException auf jeder Kontaktseite ohne Foto (seit v1.0.282). Die Screenshot-Tests nahmen den Weg nie, weil `Build.FINGERPRINT == "robolectric"` das Netz abschaltete.
+- **Fix:** Map ohne null (`asked`/`found`), jeder Fehler = kein Bild, Dekodieren mit BitmapFactory als zweitem Weg. Neu `util/quietly()`: Extras einer Seite (Echtes Bild, Erwähnt, Geister aus SMS, Messenger, Rückrufe, Kalender-Brücke, Doppelsterne, Logos, Mail-Abgleich, gefilterte Anrufe) und die 3.0-Startschritte in `OrbitApp` reißen nichts mehr mit; Fehler landen im Fehlerprotokoll (`ErrorLog.shared`).
+- **Tests:** `RealPhotosTest` (Netz per `RealPhotos.offline/fetch` gefälscht: nichts gefunden, Netzfehler, kaputtes Bild, groß/klein, Organisation, mit Foto). `AppSmokeTest` durch die echte `MainActivity`: alle Berechtigungen erteilt, WorkManager als stummer Stub, Netz für Bilder an, gemischte und schräge Daten (kaputte Daten, fehlende Typen, verwaiste Beziehung, Papierkorb, Archiv, Organisation mit Verträgen/Makros/Mitarbeitern); jeder Kontakt geöffnet und bis zum Ende gescrollt, bearbeitet und verworfen; Tabs, alle sechs Einstellungsbereiche, Kurzbefehle (Rückrufe, Neu); E16 Ende-zu-Ende (Bild der Webseite → „Als Foto“ → Profilbild); Erwähnt, SMS-Geist, Notiz aus der Antwortzeile. **Gegenprobe** auf dem Wegwerf-Branch `check-alte-fotos`: mit dem alten Code schlagen 5 der neuen Tests mit genau dem NullPointerException aus `ConcurrentHashMap.put` fehl. Der Branch ist danach per Revert entschärft; Löschen geht über den Proxy nicht (403) – `check-alte-fotos` und `ci-log-check-alte-fotos` kann Jakob auf GitHub löschen. CI-Log zeigt jetzt die Meldung fehlschlagender Tests.
+- **Veröffentlicht als v1.0.310** (Zertifikat a549f16d…d81f geprüft). Für Jakob: PDF „Orbit 3.0 – Die neuen Funktionen“ (4 Seiten).
 
 ### 16.10.2026 nachts (Nachtsitzung 00:00–05:00) – Review 3.0-E, 3.0-F Feinschliff
 
