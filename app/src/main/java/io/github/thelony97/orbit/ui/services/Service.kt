@@ -56,7 +56,6 @@ import io.github.thelony97.orbit.ui.Route
 import io.github.thelony97.orbit.ui.components.Avatar
 import io.github.thelony97.orbit.ui.components.BesideAnchor
 import io.github.thelony97.orbit.ui.components.IdCard
-import io.github.thelony97.orbit.ui.components.fallbackColor
 import io.github.thelony97.orbit.ui.components.glass
 import io.github.thelony97.orbit.ui.theme.Space
 import kotlinx.coroutines.delay
@@ -77,7 +76,7 @@ fun myServices(data: OrbitData): List<Service> {
     return data.orgLinks.filter { it.personId == me.id }.mapNotNull { link ->
         val org = byId[link.orgId]?.takeIf { it.isOrg && it.deletedAt == null && !it.archived } ?: return@mapNotNull null
         val role = AssignmentRoles.of(link).orgSide.ifBlank { link.label }.ifBlank { Logic.shortName(org) }
-        val color = org.groupIds.firstNotNullOfOrNull { groupColor[it] }?.let { Color(it) } ?: fallbackColor(org.id)
+        val color = org.groupIds.firstNotNullOfOrNull { groupColor[it] }?.let { Color(it) } ?: Space.Blue // organisations are blue everywhere (contactColor)
         Service(org, role, color)
     }.distinctBy { it.org.id }
 }
