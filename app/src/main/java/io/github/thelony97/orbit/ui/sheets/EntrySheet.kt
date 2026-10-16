@@ -81,7 +81,7 @@ fun EntrySheet(
     onAddPhotos: (suspend (List<android.net.Uri>) -> List<io.github.thelony97.orbit.data.GalleryPhoto>)? = null,
     /** PLAN 9 E8: the open topics – ticked in a Treffen or Anruf they become „Besprochen: …“ and are done. */
     topics: List<io.github.thelony97.orbit.core.model.CheckItem> = emptyList(),
-    onDiscussed: (List<String>) -> Unit = {},
+    onDiscuss: (List<String>) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val start = initial?.at?.let { Instant.ofEpochMilli(it).atZone(zone()).toLocalDateTime() }
@@ -257,7 +257,7 @@ fun EntrySheet(
                     } else {
                         typed
                     }
-                    if (initial == null && talked.isNotEmpty()) onDiscussed(talked.map { it.id })
+                    if (initial == null && talked.isNotEmpty()) onDiscuss(talked.map { it.id })
                     val isJob = typeId == io.github.thelony97.orbit.core.model.BuiltinTypes.JOB
                     val cents = if (isJob) io.github.thelony97.orbit.core.domain.Jobs.parseAmount(amount.text.toString()) else null
                     val rated = if (isJob) stars.takeIf { it > 0 } else null

@@ -683,7 +683,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             },
             onDismiss = { quickEntry = null },
             topics = c.topics,
-            onDiscussed = { ids ->
+            onDiscuss = { ids ->
                 discussedNow = ids
                 io.github.thelony97.orbit.ui.detail.markDiscussed(c.id, ids)
             },

@@ -1252,7 +1252,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             photos = c.gallery,
             onAddPhotos = { uris -> importPhotosFor(ctx, c.id, uris) },
             topics = c.topics,
-            onDiscussed = { ids -> markDiscussed(c.id, ids) },
+            onDiscuss = { ids -> markDiscussed(c.id, ids) },
         )
         is EntryTarget.Existing -> EntrySheet(
             title = "Eintrag bearbeiten",

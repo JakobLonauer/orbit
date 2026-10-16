@@ -220,7 +220,7 @@ internal fun ReplyBar(c: Contact, data: OrbitData, modifier: Modifier = Modifier
         androidx.compose.ui.window.Popup(popupPositionProvider = WindowOrigin) {
             MidnightWheelOverlay(
                 c, data, wheelCenter(thumb, size, density), wheelFinger, start = thumb,
-                closing = wheelClosing, onClosed = { wheelThumb = null; wheelClosing = false },
+                closing = wheelClosing, onClose = { wheelThumb = null; wheelClosing = false },
             )
         }
     }

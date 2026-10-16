@@ -74,7 +74,7 @@ internal fun MidnightWheelOverlay(
     modifier: Modifier = Modifier,
     start: Offset = finger + Offset(1e6f, 0f),
     closing: Boolean = false,
-    onClosed: () -> Unit = {},
+    onClose: () -> Unit = {},
 ) {
     val haptics = rememberHaptics()
     val density = androidx.compose.ui.platform.LocalDensity.current.density
@@ -92,11 +92,12 @@ internal fun MidnightWheelOverlay(
         }
     }
     val open = remember { androidx.compose.animation.core.Animatable(0f) }
+    val currentOnClose by androidx.compose.runtime.rememberUpdatedState(onClose)
     androidx.compose.runtime.LaunchedEffect(closing) {
         if (closing) {
             // Letting go: the wheel sinks away (150 ms) instead of vanishing in one frame.
             open.animateTo(0f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Exit))
-            onClosed()
+            currentOnClose()
         } else {
             open.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
         }
