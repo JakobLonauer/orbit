@@ -49,6 +49,14 @@
   - detekt-Compose: Lambda-Parameter im Präsens (`onClose`, `onDiscuss`), Lambdas in LaunchedEffect über `rememberUpdatedState`.
   - Nacht-Bilanz: v1.0.300 + v1.0.305 veröffentlicht (Zertifikat ok). Geholfen: bei paralleler Tagsitzung nur Review-Funde als eigene fix-Commits beisteuern; eigene größere Arbeit bis zu deren Release auf Arbeitszweig (`night-wow` + workflow_dispatch) bauen, erst danach auf dev. Pro CI-Runde ~7–9 min; Fehler waren fast nur fehlende Importe (Extension-Icons, setValue, ime, setTextAndPlaceCursorAtEnd) → vor Push bei jeder neuen API den Import prüfen. Wow-Review in zwei Runden lohnt (Runde 2 fand harte Schnitte und Licht-Code-Brüche, die Runde 1 nicht nannte).
 
+- 17.10. Nacht (3.0-G Feinschliff II) Bausteine/Lehren:
+  - `RollingText(text, direction)` (core:designsystem): Ziffern einzeln, Wortläufe als Ganzes; Richtung vom Aufrufer (Wert gestiegen/gefallen) übergeben, sonst rollt 23:55→00:00 „rückwärts“. `if (a) X else Y.using(...)` bindet `.using` nur an Y → erst `val move = if …`, dann `move.using(…)`.
+  - `Modifier.sharedPage(key)` (ui/components/Shared.kt): sharedBounds-Container-Transform Zeile ↔ Kontaktseite, scaleToBounds(FillWidth, TopCenter) + OverlayClip(Corners.Card). Nur am Gerät sichtbar (Tests ohne Shared-Scope); AppSmokeTest lief damit grün.
+  - E14 Mails: `core/domain/Bounces` (isBounce, failedRecipients, apply). In MailSync nur bei NEUEN UIDs; Lesefehler beim Rückläufer werfen weiter (Chunk wird nicht committet), sonst ginge der Rückläufer für immer verloren.
+  - E9 Fotos: Setting `meetPhotos` (aus), READ_MEDIA_IMAGES erst beim Einschalten; `CalendarGhosts.Item.photos` = MediaStore-IDs; `MeetThumbs.load` ist Test-Haken (Robolectric kann keine Thumbnails) → im Test farbige Bitmaps. Bilder per IO in produceState → Screenshot mit `screen()` (echte Wartezeit), nicht `moment()`.
+  - Rückgängig sofort anbieten, auch wenn danach noch kopiert wird: Halter-Objekt (`undone`, `ids`) teilt Stand zwischen Kopier-Job und Undo.
+  - Wow-Review-Muster: zwei Aktionen für dasselbe im Leerzustand (Kopf-„+“ und Leer-Knopf) = W6-Verstoß; Orange nie als Deko (EmptyHint war orange).
+
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.
 - Andere GitHub-Repos per gh api: 403 ("GitHub access ... not enabled") -> Quellcode fremder Repos über WebFetch auf raw.githubusercontent.com lesen (ging für maplibre-native).
