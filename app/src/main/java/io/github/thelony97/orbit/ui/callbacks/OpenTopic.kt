@@ -156,7 +156,7 @@ private fun TopicCard(t: OpenTopic, depth: Int, data: OrbitData, idx: Index, nav
                 rotationZ = drag.value / 60f
             }
             .then(
-                if (!top) Modifier else Modifier.stackSwipe(t.topic.id, drag, scope, onRight = { go() }, onLeft = { done() }, onThreshold = { haptics.perform(Haptic.Threshold) }),
+                if (!top) Modifier else Modifier.stackSwipe(t.topic.id to canCall, drag, scope, onRight = { go() }, onLeft = { done() }, onThreshold = { haptics.perform(Haptic.Threshold) }),
             )
             .background(Space.Deep, Corners.Card)
             .glass(Corners.Card, tint = Space.PanelHigh, border = Space.Line)

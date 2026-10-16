@@ -298,10 +298,8 @@ private fun SendOrb(ready: Boolean, color: Color, onSend: () -> Unit, hold: Whee
                     orbScope.launch { press.animateTo(0.92f, io.github.thelony97.orbit.core.designsystem.Motion.snappy()) }
                     if (!currentReady) {
                         haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Reject)
-                        orbScope.launch {
-                            press.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
-                            for (k in listOf(1f, -1f, 0.5f, 0f)) shake.animateTo(k, androidx.compose.animation.core.tween(40))
-                        }
+                        // Its own coroutine and Animatable: the press spring cannot cut the shake off.
+                        orbScope.launch { for (k in listOf(1f, -1f, 0.5f, 0f)) shake.animateTo(k, androidx.compose.animation.core.tween(40)) }
                     }
                     var released = false
                     val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {

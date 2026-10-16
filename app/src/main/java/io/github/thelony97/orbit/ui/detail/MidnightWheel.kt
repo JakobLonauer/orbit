@@ -41,6 +41,8 @@ private const val MINUTES_PER_HOUR = 60
 /** Released this close to the wheel's centre = nothing is planned. */
 private const val CANCEL_DP = 44f
 private const val RADIUS_DP = 130f
+/** Short – the popup takes touches while it closes. */
+private const val CLOSE_MS = 100
 
 /** Where the wheel sits: around the thumb, pulled inside the window so the whole day is visible. */
 internal fun wheelCenter(thumb: Offset, window: androidx.compose.ui.geometry.Size, density: Float): Offset {
@@ -96,17 +98,23 @@ internal fun MidnightWheelOverlay(
     androidx.compose.runtime.LaunchedEffect(closing) {
         if (closing) {
             // Letting go: the wheel sinks away (150 ms) instead of vanishing in one frame.
-            open.animateTo(0f, androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Exit))
+            open.animateTo(0f, androidx.compose.animation.core.tween(CLOSE_MS, easing = io.github.thelony97.orbit.core.designsystem.Motion.Exit))
             currentOnClose()
         } else {
             open.animateTo(1f, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
         }
     }
     // The hand is pulled in by the magnet (spring) and the colour turns with it.
-    val shownAngle by androidx.compose.animation.core.animateFloatAsState(
-        if (pick?.magnet == true) 360f else SendLater.angleOf(minute),
-        io.github.thelony97.orbit.core.designsystem.Motion.snappy(), label = "wheelAngle",
-    )
+    // Shortest way round: 355° → 5° turns 10° forward, never a whole lap back.
+    val target = if (pick?.magnet == true) 360f else SendLater.angleOf(minute)
+    val turned = remember { androidx.compose.animation.core.Animatable(target) }
+    androidx.compose.runtime.LaunchedEffect(target) {
+        var t = target
+        while (t - turned.value > 180f) t -= 360f
+        while (turned.value - t > 180f) t += 360f
+        turned.animateTo(t, io.github.thelony97.orbit.core.designsystem.Motion.snappy())
+    }
+    val shownAngle = ((turned.value % 360f) + 360f) % 360f + if (turned.value > 0f && turned.value % 360f == 0f) 360f else 0f
     val accent by androidx.compose.animation.animateColorAsState(
         if (pick?.magnet == true) Space.Orange else Space.Violet,
         androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.FAST_MS), label = "wheelAccent",
