@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import io.github.thelony97.orbit.ui.components.rememberPhoto
 import io.github.thelony97.orbit.ui.components.rememberPhotoAccent
 import io.github.thelony97.orbit.ui.components.sharedContact
+import io.github.thelony97.orbit.ui.components.sharedPage
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -392,7 +393,8 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
         androidx.compose.animation.core.tween(io.github.thelony97.orbit.core.designsystem.Motion.EMPHASIZED_MS),
         label = "head",
     )
-    SpaceBackground {
+    // E21: the page grows out of its list row and shrinks back into it (also with predictive back).
+    SpaceBackground(Modifier.sharedPage("page-${c.id}")) {
         // Signature (PLAN 1.3): the head glows in the person's colour, the profile picture lies
         // blurred behind it; both fade out as the page scrolls (read in the draw phase only).
         Box(

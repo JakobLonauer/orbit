@@ -24,6 +24,7 @@ import io.github.thelony97.orbit.core.designsystem.Haptic
 import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.data.now
 import io.github.thelony97.orbit.ui.components.sharedContact
+import io.github.thelony97.orbit.ui.components.sharedPage
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -919,6 +920,8 @@ private fun ContactRow(
         Row(
             Modifier
                 .fillMaxWidth()
+                // E21: the contact page grows out of this row and shrinks back into it.
+                .sharedPage("page-${contact.id}")
                 .drawBehind {
                     if (afterglow.value > 0f) drawRect(color.copy(alpha = 0.16f * afterglow.value))
                     if (picked > 0f) {

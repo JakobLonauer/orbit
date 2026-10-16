@@ -3,6 +3,11 @@ package io.github.thelony97.orbit.ui.components
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
+import io.github.thelony97.orbit.core.designsystem.Corners
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -38,5 +43,29 @@ fun Modifier.sharedContact(key: String, text: Boolean = false): Modifier {
                 boundsTransform = { _, _ -> tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized) },
             )
         }
+    }
+}
+
+/**
+ * Die Kontaktseite wächst aus ihrer Zeile und schrumpft beim Zurück wieder hinein (PLAN 9 E21,
+ * 9.2 „Übergänge sind Wachsen/Schrumpfen derselben Fläche“): the same key on the list row and on
+ * the page's background. The page keeps its width and is clipped from the top, so its head slides
+ * into the row; with predictive back the clip follows the finger. Without a shared scope a no-op.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.sharedPage(key: String): Modifier {
+    val shared = LocalSharedScope.current ?: return this
+    val scope = LocalNavAnimatedContentScope.current
+    return with(shared) {
+        this@sharedPage.sharedBounds(
+            rememberSharedContentState(key),
+            animatedVisibilityScope = scope,
+            enter = fadeIn(tween(Motion.MEDIUM_MS, easing = Motion.Standard)),
+            exit = fadeOut(tween(Motion.MEDIUM_MS, easing = Motion.Standard)),
+            boundsTransform = { _, _ -> tween(Motion.EMPHASIZED_MS, easing = Motion.Emphasized) },
+            resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.TopCenter),
+            clipInOverlayDuringTransition = OverlayClip(Corners.Card),
+        )
     }
 }
