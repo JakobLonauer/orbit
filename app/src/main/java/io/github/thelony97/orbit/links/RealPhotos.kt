@@ -78,6 +78,8 @@ object RealPhotos {
         val name = "p-" + io.github.thelony97.orbit.data.newId() + ".jpg"
         runCatching { OrbitRepository.photoFile(f.file).renameTo(OrbitRepository.photoFile(name)) }
         found.remove(c.id)
+        // Asked again should the photo go later (as before).
+        asked.remove(c.id)
         OrbitRepository.editContact(c.id) { it.copy(photo = name) }
     }
 
