@@ -343,9 +343,14 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
 
     var savedId by remember { mutableStateOf<String?>(null) }
     var nameShake by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val pageScroll = rememberScrollState()
     val shake = remember { androidx.compose.animation.core.Animatable(0f) }
     androidx.compose.runtime.LaunchedEffect(nameShake) {
-        if (nameShake > 0) for (k in listOf(1f, -1f, 0.6f, -0.6f, 0f)) shake.animateTo(k, androidx.compose.animation.core.tween(45))
+        if (nameShake > 0) {
+            // The name field sits at the top – bring it into view, then it shakes.
+            pageScroll.animateScrollTo(0)
+            for (k in listOf(1f, -1f, 0.6f, -0.6f, 0f)) shake.animateTo(k, androidx.compose.animation.core.tween(45))
+        }
     }
     val shakeModifier = Modifier.graphicsLayer { translationX = shake.value * 8.dp.toPx() }
     // „Diese Nummer gibt es schon“ (PLAN 3.14): asked once per save, then it is Jakob's call.
@@ -420,7 +425,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(pageScroll)
                     .navigationBarsPadding()
                     .padding(bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

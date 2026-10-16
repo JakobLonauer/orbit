@@ -110,6 +110,7 @@ fun GiftBoardScreen(data: OrbitData, nav: Nav, modifier: Modifier = Modifier) {
     var liftedColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     // The column a lifted card would land in – its head lights up.
     var aimColumn by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { arriving.clear() } }
     SpaceBackground(modifier) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.Gutter, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
@@ -207,6 +208,9 @@ private fun GiftCard(
     var lifted by remember { mutableStateOf(false) }
     val lift by androidx.compose.animation.core.animateFloatAsState(if (lifted) 1f else 0f, Motion.snappy(), label = "lift")
     var aim by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    // A card that leaves mid-drag must not leave its column lifted and the aim lit.
+    val currentLift by androidx.compose.runtime.rememberUpdatedState(onLift)
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { if (lifted) currentLift(false) } }
     val c = card.contact
     Column(
         Modifier
