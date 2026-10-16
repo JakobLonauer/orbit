@@ -39,6 +39,8 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 - Banner auf Tokens (Rinne 16, Karte 20, Abstände 12).
 - **Prüfungen:** Code-Review-Subagent (1 Fund: Kneifen konnte nicht zurückschalten – behoben), Wow-Review-Subagent (Köpfe ziehen nicht mit, Fingerwechsel, Kalendertitel – behoben; „Termin buchen“/Ich-Karte im dichten Modus bleiben bewusst gleich), Unit-Tests `CalendarSyncTest.contractDeadlines`, `ArrivalTest.byKnownWifi`, Screenshot `screen_v3g_list_dense`.
 - **Wow-Gate 3.0-H:** [x] Momente (Dichte gleitet, Tick beim Umschalten) · [x] berührte Screens gegen W1–W9 (Kontaktliste, Banner) · [x] Screenshots + Wow-Review · [x] kein Ruckeln (WLAN-Empfänger nur mit gespeichertem WLAN und Ankommen an) · [x] Feinschliff-Runde.
+- **Veröffentlicht als v1.0.324** (Zertifikat geprüft).
+- **Feinschliff-Durchgang aller Screenshots** (Wow-Review-Subagent über 117 Bilder): Organisationen im Anrufbildschirm eckig mit Gebäude statt Initialen-Kreis, Meine Dienste blau statt Teal, Antwortzeile deckend (Text schien durch), Bearbeiten-Leiste auf 16-dp-Rinne, Standard-Nummer-Stern überall violett, „seit 2 W“ wie in der Liste, „Zur Ich-Karte“. Nicht übernommen (geprüft): Favoriten-Stern bleibt gold (Allgemeinsymbol), Rückgängig-Leisten-Hinweis bleibt (Entscheidung 3.0-F), „Diesen/Dieser Monat“ wie PLAN 3.5, Farbabweichungen im Anrufbildschirm-Test kommen aus den Testdaten.
 - **Bewusst offen (KANN):** B3 Beleg-Flug der Rückruf-Karte in den Verlauf (braucht den Anrufbildschirm am Gerät), Diktat-Morph aus der Kontaktseite.
 
 ### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
