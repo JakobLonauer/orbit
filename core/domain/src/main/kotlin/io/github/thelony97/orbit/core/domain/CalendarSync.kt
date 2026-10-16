@@ -54,7 +54,8 @@ object CalendarSync {
             val details = listOf(k.number.takeIf { it.isNotBlank() }?.let { "Nr. $it" }, "Laufzeit bis ${t.end.dayOfMonth}.${t.end.monthValue}.${t.end.year}")
             Item(
                 "${c.id}/contract/${k.id}",
-                "Kündigen bis: " + Contracts.title(k) + " · " + nameOf(c.id),
+                // Who first (a week view shows ~20 characters); the event's day is the deadline.
+                nameOf(c.id) + " · " + Contracts.title(k) + " kündigen",
                 day, null, details.filterNotNull().joinToString(" · "),
             )
         }

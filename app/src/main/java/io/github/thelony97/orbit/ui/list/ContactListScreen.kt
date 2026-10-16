@@ -585,6 +585,8 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         tween(Motion.FAST_MS),
                         label = "headerBackdrop",
                     )
+                    // E19: the letter heads tighten with the rows (same tween).
+                    val headTop by androidx.compose.animation.core.animateDpAsState(if (dense) 4.dp else 8.dp, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized), label = "headTop")
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -593,7 +595,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                                     drawRect(Brush.verticalGradient(listOf(Space.Void.copy(alpha = 0.92f * backdrop), Space.Void.copy(alpha = 0.7f * backdrop))))
                                 }
                             }
-                            .padding(start = 16.dp, end = 16.dp + railPad, top = 8.dp, bottom = 4.dp),
+                            .padding(start = 16.dp, end = 16.dp + railPad, top = headTop, bottom = if (dense) 2.dp else 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(section.title, style = MaterialTheme.typography.labelLargeEmphasized, color = Space.Violet)

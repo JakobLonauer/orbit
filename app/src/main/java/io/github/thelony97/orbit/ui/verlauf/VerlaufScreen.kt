@@ -429,6 +429,8 @@ internal fun Modifier.pinch(onOut: () -> Unit, onIn: () -> Unit): Modifier = poi
         do {
             val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
             val pressed = ev.changes.filter { it.pressed }
+            // A third finger or one lifted: measure afresh from the next two.
+            if (pressed.size != 2) start = 0f
             if (pressed.size == 2 && !done) {
                 val d = (pressed[0].position - pressed[1].position).getDistance()
                 when {

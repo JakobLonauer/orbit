@@ -61,7 +61,7 @@ class CalendarSyncTest {
         val items = CalendarSync.items(OrbitDoc(contacts = listOf(bank)), today) { "Bank" }
         assertEquals(listOf("bank/contract/k1"), items.map { it.key })
         assertEquals(LocalDate.of(2027, 10, 1), items[0].day)
-        assertEquals("Kündigen bis: Konto · Bank", items[0].title)
+        assertEquals("Bank · Konto kündigen", items[0].title)
         assertEquals(null, items[0].rrule)
         assertTrue(items[0].description.startsWith("Nr. AT12"))
     }
