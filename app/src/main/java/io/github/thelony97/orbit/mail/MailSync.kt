@@ -267,7 +267,7 @@ object MailSync {
             // A malformed bounce counts as none.
             val read = runCatching { m.rawInputStream.use { String(it.readNBytes(BOUNCE_BYTES), Charsets.UTF_8) } }
             val err = read.exceptionOrNull()
-            if (err is javax.mail.FolderClosedException || err is javax.mail.StoreClosedException || err is java.io.IOException) throw err
+            if (err != null && (err !is javax.mail.MessagingException || err is javax.mail.FolderClosedException || err is javax.mail.StoreClosedException)) throw err
             val text = read.getOrNull() ?: continue
             for (a in Bounces.failedRecipients(text)) out[a] = maxOf(out[a] ?: 0L, h.at)
         }

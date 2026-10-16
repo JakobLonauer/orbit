@@ -125,10 +125,11 @@ internal fun MidnightWheelOverlay(
     )
     // The time rolls the way it moved: turning on past midnight rolls everything up.
     val at = pick?.at
-    val lastAt = remember { androidx.compose.runtime.mutableStateOf(at) }
-    val before = lastAt.value
+    // A plain holder (no state): remembering the last time must not recompose again.
+    val lastAt = remember { arrayOf(at) }
+    val before = lastAt[0]
     val direction = if (at != null && before != null) at.compareTo(before).coerceIn(-1, 1) else 0
-    androidx.compose.runtime.SideEffect { lastAt.value = at }
+    androidx.compose.runtime.SideEffect { lastAt[0] = at }
     val r = RADIUS_DP.dp
     Box(modifier.fillMaxSize().background(Space.Void.copy(alpha = 0.55f * open.value))) {
         Box(

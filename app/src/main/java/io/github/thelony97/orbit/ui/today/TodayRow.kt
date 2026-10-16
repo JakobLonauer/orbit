@@ -372,7 +372,7 @@ private fun undoMeet(contactId: String, entryId: String, ghostKey: String, galle
 }
 
 /**
- * The appointment's photos as small tiles – five at most, the rest as „+N“ (they come along); a
+ * The appointment's photos as small tiles – four at most, the rest as „+N“ (they come along); a
  * left-out tile dims and shrinks, a tick answers each tap.
  */
 @Composable
@@ -415,7 +415,7 @@ private fun MeetPhotoStrip(ids: List<Long>, left: List<Long>, onToggle: (Long) -
     }
 }
 
-private const val MEET_TILES = 5
+private const val MEET_TILES = 4
 
 /** Where the tiles come from – the gallery; screenshot tests put pictures of their own here. */
 internal object MeetThumbs {
