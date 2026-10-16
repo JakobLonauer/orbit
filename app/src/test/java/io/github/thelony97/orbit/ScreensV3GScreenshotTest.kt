@@ -156,4 +156,13 @@ class ScreensV3GScreenshotTest {
             )
         }
     }
+
+    /** E19: the list pinched together – one line per contact, smaller planets. */
+    @Test fun denseList() = moment("v3g_list_dense", 900) {
+        val many = (1..14).map { i ->
+            Contact("p$i", firstName = listOf("Anna", "Bernd", "Clara", "David", "Eva", "Felix", "Gerda")[i % 7], lastName = "Muster$i")
+        }
+        val d = data.copy(contacts = data.contacts + many, settings = data.settings.copy(listDense = true))
+        io.github.thelony97.orbit.ui.list.ContactListScreen(d, Index(d), nav)
+    }
 }

@@ -25,6 +25,7 @@ import io.github.thelony97.orbit.core.designsystem.rememberHaptics
 import io.github.thelony97.orbit.data.now
 import io.github.thelony97.orbit.ui.components.sharedContact
 import io.github.thelony97.orbit.ui.components.sharedPage
+import io.github.thelony97.orbit.ui.verlauf.pinch
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -503,9 +504,17 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
             }
         }
         Box(Modifier.fillMaxSize()) {
+        // E19 Dichte: two fingers together = one line per contact, apart = back (remembered).
+        val dense = data.settings.listDense
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().nestedScroll(pullConnection),
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(pullConnection)
+                .pinch(
+                    onOut = { if (!dense) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = true) } } },
+                    onIn = { if (dense) { haptics.perform(Haptic.Tick); OrbitRepository.editSettings { it.copy(listDense = false) } } },
+                ),
             contentPadding = PaddingValues(bottom = BottomBarSpace + 72.dp),
         ) {
             item(key = "update") { UpdateBanner(Modifier.animateItem()) }
@@ -605,6 +614,7 @@ fun ContactListScreen(data: OrbitData, idx: Index, nav: Nav, initialSelection: S
                         onQuickEntry = { quickEntry = c },
                         modifier = Modifier.animateItem(),
                         query = query,
+                        dense = dense,
                         selecting = selection != null,
                         endInset = railPad,
                         selected = selection?.contains(c.id) == true,
@@ -848,6 +858,7 @@ private fun ContactRow(
     onQuickEntry: () -> Unit,
     modifier: Modifier = Modifier,
     query: String = "",
+    dense: Boolean = false,
     onPreview: (Contact) -> PreviewState = { PreviewState(it) },
     onPreviewEnd: (PreviewState, Boolean) -> Unit = { _, _ -> },
     selecting: Boolean = false,
@@ -917,6 +928,9 @@ private fun ContactRow(
         },
     ) {
         val picked by animateFloatAsState(if (selected) 1f else 0f, tween(Motion.FAST_MS), label = "picked")
+        // E19: planet and row height glide between the two densities.
+        val planet by androidx.compose.animation.core.animateDpAsState(if (dense) 28.dp else 36.dp, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized), label = "planet")
+        val rowPad by androidx.compose.animation.core.animateDpAsState(if (dense) 4.dp else 7.dp, tween(Motion.MEDIUM_MS, easing = Motion.Emphasized), label = "rowPad")
         Row(
             Modifier
                 .fillMaxWidth()
@@ -957,13 +971,13 @@ private fun ContactRow(
                         onOpen()
                     }
                 }
-                .padding(start = 16.dp, end = 16.dp + endInset, top = 7.dp, bottom = 7.dp),
+                .padding(start = 16.dp, end = 16.dp + endInset, top = rowPad, bottom = rowPad),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Selected: the avatar turns over to a check (front fades as the back grows in).
-            Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(planet), contentAlignment = Alignment.Center) {
                 Avatar(
-                    contact, color, 36.dp,
+                    contact, color, planet,
                     modifier = Modifier
                         .sharedContact("avatar-${contact.id}")
                         .graphicsLayer { alpha = 1f - picked; rotationY = 180f * picked.coerceAtMost(0.5f) },
@@ -971,7 +985,7 @@ private fun ContactRow(
                 if (picked > 0f) {
                     Box(
                         Modifier
-                            .size(36.dp)
+                            .size(planet)
                             .graphicsLayer { alpha = picked; rotationY = 180f * (1f - picked).coerceAtMost(0.5f) }
                             .background(Space.Violet, CircleShape),
                         contentAlignment = Alignment.Center,
@@ -1029,6 +1043,12 @@ private fun ContactRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                 } else if (sub != null) {
+                    // Dense (E19): the second line folds away instead of vanishing (W2).
+                    AnimatedVisibility(
+                        !dense,
+                        enter = androidx.compose.animation.expandVertically(tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) + fadeIn(tween(Motion.MEDIUM_MS)),
+                        exit = androidx.compose.animation.shrinkVertically(tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) + fadeOut(tween(Motion.FAST_MS)),
+                    ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (last != null) {
                             val dirIcon = when (last.incoming) {
@@ -1040,6 +1060,7 @@ private fun ContactRow(
                             Spacer(Modifier.width(4.dp))
                         }
                         Text(sub, style = MaterialTheme.typography.labelMedium, color = Space.TextFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     }
                 }
             }

@@ -476,6 +476,8 @@ data class Settings(
     val callbackNudge: Boolean = true,
     /** PLAN 9 E9: a calendar ghost „Treffen mit Anna“ also offers the photos taken during the appointment. */
     val meetPhotos: Boolean = false,
+    /** PLAN 9 E19: the contact list pinched together – smaller planets, one line per contact. */
+    val listDense: Boolean = false,
     /** PLAN 9 E15: saved searches of the Orbit-Zeile, shown as chips next to the groups. */
     val smartGroups: List<SmartGroup> = emptyList(),
     /** PLAN 9 E24 Event-Modus: the event of the day („Hochzeit Tom“) and its ISO day; off otherwise. */
