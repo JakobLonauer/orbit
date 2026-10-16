@@ -147,7 +147,7 @@ class ScreensV3EScreenshotTest {
     }
 
     /** Null-Text: a note in Orbit's own bar instead of a system toast. */
-    @Test fun note() = screen("v3f_note") {
+    @Test fun note() = moment("v3f_note", 600) {
         val ctx = androidx.compose.ui.platform.LocalContext.current
         androidx.compose.runtime.LaunchedEffect(Unit) {
             io.github.thelony97.orbit.ui.components.Undo.hosted = true
