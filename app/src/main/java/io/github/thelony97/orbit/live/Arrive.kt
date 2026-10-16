@@ -42,6 +42,10 @@ object Arrive {
     private const val KEY_ID = "id"
     private const val KEY_AT = "at"
     private const val KEY_SET = "set"
+    /** How the current arrival was noticed: "geo" (fence) or "wifi" (known network). */
+    private const val KEY_VIA = "via"
+    private const val KEY_WIFI = "wifi-on"
+    private const val REQUEST_WIFI = 7_101
     private const val ID_NOTIFY = 1011
     private const val REQUEST = 7_100
 
@@ -71,7 +75,45 @@ object Arrive {
     fun sync(ctx: Context, data: OrbitData, force: Boolean = false) {
         // Without Play services (or in tests) there are simply no fences.
         runCatching { syncFences(ctx, data, force) }
+        runCatching { syncWifi(ctx, data, force) }
     }
+
+    private fun pendingWifi(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
+        ctx, REQUEST_WIFI, Intent(ctx, WifiArriveReceiver::class.java),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+    )
+
+    /**
+     * Ankommen per bekanntem WLAN (D8): while on and some place has a saved network, Android wakes
+     * Orbit whenever a WLAN connects ([WifiArriveReceiver]); otherwise nothing is registered.
+     */
+    private fun syncWifi(ctx: Context, data: OrbitData, force: Boolean) {
+        val on = data.settings.arrive && allowed(ctx) && Arrival.anyWifi(data.contacts)
+        if (!force && prefs(ctx).getBoolean(KEY_WIFI, false) == on) return
+        prefs(ctx).edit().putBoolean(KEY_WIFI, on).apply()
+        val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java) ?: return
+        runCatching { cm.unregisterNetworkCallback(pendingWifi(ctx)) }
+        if (!on) return
+        val request = android.net.NetworkRequest.Builder().addTransportType(android.net.NetworkCapabilities.TRANSPORT_WIFI).build()
+        cm.registerNetworkCallback(request, pendingWifi(ctx))
+    }
+
+    /** The network Orbit is on now names a place – or not (then a WLAN visit is over). */
+    fun onWifi(ctx: Context, data: OrbitData, rawSsid: String?) {
+        val id = Arrival.byWifi(data.contacts, rawSsid)
+        val cur = _here.value
+        when {
+            id != null -> if (cur == null || cur.contactId != id) {
+                if (cur != null && prefs(ctx).getString(KEY_VIA, null) == VIA_WIFI) leave(ctx, cur.contactId)
+                if (_here.value == null) arrive(ctx, data, id, VIA_WIFI)
+            }
+            // Only a visit noticed by its WLAN ends with the WLAN; a fence visit ends at the fence.
+            cur != null && prefs(ctx).getString(KEY_VIA, null) == VIA_WIFI -> leave(ctx, cur.contactId)
+        }
+    }
+
+    private const val VIA_GEO = "geo"
+    private const val VIA_WIFI = "wifi"
 
     @SuppressLint("MissingPermission")
     private fun syncFences(ctx: Context, data: OrbitData, force: Boolean) {
@@ -99,10 +141,10 @@ object Arrive {
         runCatching { client.addGeofences(request, pending(ctx)) }
     }
 
-    fun arrive(ctx: Context, data: OrbitData, contactId: String) {
+    fun arrive(ctx: Context, data: OrbitData, contactId: String, via: String = VIA_GEO) {
         if (_here.value?.contactId == contactId) return
         val now = System.currentTimeMillis()
-        prefs(ctx).edit().putString(KEY_ID, contactId).putLong(KEY_AT, now).apply()
+        prefs(ctx).edit().putString(KEY_ID, contactId).putLong(KEY_AT, now).putString(KEY_VIA, via).apply()
         _here.value = Here(contactId, now)
         notifyHere(ctx, data, contactId, now)
     }
@@ -111,7 +153,7 @@ object Arrive {
     fun leave(ctx: Context, contactId: String?) {
         val cur = _here.value ?: run { load(ctx); _here.value } ?: return
         if (contactId != null && cur.contactId != contactId) return
-        prefs(ctx).edit().remove(KEY_ID).remove(KEY_AT).apply()
+        prefs(ctx).edit().remove(KEY_ID).remove(KEY_AT).remove(KEY_VIA).apply()
         _here.value = null
         NotificationManagerCompat.from(ctx).cancel(ID_NOTIFY)
         val end = System.currentTimeMillis()
@@ -157,6 +199,21 @@ class ArriveReceiver : BroadcastReceiver() {
                 Geofence.GEOFENCE_TRANSITION_ENTER -> ids.firstOrNull()?.let { Arrive.arrive(context, data, it) }
                 Geofence.GEOFENCE_TRANSITION_EXIT -> ids.forEach { Arrive.leave(context, it) }
             }
+        }
+    }
+}
+
+/** D8: a WLAN connected – Orbit looks whether it is a place's saved network (fixed rule: same name). */
+class WifiArriveReceiver : BroadcastReceiver() {
+    @Suppress("DEPRECATION")
+    override fun onReceive(context: Context, intent: Intent) {
+        runAsync(context) {
+            val data = OrbitRepository.ensureLoaded()
+            if (!data.settings.arrive || !Arrive.allowed(context)) return@runAsync
+            Arrive.load(context)
+            // The name of the network needs the location permission Ankommen already holds.
+            val ssid = context.getSystemService(android.net.wifi.WifiManager::class.java)?.connectionInfo?.ssid
+            Arrive.onWifi(context, data, ssid)
         }
     }
 }

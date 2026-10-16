@@ -26,12 +26,14 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-E Erfassen, Faden, Datenqualität, Automatiken (E1–E24) | **veröffentlicht als v1.0.282** (16.10. ~01:00) | – |
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 | Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
-| 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht** (17.10. nachts, siehe unten) | – |
+| 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht als v1.0.317** (17.10. ~01:00) | – |
+| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte, B3 Beleg-Flug) | in Arbeit (17.10. ab 01:05) | Nachtsitzung |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
 ### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
 
+- **Veröffentlicht als v1.0.317** (main fast-forward auf dev 430279d, Release-Lauf 317, Zertifikat a549f16d…d81f geprüft).
 - **Keine Gerätetest-Rückmeldungen** auf der Checkliste – also die offenen 3.0-Punkte abgearbeitet:
   - **E21** Kontaktseite wächst aus ihrer Zeile und schrumpft beim Zurück (auch bei der Vorschau-Geste) wieder hinein: `Modifier.sharedPage` (Container-Übergang, Kopf gleitet in die Zeile, 350 ms). Nur am Gerät sichtbar.
   - **E9** Fotos aus dem Termin: neue Automatik „Termin → Fotos“ (aus; fragt Kalender + Fotos beim Einschalten). Der Geist „Treffen mit Anna“ zeigt die Fotos des Termins (15 Min vorher bis 30 Min danach) als Kacheln – Antippen lässt eins weg, unlesbare fallen weg; Übernehmen trägt Treffen + Fotos in Annas Ordner mit einem Rückgängig ein.

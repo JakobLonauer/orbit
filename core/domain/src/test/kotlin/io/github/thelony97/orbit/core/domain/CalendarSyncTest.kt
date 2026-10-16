@@ -48,4 +48,21 @@ class CalendarSyncTest {
         assertEquals(listOf(2L), plan.update.map { it.first })
         assertEquals(setOf(3L, 4L), plan.delete.toSet())
     }
+
+    @Test fun contractDeadlines() {
+        val bank = Contact(
+            "bank", firstName = "", lastName = "", company = "Bank",
+            contracts = listOf(
+                // Started 1.1.2026, 12 months, 3 months notice → Kündigen bis 1.10.2026 is past → next term: 1.10.2027.
+                io.github.thelony97.orbit.core.model.Contract("k1", name = "Konto", number = "AT12", start = "2026-01-01", minMonths = 12, renewMonths = 12, noticeMonths = 3),
+                io.github.thelony97.orbit.core.model.Contract("k2", name = "Alt", start = "2026-01-01", minMonths = 12, noticeMonths = 1, cancelledOn = "2026-03-01"),
+            ),
+        )
+        val items = CalendarSync.items(OrbitDoc(contacts = listOf(bank)), today) { "Bank" }
+        assertEquals(listOf("bank/contract/k1"), items.map { it.key })
+        assertEquals(LocalDate.of(2027, 10, 1), items[0].day)
+        assertEquals("Kündigen bis: Konto · Bank", items[0].title)
+        assertEquals(null, items[0].rrule)
+        assertTrue(items[0].description.startsWith("Nr. AT12"))
+    }
 }

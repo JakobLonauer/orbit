@@ -6,7 +6,7 @@ import java.time.LocalDate
 
 /**
  * Orbit-Kalender (PLAN 9 A13): every occasion of a visible contact as an all-day event in Orbit's
- * own calendar on the phone, yearly ones repeating. Pure: which events to insert, rewrite, delete.
+ * own calendar on the phone, yearly ones repeating, and the contracts' cancellation deadlines. Pure: which events to insert, rewrite, delete.
  */
 object CalendarSync {
 
@@ -30,7 +30,7 @@ object CalendarSync {
         val yearStart = today.withDayOfYear(1)
         val visible = doc.contacts.filter { it.deletedAt == null && !it.archived }
         val ids = visible.map { it.id }.toSet()
-        return visible.flatMap { c ->
+        return visible.flatMap { c -> deadlines(c, today, nameOf) } + visible.flatMap { c ->
             c.dates.mapNotNull { o ->
                 // A shared occasion whose partner is gone still belongs to its owner alone.
                 val partner = o.sharedWith
@@ -41,6 +41,23 @@ object CalendarSync {
             }
         }
     }
+
+    /**
+     * Fristen (PLAN 9 A13/D3): the next „Kündigen bis …“ of every running contract as a one-off
+     * event on its day; cancelled or ended contracts have none. A new term moves the event along.
+     */
+    private fun deadlines(c: io.github.thelony97.orbit.core.model.Contact, today: LocalDate, nameOf: (String) -> String): List<Item> =
+        c.contracts.mapNotNull { k ->
+            val t = Contracts.term(k, today) ?: return@mapNotNull null
+            val day = t.deadline ?: return@mapNotNull null
+            if (t.cancelled || t.over) return@mapNotNull null
+            val details = listOf(k.number.takeIf { it.isNotBlank() }?.let { "Nr. $it" }, "Laufzeit bis ${t.end.dayOfMonth}.${t.end.monthValue}.${t.end.year}")
+            Item(
+                "${c.id}/contract/${k.id}",
+                "Kündigen bis: " + Contracts.title(k) + " · " + nameOf(c.id),
+                day, null, details.filterNotNull().joinToString(" · "),
+            )
+        }
 
     fun plan(items: List<Item>, existing: List<Existing>): Plan {
         val byKey = HashMap<String, Existing>()

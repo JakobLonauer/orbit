@@ -35,4 +35,23 @@ class ArrivalTest {
         assertEquals("Besuch 14:05–14:40", Arrival.visitNote(start, start + 35 * 60_000L, zone))
         assertNull(Arrival.visitNote(start, start + 60_000L, zone))
     }
+
+    @Test fun byKnownWifi() {
+        val huber = io.github.thelony97.orbit.core.model.Contact(
+            "huber", firstName = "Dr. Huber", wifi = listOf(io.github.thelony97.orbit.core.model.WifiNet("w", "Ordination-Gast")),
+        )
+        val old = io.github.thelony97.orbit.core.model.Contact(
+            "old", firstName = "Alt", archived = true, wifi = listOf(io.github.thelony97.orbit.core.model.WifiNet("w2", "Cafe")),
+        )
+        val cs = listOf(old, huber)
+        org.junit.Assert.assertEquals("huber", Arrival.byWifi(cs, "\"Ordination-Gast\""))
+        org.junit.Assert.assertEquals("huber", Arrival.byWifi(cs, "Ordination-Gast"))
+        // Exact name only; archived places never; unknown or no network → none.
+        org.junit.Assert.assertNull(Arrival.byWifi(cs, "ordination-gast"))
+        org.junit.Assert.assertNull(Arrival.byWifi(cs, "Cafe"))
+        org.junit.Assert.assertNull(Arrival.byWifi(cs, "<unknown ssid>"))
+        org.junit.Assert.assertNull(Arrival.byWifi(cs, null))
+        org.junit.Assert.assertTrue(Arrival.anyWifi(cs))
+        org.junit.Assert.assertFalse(Arrival.anyWifi(listOf(old)))
+    }
 }

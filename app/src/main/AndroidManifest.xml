@@ -35,6 +35,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- PLAN 9 D7/D8: the connected WLAN's name and Ankommen (only once Jakob switches it on). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
@@ -320,6 +321,9 @@
             android:exported="false" />
         <receiver
             android:name=".live.ArriveReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".live.WifiArriveReceiver"
             android:exported="false" />
         <receiver
             android:name=".live.ScheduledReceiver"

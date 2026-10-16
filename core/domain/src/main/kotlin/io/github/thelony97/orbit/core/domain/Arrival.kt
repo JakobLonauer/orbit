@@ -27,6 +27,20 @@ object Arrival {
         .take(MAX_PLACES)
         .toList()
 
+    /**
+     * Ankommen per bekanntem WLAN (D8): the place whose saved network has exactly this name;
+     * null for an unknown network (or none). Archive, trash and Ich never.
+     */
+    fun byWifi(contacts: List<Contact>, rawSsid: String?): String? {
+        val ssid = WifiCode.ssidOf(rawSsid) ?: return null
+        return contacts.firstOrNull { c ->
+            c.deletedAt == null && !c.archived && !c.isMe && c.wifi.any { WifiCode.ssidOf(it.ssid) == ssid }
+        }?.id
+    }
+
+    /** True when any place could be recognised by its WLAN. */
+    fun anyWifi(contacts: List<Contact>): Boolean = contacts.any { it.deletedAt == null && !it.archived && !it.isMe && it.wifi.isNotEmpty() }
+
     /** What the arrival card says, short: „2 Themen · Ausweis · WLAN“. */
     fun summary(c: Contact): String = buildList {
         val topics = c.topics.count { !it.done }
