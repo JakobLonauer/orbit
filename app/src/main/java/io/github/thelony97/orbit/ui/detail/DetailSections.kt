@@ -284,6 +284,7 @@ fun EntryRow(
     type: EntryType?,
     last: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     drawIn: Boolean = false,
     /** On an organisation's page: who the conversation was with („Anruf · Empfang“, PLAN 3.6). */
     member: String? = null,
@@ -302,7 +303,7 @@ fun EntryRow(
         else -> Space.Violet
     }
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             // Start on the first placement, not on composition: prefetched rows are composed

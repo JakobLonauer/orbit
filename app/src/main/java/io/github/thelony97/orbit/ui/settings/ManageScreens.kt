@@ -126,7 +126,7 @@ fun GroupsScreen(data: OrbitData, nav: Nav) {
                 val members = data.contacts.count { it.deletedAt == null && g.id in it.groupIds }
                 ListItem(
                     onClick = { editing = g },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.dp),
+                    modifier = Modifier.animateItem().padding(horizontal = 16.dp, vertical = 1.dp),
                     leadingContent = { Box(Modifier.size(24.dp).background(Color(g.color), CircleShape)) },
                     supportingContent = {
                         Text("$members Personen" + if (g.pinned) " · angepinnt" else "")

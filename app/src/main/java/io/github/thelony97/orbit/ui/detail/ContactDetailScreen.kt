@@ -449,7 +449,10 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                     if (!c.isMe && !c.archived) {
                         OrbButton(
                             if (c.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit",
-                            { edit { it.copy(favorite = !it.favorite) } },
+                            {
+                                haptics.perform(io.github.thelony97.orbit.core.designsystem.Haptic.Tick)
+                                edit { it.copy(favorite = !it.favorite) }
+                            },
                             size = 38.dp,
                             accent = if (c.favorite) Space.Orange else null,
                         )
@@ -1222,7 +1225,9 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 val first = drawnEntries.add(e.id)
                 EntryRow(
                     e, idx.types[e.typeId], last = i == visible.lastIndex,
-                    onClick = { if (e.mails.isNotEmpty()) mailEntry = e else entryTarget = EntryTarget.Existing(e) }, drawIn = first,
+                    onClick = { if (e.mails.isNotEmpty()) mailEntry = e else entryTarget = EntryTarget.Existing(e) },
+                    // New, deleted or filtered entries glide instead of snapping (W2).
+                    modifier = Modifier.animateItem(), drawIn = first,
                     member = e.memberId?.let { mid -> c.members.firstOrNull { it.id == mid }?.name },
                     photos = if (e.attachmentIds.isEmpty()) emptyList() else e.attachmentIds.mapNotNull { id -> c.gallery.firstOrNull { it.id == id } },
                     onPhoto = { i -> entryPhotos = e.attachmentIds.mapNotNull { id -> c.gallery.firstOrNull { it.id == id } } to i },

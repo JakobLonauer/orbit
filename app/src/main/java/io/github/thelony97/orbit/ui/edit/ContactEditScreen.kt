@@ -58,6 +58,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
@@ -874,7 +875,8 @@ private fun ValueList(
     /** Where these rows are in the order handed-over values light up (PLAN 9 A2). */
     litOrder: Int = 0,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Added or removed rows glide, the form below does not jump (W2).
+    Column(Modifier.animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.medium()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row -> androidx.compose.runtime.key(row) {
             var menu by remember { mutableStateOf(false) }
             // Handed-over values light up at the field's rim once, then settle (PLAN 9 A2).
@@ -928,7 +930,7 @@ private fun PairList(
     secondKeyboard: KeyboardOptions,
     suggestions: List<String>,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.animateContentSize(io.github.thelony97.orbit.core.designsystem.Motion.medium()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SpaceField(row.first, "", Modifier.weight(firstWeight), placeholder = firstHint, keyboardOptions = caps)
