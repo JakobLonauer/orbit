@@ -690,15 +690,30 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                     )
                 }
 
-                if (isOrg) GlassCard {
-                    SectionTitle("Regeln")
-                    SpaceField(prefixes, "Nummernbereich", placeholder = "0732 2468")
-                    Spacer(Modifier.size(8.dp))
-                    SpaceField(domains, "E-Mail-Domain", placeholder = "jku.at")
+                // Switching to an organisation lets its cards glide in (W2).
+                AnimatedVisibility(
+                    isOrg,
+                    enter = expandVertically(androidx.compose.animation.core.tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) +
+                        fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM_MS)),
+                    exit = shrinkVertically(androidx.compose.animation.core.tween(Motion.FAST_MS)) +
+                        fadeOut(androidx.compose.animation.core.tween(Motion.FAST_MS)),
+                ) {
+                    GlassCard {
+                        SectionTitle("Regeln")
+                        SpaceField(prefixes, "Nummernbereich", placeholder = "0732 2468")
+                        Spacer(Modifier.size(8.dp))
+                        SpaceField(domains, "E-Mail-Domain", placeholder = "jku.at")
+                    }
                 }
 
                 // Öffnungszeiten (PLAN 3.6), shown live on the page; the line below is what it will say now.
-                if (isOrg) GlassCard {
+                AnimatedVisibility(
+                    isOrg,
+                    enter = expandVertically(androidx.compose.animation.core.tween(Motion.MEDIUM_MS, easing = Motion.Emphasized)) +
+                        fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM_MS)),
+                    exit = shrinkVertically(androidx.compose.animation.core.tween(Motion.FAST_MS)) +
+                        fadeOut(androidx.compose.animation.core.tween(Motion.FAST_MS)),
+                ) { GlassCard {
                     SectionTitle("Öffnungszeiten")
                     SpaceField(hours, "", placeholder = "Mo-Fr 08:00-12:00,13:00-17:00; Sa 09:00-12:00")
                     val week = io.github.thelony97.orbit.core.domain.OpeningHours.parse(hours.text.toString())
@@ -742,7 +757,7 @@ fun ContactEditScreen(id: String?, prefill: String?, data: OrbitData, idx: Index
                             }
                         }
                     }
-                }
+                } }
                 if (vacationDialog) {
                     io.github.thelony97.orbit.ui.sheets.DateDialog(
                         initial = vacationUntil ?: java.time.LocalDate.now().plusDays(7),

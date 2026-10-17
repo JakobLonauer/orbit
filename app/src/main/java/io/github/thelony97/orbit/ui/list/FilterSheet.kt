@@ -81,7 +81,12 @@ fun FilterSheet(data: OrbitData, onDismiss: () -> Unit) {
                 Icon(Icons.Rounded.Tune, null, tint = Space.Violet, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Text("Filter & Sortierung", style = MaterialTheme.typography.titleLargeEmphasized, modifier = Modifier.weight(1f))
-                if (activeFilterCount(data) > 0) {
+                // Appears with the first filter and glides away with the last (W2).
+                androidx.compose.animation.AnimatedVisibility(
+                    activeFilterCount(data) > 0,
+                    enter = androidx.compose.animation.fadeIn(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
+                    exit = androidx.compose.animation.fadeOut(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
+                ) {
                     Text(
                         "Zurücksetzen",
                         style = MaterialTheme.typography.labelLarge,
