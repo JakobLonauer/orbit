@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.BouncesTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:16.223Z" hostname="runnervm8k3b6" time="0.03">
+  <properties/>
+  <testcase name="withoutReportOnlyFailureLines" classname="io.github.thelony97.orbit.core.domain.BouncesTest" time="0.018"/>
+  <testcase name="originalAndFinalNameTheSamePerson" classname="io.github.thelony97.orbit.core.domain.BouncesTest" time="0.001"/>
+  <testcase name="deadUntilHeardFromAgain" classname="io.github.thelony97.orbit.core.domain.BouncesTest" time="0.005"/>
+  <testcase name="bounceSenders" classname="io.github.thelony97.orbit.core.domain.BouncesTest" time="0.001"/>
+  <testcase name="deliveryReportFailed" classname="io.github.thelony97.orbit.core.domain.BouncesTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

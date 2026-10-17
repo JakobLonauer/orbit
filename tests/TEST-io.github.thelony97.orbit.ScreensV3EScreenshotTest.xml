@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensV3EScreenshotTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:44.962Z" hostname="runnervm8k3b6" time="5.924">
+  <properties/>
+  <testcase name="orbitLine" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.386"/>
+  <testcase name="midnightWheel" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.749"/>
+  <testcase name="entryTopics" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.843"/>
+  <testcase name="topics" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.565"/>
+  <testcase name="replyBar" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.345"/>
+  <testcase name="note" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.346"/>
+  <testcase name="previewGroups" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.821"/>
+  <testcase name="gifts" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.659"/>
+  <testcase name="midnightWheelTime" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.719"/>
+  <testcase name="automations" classname="io.github.thelony97.orbit.ScreensV3EScreenshotTest" time="0.473"/>
+  <system-out><![CDATA[Roborazzi: View.captureToImage Could not find window for view. Falling back to View#draw instead of PixelCopy(If you are using Material3 dialogs, this is expected).
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

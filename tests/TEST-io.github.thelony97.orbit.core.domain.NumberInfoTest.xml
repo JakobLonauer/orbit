@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.NumberInfoTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:16.845Z" hostname="runnervm8k3b6" time="0.13">
+  <properties/>
+  <testcase name="lineRules" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.005"/>
+  <testcase name="foreignLandline" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.101"/>
+  <testcase name="austrianLandlineHasItsTown" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.009"/>
+  <testcase name="pingSuspect" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.007"/>
+  <testcase name="viennaFromE164" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.0"/>
+  <testcase name="mobileAtHomeAndAbroad" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.0"/>
+  <testcase name="notANumber" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.0"/>
+  <testcase name="serviceNumbersSayWhatTheyCost" classname="io.github.thelony97.orbit.core.domain.NumberInfoTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

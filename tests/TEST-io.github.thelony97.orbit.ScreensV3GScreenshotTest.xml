@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensV3GScreenshotTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:50.896Z" hostname="runnervm8k3b6" time="4.65">
+  <properties/>
+  <testcase name="automationsPhotos" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.664"/>
+  <testcase name="meetWithPhotos" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.849"/>
+  <testcase name="giftAdd" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.901"/>
+  <testcase name="rollingTime" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.3"/>
+  <testcase name="deadMail" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.853"/>
+  <testcase name="giftsEmpty" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.524"/>
+  <testcase name="denseList" classname="io.github.thelony97.orbit.ScreensV3GScreenshotTest" time="0.544"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

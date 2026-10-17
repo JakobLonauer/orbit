@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.VCardReaderTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:17.411Z" hostname="runnervm8k3b6" time="0.005">
+  <properties/>
+  <testcase name="version3BusinessCard" classname="io.github.thelony97.orbit.core.domain.VCardReaderTest" time="0.002"/>
+  <testcase name="onlyAFullName" classname="io.github.thelony97.orbit.core.domain.VCardReaderTest" time="0.001"/>
+  <testcase name="birthdaysAndEmptyCards" classname="io.github.thelony97.orbit.core.domain.VCardReaderTest" time="0.0"/>
+  <testcase name="oldAndroidExportWithQuotedPrintableAndFolding" classname="io.github.thelony97.orbit.core.domain.VCardReaderTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

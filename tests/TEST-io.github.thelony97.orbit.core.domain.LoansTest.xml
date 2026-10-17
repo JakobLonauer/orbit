@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.LoansTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:16.750Z" hostname="runnervm8k3b6" time="0.007">
+  <properties/>
+  <testcase name="epcPayload" classname="io.github.thelony97.orbit.core.domain.LoansTest" time="0.005"/>
+  <testcase name="receipts" classname="io.github.thelony97.orbit.core.domain.LoansTest" time="0.001"/>
+  <testcase name="balanceCountsOpenMoneyOnly" classname="io.github.thelony97.orbit.core.domain.LoansTest" time="0.0"/>
+  <testcase name="ibanFromOwnCard" classname="io.github.thelony97.orbit.core.domain.LoansTest" time="0.0"/>
+  <testcase name="sinceWords" classname="io.github.thelony97.orbit.core.domain.LoansTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

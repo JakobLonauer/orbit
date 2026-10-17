@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.data.CongratsTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:09:15.955Z" hostname="runnervm8k3b6" time="0.014">
+  <properties/>
+  <testcase name="markNeverTakesTheTickAway" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.005"/>
+  <testcase name="secondTapTakesOnlyThisYearsTickAway" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.001"/>
+  <testcase name="givenIdeaIsTickedOffOnlyThere" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.001"/>
+  <testcase name="coGiversMostRecentFirstWithoutArchived" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.001"/>
+  <testcase name="tickAddsOneEntryForThisYear" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.0"/>
+  <testcase name="giftIsOneEntryPerYearAndCanBeChangedOrRemoved" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.001"/>
+  <testcase name="giftHistoryNewestYearFirst" classname="io.github.thelony97.orbit.data.CongratsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
