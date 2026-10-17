@@ -56,6 +56,12 @@
   - E9 Fotos: Setting `meetPhotos` (aus), READ_MEDIA_IMAGES erst beim Einschalten; `CalendarGhosts.Item.photos` = MediaStore-IDs; `MeetThumbs.load` ist Test-Haken (Robolectric kann keine Thumbnails) → im Test farbige Bitmaps. Bilder per IO in produceState → Screenshot mit `screen()` (echte Wartezeit), nicht `moment()`.
   - Rückgängig sofort anbieten, auch wenn danach noch kopiert wird: Halter-Objekt (`undone`, `ids`) teilt Stand zwischen Kopier-Job und Undo.
   - Wow-Review-Muster: zwei Aktionen für dasselbe im Leerzustand (Kopf-„+“ und Leer-Knopf) = W6-Verstoß; Orange nie als Deko (EmptyHint war orange).
+  - Bilanz Nacht 17.10.: 4 Releases (v1.0.317 3.0-G, v1.0.324 3.0-H, v1.0.328 Feinschliff, v1.0.332 Bewegung) + Nachtrag. Ablauf, der trug: kleine Pakete → Push → parallel Code-Review- UND Wow-/Audit-Subagent (sonnet reicht für Code) → Funde gesammelt fixen → grün → main ff. CI-Runde 6–10 min; Kompilierfehler: 0 in der ganzen Nacht (vor Push Signaturen gegen Repo prüfen lohnt).
+  - Audit-Subagent „Motion W2 im Code“ (Datei-Liste geben, nach `if` ohne AnimatedVisibility, fehlendem animateItem, Zahlen ohne RollingText suchen) findet schnell echte Sprünge – günstiger als Screenshot-Review.
+  - Lokaler `main`-Zweig im Container war uralt (cb04336) → vor ff-Merge `git reset --hard origin/main` auf main, dann `merge --ff-only dev`.
+  - !! CI-Flake: „Failed to fetch maven artifact org.robolectric:android-all-instrumented“ im AppSmokeTest = Infrastruktur → `gh run rerun <id> --failed` (einmal), war danach grün.
+  - Pinch-Lambdas in `pointerInput(Unit)` sehen alten State → Werte über `rememberUpdatedState` lesen (Kontaktliste Dichte).
+  - Agent-Prompts: Platzhalter wie FILES nicht vergessen zu ersetzen (Agent nahm dann alle 117 Bilder – ging trotzdem).
 
 ## 1. Umgebung / Runbook
 - Repo: JakobLonauer/orbit (Default main). Push via git funktioniert (GitHub-App + Proxy). `gh` REST ok, **GraphQL 403** -> `gh release list` geht NICHT; nimm `gh api repos/JakobLonauer/orbit/releases`.

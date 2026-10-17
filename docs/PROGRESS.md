@@ -27,7 +27,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 | Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
 | 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht als v1.0.317** (17.10. ~01:00) | – |
-| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte) | **veröffentlicht** (17.10. nachts, siehe unten) | – |
+| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte) + Feinschliff/Bewegung | **veröffentlicht als v1.0.324, v1.0.328, v1.0.332** + Nachtrag (17.10. nachts) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
@@ -43,6 +43,9 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 - **Feinschliff-Durchgang aller Screenshots** (Wow-Review-Subagent über 117 Bilder): Organisationen im Anrufbildschirm eckig mit Gebäude statt Initialen-Kreis, Meine Dienste blau statt Teal, Antwortzeile deckend (Text schien durch), Bearbeiten-Leiste auf 16-dp-Rinne, Standard-Nummer-Stern überall violett, „seit 2 W“ wie in der Liste, „Zur Ich-Karte“. Nicht übernommen (geprüft): Favoriten-Stern bleibt gold (Allgemeinsymbol), Rückgängig-Leisten-Hinweis bleibt (Entscheidung 3.0-F), „Diesen/Dieser Monat“ wie PLAN 3.5, Farbabweichungen im Anrufbildschirm-Test kommen aus den Testdaten.
 - **Veröffentlicht als v1.0.328** (Feinschliff-Durchgang, Zertifikat geprüft).
 - **Bewegungs-Durchgang W2** (Audit-Subagent über Verlauf, Anlässe, Einstellungen, Kontaktseite): Einstellungs-Gruppen und Achtung-Karte gleiten beim Ein-/Ausschalten statt zu springen, Tages- und Abschnittsköpfe ziehen mit ihren Zeilen mit, „Angepinnt“ gleitet ein, „N erledigt“ rollt, Haptik beim Abhaken (Bestätigen) und Löschen (Tick) von Themen/Ideen.
+- **Veröffentlicht als v1.0.332** (Bewegungs-Durchgang, Zertifikat geprüft).
+- **Bewegungs-Durchgang Teil 2** (Audit-Subagent Kontaktseite/Bearbeiten/Gruppen): Verlaufseinträge, angepinnte Notiz, Themen und Geschenkideen der Kontaktseite gleiten ein/aus, Nummern-/Adresszeilen im Bearbeiten gleiten, Gruppen-Liste gleitet, Favorit-Stern mit Haptik. Offen aus dem Audit (KANN): Organisations-Blöcke im Bearbeiten beim Umschalten Person/Organisation, „Foto entfernen“/Leeren-Knöpfe ein-/ausblenden, „Zurücksetzen“ im Filter-Sheet, gemeinsame Haptik in SpaceChip/OrbButton (Achtung: Aufrufer mit eigener Haptik würden doppelt vibrieren).
+- **Nächster konkreter Schritt:** Gerätetest mit Jakob: (1) Kontakt öffnen, mit der Zurück-Geste langsam ziehen – Seite schrumpft zur Zeile; (2) Automatiken › „Termin → Fotos“ einschalten, nach einem Termin mit Fotos den Treffen-Geist ansehen; (3) Kontaktliste mit zwei Fingern zusammenkneifen; (4) Ankommen an + WLAN bei einer Organisation gespeichert → Insel beim Verbinden. Danach die offenen KANN-Punkte oben.
 - **Bewusst offen (KANN):** B3 Beleg-Flug der Rückruf-Karte in den Verlauf (braucht den Anrufbildschirm am Gerät), Diktat-Morph aus der Kontaktseite.
 
 ### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
