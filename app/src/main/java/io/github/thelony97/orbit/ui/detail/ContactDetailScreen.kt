@@ -905,7 +905,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
 
             // Pinned note (also shown on incoming calls)
             if (c.pinnedNote.isNotBlank()) item(key = "pinned") {
-                GlassCard(Modifier.padding(top = 8.dp), padding = 16.dp, border = Space.Orange.copy(alpha = 0.45f)) {
+                GlassCard(Modifier.animateItem().padding(top = 8.dp), padding = 16.dp, border = Space.Orange.copy(alpha = 0.45f)) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { noteDialog = NoteTarget.Pinned },
                         verticalAlignment = Alignment.CenterVertically,
@@ -919,7 +919,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
 
             // Topics – only when there are some or "+ Thema" opened the section (W5)
             if (!c.isMe && (c.topics.isNotEmpty() || "topics" in opened)) item(key = "topics") {
-                SectionCard(title = "Nächstes Mal ansprechen", icon = Icons.Rounded.Checklist) {
+                SectionCard(title = "Nächstes Mal ansprechen", modifier = Modifier.animateItem(), icon = Icons.Rounded.Checklist) {
                     Checklist(
                         items = c.topics,
                         placeholder = "Thema hinzufügen",
@@ -950,7 +950,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
 
             // Gifts
             if (!c.isOrg && !c.isMe && (c.gifts.isNotEmpty() || "gifts" in opened)) item(key = "gifts") {
-                SectionCard(title = "Geschenkideen", icon = Icons.Rounded.CardGiftcard) {
+                SectionCard(title = "Geschenkideen", modifier = Modifier.animateItem(), icon = Icons.Rounded.CardGiftcard) {
                     Checklist(
                         items = c.gifts,
                         placeholder = "Idee notieren",
