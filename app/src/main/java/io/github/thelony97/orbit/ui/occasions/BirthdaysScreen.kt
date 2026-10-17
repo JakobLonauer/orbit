@@ -54,6 +54,7 @@ import io.github.thelony97.orbit.ui.components.contactColor
 import io.github.thelony97.orbit.ui.components.glow
 import io.github.thelony97.orbit.ui.components.sharedContact
 import io.github.thelony97.orbit.ui.home.BottomBarSpace
+import io.github.thelony97.orbit.core.designsystem.Motion
 import io.github.thelony97.orbit.ui.theme.Space
 import java.time.LocalDate
 import kotlinx.coroutines.launch
@@ -188,8 +189,8 @@ fun BirthdaysScreen(data: OrbitData, idx: Index, nav: Nav, todayDate: LocalDate 
                 // Pinning the first occasion slides the chip in; „Alle Anlässe“ glides aside (W2).
                 androidx.compose.animation.AnimatedVisibility(
                     hasPinned,
-                    enter = androidx.compose.animation.expandHorizontally(io.github.thelony97.orbit.core.designsystem.Motion.medium()) + androidx.compose.animation.fadeIn(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
-                    exit = androidx.compose.animation.shrinkHorizontally(io.github.thelony97.orbit.core.designsystem.Motion.medium()) + androidx.compose.animation.fadeOut(io.github.thelony97.orbit.core.designsystem.Motion.fast()),
+                    enter = androidx.compose.animation.expandHorizontally(Motion.medium()) + androidx.compose.animation.fadeIn(Motion.fast()),
+                    exit = androidx.compose.animation.shrinkHorizontally(Motion.medium()) + androidx.compose.animation.fadeOut(Motion.fast()),
                 ) {
                     io.github.thelony97.orbit.ui.components.SpaceChip("Angepinnt", shown == 1, { reiter = 1 }, accent = Space.Coral)
                 }
