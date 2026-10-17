@@ -27,7 +27,7 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 | 3.0-F Feinschliff (Wow-Review 3.0-E, Null-Text, offene E-Reste) | **veröffentlicht als v1.0.300**, Nachtrag **v1.0.305** (16.10. ~03:20) | – |
 | Hotfix Kontaktseiten (Absturz ohne Foto) + App-Rauchtest | **veröffentlicht als v1.0.310** (16.10. früh) | – |
 | 3.0-G Feinschliff II (E21 Zurück zur Zeile, E9 Fotos aus dem Termin, E14 unzustellbare Mails, Geschenke-Leerzustand, Rad-Ziffern) | **veröffentlicht als v1.0.317** (17.10. ~01:00) | – |
-| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte) + Feinschliff/Bewegung | **veröffentlicht als v1.0.324, v1.0.328, v1.0.332** + Nachtrag (17.10. nachts) | – |
+| 3.0-H Reste (A13 Fristen im Orbit-Kalender, D8 Ankommen per WLAN, E19 Dichte) + Feinschliff/Bewegung | **veröffentlicht als v1.0.324, v1.0.328, v1.0.332, v1.0.336, zuletzt v1.0.339** (17.10. 03:12, Zertifikat geprüft) | – |
 
 **Regel für parallele Sitzungen:** Wer eine Stufe beginnt, trägt sich hier ein (eigener Commit, sofort pushen). Eine Stufe mit „in Arbeit“ nicht anfassen, außer der letzte Commit auf `dev` ist älter als 2 Stunden. Vor jedem Push `git fetch && git rebase origin/dev`.
 
