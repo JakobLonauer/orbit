@@ -41,6 +41,8 @@ Jakob 15.10. 16:28: „okay upgrade auf 3.0 jetzt – arbeite bis du fertig bist
 - **Wow-Gate 3.0-H:** [x] Momente (Dichte gleitet, Tick beim Umschalten) · [x] berührte Screens gegen W1–W9 (Kontaktliste, Banner) · [x] Screenshots + Wow-Review · [x] kein Ruckeln (WLAN-Empfänger nur mit gespeichertem WLAN und Ankommen an) · [x] Feinschliff-Runde.
 - **Veröffentlicht als v1.0.324** (Zertifikat geprüft).
 - **Feinschliff-Durchgang aller Screenshots** (Wow-Review-Subagent über 117 Bilder): Organisationen im Anrufbildschirm eckig mit Gebäude statt Initialen-Kreis, Meine Dienste blau statt Teal, Antwortzeile deckend (Text schien durch), Bearbeiten-Leiste auf 16-dp-Rinne, Standard-Nummer-Stern überall violett, „seit 2 W“ wie in der Liste, „Zur Ich-Karte“. Nicht übernommen (geprüft): Favoriten-Stern bleibt gold (Allgemeinsymbol), Rückgängig-Leisten-Hinweis bleibt (Entscheidung 3.0-F), „Diesen/Dieser Monat“ wie PLAN 3.5, Farbabweichungen im Anrufbildschirm-Test kommen aus den Testdaten.
+- **Veröffentlicht als v1.0.328** (Feinschliff-Durchgang, Zertifikat geprüft).
+- **Bewegungs-Durchgang W2** (Audit-Subagent über Verlauf, Anlässe, Einstellungen, Kontaktseite): Einstellungs-Gruppen und Achtung-Karte gleiten beim Ein-/Ausschalten statt zu springen, Tages- und Abschnittsköpfe ziehen mit ihren Zeilen mit, „Angepinnt“ gleitet ein, „N erledigt“ rollt, Haptik beim Abhaken (Bestätigen) und Löschen (Tick) von Themen/Ideen.
 - **Bewusst offen (KANN):** B3 Beleg-Flug der Rückruf-Karte in den Verlauf (braucht den Anrufbildschirm am Gerät), Diktat-Morph aus der Kontaktseite.
 
 ### 17.10.2026 nachts (Nachtsitzung 00:00–05:00) – 3.0-G Feinschliff II
