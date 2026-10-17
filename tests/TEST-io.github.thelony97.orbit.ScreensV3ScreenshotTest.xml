@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensV3ScreenshotTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:33.497Z" hostname="runnervm8k3b6" time="8.856">
+  <properties/>
+  <testcase name="editOrg" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.944"/>
+  <testcase name="editMerge" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.882"/>
+  <testcase name="todayLive" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.486"/>
+  <testcase name="markedNumber" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.565"/>
+  <testcase name="editMe" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.508"/>
+  <testcase name="shareFieldsOrg" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.369"/>
+  <testcase name="detailLong" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.689"/>
+  <testcase name="dictation" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.319"/>
+  <testcase name="numbersDrawer" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.379"/>
+  <testcase name="shareFields" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.401"/>
+  <testcase name="detailTitled" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.443"/>
+  <testcase name="todayGhosts" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.265"/>
+  <testcase name="markedMail" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.341"/>
+  <testcase name="markedText" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.338"/>
+  <testcase name="searchSoundsAlike" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.363"/>
+  <testcase name="markedUnknown" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.302"/>
+  <testcase name="dictationLetters" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.181"/>
+  <testcase name="editIntake" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.356"/>
+  <testcase name="editPerson" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.427"/>
+  <testcase name="numbersEmpty" classname="io.github.thelony97.orbit.ScreensV3ScreenshotTest" time="0.27"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

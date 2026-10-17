@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.ScreensV3TodayScreenshotTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:44.186Z" hostname="runnervm8k3b6" time="1.004">
+  <properties/>
+  <testcase name="todayRow" classname="io.github.thelony97.orbit.ScreensV3TodayScreenshotTest" time="0.427"/>
+  <testcase name="island" classname="io.github.thelony97.orbit.ScreensV3TodayScreenshotTest" time="0.26"/>
+  <testcase name="todayEntering" classname="io.github.thelony97.orbit.ScreensV3TodayScreenshotTest" time="0.255"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

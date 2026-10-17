@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ContractsTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:16.539Z" hostname="runnervm8k3b6" time="0.02">
+  <properties/>
+  <testcase name="firstTermDeadline" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.0"/>
+  <testcase name="dueWithinLead" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.002"/>
+  <testcase name="deadlineDayItselfStillCounts" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.0"/>
+  <testcase name="deadlineMissedMovesToNextTerm" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.0"/>
+  <testcase name="noStartNoTerm" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.001"/>
+  <testcase name="progressAndMarks" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.0"/>
+  <testcase name="cancelledKeepsItsTerm" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.0"/>
+  <testcase name="mail" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.001"/>
+  <testcase name="lines" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.008"/>
+  <testcase name="indefiniteMonthly" classname="io.github.thelony97.orbit.core.domain.ContractsTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

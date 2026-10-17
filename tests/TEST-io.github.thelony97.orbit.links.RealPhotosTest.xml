@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.links.RealPhotosTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:46.408Z" hostname="runnervm8k3b6" time="0.123">
+  <properties/>
+  <testcase name="brokenPictureIsNoCrash" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.022"/>
+  <testcase name="brokenNetworkIsNoCrash" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.013"/>
+  <testcase name="smallPictureIsNotOffered" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.014"/>
+  <testcase name="organisationTriesItsWebsiteFirst" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.016"/>
+  <testcase name="nothingFoundIsNoCrash" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.01"/>
+  <testcase name="bigPictureIsOfferedOnce" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.019"/>
+  <testcase name="contactWithPhotoIsNotAsked" classname="io.github.thelony97.orbit.links.RealPhotosTest" time="0.025"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.PhoneBookTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:17.079Z" hostname="runnervm8k3b6" time="0.08">
+  <properties/>
+  <testcase name="whoGoesIn" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.001"/>
+  <testcase name="ownRingtoneBeatsTheGroupAndYearlessBirthday" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.006"/>
+  <testcase name="planInsertsRewritesAndDeletes" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.059"/>
+  <testcase name="cardOfAPerson" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.0"/>
+  <testcase name="hashFollowsTheContent" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.006"/>
+  <testcase name="cardOfAnOrganisation" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.0"/>
+  <testcase name="macrosOnlyForOrganisationsAndHashStaysWithout" classname="io.github.thelony97.orbit.core.domain.PhoneBookTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

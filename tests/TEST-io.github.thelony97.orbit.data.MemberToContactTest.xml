@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.data.MemberToContactTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:08:46.317Z" hostname="runnervm8k3b6" time="0.003">
+  <properties/>
+  <testcase name="mergeIntoExistingKeepsTheirDataAndAddsOnlyNew" classname="io.github.thelony97.orbit.data.MemberToContactTest" time="0.0"/>
+  <testcase name="newPersonTakesConversationsNoteAndGetsTheZuordnung" classname="io.github.thelony97.orbit.data.MemberToContactTest" time="0.001"/>
+  <testcase name="unknownTargetsChangeNothing" classname="io.github.thelony97.orbit.data.MemberToContactTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.FieldGhostsTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-16T23:49:16.639Z" hostname="runnervm8k3b6" time="0.018">
+  <properties/>
+  <testcase name="findsNewOnly" classname="io.github.thelony97.orbit.core.domain.FieldGhostsTest" time="0.017"/>
+  <testcase name="dismissedStaysAway" classname="io.github.thelony97.orbit.core.domain.FieldGhostsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

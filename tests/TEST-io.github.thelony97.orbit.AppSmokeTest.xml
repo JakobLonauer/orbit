@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.AppSmokeTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-17T01:06:06.320Z" hostname="runnervm8k3b6" time="84.495">
+  <properties/>
+  <testcase name="foundPictureBecomesThePhoto" classname="io.github.thelony97.orbit.AppSmokeTest" time="22.784"/>
+  <testcase name="everyContactEditsAndDiscards" classname="io.github.thelony97.orbit.AppSmokeTest" time="21.366"/>
+  <testcase name="pagePartsWorkAsIntended" classname="io.github.thelony97.orbit.AppSmokeTest" time="3.882"/>
+  <testcase name="tabsSettingsAndShortcuts" classname="io.github.thelony97.orbit.AppSmokeTest" time="13.884"/>
+  <testcase name="everyContactOpensAndScrolls" classname="io.github.thelony97.orbit.AppSmokeTest" time="14.475"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
