@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:32.963Z" hostname="runnervmtai0g" time="0.025">
+  <properties/>
+  <testcase name="noWordInside" classname="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" time="0.016"/>
+  <testcase name="byAttendee" classname="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" time="0.0"/>
+  <testcase name="byFirstNameWhenUnique" classname="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" time="0.0"/>
+  <testcase name="photoWindow" classname="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" time="0.001"/>
+  <testcase name="ambiguousFirstNameNeedsFullName" classname="io.github.thelony97.orbit.core.domain.CalendarBridgeTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

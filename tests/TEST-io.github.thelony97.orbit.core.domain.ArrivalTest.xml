@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ArrivalTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:32.442Z" hostname="runnervmtai0g" time="0.096">
+  <properties/>
+  <testcase name="summary" classname="io.github.thelony97.orbit.core.domain.ArrivalTest" time="0.055"/>
+  <testcase name="onlyPlacesWithContent" classname="io.github.thelony97.orbit.core.domain.ArrivalTest" time="0.011"/>
+  <testcase name="visit" classname="io.github.thelony97.orbit.core.domain.ArrivalTest" time="0.026"/>
+  <testcase name="byKnownWifi" classname="io.github.thelony97.orbit.core.domain.ArrivalTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

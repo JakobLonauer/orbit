@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.XlsxTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:34.301Z" hostname="runnervmtai0g" time="0.015">
+  <properties/>
+  <testcase name="writesAllPartsWithEscapedTextAndNumbers" classname="io.github.thelony97.orbit.core.domain.XlsxTest" time="0.014"/>
+  <testcase name="columnsCountLikeExcel" classname="io.github.thelony97.orbit.core.domain.XlsxTest" time="0.0"/>
+  <testcase name="sheetNamesAreCleanedAndShortened" classname="io.github.thelony97.orbit.core.domain.XlsxTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ShareInTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:34.023Z" hostname="runnervmtai0g" time="0.01">
+  <properties/>
+  <testcase name="googleMapsPlace" classname="io.github.thelony97.orbit.core.domain.ShareInTest" time="0.001"/>
+  <testcase name="browserPage" classname="io.github.thelony97.orbit.core.domain.ShareInTest" time="0.003"/>
+  <testcase name="numberAndMailAlone" classname="io.github.thelony97.orbit.core.domain.ShareInTest" time="0.005"/>
+  <testcase name="plainTextAndNothing" classname="io.github.thelony97.orbit.core.domain.ShareInTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

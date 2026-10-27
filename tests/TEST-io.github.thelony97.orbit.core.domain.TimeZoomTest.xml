@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.TimeZoomTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:34.165Z" hostname="runnervmtai0g" time="0.014">
+  <properties/>
+  <testcase name="summary" classname="io.github.thelony97.orbit.core.domain.TimeZoomTest" time="0.009"/>
+  <testcase name="labels" classname="io.github.thelony97.orbit.core.domain.TimeZoomTest" time="0.004"/>
+  <testcase name="levels" classname="io.github.thelony97.orbit.core.domain.TimeZoomTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

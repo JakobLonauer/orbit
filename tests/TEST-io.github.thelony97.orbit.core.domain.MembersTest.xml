@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.MembersTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:33.592Z" hostname="runnervmtai0g" time="0.006">
+  <properties/>
+  <testcase name="searchByNameRoleAndExtension" classname="io.github.thelony97.orbit.core.domain.MembersTest" time="0.0"/>
+  <testcase name="oneFieldMakesNameAndRole" classname="io.github.thelony97.orbit.core.domain.MembersTest" time="0.003"/>
+  <testcase name="mostRecentConversationFirst" classname="io.github.thelony97.orbit.core.domain.MembersTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ArchitectureTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:32.334Z" hostname="runnervmtai0g" time="0.098">
+  <properties/>
+  <testcase name="modelDoesNotUseDomain" classname="io.github.thelony97.orbit.core.domain.ArchitectureTest" time="0.033"/>
+  <testcase name="pureModulesHaveNoAndroid" classname="io.github.thelony97.orbit.core.domain.ArchitectureTest" time="0.027"/>
+  <testcase name="modulesAreThere" classname="io.github.thelony97.orbit.core.domain.ArchitectureTest" time="0.012"/>
+  <testcase name="coreNeverNamesTheApp" classname="io.github.thelony97.orbit.core.domain.ArchitectureTest" time="0.019"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

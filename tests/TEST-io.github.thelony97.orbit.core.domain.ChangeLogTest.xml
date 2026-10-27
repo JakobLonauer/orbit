@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ChangeLogTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:33.176Z" hostname="runnervmtai0g" time="0.105">
+  <properties/>
+  <testcase name="revertNeverOverwritesALaterChange" classname="io.github.thelony97.orbit.core.domain.ChangeLogTest" time="0.088"/>
+  <testcase name="onlyUpdatedAtIsNoChange" classname="io.github.thelony97.orbit.core.domain.ChangeLogTest" time="0.007"/>
+  <testcase name="prune" classname="io.github.thelony97.orbit.core.domain.ChangeLogTest" time="0.0"/>
+  <testcase name="diffAndRevert" classname="io.github.thelony97.orbit.core.domain.ChangeLogTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

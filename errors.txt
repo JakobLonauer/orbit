@@ -1,0 +1,51 @@
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:31:43 Conflicting import: imported name 'Space' is ambiguous.
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:39:43 Conflicting import: imported name 'Space' is ambiguous.
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:94:1 This annotation is not repeatable.
+
+> Task :app:compileDebugKotlin FAILED
+
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:31:43 Conflicting import: imported name 'Space' is ambiguous.
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:39:43 Conflicting import: imported name 'Space' is ambiguous.
+e: file:///home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt:94:1 This annotation is not repeatable.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793136681269.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/orbit/orbit/build/reports/problems/problems-report.html
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin' (registered by plugin 'com.android.internal.application').
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Kotlin compiler: CONFLICTING_IMPORT
+       Kotlin compiler error
+         Conflicting import: imported name 'Space' is ambiguous.
+         Location: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt line 31
+
+--
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin' (registered by plugin 'com.android.internal.application').
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:135)
+	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:288)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:133)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:121)
+	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
+	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
+--
+* What went wrong:
+Execution failed for task ':app:compileReleaseKotlin' (registered by plugin 'com.android.internal.application').
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Kotlin compiler: CONFLICTING_IMPORT
+       Kotlin compiler error
+         Conflicting import: imported name 'Space' is ambiguous.
+         Location: /home/runner/work/orbit/orbit/app/src/main/java/io/github/thelony97/orbit/ui/detail/FieldGhostRow.kt line 31
+
+--
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileReleaseKotlin' (registered by plugin 'com.android.internal.application').
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:135)
+	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:288)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:133)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:121)
+	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
+	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)

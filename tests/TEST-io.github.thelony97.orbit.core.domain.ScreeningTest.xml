@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.ScreeningTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:33.989Z" hostname="runnervmtai0g" time="0.01">
+  <properties/>
+  <testcase name="rulesInOrder" classname="io.github.thelony97.orbit.core.domain.ScreeningTest" time="0.008"/>
+  <testcase name="typedListsAreCleaned" classname="io.github.thelony97.orbit.core.domain.ScreeningTest" time="0.0"/>
+  <testcase name="knownNumbersAreNeverTouched" classname="io.github.thelony97.orbit.core.domain.ScreeningTest" time="0.001"/>
+  <testcase name="seriesTypedNationally" classname="io.github.thelony97.orbit.core.domain.ScreeningTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

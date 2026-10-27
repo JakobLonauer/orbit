@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.DictationTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:33.359Z" hostname="runnervmtai0g" time="0.006">
+  <properties/>
+  <testcase name="signsStayVisible" classname="io.github.thelony97.orbit.core.domain.DictationTest" time="0.005"/>
+  <testcase name="sixSignsStayWhole" classname="io.github.thelony97.orbit.core.domain.DictationTest" time="0.0"/>
+  <testcase name="blocksKeepTheOwnGrouping" classname="io.github.thelony97.orbit.core.domain.DictationTest" time="0.0"/>
+  <testcase name="austrianAlphabet" classname="io.github.thelony97.orbit.core.domain.DictationTest" time="0.0"/>
+  <testcase name="spelledLettersOnly" classname="io.github.thelony97.orbit.core.domain.DictationTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

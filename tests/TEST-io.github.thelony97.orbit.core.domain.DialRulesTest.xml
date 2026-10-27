@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.thelony97.orbit.core.domain.DialRulesTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T21:33:33.319Z" hostname="runnervmtai0g" time="0.035">
+  <properties/>
+  <testcase name="athomeNothingChanges" classname="io.github.thelony97.orbit.core.domain.DialRulesTest" time="0.001"/>
+  <testcase name="hiddenNumberGoesOutWith31" classname="io.github.thelony97.orbit.core.domain.DialRulesTest" time="0.029"/>
+  <testcase name="abroadNationalNumbersGetTheCountryCode" classname="io.github.thelony97.orbit.core.domain.DialRulesTest" time="0.003"/>
+  <testcase name="shortNumbersAndMacroTailsStay" classname="io.github.thelony97.orbit.core.domain.DialRulesTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
