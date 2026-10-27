@@ -239,13 +239,20 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             ?: io.github.thelony97.orbit.domain.Phones.countryIso(ctx)
     }
     val changes = rememberChanges(contact.id)
-    val realPhoto by androidx.compose.runtime.produceState<io.github.thelony97.orbit.links.RealPhotos.Found?>(null, contact.photo, contact.emails, data.settings.dismissedGhosts) {
+    // E1-01/W2-01: one shared failed-extras signal instead of each extra failing silently and
+    // separately; retryTicks lets a retry re-run just the one that failed (E2-01).
+    val extraRetryTicks by io.github.thelony97.orbit.util.ExtraStatus.retryTicks.collectAsState()
+    val realPhoto by androidx.compose.runtime.produceState<io.github.thelony97.orbit.links.RealPhotos.Found?>(
+        null, contact.photo, contact.emails, data.settings.dismissedGhosts, extraRetryTicks["Echtes Bild"],
+    ) {
         // Extras of the page (ghosts, mentions) never take the page down: a failure shows nothing.
         value = if (contact.isMe || "photo:${contact.id}" in data.settings.dismissedGhosts) null
         else io.github.thelony97.orbit.util.quietly("Echtes Bild", null) { io.github.thelony97.orbit.links.RealPhotos.find(contact) }
     }
     // Both scan every note / the whole Verlauf – off the main thread (PLAN 8.2).
-    val mentions by androidx.compose.runtime.produceState(emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts) {
+    val mentions by androidx.compose.runtime.produceState(
+        emptyList<io.github.thelony97.orbit.core.domain.Mentions.Backlink>(), contact.id, data.contacts, extraRetryTicks["Erwähnungen"],
+    ) {
         val id = contact.id
         val all = data.contacts
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -254,7 +261,7 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
     }
     val fieldGhosts by androidx.compose.runtime.produceState(
         emptyList<io.github.thelony97.orbit.core.domain.FieldGhosts.Ghost>(),
-        contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts,
+        contact.entries, contact.phones, contact.emails, contact.addresses, data.settings.dismissedGhosts, extraRetryTicks["Geister aus SMS"],
     ) {
         val c = contact
         val dismissed = data.settings.dismissedGhosts.toSet()
@@ -264,6 +271,11 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
             }
         }
     }
+    // W2-01: several extras down at once (e.g. offline) show one shared notice, not one per
+    // block; only the extras this page actually fetches for this contact count.
+    val extraLabelsHere = remember { listOf("Echtes Bild", "Erwähnungen", "Geister aus SMS") }
+    val failedExtras by io.github.thelony97.orbit.util.ExtraStatus.failed.collectAsState()
+    val failedExtrasHere = remember(failedExtras) { failedExtras.filter { it in extraLabelsHere } }
     val landlines = remember(contact.phones, phoneIso) {
         contact.phones.associate { p ->
             p.value to io.github.thelony97.orbit.core.domain.NumberKind.isLandline(io.github.thelony97.orbit.domain.Phones.normalize(p.value, phoneIso))
@@ -862,6 +874,12 @@ fun ContactDetailScreen(id: String, data: OrbitData, idx: Index, nav: Nav, openE
                 item(key = "macros") {
                     MacroSection(c, data, onEdit = { macroEdit = it })
                 }
+            }
+
+            // E1-01/W2-01: one shared notice above the extras it covers, instead of each one
+            // failing silently and separately.
+            if (failedExtrasHere.isNotEmpty()) {
+                item(key = "extras-failed") { ExtrasFailedRow(failedExtrasHere) }
             }
 
             // PLAN 9 E16: a real picture (Gravatar, the website's icon) for a contact without one.
