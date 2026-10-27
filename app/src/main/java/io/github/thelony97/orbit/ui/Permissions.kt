@@ -38,4 +38,9 @@ object Permissions {
         "Android blockiert bei Apps außerhalb des Play Stores manchmal SMS und Anrufliste. " +
             "So schaltest du es frei: App-Info öffnen → oben rechts ⋮ → „Eingeschränkte Einstellungen zulassen“ → " +
             "bestätigen → zurück in Orbit und nochmal erlauben."
+
+    const val RESTRICTED_HELP_DIALER =
+        "Android blockiert bei Apps außerhalb des Play Stores manchmal die Telefon-App-Rolle. " +
+            "So schaltest du es frei: App-Info öffnen → oben rechts ⋮ → „Eingeschränkte Einstellungen zulassen“ → " +
+            "bestätigen → zurück in Orbit und den Schalter nochmal einschalten."
 }

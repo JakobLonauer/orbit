@@ -273,6 +273,9 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     var permissionsOpen by remember { mutableStateOf(false) }
     var handbook by remember { mutableStateOf(false) }
     var phoneDialog by remember { mutableStateOf(false) }
+    // W1-02/W2-02: only after Android actually refused the dialer role (declined or blocked by
+    // restricted settings), not on first sight – same rule as the other permissions above.
+    var phoneRoleDenied by remember { mutableStateOf(false) }
     var smsDialog by remember { mutableStateOf(false) }
     val update by Updates.state.collectAsState()
     val mailAccounts by MailAccounts.accounts.collectAsState()
@@ -321,7 +324,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
     val phoneRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
         permissionTick++
-        if (io.github.thelony97.orbit.call.PhoneRole.held(ctx)) io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Orbit ist jetzt die Telefon-App")
+        if (io.github.thelony97.orbit.call.PhoneRole.held(ctx)) {
+            phoneRoleDenied = false
+            io.github.thelony97.orbit.ui.components.Undo.note(ctx, "Orbit ist jetzt die Telefon-App")
+        } else {
+            phoneRoleDenied = true
+        }
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -539,6 +547,18 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                         }
                     },
                 )
+                if (!held && phoneRoleDenied) {
+                    Hairline()
+                    // W1-02/W2-02: Android refused the role – a direct way to the App-Info page
+                    // instead of leaving Jakob to find "Eingeschränkte Einstellungen" himself.
+                    AttentionRow(io.github.thelony97.orbit.ui.Permissions.RESTRICTED_HELP_DIALER, null) {
+                        GhostButton("App-Info", {
+                            io.github.thelony97.orbit.security.AppLock.allowExternal()
+                            runCatching { ctx.startActivity(io.github.thelony97.orbit.ui.Permissions.appInfoIntent(ctx)) }
+                                .onFailure { toast("Nicht möglich", ok = false) }
+                        })
+                    }
+                }
                 if (held) {
                     Hairline()
                     SettingItem(
@@ -1049,8 +1069,12 @@ fun SettingsScreen(data: OrbitData, nav: Nav, area: String? = null) {
                     val request = io.github.thelony97.orbit.call.PhoneRole.requestIntent(ctx)
                     if (request != null) runCatching { phoneRoleLauncher.launch(request) }.onFailure {
                         io.github.thelony97.orbit.call.PhoneRole.tidy(ctx)
+                        phoneRoleDenied = true
                         toast("Nicht möglich", ok = false)
-                    } else toast("Nicht möglich", ok = false)
+                    } else {
+                        phoneRoleDenied = true
+                        toast("Nicht möglich", ok = false)
+                    }
                 }) { Text("Einschalten") }
             },
             dismissButton = { TextButton(onClick = { phoneDialog = false }) { Text("Abbrechen") } },
